@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"math"
 	"testing"
 	"time"
 )
@@ -265,5 +266,75 @@ func TestAMealLeansTheEgg(t *testing.T) {
 	}
 	if eyes < n*18/100 || eyes > n*32/100 {
 		t.Errorf("odd eyes from a legendary meal %d times in %d", eyes, n)
+	}
+}
+
+func TestTheOddsAreTheBench(t *testing.T) {
+	parent := lookOf(1207)
+	for _, c := range []struct {
+		dye, stamp, drop string
+		meal             int
+	}{
+		{"dye_blue", "stamp_bands", "", 2},
+		{"", "", "drops_pale", -1},
+		{"dye_gold", "", "", 4},
+		{"", "stamp_spots", "", -1},
+	} {
+		o := layOdds(parent, c.dye, c.stamp, c.drop, c.meal, map[string]bool{})
+		sum := 0.0
+		for _, x := range o.Outcomes {
+			sum += x.Chance
+		}
+		if math.Abs(sum-1) > 1e-9 {
+			t.Fatalf("%+v: the odds come to %v", c, sum)
+		}
+		const n = 20000
+		got, eyes := map[[2]string]int{}, 0
+		for range n {
+			m := breedFed(parent, randomSeed(), c.dye, c.stamp, c.drop, c.meal)
+			got[[2]string{m.Morph, m.Pattern}]++
+			if m.Iris != "" {
+				eyes++
+			}
+		}
+		for _, x := range o.Outcomes {
+			if d := math.Abs(float64(got[[2]string{x.Morph, x.Pattern}])/n - x.Chance); d > 0.015 {
+				t.Errorf("%+v: %s %s said %.3f, hatched %.3f", c, x.Morph, x.Pattern, x.Chance, float64(got[[2]string{x.Morph, x.Pattern}])/n)
+			}
+		}
+		if d := math.Abs(float64(eyes)/n - o.Eyes); d > 0.015 {
+			t.Errorf("%+v: odd eyes said %.3f, hatched %.3f", c, o.Eyes, float64(eyes)/n)
+		}
+	}
+	seen := map[string]bool{parent.morph.Name: true, parent.pattern: true}
+	for _, x := range layOdds(parent, "dye_blue", "", "", -1, seen).Outcomes {
+		if want := x.Morph != parent.morph.Name || x.Pattern != parent.pattern; x.New != want {
+			t.Errorf("%s %s new %v", x.Morph, x.Pattern, x.New)
+		}
+	}
+}
+
+func TestOddsForAPondsFrog(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	v, _ := s.view(id)
+	f := v.Frogs[0].ID
+	if _, err := s.layOddsOf(id, 99999, "", "", ""); !errors.Is(err, errNotHeld) {
+		t.Errorf("odds for somebody else's frog: %v", err)
+	}
+	if _, err := s.layOddsOf(id, f, "dye_nope", "", ""); !errors.Is(err, errNotHeld) {
+		t.Errorf("odds with a dye that doesn't exist: %v", err)
+	}
+	*clock = clock.Add(12 * 24 * time.Hour)
+	pie := dishOf(10, 10).kind()
+	if err := s.write(func(tx *sql.Tx) error { return addItem(tx, id, pie, 1) }); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.feed(id, f, pie); err != nil {
+		t.Fatal(err)
+	}
+	o, err := s.layOddsOf(id, f, "dye_blue", "", "")
+	if err != nil || o.Takes != 1 || o.Meal == "" || o.Outcomes[0].Morph != "BLUE" || o.Outcomes[0].New != (v.Frogs[0].Morph != "BLUE") {
+		t.Fatalf("odds off a meal: %v %+v", err, o)
 	}
 }

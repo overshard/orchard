@@ -1,9 +1,11 @@
 package main
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
 	"math/rand/v2"
+	"slices"
 	"time"
 )
 
@@ -93,7 +95,7 @@ func boughtPads(q querier, p *pond) (int, error) {
 
 func clamp(v, lo, hi float64) float64 { return max(lo, min(hi, v)) }
 
-// A fed frog lays a better egg. The meal's tier sets how often a dye, stamp
+// A fed frog lays a better egg. The meal's tier sets how often a dye, pattern
 // or drops take, and a rare meal or better can give the egg odd eyes alone.
 var (
 	mealTakes = [tierCount]float64{0.74, 0.80, 0.86, 0.92, 1}
@@ -155,6 +157,178 @@ func breedFed(parent look, seed uint32, dye, stamp, drop string, meal int) mods 
 	m.Hue = clamp(m.Hue, d.H[0]-15, d.H[1]+15)
 	m.Lit = clamp(m.Lit, d.L[0]-6, d.L[1]+6)
 	return m
+}
+
+// ---------------------------------------------------------------- the odds
+
+type outcomeView struct {
+	Morph   string  `json:"morph"`
+	Pattern string  `json:"pattern"`
+	Chance  float64 `json:"chance"`
+	// New is a colour or a back the pond's register doesn't have yet.
+	New bool `json:"new"`
+}
+
+type oddsView struct {
+	Takes float64 `json:"takes"`
+	// Meal is the dish the frog is full of, "" when it isn't.
+	Meal     string        `json:"meal"`
+	Outcomes []outcomeView `json:"outcomes"`
+	// Eyes is the chance of odd eyes, and Drops what it would be with drops in.
+	Eyes  float64 `json:"eyes"`
+	Drops float64 `json:"drops"`
+}
+
+// layOdds works out what breedFed can hatch and how often, by walking every
+// roll it makes. The nudges to hue and size never change a morph or a back,
+// so they're left out. seen is the register's colours and backs.
+func layOdds(parent look, dye, stamp, drop string, meal int, seen map[string]bool) oddsView {
+	takes := dyeTakes
+	if meal >= 0 {
+		takes = mealTakes[meal]
+	}
+	eyeChance := 0.0
+	if meal >= 0 {
+		eyeChance = mealEyes[meal]
+	}
+	dyed, hasDye := dyeMorph[dye]
+	pat, hasStamp := stamps[stamp]
+	iris, hasDrops := drops[drop]
+	chance := map[[2]string]float64{}
+	var eyes, dropEyes float64
+	// odd is the chance an egg with this morph and this iris so far ends up
+	// with odd eyes, with drops put in or not.
+	odd := func(withDrops bool, ir, mo string) float64 {
+		is := func(c string) float64 {
+			if c != "" && c != morphEye[mo] {
+				return 1
+			}
+			return 0
+		}
+		rest := is(ir)
+		if meal >= 0 && ir == "" {
+			rest = eyeChance * (is(drops["drops_red"]) + is(drops["drops_pale"])) / 2
+		}
+		if !withDrops {
+			return rest
+		}
+		col := iris
+		if !hasDrops {
+			col = drops["drops_red"]
+		}
+		return takes*is(col) + (1-takes)*rest
+	}
+	for _, c := range morphs {
+		pc := float64(c.W) / 1000
+		backs := map[string]float64{}
+		for _, b := range patterns {
+			backs[b] += 1 / float64(len(patterns))
+		}
+		if c.Mask {
+			for b := range backs {
+				backs[b] *= 0.4
+			}
+			backs["MASK"] += 0.6
+		}
+		for _, thrown := range []bool{false, true} {
+			pt := throwback
+			if !thrown {
+				pt = 1 - throwback
+			}
+			for _, took := range []bool{false, true} {
+				pd := 0.0
+				if hasDye {
+					pd = takes
+				}
+				if !took {
+					pd = 1 - pd
+				}
+				if pd == 0 {
+					continue
+				}
+				mo := parent.morph.Name
+				if thrown {
+					mo = c.Name
+				}
+				if took {
+					mo = dyed
+				}
+				p := pc * pt * pd
+				ir := parent.iris
+				if thrown || took {
+					ir = ""
+				}
+				eyes += p * odd(hasDrops, ir, mo)
+				dropEyes += p * odd(true, ir, mo)
+				for back, pb := range map[string]float64{"": 0.8, "child": 0.2} {
+					from := map[string]float64{parent.pattern: 1}
+					if back == "child" {
+						from = backs
+					}
+					for b, q := range from {
+						ps := 0.0
+						if hasStamp {
+							ps = takes
+						}
+						chance[[2]string{mo, b}] += p * pb * q * (1 - ps)
+						if hasStamp {
+							chance[[2]string{mo, pat}] += p * pb * q * ps
+						}
+					}
+				}
+			}
+		}
+	}
+	out := oddsView{Takes: takes, Eyes: eyes, Drops: dropEyes}
+	for k, p := range chance {
+		out.Outcomes = append(out.Outcomes, outcomeView{Morph: k[0], Pattern: k[1], Chance: p, New: !seen[k[0]] || !seen[k[1]]})
+	}
+	slices.SortFunc(out.Outcomes, func(a, b outcomeView) int {
+		if a.Chance != b.Chance {
+			return cmp.Compare(b.Chance, a.Chance)
+		}
+		return cmp.Compare(a.Morph+a.Pattern, b.Morph+b.Pattern)
+	})
+	return out
+}
+
+// layOddsOf is layOdds for one of a pond's frogs with what it has eaten.
+func (s *store) layOddsOf(id, frogID int64, dye, stamp, drop string) (*oddsView, error) {
+	if _, ok := dyeMorph[dye]; dye != "" && !ok {
+		return nil, errNotHeld
+	}
+	if _, ok := stamps[stamp]; stamp != "" && !ok {
+		return nil, errNotHeld
+	}
+	if _, ok := drops[drop]; drop != "" && !ok {
+		return nil, errNotHeld
+	}
+	frogs, err := loadFrogs(s.r, id)
+	if err != nil {
+		return nil, err
+	}
+	now := s.now()
+	seen := map[string]bool{}
+	var parent *frogRow
+	for i, f := range frogs {
+		if f.ID == frogID {
+			parent = &frogs[i]
+		}
+		if stage, _ := stageOf(now.Sub(time.Unix(f.HatchedAt, 0))); stage != "egg" {
+			g := genomeOf(f.Seed, f.Mods)
+			seen[g.Morph], seen[g.Pattern] = true, true
+		}
+	}
+	if parent == nil {
+		return nil, errNotHeld
+	}
+	meal, name := -1, ""
+	if d, ok := dishOfKind(parent.Fed); ok && fullUntil(*parent) > now.Unix() {
+		meal, name = d.tier, d.name
+	}
+	o := layOdds(lookFor(parent.Seed, parent.Mods), dye, stamp, drop, meal, seen)
+	o.Meal = name
+	return &o, nil
 }
 
 // ---------------------------------------------------------------- the reeds

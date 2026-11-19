@@ -312,6 +312,24 @@ func (s *site) apiFeed(id int64, r *http.Request, w http.ResponseWriter) (any, e
 	return s.store.feed(id, in.Frog, in.Dish)
 }
 
+// apiLayOdds is what an egg from one of the pond's frogs could hatch with
+// the dye, pattern and drops given, worked out from the bench's own rules.
+func (s *site) apiLayOdds(w http.ResponseWriter, r *http.Request) {
+	id, _, err := s.pondOf(r)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	q := r.URL.Query()
+	frog, _ := strconv.ParseInt(q.Get("frog"), 10, 64)
+	o, err := s.store.layOddsOf(id, frog, q.Get("dye"), q.Get("pattern"), q.Get("drops"))
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, o)
+}
+
 // apiDiary is a page of one frog's diary, newest first.
 func (s *site) apiDiary(w http.ResponseWriter, r *http.Request) {
 	id, _, err := s.pondOf(r)

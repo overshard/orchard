@@ -225,6 +225,7 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /api/hats/want", s.played(s.apiWant))
 	mux.HandleFunc("POST /api/frogs/front", s.played(s.apiFront))
 	mux.HandleFunc("POST /api/frogs/lay", s.played(s.apiLay))
+	mux.HandleFunc("GET /api/lay/odds", s.apiLayOdds)
 	mux.HandleFunc("POST /api/frogs/feed", s.played(s.apiFeed))
 	mux.HandleFunc("POST /api/frogs/pet", s.played(s.apiPet))
 	mux.HandleFunc("POST /api/frogs/names", s.played(s.apiNames))
