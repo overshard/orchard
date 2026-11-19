@@ -45,6 +45,7 @@ type PageData struct {
 	NtfyTopic string
 	NewCodes  []string
 	User      User
+	Connect   connectRequest
 
 	Suite  suite.Page
 	Ways   suite.Ways

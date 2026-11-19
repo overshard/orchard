@@ -23,6 +23,7 @@ const (
 	evRateLimited     = "rate_limited"
 	evCeilingHit      = "ceiling_hit"
 	evUsernameChanged = "username_changed"
+	evConnectorAdded  = "connector_added"
 )
 
 // Event is one row of the activity page.

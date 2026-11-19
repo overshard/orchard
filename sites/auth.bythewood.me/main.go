@@ -34,7 +34,7 @@ const listenAddr = ":8000"
 var allPages = []string{
 	"home.html", "login.html", "code.html", "recovery.html",
 	"account.html", "sessions.html", "security.html", "codes.html",
-	"activity.html", "uninitialized.html", "error.html", "notfound.html",
+	"activity.html", "connect.html", "uninitialized.html", "error.html", "notfound.html",
 }
 
 func templateSub() (fs.FS, error) { return fs.Sub(templateFS, "templates") }
@@ -74,7 +74,8 @@ type site struct {
 	pagesScript string
 	pagesStyles []string
 
-	merged mergedCache
+	merged   mergedCache
+	handoffs handoffs
 }
 
 func main() {
@@ -252,11 +253,14 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("GET /security", noStore(s.requireAuth(s.security)))
 	mux.HandleFunc("POST /security/recovery", s.requireSudo(s.rotateRecovery))
 	mux.HandleFunc("GET /activity", noStore(s.requireAuth(s.activity)))
+	mux.HandleFunc("GET /connect", noStore(s.requireSudo(s.connectForm)))
+	mux.HandleFunc("POST /connect", s.requireSudo(s.connectSubmit))
 
 	// Unauthenticated by design and reachable only over the bridge: Caddy
 	// refuses /verify on the public hostname. The cookie in the request is the
 	// credential, and this only says whether it is live.
 	mux.HandleFunc("GET /verify", s.verify)
+	mux.HandleFunc("GET /verify/handoff", s.collectHandoff)
 
 	// The mux answers 405 itself only when nothing else matches, and the
 	// "GET /" catch-all below matches every GET path there is.

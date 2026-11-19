@@ -103,6 +103,8 @@ func eventLabel(kind string) string {
 		return "send ceiling hit"
 	case evUsernameChanged:
 		return "username changed"
+	case evConnectorAdded:
+		return "agent connected"
 	}
 	return strings.ReplaceAll(kind, "_", " ")
 }
@@ -112,7 +114,7 @@ func eventClass(kind string) string {
 	switch kind {
 	case evCodeFailed, evRecoveryFailed, evRateLimited, evCeilingHit:
 		return "is-warn"
-	case evLogin, evRecoveryUsed, evRecoveryRotated, evUsernameChanged:
+	case evLogin, evRecoveryUsed, evRecoveryRotated, evUsernameChanged, evConnectorAdded:
 		return "is-note"
 	}
 	return ""
@@ -124,6 +126,8 @@ func browser(ua string) string {
 	switch {
 	case ua == "":
 		return "unknown"
+	case strings.HasPrefix(ua, connectorUA):
+		return strings.TrimPrefix(ua, connectorUA) + " (connector)"
 	case strings.Contains(ua, "Firefox/"):
 		return "Firefox"
 	case strings.Contains(ua, "Edg/"):

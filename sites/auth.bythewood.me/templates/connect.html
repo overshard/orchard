@@ -1,0 +1,36 @@
+{{ define "main" }}
+<main class="o-wrap o-main">
+  <div class="o-ph">
+    <div>
+      <span class="o-lab">auth &middot; connect</span>
+      <h1>Let <em>{{ .Connect.Client }}</em> read orchard?</h1>
+      <p>It asked through mcp.bythewood.me{{ with .Connect.Host }}, as <span class="o-mono">{{ . }}</span>{{ end }}.</p>
+    </div>
+  </div>
+
+  <div class="o-cols even">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>What it gets</h2><span class="o-lab">read only</span></div>
+      <ul class="connectlist">
+        <li>Every tool's state, the down properties, failing jobs and quiet sources</li>
+        <li>Status and analytics reports, log search, cron jobs and runs, llm spend and repositories</li>
+        <li>Nothing that changes anything, and nothing on this site</li>
+      </ul>
+      <p class="o-muted small">It gets a session of its own for 90 days, listed on the sessions page as a connector. Revoke it there and it stops on its next call.</p>
+      <form method="POST" action="/connect" class="o-formbar">
+        <input type="hidden" name="req" value="{{ .Connect.Req }}">
+        <input type="hidden" name="client" value="{{ .Connect.Client }}">
+        <input type="hidden" name="host" value="{{ .Connect.Host }}">
+        <input type="hidden" name="back" value="https://mcp.bythewood.me/oauth/back">
+        <button type="submit" name="allow" value="yes" class="o-btn o-btn-p">Allow read access</button>
+        <button type="submit" name="allow" value="no" class="o-btn">Don't allow</button>
+      </form>
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Worth knowing</h2></div>
+      <p class="o-muted small">Log lines, referrers and crawl results are written by strangers, and an agent reads them as they are. Nothing here lets it act on what it reads, which is why this is read only.</p>
+      <p class="o-muted small">If you didn't just add a connector, don't allow this.</p>
+    </section>
+  </div>
+</main>
+{{ end }}

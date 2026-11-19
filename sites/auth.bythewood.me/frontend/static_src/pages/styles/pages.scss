@@ -161,3 +161,5 @@
 [data-copy].is-done { border-color: var(--o-ok); color: var(--o-ok); }
 
 .pond-lost { width: 216px; height: 180px; image-rendering: pixelated; }
+
+.connectlist { margin: 0 0 12px; padding-left: 18px; display: grid; gap: 6px; font-size: 0.86rem; }
