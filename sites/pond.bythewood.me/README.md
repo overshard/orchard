@@ -236,8 +236,8 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   list. `ponds.tried` has a bit for a thing that leaves no trace once done.
   A row's `to` is a hash the page opens, a view, a key in town or `market`,
   and `index.js` draws both lists as the Next strip.
-- `opening.go` is how a new pond opens up, Works a day in and the market
-  three days after that, sent with the view as `open`. The page hides the keys
+- `opening.go` is how a new pond opens up, Frogs and the garden and bank
+  under Make a day in and the market three days after that, sent with the view as `open`. The page hides the keys
   for a closed place and the gazette carries a notice the day one opens.
 - `key.go` and `words.txt` are the pond key.
 - `day.go` reads dash's `/api/state` over the bridge every ten minutes and
@@ -273,17 +273,20 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
 - `frontend/src/` has one file a place, `dive.js` (with `race.js` for the
   standings and results laid over it), `wheel.js`, `bag.js`, `collect.js`,
   `reeds.js`, `bank.js` (the garden and kitchen too), `shops.js`, `town.js`
-  (the boxes, the stall and the wizard) and `settings.js`, with `index.js` for
-  the pond itself and the tabs. `ui.js` is the bottom sheet a thing opens in,
+  (the boxes, the stall and the wizard, which sits under Make) and `settings.js`, with `index.js` for
+  the pond itself and the dock. `ui.js` is the bottom sheet a thing opens in,
   the reveal a prize pops up in, and the slot every collectable is drawn as.
   `share.js` is a frog's public page and `key.js` and `k.js` the key pages.
-  Reeds, Garden and Bank are still views of their own, lit under the Works
-  key, and `scenes.js` draws the picture over them and the smaller ones.
-  `work.js` is a frog's job screen at `#job`, lit under Works too, and the
+  The dock is Pond, Frogs, Play, Make and Town. A place is still a view of
+  its own, and `TAB_OF` in `index.js` says which dock key it lights, `ALIAS`
+  sends old links like `#works` and `#sell` to their place, and the market and
+  the stall are keys inside Town. The bag opens from its pill in the top bar.
+  `scenes.js` draws the picture over Make and the smaller ones.
+  `work.js` is a frog's job screen at `#job`, lit under Frogs, and the
   card that says what came in. `workNow` in `api.js` counts a basket on
   between fetches off the actions the server dealt ahead and nothing else.
-- `frontend/src/power.js` is frog power on the pond, the plate on the
-  screen's bezel, its breakdown sheet and the count up when a move says it
+- `frontend/src/power.js` is frog power on the pond, the pill on the
+  picture's bottom edge, its breakdown sheet and the count up when a move says it
   rose. It holds a rise until the pond is in view with no reveal up.
 - `frontend/src/postcard.js` is the camera key on the pond's screen. The
   card is drawn in the page off the scene canvas and opened from a blob in a
@@ -475,7 +478,11 @@ they have none, for other sites to draw.
   the rate holding the rest.
 - `index.css` is one flat file and the share page loads it too, so look for a
   class name in it before using one. `place` is already Dive's standings and
-  `who` and `scene` are on the share page as well as the pond.
+  `who` and `scene` are on the share page as well as the pond. The colours
+  are tokens at its top, and the gazette sets its own `--news` ink.
+- A canvas names its font itself, `'Pixelify Sans'`, and only gets it once
+  the page has loaded the face, which the CSS does on every page. A new
+  weight needs its `@fontsource` import in `style.js` too.
 - A closed place is only hidden, every move behind it still works. Anything
   that links somewhere, a todo row or a line in the gazette, has to ask
   `Open.has` first, and only `create` sets `staged`, so an older pond is open.
