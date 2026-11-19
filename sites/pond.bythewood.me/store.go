@@ -916,10 +916,12 @@ type reedView struct {
 	ID    int64 `json:"id"`
 	Front bool  `json:"front"`
 	// Seconds until it can lay, 0 for now and -1 while it's too young.
-	LayIn int64     `json:"lay_in"`
-	Fed   *mealView `json:"fed,omitempty"`
-	Work  *workView `json:"work,omitempty"`
-	Fav   *favView  `json:"fav,omitempty"`
+	LayIn int64 `json:"lay_in"`
+	// Seconds until it grows into its next stage, 0 for an elder.
+	GrowsIn int64     `json:"grows_in"`
+	Fed     *mealView `json:"fed,omitempty"`
+	Work    *workView `json:"work,omitempty"`
+	Fav     *favView  `json:"fav,omitempty"`
 }
 
 type mealView struct {
@@ -1145,7 +1147,7 @@ func viewOf(q querier, p pond, now time.Time, key []byte) (*view, error) {
 		if in > 0 {
 			in = in/time.Second + 1
 		}
-		rv := reedView{frogView: frogViewOf(f, now), ID: f.ID, Front: f.Front, LayIn: int64(in), Fav: favOf(f)}
+		rv := reedView{frogView: frogViewOf(f, now), ID: f.ID, Front: f.Front, LayIn: int64(in), Fav: favOf(f), GrowsIn: growsIn(f.HatchedAt, now)}
 		if d, ok := dishOfKind(f.Fed); ok && fullUntil(f) > now.Unix() {
 			rv.Fed = &mealView{f.Fed, d.name, d.tier, mealTakes[d.tier], mealEyes[d.tier], mealBoost[d.tier], fullUntil(f) - now.Unix(), f.Fed == f.FavDish}
 		}

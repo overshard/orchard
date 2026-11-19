@@ -224,3 +224,14 @@ func leftOf(v *view, now time.Time) leftView {
 	return l
 }
 
+// growsIn is how long until a frog hatched then reaches its next stage.
+func growsIn(hatched int64, now time.Time) int64 {
+	age := now.Sub(time.Unix(hatched, 0))
+	_, day := stageOf(age)
+	for _, end := range []int{1, 8, 12, 28} {
+		if day <= end {
+			return int64((time.Duration(end)*24*time.Hour - age) / time.Second)
+		}
+	}
+	return 0
+}
