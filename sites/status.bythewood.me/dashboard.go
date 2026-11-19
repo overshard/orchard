@@ -29,6 +29,7 @@ type PropertyView struct {
 	AvgResponseTime  int64
 	RecentUptimePct  *float64
 	RecentTickStream []string
+	ResponseSeries   []float64
 	TotalChecks      int64
 
 	CrawlState          string
@@ -188,6 +189,9 @@ func (s *site) buildPropertyView(ctx context.Context, p *Property) (*PropertyVie
 		ticks = ticks[len(ticks)-30:]
 	}
 	v.RecentTickStream = ticks
+	for _, r := range slices.Backward(recent[:min(len(recent), 30)]) {
+		v.ResponseSeries = append(v.ResponseSeries, float64(r.ResponseMS))
+	}
 
 	v.applySecurityPosture(recent)
 	v.applyStoredJSON(p)

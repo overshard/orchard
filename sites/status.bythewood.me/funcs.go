@@ -28,6 +28,44 @@ var templateFuncs = template.FuncMap{
 	"add":             func(a, b int) int { return a + b },
 	"upper":           strings.ToUpper,
 	"hasPrefix":       strings.HasPrefix,
+	"listHeadline":    listHeadline,
+	"count":           count,
+	"lower":           strings.ToLower,
+	"ints":            ints,
+	"ring":            ring,
+	"deref64": func(p *int64) int64 {
+		if p == nil {
+			return 0
+		}
+		return *p
+	},
+}
+
+// listHeadline is the properties page title, the state in a sentence.
+func listHeadline(n, down int) template.HTML {
+	sites := "sites"
+	if n == 1 {
+		sites = "site"
+	}
+	head := template.HTMLEscapeString(spell(n) + " " + sites)
+	switch {
+	case n == 0:
+		return template.HTML("Nothing watched yet.")
+	case down == 0:
+		return template.HTML(head + ", <em>all up</em>.")
+	case down == n:
+		return template.HTML(head + `, <em class="bad">all down</em>.`)
+	}
+	return template.HTML(head + `, <em class="bad">` + strings.ToLower(spell(down)) + ` down</em>.`)
+}
+
+// ints widens an int64 series for the spark drawing.
+func ints(v []int64) []float64 {
+	out := make([]float64, len(v))
+	for i, n := range v {
+		out[i] = float64(n)
+	}
+	return out
 }
 
 // dict lets a partial take more than one value, a template has a single dot.
@@ -269,4 +307,20 @@ func scoreClass(score int64) string {
 	default:
 		return "poor"
 	}
+}
+
+// ring draws one Lighthouse score as a dial, coloured by the band it falls in.
+func ring(label string, score int64) template.HTML {
+	kind := "ok"
+	switch {
+	case score < 50:
+		kind = "bad"
+	case score < 90:
+		kind = "warn"
+	}
+	const c = 150.8
+	return template.HTML(fmt.Sprintf(`<div class="ring %s"><svg width="64" height="64" viewBox="0 0 58 58" aria-hidden="true">`+
+		`<circle cx="29" cy="29" r="24" class="track"/><circle cx="29" cy="29" r="24" class="arc" stroke-dasharray="%.1f %.1f" transform="rotate(-90 29 29)"/>`+
+		`<text x="29" y="34" text-anchor="middle">%d</text></svg><span>%s</span></div>`,
+		kind, float64(score)/100*c, c, score, template.HTMLEscapeString(label)))
 }

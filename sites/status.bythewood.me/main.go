@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"status.bythewood.me/suite"
 	"status.bythewood.me/web"
 )
 
@@ -73,7 +74,7 @@ type site struct {
 // Shared with the tests, which parse them for real, since a page listed here
 // with no file behind it fails at boot and not at build.
 var (
-	layoutTemplates = []string{"base.html", "partials.html"}
+	layoutTemplates = []string{"base.html", "partials.html", "suite.html"}
 	pageTemplates   = []string{
 		"home.html",
 		"properties.html", "property.html", "notfound.html",
@@ -136,7 +137,7 @@ func realMain() error {
 		return err
 	}
 
-	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
+	renderer, err := web.NewRenderer(suite.With(templates), suite.FuncsWith(templateFuncs), layoutTemplates, pageTemplates)
 	if err != nil {
 		return err
 	}
@@ -212,6 +213,7 @@ func realMain() error {
 	mux.HandleFunc("GET /sitemap.xml", sitemap)
 
 	mux.Handle("GET /static/", web.Static(dist, assets))
+	mux.Handle("GET /suite/", suite.Handler())
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -278,5 +280,6 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		AuthorName:    authorName,
 		Script:        s.baseScript,
 		Styles:        s.baseStyles,
+		Suite:         s.chrome(r),
 	}
 }

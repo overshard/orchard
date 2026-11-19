@@ -52,6 +52,7 @@ WORKDIR /src
 COPY go.mod go.su[m] ./
 COPY web/ ./web/
 COPY ntfy/ ./ntfy/
+COPY suite/ ./suite/
 COPY *.go ./
 COPY templates/ ./templates/
 COPY reports/ ./reports/

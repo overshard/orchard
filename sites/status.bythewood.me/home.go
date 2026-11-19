@@ -1,10 +1,10 @@
 package main
 
 import (
-	"database/sql"
+	"status.bythewood.me/suite"
+
 	"fmt"
 	"html/template"
-	"log/slog"
 	"net/http"
 	"time"
 )
@@ -35,11 +35,6 @@ type PageData struct {
 	Next  string
 	Error string
 
-	// Home
-	TotalChecks     int64
-	TotalProperties int64
-	FirstCheckAt    string
-
 	// Properties list and dashboard
 	Properties    []*PropertyView
 	Query         string
@@ -49,6 +44,11 @@ type PageData struct {
 	StatusCodes   []LabelCount
 	UptimeSlices  []LabelPercent
 	GeneratedAt   string
+
+	Suite   suite.Page
+	Footer  suite.Footer
+	Down    int
+	Summary listSummary
 }
 
 func (s *site) home(w http.ResponseWriter, r *http.Request) {
@@ -61,19 +61,8 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		"Self-hosted uptime monitoring with public status pages, response time history, "+
 			"Lighthouse audits and crawl findings.")
 
-	var firstCheck sql.NullInt64
-	err := s.db.QueryRowContext(r.Context(),
-		`SELECT (SELECT COUNT(*) FROM checks),
-		        (SELECT COUNT(*) FROM properties),
-		        (SELECT MIN(created_at) FROM checks)`).
-		Scan(&data.TotalChecks, &data.TotalProperties, &firstCheck)
-	if err != nil {
-		// These numbers are decoration, so an error renders zeros instead of a 500.
-		slog.Info("home totals", slog.Any("err", err))
-	}
-	if firstCheck.Valid {
-		data.FirstCheckAt = time.UnixMilli(firstCheck.Int64).UTC().Format("Jan 2, 2006")
-	}
+	data.Footer = suite.Footer{Tool: "status", About: "Watches the sites I run, audits them and tells my phone when one goes down or comes back.",
+		Source: sourceURL, Author: authorName, Year: data.Year, Pages: []suite.Tab{{Name: "Home", Href: "/"}}}
 
 	data.PageScript = s.pagesScript
 	data.PageStyles = s.pagesStyles

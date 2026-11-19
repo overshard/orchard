@@ -1,6 +1,9 @@
 package main
 
 import (
+	"cmp"
+	"slices"
+
 	"log/slog"
 	"net/http"
 	"strings"
@@ -31,6 +34,18 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 		data.Properties = append(data.Properties, view)
 	}
 
+	// Down first, so trouble is the first row and not wherever it sorts.
+	down := func(v *PropertyView) int {
+		if v.CurrentStatus != 200 {
+			return 0
+		}
+		return 1
+	}
+	slices.SortStableFunc(data.Properties, func(a, b *PropertyView) int { return cmp.Compare(down(a), down(b)) })
+	for _, v := range data.Properties {
+		data.Down += 1 - down(v)
+	}
+	data.Summary = summarize(data.Properties)
 	data.PageScript = s.propsScript
 	data.PageStyles = s.propsStyles
 	s.renderer.Render(w, http.StatusOK, "properties.html", data)

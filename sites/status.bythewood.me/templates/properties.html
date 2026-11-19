@@ -1,116 +1,97 @@
-{{ define "breadcrumbs" }}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="/">Home</a></li>
-    <li class="breadcrumb-item active" aria-current="page">{{ .Title }}</li>
-  </ol>
-</nav>
-{{ end }}
-
 {{ define "main" }}
-<div class="container my-4">
-  <div class="row align-items-center g-3 mb-4">
-    <div class="col-md-5">
-      <div class="section-label mb-1">operator</div>
-      <h1 class="fw-bolder text-white mb-0" style="letter-spacing: -0.01em;">{{ .Title }}</h1>
-      <p class="text-muted mb-0 small mt-1">Every URL you've registered, current probe state, and audit signals.</p>
+<main class="o-wrap o-main">
+  <div class="o-ph">
+    <div>
+      <span class="o-lab">status &middot; properties</span>
+      <h1>{{ listHeadline (len .Properties) .Down }}</h1>
     </div>
-    <div class="col-md-7">
-      <div class="dashboard-toolbar">
-        <form method="get" class="search-form flex-grow-1">
-          <input type="text" class="form-control search-input" name="q" id="id_search" placeholder="grep properties..." value="{{ .Query }}" />
-        </form>
-        <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePropertyAdd" aria-expanded="false" aria-controls="collapsePropertyAdd">
-          + new
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div class="collapse mb-4" id="collapsePropertyAdd">
-    <div class="bg-surface border-subtle rounded border p-3">
-      <div class="section-label mb-2">register property</div>
-      {{/* https:// is not a preference. The checker speaks HTTP/2 over TLS and
-           nothing else, so an http:// property could never pass a check. */}}
-      <p class="text-muted small mb-3">Any public https:// URL. Probe begins within 3 minutes.</p>
-      <form method="POST" action="/properties" class="dashboard-toolbar">
-        <input type="url" name="url" id="id_url" class="form-control flex-grow-1" placeholder="https://example.com" pattern="https://.*" required>
-        <button type="submit" class="btn btn-primary">Add →</button>
+    <div class="o-acts">
+      <form method="get" class="filter">
+        <input type="search" class="o-in mono" name="q" id="id_search" placeholder="filter properties" value="{{ .Query }}" aria-label="Filter properties">
       </form>
     </div>
   </div>
 
-  <div class="section-label mb-2">registered properties</div>
-  {{ range .Properties }}
-    <div class="property-row {{ if ne .CurrentStatus 200 }}is-down{{ end }}">
-      <div class="pr-main">
-        <div class="pr-title">
-          <span class="status-dot {{ if eq .CurrentStatus 200 }}is-up{{ else }}is-down{{ end }}" aria-hidden="true"></span>
-          <a href="/{{ .ID }}" class="text-truncate">{{ .Name }}</a>
-        </div>
-        <div class="pr-url">{{ .URL }}</div>
-        {{ template "uptimeStrip" . }}
-      </div>
-      <div class="pr-side">
-        <div class="pr-meta">
-          <div class="pr-meta-cell">
-            <span class="pr-meta-k">status</span>
-            {{ if eq .CurrentStatus 200 }}
-              <span class="chip chip-ok">ok · 200</span>
-            {{ else }}
-              <span class="chip chip-down">down · {{ .CurrentStatus }}</span>
-            {{ end }}
-          </div>
-          <div class="pr-meta-cell">
-            <span class="pr-meta-k">uptime</span>
-            {{ if .RecentUptimePct }}
-              <span class="chip chip-{{ uptimeClass .RecentUptimePct }}">{{ pct1 .RecentUptimePct }}%</span>
-            {{ else }}
-              <span class="chip chip-muted">—</span>
-            {{ end }}
-          </div>
-          <div class="pr-meta-cell">
-            <span class="pr-meta-k">sec</span>
-            {{ if .HasSecurityIssue }}
-              <span class="chip chip-warn">issues</span>
-            {{ else }}
-              <span class="chip chip-ok">ok</span>
-            {{ end }}
-          </div>
-          <div class="pr-meta-cell">
-            <span class="pr-meta-k">seo</span>
-            <span class="chip chip-{{ countClass (len .CrawlerInsights) 25 100 }}">{{ len .CrawlerInsights }}</span>
-          </div>
-          <div class="pr-meta-cell">
-            <span class="pr-meta-k">lh</span>
-            {{ if .AvgLighthouseScore }}
-              <span class="chip chip-{{ lighthouseClass .AvgLighthouseScore }}">{{ .AvgLighthouseScore }}%</span>
-            {{ else }}
-              <span class="chip chip-muted">—</span>
-            {{ end }}
-          </div>
-        </div>
-        <div class="pr-actions">
-          {{ if not .IsProtected }}
-          <form method="POST" action="/properties/{{ .ID }}/delete" class="d-inline" data-confirm="Delete {{ .URL }} and all its checks?">
-            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-          </form>
-          {{ end }}
-          <a href="/{{ .ID }}" class="btn btn-sm btn-outline-light">View →</a>
-        </div>
-      </div>
+  <details class="o-panel addprop" {{ if not .Properties }}{{ if not .Query }}open{{ end }}{{ end }}>
+    <summary><span class="o-btn o-btn-p o-btn-sm">+ new property</span><span class="o-muted small">Any public https:// URL. The first check runs within three minutes.</span></summary>
+    {{/* https:// is not a preference. The checker speaks HTTP/2 over TLS and
+         nothing else, so an http:// property could never pass a check. */}}
+    <form method="POST" action="/properties" class="o-formbar">
+      <label class="o-field grow">
+        <span>URL</span>
+        <input type="url" name="url" id="id_url" class="mono" placeholder="https://example.com" pattern="https://.*" required>
+      </label>
+      <button type="submit" class="o-btn o-btn-p o-btn-sm">Start watching</button>
+    </form>
+  </details>
+
+  {{ if .Properties }}
+  {{ with .Summary }}
+  <div class="o-tiles">
+    <div class="o-tile">
+      <small>uptime &middot; last 100</small>
+      <b>{{ if .HasUptime }}{{ printf "%.2f" .Uptime }}%{{ else }}&mdash;{{ end }}</b>
+      <span class="o-delta">averaged across every site</span>
+      <span class="o-nospark"></span>
     </div>
-  {{ else }}
-    <div class="text-center py-5 text-muted">
-      <div class="section-label mb-3" style="justify-content:center;">
-        {{ if .Query }}no properties match{{ else }}no properties yet{{ end }}
-      </div>
-      {{ if .Query }}
-      <p class="mb-0 small">Nothing registered matches <strong>{{ .Query }}</strong>. <a href="/properties" class="link-footer">Clear the filter</a>.</p>
-      {{ else }}
-      <p class="mb-0 small">Click <strong>+ new</strong> above to register your first URL.</p>
-      {{ end }}
+    <div class="o-tile">
+      <small>down now</small>
+      <b {{ if $.Down }}class="bad"{{ end }}>{{ $.Down }}</b>
+      <span class="o-delta {{ if $.Down }}o-bad{{ end }}">{{ if $.Down }}see the top of the list{{ else }}nothing down{{ end }}</span>
+      <span class="o-nospark"></span>
     </div>
+    <div class="o-tile">
+      <small>response &middot; avg</small>
+      <b>{{ .AvgMS }}ms</b>
+      <span class="o-delta">last 30 checks</span>
+      {{ spark "ok" .Response }}
+    </div>
+    <div class="o-tile">
+      <small>lighthouse &middot; avg</small>
+      <b>{{ if .HasLH }}{{ .Lighthouse }}{{ else }}&mdash;{{ end }}</b>
+      <span class="o-delta">{{ .SEOIssues }} seo issues &middot; {{ .SecIssues }} header</span>
+      <span class="o-nospark"></span>
+    </div>
+  </div>
   {{ end }}
-</div>
+  {{ end }}
+
+  <section class="o-panel flush">
+    {{ if .Properties }}
+    <div class="o-scroll">
+    <table class="o-tbl stack props">
+      <thead><tr><th>Property</th><th>Last 30 checks</th><th>State</th><th class="r">Uptime</th><th class="r">Response</th><th class="r">LH</th><th class="r">SEO</th><th>Headers</th><th></th></tr></thead>
+      <tbody>
+      {{ range .Properties }}
+        <tr data-href="/{{ .ID }}" class="{{ if ne .CurrentStatus 200 }}hot{{ end }}">
+          <td class="lead">
+            <span class="o-dot {{ if ne .CurrentStatus 200 }}bad{{ end }}"></span><a class="name" href="/{{ .ID }}">{{ .Name }}</a>
+            {{ if .IsPublic }}<span class="o-chip">public</span>{{ end }}
+          </td>
+          <td>{{ template "uptimeStrip" . }}</td>
+          <td>{{ template "stateChip" . }}</td>
+          <td class="r n">{{ if .RecentUptimePct }}{{ pct1 .RecentUptimePct }}%{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
+          <td class="r n {{ if gt .AvgResponseTime 500 }}o-warn{{ end }}">{{ .AvgResponseTime }}ms</td>
+          <td class="r n">{{ if .AvgLighthouseScore }}<span class="{{ if lt (deref64 .AvgLighthouseScore) 90 }}o-warn{{ end }}">{{ .AvgLighthouseScore }}</span>{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
+          <td class="r n {{ if gt (len .CrawlerInsights) 25 }}o-warn{{ else if not .CrawlerInsights }}o-muted{{ end }}">{{ len .CrawlerInsights }}</td>
+          <td>{{ if .HasSecurityIssue }}<span class="o-chip warn">issues</span>{{ else }}<span class="o-chip">clean</span>{{ end }}</td>
+          <td class="act">
+            {{ if not .IsProtected }}
+            <form method="POST" action="/properties/{{ .ID }}/delete" data-confirm="Stop watching {{ .URL }} and delete its checks?">
+              <button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete</button>
+            </form>
+            {{ end }}
+          </td>
+        </tr>
+      {{ end }}
+      </tbody>
+    </table>
+    </div>
+    {{ else if .Query }}
+    <p class="o-empty"><b>Nothing matches {{ .Query }}.</b><a href="/properties" class="o-muted">Clear the filter</a></p>
+    {{ else }}
+    <p class="o-empty"><b>Nothing watched yet.</b>Add a URL above and the first check runs within three minutes.</p>
+    {{ end }}
+  </section>
+</main>
 {{ end }}

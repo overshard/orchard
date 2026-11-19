@@ -1,36 +1,8 @@
 @media print {
-  @page {
-    size: A4;
-  }
+  @page { size: A4; }
 
-  html, body {
-    width: fit-content;
-    height: fit-content;
-  }
-
-  .container {
-    max-width: 100%;
-  }
-
-  #chart-response-times {
-    height: 300px;
-    page-break-after: always;
-  }
-
-  #doughnut-graphs {
-    width: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    margin-bottom: 1.5rem;
-    page-break-after: always;
-  }
-
-  #doughnut-graphs > div {
-    width: 50%;
-    margin-bottom: 0;
-  }
-
-  .col-sm-6 {
-    width: 50%;
-  }
+  .o-top, .o-status, .o-slim, .d-print-none { display: none !important; }
+  .o-body { background: #fff; color: #111; }
+  .o-panel, .o-tile { break-inside: avoid; }
+  .chartbox.tall { height: 300px; }
 }

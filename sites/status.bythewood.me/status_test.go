@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/uuid"
 	"status.bythewood.me/ntfy"
+	"status.bythewood.me/suite"
 	"status.bythewood.me/web"
 )
 
@@ -54,11 +55,8 @@ func fullPageData(t *testing.T) PageData {
 		Next:  "/properties",
 		Error: "Invalid password.",
 
-		TotalChecks:     130042,
-		TotalProperties: 3,
-		FirstCheckAt:    "Jun 5, 2022",
-		Query:           "example",
-		GeneratedAt:     "2026-08-26 21:00 UTC",
+		Query:       "example",
+		GeneratedAt: "2026-08-26 21:00 UTC",
 
 		Property: &PropertyView{
 			ID:               uuid.New().String(),
@@ -161,8 +159,8 @@ func TestTemplatesExecute(t *testing.T) {
 		"properties.html", "property.html", "notfound.html",
 	}
 
-	renderer, err := web.NewRenderer(templates, templateFuncs,
-		[]string{"base.html", "partials.html"}, pages)
+	renderer, err := web.NewRenderer(suite.With(templates), suite.FuncsWith(templateFuncs),
+		[]string{"base.html", "partials.html", "suite.html"}, pages)
 	if err != nil {
 		t.Fatalf("parsing templates: %v", err)
 	}
@@ -200,8 +198,8 @@ func TestTemplatesExecute(t *testing.T) {
 // Covers the {{else}} arm of the range, which neither fixture above reaches.
 func TestPropertiesListWithNoProperties(t *testing.T) {
 	templates, _ := fs.Sub(templateFS, "templates")
-	renderer, err := web.NewRenderer(templates, templateFuncs,
-		[]string{"base.html", "partials.html"}, []string{"properties.html"})
+	renderer, err := web.NewRenderer(suite.With(templates), suite.FuncsWith(templateFuncs),
+		[]string{"base.html", "partials.html", "suite.html"}, []string{"properties.html"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +208,7 @@ func TestPropertiesListWithNoProperties(t *testing.T) {
 	renderer.Render(rec, http.StatusOK, "properties.html", PageData{
 		Title: "Properties", SiteName: siteName, Year: 2026,
 	})
-	if !strings.Contains(rec.Body.String(), "no properties yet") {
+	if !strings.Contains(rec.Body.String(), "Nothing watched yet") {
 		t.Error("empty properties list did not render its empty state")
 	}
 }
@@ -1222,7 +1220,7 @@ func TestEveryListedTemplateParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates); err != nil {
+	if _, err := web.NewRenderer(suite.With(templates), suite.FuncsWith(templateFuncs), layoutTemplates, pageTemplates); err != nil {
 		t.Fatalf("the template set does not parse: %v", err)
 	}
 }
