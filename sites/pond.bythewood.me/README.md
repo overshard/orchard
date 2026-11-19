@@ -203,8 +203,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
 - `stamps.go` is the six stamps on a frog's share page. A pond with a cookie
   can stamp a page once a New York day and `stampsADay` pages in all, never
   its own, and a page holds `stampsHeld` unseen. The owner's next greeting
-  hands them over with each stamper's frog, and the sweep clears a seen
-  stamp after two days and any stamp after a month.
+  hands them over with each stamper's frog, and the sweep clears a stamp
+  after `stampsKept` days. `GET /api/book` is the pond's own stamp book, the
+  latest seen stamp from each pond that stamped its page, up to `bookSize`,
+  drawn by `frontend/src/book.js`.
 - `memento.go` is the one thing each resident gives a best friend, in the
   order of `residents`. They're rows in `mementos` with the day and never
   items, and count in power at half an epic hat each. A neighbour that was
@@ -218,7 +220,8 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.
   It also keeps `ponds.paint`, the pieces of four pond paintings, one for
   each visitor and each stamp handed over at a greeting, twelve to a
-  painting. The four are drawn in `company.js`.
+  painting, and the away list says when they brought one. The four are drawn
+  in `company.js`.
 - `market.go` is the pond market, in three sorts. Shares in the town's
   businesses, each moved by one line of work across every pond, goods that are
   bought into the bag and sold out of it by the lot, and Glowworm Coin. A
