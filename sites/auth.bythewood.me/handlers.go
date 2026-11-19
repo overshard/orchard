@@ -46,6 +46,7 @@ type PageData struct {
 	NewCodes  []string
 	User      User
 	Connect   connectRequest
+	Refresh   string
 
 	Suite  suite.Page
 	Ways   suite.Ways

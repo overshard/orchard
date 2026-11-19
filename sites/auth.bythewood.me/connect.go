@@ -104,7 +104,7 @@ func (s *site) connectSubmit(w http.ResponseWriter, r *http.Request, l live) {
 	back := url.Values{"req": {c.Req}}
 	if r.FormValue("allow") != "yes" {
 		back.Set("denied", "1")
-		http.Redirect(w, r, mcpBack+"?"+back.Encode(), http.StatusSeeOther)
+		s.handBack(w, r, c, mcpBack+"?"+back.Encode())
 		return
 	}
 	value, err := newConnectorSession(s.db, r, c.Client)
@@ -119,7 +119,16 @@ func (s *site) connectSubmit(w http.ResponseWriter, r *http.Request, l live) {
 	}
 	audit(s.db, r, evConnectorAdded, c.Client)
 	back.Set("handoff", code)
-	http.Redirect(w, r, mcpBack+"?"+back.Encode(), http.StatusSeeOther)
+	s.handBack(w, r, c, mcpBack+"?"+back.Encode())
+}
+
+// handBack leaves by a meta refresh and not a redirect, since Chrome holds a
+// form's redirects to form-action 'self' and mcp's /oauth/back is another host.
+func (s *site) handBack(w http.ResponseWriter, r *http.Request, c connectRequest, to string) {
+	data := s.page(r, "Connect an agent", "")
+	data.Connect = c
+	data.Refresh = to
+	s.renderer.Render(w, http.StatusOK, "connect.html", data)
 }
 
 // collectHandoff is mcp picking up the session over the bridge. Caddy refuses

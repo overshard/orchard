@@ -8,6 +8,12 @@
     </div>
   </div>
 
+  {{ if .Refresh }}
+  <section class="o-panel">
+    <p>Handing you back to mcp.bythewood.me.</p>
+    <div class="o-formbar"><a href="{{ .Refresh }}" class="o-btn o-btn-p">Continue &rarr;</a></div>
+  </section>
+  {{ else }}
   <div class="o-cols even">
     <section class="o-panel">
       <div class="o-ph2"><h2>What it gets</h2><span class="o-lab">read only</span></div>
@@ -32,5 +38,6 @@
       <p class="o-muted small">If you didn't just add a connector, don't allow this.</p>
     </section>
   </div>
+  {{ end }}
 </main>
 {{ end }}

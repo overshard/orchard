@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -18,10 +20,14 @@ func TestConnectHandsASessionToMCP(t *testing.T) {
 	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
 	s.handler().ServeHTTP(rec, req)
-	if rec.Code != http.StatusSeeOther {
+	if rec.Code != http.StatusOK {
 		t.Fatalf("POST /connect: %d %s", rec.Code, rec.Body.String())
 	}
-	loc, _ := url.Parse(rec.Header().Get("Location"))
+	m := regexp.MustCompile(`http-equiv="refresh" content="0; url=([^"]+)"`).FindStringSubmatch(rec.Body.String())
+	if m == nil {
+		t.Fatalf("no refresh in %s", rec.Body.String())
+	}
+	loc, _ := url.Parse(html.UnescapeString(m[1]))
 	if !strings.HasPrefix(loc.String(), mcpBack) || loc.Query().Get("req") != "r1" {
 		t.Fatalf("redirected to %s", loc)
 	}
