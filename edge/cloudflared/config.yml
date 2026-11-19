@@ -4,40 +4,20 @@
 tunnel: CHANGEME_TUNNEL_ID
 credentials-file: /etc/cloudflared/CHANGEME_TUNNEL_ID.json
 
-# One rule per hostname, all terminating at Caddy, which owns the per-site
-# routing. The catch-all at the end is required by cloudflared.
+# Everything ends at Caddy, which owns the per-site routing. bythewood.me has a
+# wildcard CNAME, so a new site there needs no rule here. The catch-all at the
+# end is required by cloudflared.
 ingress:
   - hostname: isaacbythewood.com
     service: http://caddy:80
   - hostname: www.isaacbythewood.com
     service: http://caddy:80
-  - hostname: blog.bythewood.me
-    service: http://caddy:80
-  - hostname: analytics.bythewood.me
-    service: http://caddy:80
-  - hostname: auth.bythewood.me
-    service: http://caddy:80
-  - hostname: status.bythewood.me
-    service: http://caddy:80
-  - hostname: logging.bythewood.me
-    service: http://caddy:80
-  - hostname: ntfy.bythewood.me
-    service: http://caddy:80
-  - hostname: repos.bythewood.me
-    service: http://caddy:80
-  - hostname: dash.bythewood.me
-    service: http://caddy:80
-  - hostname: chat.bythewood.me
-    service: http://caddy:80
-  - hostname: llm.bythewood.me
-    service: http://caddy:80
-  - hostname: pond.bythewood.me
-    service: http://caddy:80
 
-  # The apex has never served a site. Caddy owns the redirect to the portfolio.
+  # A wildcard doesn't match the apex, which has never served a site. Caddy owns
+  # the redirect to the portfolio.
   - hostname: bythewood.me
     service: http://caddy:80
-  - hostname: www.bythewood.me
+  - hostname: "*.bythewood.me"
     service: http://caddy:80
 
   - service: http_status:404

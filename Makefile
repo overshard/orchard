@@ -667,10 +667,12 @@ new:
 	echo "nothing routes to it yet. for $(SITE) to answer:"; \
 	echo ""; \
 	echo "  1. a site block in edge/caddy/Caddyfile proxying to orchard-$$label:8000, with import hold"; \
-	echo "  2. an ingress rule in edge/cloudflared/config.yml"; \
-	echo "  3. $(SITE) in HOSTNAMES in edge/setup-tunnel.sh"; \
-	echo "  4. make tunnel, which routes the CNAME and reseeds the tunnel's config"; \
-	echo "  5. make edge, then make deploy SITE=$(SITE)"; \
+	echo "  2. make edge, then make deploy SITE=$(SITE)"; \
+	echo ""; \
+	echo "a bythewood.me name needs nothing else at the edge, since the wildcard CNAME and"; \
+	echo "ingress rule cover it. any other domain also needs an ingress rule in"; \
+	echo "edge/cloudflared/config.yml, the name in HOSTNAMES in edge/setup-tunnel.sh, and"; \
+	echo "make tunnel before make edge."; \
 	echo ""; \
 	echo "then a row in the tables in README.md and CLAUDE.md, an entry in monitored in"; \
 	echo "sites/dash.bythewood.me/systems.go, and siteDesc and analyticsID in its site.go."

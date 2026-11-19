@@ -40,11 +40,12 @@ TUNNEL=orchard
 IMAGE=orchard-edge-cloudflared
 # That image runs as 65532, so chowning the volume borrows plain Debian as root.
 HELPER=debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
-# Every hostname the tunnel serves, matching the ingress rules in
-# cloudflared/config.yml. These span two zones and cert.pem covers one at a time,
+# Every DNS route the tunnel needs, matching the ingress rules in
+# cloudflared/config.yml. A site on bythewood.me is covered by the wildcard and
+# needs nothing here. These span two zones and cert.pem covers one at a time,
 # so routing all of them means logging in once per zone and running `up` again.
 # The per-host failures in between are expected.
-HOSTNAMES="isaacbythewood.com www.isaacbythewood.com bythewood.me www.bythewood.me blog.bythewood.me analytics.bythewood.me auth.bythewood.me status.bythewood.me logging.bythewood.me ntfy.bythewood.me repos.bythewood.me dash.bythewood.me chat.bythewood.me llm.bythewood.me pond.bythewood.me"
+HOSTNAMES="isaacbythewood.com www.isaacbythewood.com bythewood.me *.bythewood.me"
 
 volume_sh() {
 	docker run --rm -v "$VOLUME:/etc/cloudflared" "$HELPER" sh -c "$1"
@@ -118,9 +119,13 @@ up)
 	# ONE LABEL ONLY. Cloudflare's free Universal SSL signs the apex and a single
 	# wildcard level, so a two-label host like next.blog.bythewood.me has no
 	# certificate and fails the TLS handshake. Use a hyphen instead.
+	#
+	# set -f, or the shell globs *.bythewood.me against this directory.
+	set -f
 	for host in $HOSTNAMES; do
 		cfd tunnel route dns "$TUNNEL" "$host" || true
 	done
+	set +f
 
 	# Seeded over stdin rather than mounted, for the same reason as everything
 	# else here. The id appears twice in the template so the substitution is
@@ -157,7 +162,7 @@ down)
 	# counterpart, so the CNAME outlives the tunnel and has to go from the
 	# dashboard. Until it does the hostname answers 530, error 1033.
 	echo
-	echo "NOTE: the CNAME for $HOSTNAMES still exists and must be deleted"
+	echo "NOTE: the CNAMEs for $HOSTNAMES still exist and must be deleted"
 	echo "in the Cloudflare dashboard. Until then it returns 530."
 	;;
 

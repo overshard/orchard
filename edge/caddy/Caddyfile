@@ -2,8 +2,9 @@
 # HTTP to the Docker bridge, so there is nothing here to encrypt.
 #
 # Caddy sits between cloudflared and the apps so headers, compression and
-# per-host routing live in one place. Adding a site is a block here, with
-# `import hold` in its reverse_proxy, plus an ingress rule.
+# per-host routing live in one place. Adding a site on bythewood.me is a block
+# here with `import hold` in its reverse_proxy, since the wildcard CNAME and
+# ingress rule already send every subdomain here.
 {
 	auto_https off
 	admin off
@@ -463,8 +464,9 @@ http://127.0.0.1 {
 	respond 200
 }
 
-# No matching Host means it did not come through an ingress rule. Say so rather
-# than serving a site by accident.
+# No matching Host means a made-up subdomain off the wildcard, or a request that
+# did not come through the tunnel at all. Say so rather than serving a site by
+# accident.
 #
 # Only one logger here, and it has to be the console one. A block with no host
 # matcher becomes the server's default_logger_name, which is a single string

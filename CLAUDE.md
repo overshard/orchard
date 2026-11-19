@@ -195,14 +195,18 @@ restart it, and the tunnel serves the old ingress while a newly added hostname
 still serves the old ingress, because the config it reads is the copy in the
 volume and nothing has replaced it.
 
-Adding a hostname is five changes: a Caddy site block (with `import hold` inside
-its `reverse_proxy`, or a deploy of that site answers 502 until it is back), a `cloudflared` ingress
-rule, the name in `HOSTNAMES` in `edge/setup-tunnel.sh`, a proxied CNAME to
-`<tunnel-id>.cfargotunnel.com`, and then `make tunnel` to reseed the
-volume before `make edge`. Skip the reseed and the container is healthy, Caddy
-is right, and the hostname still 404s from the Cloudflare edge. The DNS route
-calls in that script fail with an authentication error unless `cert.pem` covers
-that zone, which does not matter when the CNAME already exists.
+Adding a site on bythewood.me is one edge change, a Caddy site block with
+`import hold` inside its `reverse_proxy` (or a deploy of that site answers 502
+until it is back), then `make edge`. A proxied wildcard CNAME and a
+`*.bythewood.me` ingress rule already send every subdomain to Caddy, and a name
+with no block gets the `:80` catch-all's 404. Any other domain is five changes,
+the Caddy block, a `cloudflared` ingress rule, the name in `HOSTNAMES` in
+`edge/setup-tunnel.sh`, a proxied CNAME to `<tunnel-id>.cfargotunnel.com`, and
+then `make tunnel` to reseed the volume before `make edge`. Skip the reseed and
+the container is healthy, Caddy is right, and the hostname still 404s from the
+Cloudflare edge. The DNS route calls in that script fail with an authentication
+error unless `cert.pem` covers that zone, which does not matter when the CNAME
+already exists.
 
 **One base image, and it is Debian trixie.** Every stage of every Dockerfile here
 is `debian:trixie-slim`, `golang:1.27-trixie` or `oven/bun:1-debian`, pinned by
