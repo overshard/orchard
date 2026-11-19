@@ -35,9 +35,8 @@ and HTTP layer.
   ends the grant on the agent's next call.
 - Only Claude's two client metadata documents may start a sign in, see
   `knownClients`. Another client means adding its URL there.
-- Cloudflare blocks every path starting with a dot, so the WAF rule needs an
-  exception for this host's `/.well-known/oauth-` paths or no client can find
-  the sign in.
+- Caddy refuses every path starting with a dot except `/.well-known/oauth-`,
+  so a new `.well-known` route here needs the `dotfiles` snippet changed too.
 - It speaks 2026-07-28 to a client that sends `_meta` and `Mcp-Method`, and the
   older initialize handshake to one that doesn't.
 
