@@ -189,6 +189,13 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 .o-tile .o-delta { font: 0.68rem var(--o-mono); color: var(--o-muted); min-height: 1.1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .o-tile .o-spark { display: block; width: calc(100% + 24px); height: 40px; margin: 8px -12px 0; flex: none; }
 .o-tile .o-nospark { height: 48px; }
+/* A row of ticks, one per check or run or site, oldest on the left. A tick's
+   height can carry a value. */
+.o-ticks { display: flex; align-items: flex-end; gap: 2px; height: 40px; margin-top: 8px; flex: none; }
+.o-ticks i { flex: 1 1 0; min-width: 2px; max-width: 12px; height: 100%; background: var(--o-ok); opacity: 0.55; }
+.o-ticks i:is(.down, .bad) { background: var(--o-bad); opacity: 1; }
+.o-ticks i.warn { background: var(--o-warn); opacity: 0.9; }
+.o-ticks i.none { background: var(--o-line-strong); opacity: 1; }
 
 .o-spark .l { fill: none; stroke-width: 1.25; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; stroke: var(--o-muted); }
 .o-spark .a { stroke: none; fill: var(--o-muted); fill-opacity: 0.07; }
