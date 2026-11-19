@@ -1,0 +1,56 @@
+{{define "home.html"}}<!doctype html>
+<html lang="en">
+<head>
+{{template "suite-head"}}
+<title>mcp &middot; orchard for an agent</title>
+<meta name="description" content="Every orchard tool, read only, for Claude or any MCP client, signed in with the same phone code.">
+</head>
+<body class="o-body">
+{{template "suite-top" .Suite}}
+<main class="o-wrap o-main">
+  <div class="o-ph">
+    <div>
+      <span class="o-lab">mcp &middot; connector</span>
+      <h1>orchard, <em>for an agent</em>.</h1>
+      <p>Every tool, read only, over MCP. An agent signs in through auth with the phone code and gets a session of its own you can revoke.</p>
+    </div>
+  </div>
+
+  <div class="o-cols">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Add it</h2><span class="o-lab">one url</span></div>
+      <pre class="o-code">{{.Resource}}</pre>
+      <p class="o-muted small">On claude.ai it's Settings, Connectors, Add custom connector. In Claude Code it's</p>
+      <pre class="o-code"><span class="a">claude</span> mcp add --transport http orchard {{.Resource}}</pre>
+      <p class="o-muted small">then <code>/mcp</code> to sign in. Either way a browser opens on auth, which asks for a code and then whether to allow it.</p>
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Tools</h2><span class="o-lab">all read only</span></div>
+      {{range .Tools}}<div class="o-hbar"><span class="k o-mono">{{.Name}}</span><span class="o-sp"></span><span class="v tool">{{.Title}}</span></div>{{end}}
+    </section>
+  </div>
+
+  {{if .SignedIn}}
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Connected</h2><span class="o-lab">revoke on auth's sessions page</span></div>
+    {{if .Grants}}
+    <div class="o-scroll">
+    <table class="o-tbl stack">
+      <thead><tr><th>Connector</th><th>Client</th><th>Allowed</th><th>Last used</th></tr></thead>
+      <tbody>
+      {{range .Grants}}
+        <tr><td class="lead"><span class="o-dot"></span>{{.ClientName}}</td><td class="o-muted n">{{.ClientID}}</td><td class="n" data-l="allowed">{{ago .Created}}</td><td class="n" data-l="used">{{if .LastUsed.IsZero}}<span class="o-muted">never</span>{{else}}{{ago .LastUsed}}{{end}}</td></tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+    <div class="o-more"><a href="https://auth.bythewood.me/sessions">Sessions on auth &rarr;</a></div>
+    {{else}}
+    <p class="o-empty"><b>Nothing connected yet.</b>Add the url above to Claude and sign in.</p>
+    {{end}}
+  </section>
+  {{end}}
+</main>
+{{template "suite-foot" .Suite}}
+</body>
+</html>{{end}}

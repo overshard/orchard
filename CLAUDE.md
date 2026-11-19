@@ -27,6 +27,7 @@ tunnel with no public ports.
 | `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, a markets line and a news summary Claude Haiku writes four times a day, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
 | `sites/llm.bythewood.me/` | The model gateway. Claude Haiku behind an API key, with a monthly budget it enforces and every prompt and completion logged unless the caller marks the call incognito |
+| `sites/mcp.bythewood.me/` | Every tool, read only, as one MCP server. OAuth signs an agent in through auth, which mints it a session of its own, and each tool is read over the bridge as that session. SQLite for grants and tokens |
 | `sites/cron.bythewood.me/` | Reminders and scheduled checks pushed over the `reminders` ntfy topic. One-shots and cron lines on the Eastern clock, checks the model runs through llm, a page and a JSON API. SQLite |
 | `sites/pond.bythewood.me/` | A virtual pet game where every visitor gets a frog of their own. No accounts, a frog is kept by six words in a host only cookie and stored as an HMAC under a pepper in `.env`. SQLite, with every rule and every clock on the server |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
@@ -118,7 +119,7 @@ reachable on the bridge and nowhere else.
 **Everything is named `orchard-<first label>`.** `orchard-caddy` and
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,
 `orchard-status`, `orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`,
-`orchard-auth`, `orchard-llm`, `orchard-cron`, `orchard-pond`
+`orchard-auth`, `orchard-llm`, `orchard-mcp`, `orchard-cron`, `orchard-pond`
 and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
 SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
