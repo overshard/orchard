@@ -19,13 +19,15 @@ type State struct {
 }
 
 // Item is one thing the jump search can open. Href is absolute, since the
-// search runs on every tool's pages.
+// search runs on every tool's pages. Kind action lists it under > as well, and
+// Post is a path the palette posts to when it runs on that tool's own origin.
 type Item struct {
 	Kind  string `json:"kind"`
 	Name  string `json:"name"`
 	Href  string `json:"href"`
 	Level string `json:"level,omitempty"`
 	Note  string `json:"note,omitempty"`
+	Post  string `json:"post,omitempty"`
 }
 
 // StateHandler serves a tool's state to somebody signed in, which in practice
