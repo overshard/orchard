@@ -18,56 +18,72 @@ import (
 // push. Run it every minute so the first trade lands fast.
 const quoteEvery = 5 * time.Minute
 
-var nasdaqQuote = "https://api.nasdaq.com/api/quote/%s/info?assetclass=stocks"
+var sparkURL = "https://query1.finance.yahoo.com/v7/finance/spark?range=1d&interval=1m&symbols="
 
 var pushedPrice = regexp.MustCompile(`\$([0-9,]+(?:\.[0-9]+)?)`)
 
 type Quote struct {
 	Price  float64
-	Change string
-	At     string
+	Change float64
+	First  time.Time
 }
 
-// fetchQuote reads the listing exchange's own quote. Traded is false while
-// Nasdaq still shows N/A, which is how an IPO looks before its opening cross.
+// fetchQuote reads Yahoo's spark, the same keyless endpoint dash uses. Before
+// an IPO's opening cross Yahoo shows the offer price with no minute bars, so
+// traded is false until the first bar with a close shows up.
 func fetchQuote(ctx context.Context, c *http.Client, symbol string) (q Quote, traded bool, err error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf(nasdaqQuote, url.PathEscape(symbol)), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, sparkURL+url.QueryEscape(symbol), nil)
 	if err != nil {
 		return q, false, err
 	}
-	// api.nasdaq.com hangs on requests that don't look like a browser.
-	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; cron.bythewood.me)")
 	req.Header.Set("Accept", "application/json")
 	resp, err := c.Do(req)
 	if err != nil {
 		return q, false, err
 	}
 	defer resp.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if resp.StatusCode != http.StatusOK {
-		return q, false, fmt.Errorf("nasdaq: http %d", resp.StatusCode)
+		return q, false, fmt.Errorf("yahoo: http %d", resp.StatusCode)
 	}
 	var r struct {
-		Data *struct {
-			PrimaryData struct {
-				LastSalePrice      string `json:"lastSalePrice"`
-				PercentageChange   string `json:"percentageChange"`
-				LastTradeTimestamp string `json:"lastTradeTimestamp"`
-			} `json:"primaryData"`
-		} `json:"data"`
+		Spark struct {
+			Result []struct {
+				Response []struct {
+					Meta struct {
+						Price  float64 `json:"regularMarketPrice"`
+						Change float64 `json:"regularMarketChangePercent"`
+					} `json:"meta"`
+					Timestamp  []int64 `json:"timestamp"`
+					Indicators struct {
+						Quote []struct {
+							Close []*float64 `json:"close"`
+						} `json:"quote"`
+					} `json:"indicators"`
+				} `json:"response"`
+			} `json:"result"`
+		} `json:"spark"`
 	}
 	if err := json.Unmarshal(raw, &r); err != nil {
-		return q, false, fmt.Errorf("nasdaq: %w", err)
+		return q, false, fmt.Errorf("yahoo: %w", err)
 	}
-	if r.Data == nil {
-		return q, false, fmt.Errorf("nasdaq has no quote for %s", symbol)
+	if len(r.Spark.Result) == 0 || len(r.Spark.Result[0].Response) == 0 {
+		return q, false, fmt.Errorf("yahoo has no quote for %s", symbol)
 	}
-	p := r.Data.PrimaryData
-	price, err := strconv.ParseFloat(strings.NewReplacer("$", "", ",", "").Replace(p.LastSalePrice), 64)
-	if err != nil || price <= 0 {
+	resp0 := r.Spark.Result[0].Response[0]
+	q.Price, q.Change = resp0.Meta.Price, resp0.Meta.Change
+	if len(resp0.Indicators.Quote) == 0 {
 		return q, false, nil
 	}
-	return Quote{Price: price, Change: p.PercentageChange, At: p.LastTradeTimestamp}, true, nil
+	closes := resp0.Indicators.Quote[0].Close
+	for i, ts := range resp0.Timestamp {
+		if i < len(closes) && closes[i] != nil {
+			q.First = time.Unix(ts, 0)
+			return q, q.Price > 0, nil
+		}
+	}
+	return q, false, nil
 }
 
 func (s *Scheduler) quote(ctx context.Context, j Job) (title, body string, send bool, err error) {
@@ -78,7 +94,7 @@ func (s *Scheduler) quote(ctx context.Context, j Job) (title, body string, send 
 	}
 	last, ok := s.lastPushRun(j.ID)
 	if !ok {
-		return symbol + " is trading", fmt.Sprintf("%s first trade $%.2f, %s", symbol, q.Price, q.At), true, nil
+		return symbol + " is trading", fmt.Sprintf("%s $%.2f, first trade at %s, %+.2f%% on the day", symbol, q.Price, q.First.In(s.loc).Format("3:04pm"), q.Change), true, nil
 	}
 	// A few seconds of slack so a run that fires early in its minute still counts.
 	if s.now().Sub(last.At) < quoteEvery-15*time.Second {
@@ -90,9 +106,7 @@ func (s *Scheduler) quote(ctx context.Context, j Job) (title, body string, send 
 			body += fmt.Sprintf(", %+.2f%% since %s", (q.Price-prev)/prev*100, last.At.In(s.loc).Format("3:04"))
 		}
 	}
-	if q.Change != "" {
-		body += ", " + q.Change + " on the day"
-	}
+	body += fmt.Sprintf(", %+.2f%% on the day", q.Change)
 	return symbol, body, true, nil
 }
 
