@@ -288,7 +288,11 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   its own, and `TAB_OF` in `index.js` says which dock key it lights, `ALIAS`
   sends old links like `#works` and `#sell` to their place, and the market and
   the stall are keys inside Town. The bag opens from its pill in the top bar.
-  `scenes.js` draws the picture over Make and the smaller ones.
+  `scenes.js` is the painted scene across the top of each place and the
+  kitchen pot, on the sky, water, lanterns and fireflies in `paint.js`.
+  `vista()` there sizes a scene's canvas to its device pixels and keeps the
+  fireflies and lamps going while it's on screen. The pond's own scene is
+  still drawn frame by frame in `index.js`.
   `work.js` is a frog's job screen at `#job`, lit under Frogs, and the
   card that says what came in. `workNow` in `api.js` counts a basket on
   between fetches off the actions the server dealt ahead and nothing else.
@@ -296,7 +300,7 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   picture's bottom edge, its breakdown sheet and the count up when a move says it
   rose. It holds a rise until the pond is in view with no reveal up.
 - `frontend/src/postcard.js` is the camera key on the pond's screen. The
-  card is drawn in the page off the scene canvas and opened from a blob in a
+  card is drawn in the page off the pond's part of the scene canvas and opened from a blob in a
   new tab, or saved as a file when the browser won't open one.
 - `icon.go` is the web app manifest and the home screen icons, which are
   drawn in Go like the share card since there are no image files.
@@ -316,6 +320,9 @@ they have none, for other sites to draw.
 - dash, status, blog and isaacbythewood.com draw frogs with copies of `frog.js`, so a
   change to it is copied to all four and all five deployed. A new site that
   reads `/api/panel` has to be added to `panelOrigins` in `api.go`. `make check` fails on a stale copy.
+- The pond scene is wider than the pond. Everything on it is drawn in pond
+  units, 352 by 272, and `scene.toPond` and `scene.pondBox` in `index.js`
+  turn a press or the postcard into those, so draw nothing at canvas pixels.
 - `words.txt` can never lose or reorder a word once a key is out, since a key
   is six words off it.
 - The server owns the clock and every earner has a daily cap in `game.go`. A
