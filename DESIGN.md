@@ -3,18 +3,20 @@
 What every site here looks like and why. Read this before changing anything
 visual, and update it when a decision changes.
 
-The tool sites share one look through `suite/`, a Go package every one of them
-carries a byte identical copy of the same way it carries `web/`, and `make
-check` fails when a copy drifts. It holds `suite.css`, the Geist fonts, the
-header and status line templates, `suite.js` for the home page pins and
-clickable rows, and the spark drawing, all served by the site itself under
-`/suite/`. A change to it is made in one copy and copied to the rest. The
-sections below that still talk about green and Monaspace describe the sites that
-haven't moved to the suite yet, and they go as each one does.
+The tool sites, analytics, auth, cron, llm, logging, repos and status, share one
+look through `suite/`, a Go package each of them carries a byte identical copy
+of the same way it carries `web/`, and `make check` fails when a copy drifts. It
+holds `suite.css`, the Geist fonts, the header, status line and home page
+templates, `suite.js` for the home page pins and clickable rows, and the spark
+drawing, all served by the site itself under `/suite/`. A change to it is made
+in one copy and copied to the rest. Each site keeps a small stylesheet of its
+own for what only it has, a diff, a log line or a code entry.
+
+dash is the other look, amber and a costume on purpose, since it's glanced at
+and not read. pond is a game with a night look of its own in its section below.
+blog and the portfolio are separate identities and nothing here applies to them.
 
 ## The suite
-
-This is where the tool sites are headed, and every tool site is on it.
 
 - **Dark only, on cool charcoal.** Ground `#111315`, top bar `#0c0e10`, sunken
   `#090a0c`, panels `#171a1d` and `#1f2327`, lines `#262a2f`, `#1c1f23` and
@@ -27,151 +29,41 @@ This is where the tool sites are headed, and every tool site is on it.
 - **Geist for words, Geist Mono for anything that's code, a label or a
   number.** Headings are Geist 600 at `-0.035em`. Mono goes on caps labels,
   tile and table numbers, chips, code, times, the status line and the STAGED tag.
+  No serif anywhere.
 - **Square corners and subtle solid hairlines.** No radius on anything inside
-  the page and no dashed borders.
+  the page and no dashed borders. No background grid either.
 - **Two rows of header.** The first is the orchard mark and every tool as a tab,
   this one in `[brackets]` in brass, with the account on the right. The second
-  is this tool's own pages and a mono line of what matters right now.
-- **No sidebar.** The page runs the width of the content column.
+  is this tool's own pages and a mono line of what matters right now. Inside a
+  repository on repos the second row is that repository's pages.
+- **No sidebar.** The page runs the width of the content column, 1320px, and
+  the header rows line up with it.
 - **A status line along the bottom,** vim style, a brass block with the tool's
-  name, then its state, then facts like the time zone on the right.
+  name, then its state, then facts like the time zone on the right. Only facts
+  that are true and nothing that pretends to be a key binding.
 - **A page opens on a label and a title that says the state,** like `Four
   jobs, one failing.`, with the key words in italic over a soft tint, red for
   bad. Actions sit on the right and the primary one is brass.
 - **Tiles carry dash's sparks,** drawn by `suite.Spark` the way dash draws them,
   a 1.25px line, a soft fill and a dotted rule at the median, bled to the tile's
-  edges.
+  edges. A tile with no series keeps the space so a row of tiles lines up.
+- **Trouble sorts first.** A down property, a failing job or a source with
+  errors is the top row and tinted red, so nobody has to read the list to find it.
 - **A table marked `stack` becomes a list on a phone,** its `lead` cell on a
-  line of its own. A row with `data-href` opens anywhere it's clicked.
+  line of its own. A row with `data-href` opens anywhere it's clicked, and the
+  link inside it stays the real target for keyboards.
+- **An empty state says what will show and how to get the first one,** never
+  just nothing.
+- **Anything that ends something asks first** with `data-confirm`, in words that
+  say what it ends.
 - **The home page** is the same header signed out, a hero with the copy on the
   left and a staged window of the real page on the right with numbered pins in
-  the margin, then three ways in, a few feature rows each with a staged crop,
-  run your own, the four column footer and the status line. No stat strip,
-  since the counts aren't for advertising.
-- **Copy says what is true now.** The agent card on a home page describes what
-  works today, and nothing promises a connector that isn't built.
-
-## Two phosphors
-
-Terminals before colour used one of two coatings, P3 amber and P1 green, and
-that is the split the estate runs on.
-
-- **dash is amber.** It is the only public page with no login, it is glanced at
-  rather than read, and it is the one site allowed to be a costume. pond is a
-  game and has a night look of its own, in its own section below.
-- **analytics, auth, cron, llm, logging, repos and status are green.** They are
-  tools you read for minutes at a time. Green is the primary, and amber is
-  chrome only, so caps labels, the hero eyebrow, and warnings. Amber is never
-  the primary on any of them.
-
-Everything else is shared between the two: warm near black rather than pure
-black, one monospace face, caps labels on a single tracking value, a structural
-grid drawn in CSS, and no bitmap textures anywhere.
-
-## The palette
-
-`repos` carries this palette as custom properties at the top of its
-`base.scss` until it moves to the suite.
-
-| Role | Value | Where it goes |
-|---|---|---|
-| Ground | `#0e0d0a` | `body`, the page behind everything |
-| Sunken | `#090806` | The navbar, the hero panel |
-| Panel | `#1c1a15` | Cards, inputs, dropdowns, list groups |
-| Raised | `#24211a` | Hover on a panel |
-| Text | `#ddd7cd` | Body copy |
-| Muted | `#b3aba2` | Secondary copy, feature descriptions |
-| Faint | `#8a8279` | Labels, timestamps, placeholders |
-| Green | `#6b9e78` | Primary, borders, focus |
-| Green bright | `#7db88c` | Links, stat values, the accent word in a headline |
-| Green hot | `#95cca2` | Link hover |
-| Amber | `#c9a84c` | Caps labels, eyebrows, warnings |
-| Terracotta | `#c47055` | Errors, down, over a limit |
-| Info | `#7eaab8` | The rare thing that is neither good nor bad |
-
-dash keeps its own set, and amber `#ffb000` there is the primary rather than a
-label colour.
-
-**The border alphas are a floor, not a preference.** Every border on the estate
-measured between 1.04 and 1.36 to 1 before 2026-09-01, and the panels themselves
-sat at 1.04, which is invisible under a bright light because glare adds light to
-every pixel and the bottom of a dark palette has nowhere left to go. Card
-borders sit at `0.42` alpha and inputs at `0.5` for that reason. Do not take
-them back down to make something look softer, and do not introduce a new
-hardcoded grey where a token exists.
-
-## Type
-
-One face does nearly everything.
-
-- **Monaspace Argon** for body, headings, labels, and code, at `0.92rem` base
-  with `1.7` line height. It is set as both `$font-family-sans-serif` and
-  `$font-family-monospace`, which is why the sites read as terminals without
-  anything else having to say so.
-- **Newsreader**, on `repos` alone, and only on repository names and the
-  repository page heading. A serif earns its keep on a proper noun sitting above
-  a wall of monospace and nowhere else here.
-- Headings are weight 700 with `-0.01em` tracking. Hero titles run
-  `clamp(2rem, 5vw, 3.2rem)`.
-- Caps labels are `0.12em` tracked, weight 600, and amber. Every eyebrow, every
-  feature label, every stat label, and the `// SECTION` headings in the footer.
-
-## The grid
-
-Every site draws a 32px grid on `body` in two CSS gradients and nothing else.
-Green at `0.028` alpha on the seven green sites, amber at `0.022` on dash, which is
-where the numbers differ because green reads fainter than amber at the same
-value.
-
-```scss
-background-image:
-  linear-gradient(rgba(107, 158, 120, 0.028) 1px, transparent 1px),
-  linear-gradient(90deg, rgba(107, 158, 120, 0.028) 1px, transparent 1px);
-background-size: 32px 32px;
-background-position: center top;
-```
-
-32px because that is the padding rhythm the panels already use, so the grid
-lines up with the layout rather than cutting across it.
-
-**Scanlines and the vignette stay on dash.** They are a `multiply` blend over
-the whole page, which darkens body text, and these sites are read rather than
-glanced at. A section that wants the grid to show through sets
-`background: transparent` rather than repainting the ground colour, which is why
-`.stat-strip` is transparent.
-
-## The home page
-
-analytics, status, logging, cron and llm open the same way, and the home page is
-an advert for running the thing yourself rather than a dashboard. It ends by
-pointing at the source.
-
-The skeleton, in order:
-
-1. **Eyebrow.** A pill with a green dot, then version, stage, and `self-hosted`.
-   A site with no version to give puts one fact about itself there instead, the
-   repository count on repos, `ntfy` on cron and `openai compatible` on llm.
-2. **Headline.** One line, on the pattern `<thing> for operators who host their
-   own <noun>`, with the last two words in green.
-3. **Hero paragraph.** Roughly 30 words. A list of what it does, then the
-   sentence `Your data never leaves your infrastructure.`
-4. **Terminal block.** Five or six lines of the thing actually happening, in the
-   site's own vocabulary. This is the best thing on any of these pages.
-5. **Call to action.** Access dashboard, then Docs where there is one, then View
-   source.
-6. **Stat strip.** Three or four real numbers, comma grouped through `num`.
-7. **Six feature cards.** An amber caps label, a title, and two sentences.
-8. **Footer.** One paragraph, then `// Pages` and `// Operator`.
-
-**The budget is about 250 rendered words** and status is the reference at 199.
-Anything past 300 is too long. Explanation belongs on the documentation page,
-which is what it is for.
-
-`repos` shows its hero to signed out visitors only, because signed in that page
-is a working repository list and an advert would be in the way every visit.
-Repositories archived upstream sit below the rest under their own Archived
-heading at 0.6 opacity, each card back to full on hover, so old code reads as old.
-
+  the margin and a legend under it, then feature rows each with a staged crop,
+  run your own, the four column footer and the status line. Staged data uses
+  example.com names and nothing real. No stat strip, since the counts aren't
+  for advertising.
+- **Copy says what is true now.** A home page describes what works today, and
+  nothing promises a connector or an API that isn't built.
 
 ## Dashboards
 
@@ -180,26 +72,20 @@ scanned rather than read, so the craft moves from typography to information
 design: the summary comes before the detail, and state is encoded in shape as
 well as in number.
 
-**The pieces, in the order a page uses them.** A `section-label` in amber caps
-introduces a band. `metric-tile` carries a label, a value and an optional delta
-chip. `chart-panel` wraps a canvas with its own caps title. `rankList` is the
-ranked table with a bar behind each row. Findings use a severity chip, never
-colour alone.
-
-**`.metric-label` grows only inside `.metric-header`.** The tile is a column
-flex, so a bare label with `flex: 1` eats the height and drops the number to the
-bottom of the tile. That is what the bot traffic tile on analytics did until
-2026-09-01, and it only showed up next to a tall neighbour.
+**The pieces, in the order a page uses them.** The page head, then `o-tiles`,
+then `o-panel`s, each opening on an `o-ph2` with a title and a label. `o-hbar`
+is a ranked row with a bar sized against the largest value, `o-chip` a state,
+and `o-tbl` a table. Findings use a chip with a word in it, never colour alone.
 
 ### Charts
 
-Every chart on every site draws from `chart_theme.js`, which is duplicated byte
-for byte in analytics, logging and status the same way `shipper.go` is. There is
-no shared bundle to put it in, so it gets copied and kept in step.
+Every Chart.js chart draws from `chart_theme.js`, which is duplicated byte for
+byte in analytics, logging and status the same way `shipper.go` is. Its ink is
+the suite's and its font is Geist Mono.
 
 **Series colours are punchier than the UI palette.** Chrome can be
 muted because nothing depends on telling two borders apart, and a doughnut slice
-does. Same hues, more chroma.
+does.
 
 | Slot | Value | Job |
 |---|---|---|
@@ -213,12 +99,10 @@ does. Same hues, more chroma.
 vision floor, and the worst pair sits at ΔE 6.7 for protanopia, which is inside
 the 6 to 8 band that is only acceptable when something other than colour also
 separates the series. That something is the legend, which is why every chart
-here keeps one. Reordering these means measuring them again rather than eyeballing
-the result.
+here keeps one. Reordering these means measuring them again.
 
 **Anything past the fourth category folds into `other`** rather than getting a
-generated hue, because a fifth and sixth colour out of these hues is not
-distinguishable from the four already used. `foldToPalette` does it.
+generated hue. `foldToPalette` does it.
 
 **Status is a separate job from identity.** ERROR, WARN, 5xx and the rest are
 keyed by name and never handed out in order, so a level keeps its colour
@@ -228,12 +112,10 @@ whatever order the server sent the rows in.
 size are two charts.
 
 **The map is a sequential ramp,** one hue from light to dark with no second
-colour in it. Selection is a status rather than a step on that ramp, which is
-why it is the one warm colour on the map.
+colour in it.
 
-**A narrow panel puts its legend at the bottom.** At a third of a row wide there
-is not enough room beside a doughnut, and Chart.js silently truncates the labels
-to fit, which is how "Downtime" rendered as "Downt".
+**A narrow panel puts its legend at the bottom,** since Chart.js silently
+truncates labels that don't fit beside a doughnut.
 
 ### Direction, on a price or a reading
 
@@ -249,16 +131,15 @@ above. Two colours and a neutral:
 
 **Direction colours the move and the trace, never the figure itself.** The price
 stays `--text`, because it is the number being read and the move is the
-judgement about it. A chart that coloured both would have the reader chasing the
-same information twice.
+judgement about it.
 
 **The fill under the line is the same hue at about 9% alpha**, which reads as
 the line having weight rather than as a second series.
 
 **A dotted rule across the box is what the move is measured from.** Intraday
-that is the previous close, so the shape means something on its own, and over
-any longer span there is no rule because the first bar drawn is the baseline and
-the left edge already says so.
+that is the previous close, and over any longer span there is no rule because
+the first bar drawn is the baseline. The suite's sparks put the rule at the
+median instead, since a tile's trend has no close.
 
 **An svg stretched to the column width cannot carry a dot.** `preserveAspectRatio`
 is `none` on these, so a circle comes out an ellipse and a cursor has to be a
@@ -267,102 +148,68 @@ over the top.
 
 ## Components
 
-These are measured values, not approximations. `repos` writes its CSS by hand
-and the other four go through Bootstrap, so the only way to know they agree is
-to read the computed style off a rendered page. They agree today.
+The values live in `suite.css` and nowhere else, so these are the rules behind
+them.
 
-**Button.** One object everywhere.
+**Button.** Geist 600, square, a 1px `#363b42` edge on nothing for an ordinary
+one, solid brass with `#1b1505` text for the primary, and a red edge for one
+that deletes. One primary per page head at most.
 
-| | Value |
-|---|---|
-| Padding | `0.6rem 1.1rem`, and `0.25rem 0.5rem` at `.btn-sm` |
-| Font size | `0.82rem`, and `0.805rem` at `.btn-sm` |
-| Tracking | `0.04em`, and `0.02em` at `.btn-sm` |
-| Radius | `0.25rem`, and `0.2rem` at `.btn-sm` |
-| Ghost | 1px `rgba(221, 215, 205, 0.28)`, text `#ddd7cd` |
-| Primary | 1px `#6b9e78` on `rgba(107, 158, 120, 0.16)`, text `#7db88c` |
+**Caps labels** are Geist Mono at `0.7rem`, `0.12em` tracking, brass, with `// `
+in front. A label inside a crowded row can drop the slashes with `plain`.
 
-Define the buttons at the top level of the stylesheet and not inside a page
-section, or a button anywhere else falls back to a bare element rule.
+**Focus and selection.** `:focus-visible` is a 2px brass outline at 2px offset,
+and `::selection` is brass at 30%.
 
-**Borders, in three weights.** `0.2` for a rule between bands, `0.3` for the
-navbar and the edges of a page section, and `0.42` for a card or panel. Nothing
-sits below `0.2`, since anything fainter is invisible on this background.
-
-**Caps labels are one solid amber,** `#c9a84c`, at `0.7rem` and `0.12em`
-tracking. The footer headings ran at `0.55` alpha and the section labels at
-`0.75`, which read as two different colours side by side.
-
-**Focus and selection.** `:focus-visible` is a 2px `#6b9e78` outline at 2px
-offset, and `::selection` is `rgba(107, 158, 120, 0.3)`. Every site sets both,
-since without them tabbing through a form gets whatever Bootstrap does per
-component.
+**Fields** sit on the sunken colour with a `#363b42` edge, and the focused one
+turns brass with a soft ring. On a phone they're 16px so iOS doesn't zoom.
 
 **Notifications are a switch somebody presses.** A browser only asks for
 permission from inside a press, and a public page asking on load is a prompt
 nobody wanted, so `dash` has a `NOTIFY` readout in panel 00 beside `LINK` that
-asks the first time and opens a menu of what to be told about after that. It
-keeps quiet about anything the reader is already looking at, apart from a severe
-weather warning.
-
-**Content width** is Bootstrap's container scale, so 1140px and then 1320px past
-a 1400px viewport. `repos` matches it with a media query rather than sitting
-narrower on a wide screen.
+asks the first time and opens a menu of what to be told about after that.
 
 ## The footer
 
-Four columns on every site, in this order, and the headings carry the `//`
-prefix in amber caps.
+Signed in, a slim line of copyright, the frog and the source link, then the
+status line. Signed out on a home page, four columns in this order with `//`
+caps headings.
 
-1. **`// <SiteName>`** with one paragraph saying what the site is for. Around 25
-   words, and it says nothing about how it is built or where it runs, which
-   helps nobody and narrows an attacker's guesswork.
-2. **`// Elsewhere`** with Portfolio, Blog and GitHub. The same three links on
-   every site, so none of them ever links to itself.
-3. **`// Pages`** with the site's own pages, ending on Source.
-4. **`// Operator`** with the signed in pages, or Sign in when signed out.
+1. **`// <site>`** with one sentence saying what the site is for. It says
+   nothing about how it is built or where it runs, which helps nobody and
+   narrows an attacker's guesswork.
+2. **`// elsewhere`** with Portfolio, Blog and GitHub.
+3. **`// pages`** with the site's own pages, ending on Source.
+4. **`// operator`** with Sign in and All tools.
 
-Then a footer bar with `© <year> <author> · Some rights reserved` on the left
-and the GitHub mark on the right, linking to that site's own source.
+Then a bar with `© <year> <author> · Some rights reserved`, the frog and a
+link to that site's own source.
 
-**The visitor's frog is a mark in the footer bar**, to the left of the GitHub
-mark, 44 by 34 and drawn in one ink, the bar's own muted colour, so it reads as
-another glyph there and not as a picture. A short line in the bar's `small`
-sits to its left, that the frog came along, or that it found this site's hat on
-the visit that finds it, or for the house frog that hatching one finds a hat
-here. Only the mark links to the pond and nothing about it changes on hover.
-`guest.js` asks pond for the frog. The bar is on every page, signed in or not,
-so a hat is found wherever a visitor lands. llm's and cron's marks are in their
-one line foot. dash says the
-hat was found in its pond panel.
+**The visitor's frog is a mark in the footer**, 44 by 34 and drawn in one ink,
+the muted colour, so it reads as another glyph and not as a picture. A short
+line sits to its left, that the frog came along, or that it found this site's
+hat. Only the mark links to the pond. `guest.js` asks pond for the frog. dash
+says the hat was found in its pond panel.
 
 **A frog never moves the page.** Its slot is in the markup from the start with
 the canvas at its final size and a stock line beside it, and nothing about it is
-hidden and then shown. If pond can't be reached the slot draws the house frog,
-so it's never left empty either. It goes where the page already has a place for
-a mark, and takes its colour from the page.
+hidden and then shown. If pond can't be reached the slot draws the house frog.
 
 ## The 404
 
-Identical on the four Bootstrap sites, and it uses the description the handler
-already sets
-rather than writing its own line:
+The same on every tool site, using the description the handler already sets:
 
 ```
-404 · NOT FOUND        amber caps section label
+// 404 · NOT FOUND     caps label
 (a lost frog)          216 by 180, a different frog each time
 No such page           heading
 That page does not exist. This frog took the same wrong turn and is still looking around.
-← Home                 ghost button
+← Home                 button
 ```
 
 The frog is `guest.js` again, off a random seed, so it needs nothing from pond.
-
 `repos` has a second one for history and anything at a commit SHA asked for
-signed out, the same skeleton with `404 · SIGNED IN ONLY`, a clone command and a
-ghost button back to the repository.
-
-Left aligned like every other page here.
+signed out, with a clone command and a way back to the repository.
 
 ## Rules that are easy to get wrong
 
@@ -375,10 +222,8 @@ there is something to do.
 repository, the machine and the tunnel in one sentence, which is three facts a
 visitor cannot use and a stranger can. The footer rule above already said a site
 says nothing about how it is built or where it runs, and it applies to the meta
-description, the hero copy and the stat strip too, not only the footer. A stat
-strip carries numbers, so `Go / stdlib, SQLite, one binary` was not a stat, it
-was a stack disclosure sat in the slot where a number goes. The source link
-stays, since a self-hosted thing that will not show its source is not one.
+description and the hero copy too, not only the footer. The source link stays,
+since a self-hosted thing that will not show its source is not one.
 
 **`auto-fit` with four cards leaves a hole.** A landing grid of
 `repeat(auto-fit, minmax(15rem, 1fr))` resolved at the container width to
@@ -386,14 +231,9 @@ three columns and put the fourth card alone beside an empty half row. Four cards
 is `repeat(2, 1fr)` and one column on a phone. Count the cards before reaching
 for `auto-fit`.
 
-**A wordmark is not a logo.** A brand that is the site's name at body size
-with a `▍` in front of it is smaller than the text beside it in the bar. Make it
-a bordered key carrying a cursor block and the name at `0.95rem`.
-The block does not blink, since a logo that moves pulls the eye away from the page
-every second and a bar is the one thing on screen that should sit still.
-The cursor is a drawn block rather than a glyph, since a block character renders
-at a different width in every monospace face and came out as a hairline in some,
-which is an empty box where the mark should be.
+**The orchard mark is a drawn glyph, not a character.** A block or a symbol
+character renders at a different width in every face and comes out as a
+hairline in some. It sits still, since the bar is the one thing that should.
 
 **No changelog.** analytics and status each had one and both are gone as of
 2026-09-01. The newest entry was four months old, the oldest was from 2022 and
@@ -415,12 +255,10 @@ deleting it from `pageTemplates` in the same commit. `web.NewRenderer` resolves
 the list at boot and not at build, so the image builds fine and then dies on
 start with `pattern matches no files`.
 
-**Chrome width has to match content width.** logging's navbar and footer were
-`container-fluid` while its home page was `container`, so the hero sat narrower
-than the bar above it. All four use `container` now, and only logging's
-dashboard pages go full width inside it. dash broke the same rule until
-2026-10-09 with a rail and a status line running edge to edge past a capped
-`main`.
+**Chrome width has to match content width.** The suite's header rows, page
+and slim footer all sit in the same 1320px column, with only their backgrounds
+running edge to edge. dash broke this until 2026-10-09 with a rail and a status
+line running past a capped `main`.
 
 **dash's chrome is panel 00 and panel 19.** The header is a panel like any other,
 DASH large with a boxed `MODEL BW-07 / SERIES ORCHARD` plate under it and the
@@ -646,16 +484,23 @@ below live as tokens at the top of `frontend/src/index.css`.
   plus.
 - **What's coming.** The pictures are the old ones in a dark frame for now.
   Later each tab gets a painted night scene across the top of the page under
-  the top bar, with the lanterns, the moon and fireflies, and the icons are
-  redrawn for the dock, the pills and the rows. The frogs in those scenes are
-  lit, a warm rim on the side the nearest lantern is on. After that come a
+  the top bar, with the lanterns, the moon and fireflies. The frogs in those
+  scenes get a warm rim on the side the nearest lantern is on. After that come a
   page a frog, laying an egg as its own screen, selling, a stamp book, the
   games as jars on a shelf in place of the disks, and the market as a night
   market board.
 - **Colour lives in the pictures, the icons and rarity.** The frog, the water,
   the wheel, Dive, the stall and the wizard are colour pixel art. Past that
-  the colour is the 8 by 8 pixel icons, a thing's tier, lamp yellow on keys,
+  the colour is the 12 by 12 pixel icons, a thing's tier, lamp yellow on keys,
   green for ready and pink for hearts.
+- **Icons are 12 by 12 and lit from the top.** Each is a filled shape with a
+  dark `#0a0d16` edge round every filled cell and the top edge of a shape a
+  quarter lighter, all added in code so every icon is lit the same way. They
+  draw at whole scales only, 24px in the dock, the pills, the tabs and the
+  Next strip, 36 in a slot and 48 or 60 on a reveal, and a scene draws them
+  at its own pixel size. A dye keeps its colour per kind, a pattern is a
+  stamp with its face cut in the pattern, and each game has its own icon for
+  its Next row.
 - **Every game is a floppy disk** on Play, a 3.5 inch disk in its own colour
   with a metal shutter, a write protect tab and the game's picture on a cream
   label. A disk that still pays in full has a blinking green LED, the rest are
@@ -974,7 +819,7 @@ below live as tokens at the top of `frontend/src/index.css`.
   about a day in three in place of the day's line, so it never gets longer,
   and the key that feeds a frog says so when the dish is its favourite.
 - **A visitor comes once a day while the pond is shut.** The first visit of
-  a day pops it up as a reveal with the frog drawn the way `frog.js` draws
+  a day pops it up as a reveal with the frog drawn the way the pond draws
   any frog and the common thing it left by its feet, and a row in the
   greeting's list says who. A small muddy footprint sits on the front edge
   of the pad, by the frog's left foot, until the next day's visitor. A Stay
@@ -1031,6 +876,12 @@ below live as tokens at the top of `frontend/src/index.css`.
   key page.
 - Every sprite is drawn per pixel from a seed in `frontend/src/frog.js`. There
   are no image files, and a canvas is always `image-rendering: pixelated`.
+- **A frog is lit from the top left** on every pond page, a lighter cell
+  where nothing is above it or to its left, a darker one where nothing is
+  below or to its right, and a white shine in each eye. That's
+  `frontend/src/lit.js`, so `frog.js` stays the plain drawing other sites copy.
+  The side view sprites in Dive, pebble skip and lily stack are flat, and so
+  is the share card PNG the server draws.
 - **Pixelify on a canvas.** Words a game draws are Pixelify Sans at the
   canvas's own pixel size, so they sit in the art like the sprites do.
 - **Anything read is 14px or more.** 11 and 12px are for section labels, the
