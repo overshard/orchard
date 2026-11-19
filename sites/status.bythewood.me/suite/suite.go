@@ -116,6 +116,7 @@ var Tools = []Tool{
 	{"cron", "https://cron.bythewood.me/"},
 	{"llm", "https://llm.bythewood.me/"},
 	{"repos", "https://repos.bythewood.me/"},
+	{"mcp", "https://mcp.bythewood.me/"},
 }
 
 // Page is what the chrome templates read, one per rendered page.
