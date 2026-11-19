@@ -116,7 +116,7 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   lily leap, tadpoles, lily stack, the shell game, pebble skip, pebble
   drop, chorus, pad putt, the spawn jar, tongue lash, swarm season, whirlpool and cattail sling, which pay into the purse like Dive with a cap a day each. A score over a game's `most`
   pays nothing, so keep it well past what a person could reach. One game a
-  day, off a hash of the date, is the disk of the day and pays in full a
+  day, off a hash of the date, is the game of the day and pays in full a
   fourth time under the same cap. Eight hours after the last run of any game
   the pond is well rested and the next run pays a quarter more, still under
   that game's cap, with `ponds.played_at` keeping when.
@@ -130,9 +130,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   whole round plays with bun. Cattail sling's physics and its levels are
   `frontend/src/slingworld.js`, so `slingMost` in `arcade.go` is kept over
   the most the biggest level in each slot can score.
-  `frontend/src/play.js` is the shelves on Play. A disk is one line on its
-  shelf there with its colour, its label art and its game, and the page makes
-  the disk, the game's view and its place in the tabs from that line.
+  `frontend/src/play.js` is the shelves on Play. A game is one line on its
+  shelf there with its title card picture and its game, and the page makes
+  the jar, the game's view and its place in the tabs from that line. A jar is
+  lit while `fullLeft` in `api.js` says a run still pays in full.
   It reads a game's `W` and `H` each time, since Crossing changes its `H` to
   fit the window between runs.
   `frontend/src/feel.js` is how a game feels, one made with `feel()` and set
@@ -141,7 +142,7 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   `squashed` draws the frog squashed, `buffer` and `take` keep an early press
   for 90ms, and the game calls `draw` where its popups belong. A game's
   `demo()` gives the ghost finger its first input.
-- `aims.go` is each disk's two goals for the day, dealt off a hash of the
+- `aims.go` is each game's two goals for the day, dealt off a hash of the
   date from `aimList` so every pond has the same ones. A run sends the counts
   its goals read as `counts`, Dive and bug sweep work theirs out on the
   server, and a goal met for the first time that day is a row in `aims` and
@@ -466,7 +467,7 @@ they have none, for other sites to draw.
   being sane. A goal is kept by its key, so a key never changes.
 - A game with no `rate` in `arcade.go` is played out on the server and is
   refused by the plain start and finish. On the page it has `begin` and `end`
-  in place of those two calls, and it's never the disk of the day.
+  in place of those two calls, and it's never the game of the day.
 - A first tap in bug sweep moves any wasp on it or next to it along the
   seed's shuffle. Moving them anywhere fixed, like the first free pad, would
   tell every player where the spare wasps went.
