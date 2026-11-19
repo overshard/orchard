@@ -17,7 +17,7 @@ that is the split the estate runs on.
 - **dash is amber.** It is the only public page with no login, it is glanced at
   rather than read, and it is the one site allowed to be a costume. pond is a
   game and wears the same one.
-- **analytics, auth, chat, llm, logging, repos and status are green.** They are
+- **analytics, auth, chat, cron, llm, logging, repos and status are green.** They are
   tools you read for minutes at a time. Green is the primary, and amber is
   chrome only, so caps labels, the hero eyebrow, and warnings. Amber is never
   the primary on any of them.
@@ -133,10 +133,10 @@ is a working repository list and an advert would be in the way every visit.
 Repositories archived upstream sit below the rest under their own Archived
 heading at 0.6 opacity, each card back to full on hover, so old code reads as old.
 
-chat and llm have no Bootstrap and no Vite, so their landing pages write the
-skeleton out by hand in a `.landing-body` block in `static/app.css`.
-That block is byte identical between the two and carries the shared palette
-rather than the app's own, so a change to it is made in both, and checked
+chat, llm and cron have no Bootstrap and no Vite, so their landing pages write
+the skeleton out by hand in a `.landing-body` block in `static/app.css`.
+That block is byte identical between them and carries the shared palette
+rather than the app's own, so a change to it is made in each, and checked
 against a Bootstrap site's computed styles rather than by eye.
 
 ## Dashboards
@@ -1181,6 +1181,7 @@ version of the old look and a handheld pet shell.
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
 | `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture from an older conversation shows in a panel with its size and a link to the full one. An unread dot on a conversation that finished a turn off screen, and working on every turn still going |
 | `llm` | green | Hand written CSS, no Bootstrap. Behind the landing is a dashboard of keys, usage and the call log |
+| `cron` | green | llm's stylesheet and landing, with a job form and run history behind it |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `CHAT` readout beside it that only appears signed in |
 | `pond` | amber | Hand written CSS. A game in the Deck direction, 80s hardware with keycaps, readout glass and colour pixel art in its screen windows. Dive is full screen on a phone |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |

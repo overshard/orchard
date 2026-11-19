@@ -1,0 +1,40 @@
+{{template "head" .}}
+
+{{if .Fresh}}
+<section class="fresh">
+  <p class="label">Copy this now</p>
+  <code class="secret">{{.Fresh}}</code>
+  <p class="note">Only a hash of it is kept, so nothing here can show it again.</p>
+</section>
+{{end}}
+
+<h2>API keys</h2>
+<form class="newkey" method="post" action="/keys">
+  <input type="text" name="name" placeholder="What will use it, like claude" required maxlength="60">
+  <button type="submit">Create key</button>
+</form>
+{{if .Keys}}
+<table>
+  <thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+  <tbody>
+  {{range .Keys}}
+    <tr>
+      <td>{{.Name}}</td>
+      <td><code>{{.Prefix}}&hellip;</code></td>
+      <td class="faint">{{ago .Created}}</td>
+      <td class="faint">{{ago .Used}}</td>
+      <td class="act"><form method="post" action="/keys/{{.ID}}/delete"><button type="submit" class="danger">Delete</button></form></td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="empty">No keys yet.</p>
+{{end}}
+
+<h2>Using it</h2>
+<p class="how">Send the key as <code>Authorization: Bearer cron-&hellip;</code> to <code>https://cron.bythewood.me/api/jobs</code>. A job is <code>{"name", "kind", "at" or "cron", "message"}</code>, kind is <code>notify</code> or <code>prompt</code>, and a time with no offset is Eastern.</p>
+<pre class="example">curl -H "Authorization: Bearer $CRON_KEY" https://cron.bythewood.me/api/jobs \
+  -d '{"name": "Switch 2", "at": "2026-11-22T08:00", "message": "Bundle is $499.99 today"}'</pre>
+
+{{template "foot" .}}

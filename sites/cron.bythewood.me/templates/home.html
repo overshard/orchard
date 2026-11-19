@@ -1,0 +1,33 @@
+{{template "head" .}}
+
+<div class="actions">
+  <a class="button" href="/jobs/new">New reminder</a>
+  <a class="button ghost" href="/jobs/new?kind=prompt">New check</a>
+</div>
+
+<h2>Jobs</h2>
+{{if .Jobs}}
+<table class="jobs">
+  <thead><tr><th>Next</th><th>Name</th><th>Schedule</th><th></th></tr></thead>
+  <tbody>
+  {{range .Jobs}}
+    <tr {{if not .Enabled}}class="off"{{end}}>
+      <td class="when">{{if .Enabled}}{{eastern .NextRun}} <span class="faint">{{until .NextRun}}</span>{{else}}<span class="tag">paused</span>{{end}}</td>
+      <td><a href="/jobs/{{.ID}}">{{.Name}}</a>{{if eq .Kind "prompt"}} <span class="tag">check</span>{{end}}{{if .LastErr}} <span class="tag bad" title="{{.LastErr}}">failing</span>{{end}}</td>
+      <td><code>{{describe .}}</code></td>
+      <td class="act">
+        <form method="post" action="/jobs/{{.ID}}/toggle"><button type="submit" class="ghost">{{if .Enabled}}Pause{{else}}Resume{{end}}</button></form>
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="empty">Nothing scheduled.</p>
+{{end}}
+
+<h2>Recent runs</h2>
+{{template "runs" .Runs}}
+<p class="more"><a href="/runs">Every run</a></p>
+
+{{template "foot" .}}

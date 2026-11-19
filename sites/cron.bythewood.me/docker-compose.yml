@@ -1,0 +1,50 @@
+name: orchard-cron
+
+# No published ports. Caddy reaches this by container name on the shared network.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchard-cron
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      CRON_DB: /data/cron.db
+      NTFY_TOKEN: ${NTFY_TOKEN:-}
+      LLM_KEY: ${LLM_KEY:-}
+    volumes:
+      - data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+          pids: 64
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs: [/tmp]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge]
+
+volumes:
+  data:
+    name: orchard-cron-data
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true

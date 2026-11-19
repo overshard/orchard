@@ -16,6 +16,7 @@ inbound port.
 | `sites/auth.bythewood.me/` | The front door. One account, a code pushed to a phone, one session for every site |
 | `sites/chat.bythewood.me/` | Chat with Claude Haiku, with tools that read the rest of this repo and house lookups |
 | `sites/llm.bythewood.me/` | The model gateway. Claude Haiku behind an API key, with a monthly budget and every call logged |
+| `sites/cron.bythewood.me/` | Reminders and scheduled checks, pushed to a phone over ntfy |
 | `sites/pond.bythewood.me/` | A virtual pet game. Every visitor gets a frog of their own, kept by six words in a cookie |
 | `edge/` | The shared cloudflared tunnel, the Caddy behind it, and ntfy for alerts |
 

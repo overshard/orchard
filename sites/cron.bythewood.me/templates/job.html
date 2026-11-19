@@ -1,0 +1,70 @@
+{{template "head" .}}
+
+<h2>{{if .Job.ID}}Edit job{{else}}New {{if eq .Kind "prompt"}}check{{else}}reminder{{end}}{{end}}</h2>
+
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+<form class="job" method="post" action="{{if .Job.ID}}/jobs/{{.Job.ID}}{{else}}/jobs{{end}}">
+  <label>Name
+    <input type="text" name="name" value="{{.Job.Name}}" required maxlength="120" placeholder="Switch 2 bundle">
+  </label>
+
+  <fieldset class="kind">
+    <legend>Kind</legend>
+    <label class="inline"><input type="radio" name="kind" value="notify" {{if ne .Kind "prompt"}}checked{{end}}> Reminder, sends the message as written</label>
+    <label class="inline"><input type="radio" name="kind" value="prompt" {{if eq .Kind "prompt"}}checked{{end}}> Check, the model does the message and pushes what it finds</label>
+  </fieldset>
+
+  <fieldset class="schedule">
+    <legend>When</legend>
+    <label class="inline"><input type="radio" name="schedule" value="once" {{if not .Repeat}}checked{{end}}> Once</label>
+    <label class="inline"><input type="radio" name="schedule" value="repeat" {{if .Repeat}}checked{{end}}> Repeat</label>
+    <label data-for="once">At, Eastern
+      <input type="datetime-local" name="at" value="{{local .Job.At}}">
+    </label>
+    <label data-for="repeat">Cron line, Eastern
+      <input type="text" name="cron" value="{{.Job.Cron}}" placeholder="0 9 * * 1-5" spellcheck="false" autocomplete="off">
+      <span class="hint">minute hour day month weekday, so <code>0 9 3 3 *</code> is 9am every March 3rd</span>
+    </label>
+    <p class="preview" data-preview aria-live="polite"></p>
+  </fieldset>
+
+  <label>Message
+    <textarea name="message" rows="5" required placeholder="{{if eq .Kind "prompt"}}Check Metacritic's user score and r/GTA6 for GTA 6 player reviews, no critics{{else}}What the push says{{end}}">{{.Job.Message}}</textarea>
+  </label>
+
+  <div class="row">
+    <label>Title <span class="hint">defaults to the name</span>
+      <input type="text" name="title" value="{{.Job.Title}}" maxlength="120">
+    </label>
+    <label>Priority
+      <select name="priority">
+        {{range .Priorities}}<option value="{{.}}" {{if eq . $.Job.Priority}}selected{{end}}>{{.}}</option>{{end}}
+      </select>
+    </label>
+  </div>
+
+  <label>Link <span class="hint">a button on the push</span>
+    <input type="text" name="link" value="{{.Job.Link}}" placeholder="https://" inputmode="url">
+  </label>
+
+  <label class="inline"><input type="checkbox" name="enabled" {{if .Job.Enabled}}checked{{end}}> Enabled</label>
+
+  <div class="actions">
+    <button type="submit">Save</button>
+    <a class="button ghost" href="/">Cancel</a>
+  </div>
+</form>
+
+{{if .Job.ID}}
+<div class="actions after">
+  <form method="post" action="/jobs/{{.Job.ID}}/run"><button type="submit" class="ghost">Run now</button></form>
+  <form method="post" action="/jobs/{{.Job.ID}}/delete" data-confirm="Delete {{.Job.Name}}?"><button type="submit" class="danger">Delete</button></form>
+</div>
+<p class="meta faint">Made by {{if .Job.CreatedBy}}{{.Job.CreatedBy}}{{else}}hand{{end}} {{ago .Job.Created}}. Last ran {{ago .Job.LastRun}}.{{if .Job.LastErr}} <span class="bad">{{.Job.LastErr}}</span>{{end}}</p>
+
+<h2>Runs</h2>
+{{template "runs" .Runs}}
+{{end}}
+
+{{template "foot" .}}

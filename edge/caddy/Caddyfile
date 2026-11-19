@@ -338,6 +338,15 @@ http://chat.bythewood.me {
 
 # The model gateway. Every other site reaches it by container name on the
 # bridge, so this hostname exists for the machines that are not on it.
+# cron. The snooze route is public since a phone presses it from a notification,
+# and the token in its path is the credential.
+http://cron.bythewood.me {
+	import site
+	reverse_proxy orchard-cron:8000 {
+		import hold
+	}
+}
+
 http://llm.bythewood.me {
 	import scanners
 	import headers

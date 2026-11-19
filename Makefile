@@ -65,7 +65,7 @@ COMPOSE_DOWN = $(DOCKER) compose
 .DEFAULT_GOAL := help
 .PHONY: help install up up-one deploy edge doctor down down-one run build check shared-check frog frog-check template-check new fmt fmt-check vet vuln deps test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
-	auth-init auth-recovery chat-key dash-key pond-key llm-key util require-site require-env require-tunnel
+	auth-init auth-recovery chat-key dash-key pond-key cron-key llm-key util require-site require-env require-tunnel
 
 help:
 	@echo "running system"
@@ -422,6 +422,9 @@ dash-key:
 pond-key:
 	$(call mint-key,pond.bythewood.me,pond)
 
+cron-key:
+	$(call mint-key,cron.bythewood.me,cron)
+
 llm-key:
 	@$(DOCKER) ps --filter "name=^orchard-llm$$" --format '{{.Names}}' 2>/dev/null | grep -q . || { \
 		echo "orchard-llm is not running:" >&2; \
@@ -552,7 +555,7 @@ FROG_COPIES = sites/dash.bythewood.me/frontend/static_src/scripts/frog.js \
 	sites/isaacbythewood.com/frontend/static_src/js/frog.js \
 	$(addsuffix /frog.js,$(GUEST_DIRS))
 GUEST_COPIES = $(addsuffix /guest.js,$(GUEST_DIRS))
-GUEST_BUNDLES = sites/chat.bythewood.me/static/guest.js sites/llm.bythewood.me/static/guest.js
+GUEST_BUNDLES = sites/chat.bythewood.me/static/guest.js sites/cron.bythewood.me/static/guest.js sites/llm.bythewood.me/static/guest.js
 GUEST_BUNDLE = { cat $(FROG); grep -v '^import .* from "./frog.js";$$' $(GUEST); }
 
 frog:

@@ -1,0 +1,24 @@
+# Templates and static files are compiled in with -tags embed, and the zone
+# database comes from time/tzdata, so the binary needs nothing beside it.
+FROM golang:1.27-trixie@sha256:c47c3fda018d13d43a6bf5ebac3e5bba8a23a35782aa4faf531afaf47c64c39f AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" -o /app .
+
+RUN mkdir -p /seed-data
+
+FROM scratch
+COPY --from=build /app /app
+EXPOSE 8000
+
+# A fresh volume copies this directory's owner, so the database is writable
+# by 65532 without a chown.
+COPY --from=build --chown=65532:65532 /seed-data /data
+USER 65532:65532
+VOLUME ["/data"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/app", "-healthcheck"]
+ENV SHIP_LOGS=1
+ENTRYPOINT ["/app"]

@@ -28,6 +28,7 @@ tunnel with no public ports.
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
 | `sites/chat.bythewood.me/` | A conversation with Claude Haiku, with tools, attachments, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records |
 | `sites/llm.bythewood.me/` | The model gateway. Claude Haiku behind an API key, with a monthly budget it enforces and every prompt and completion logged unless the caller marks the call incognito |
+| `sites/cron.bythewood.me/` | Reminders and scheduled checks pushed over the `reminders` ntfy topic. One-shots and cron lines on the Eastern clock, checks the model runs through llm, a page and a JSON API. SQLite |
 | `sites/pond.bythewood.me/` | A virtual pet game where every visitor gets a frog of their own. No accounts, a frog is kept by six words in a host only cookie and stored as an HMAC under a pepper in `.env`. SQLite, with every rule and every clock on the server |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
@@ -63,8 +64,8 @@ and repos' own), and `README.md`, which is written for its site.
 Two smaller packages are shared the same way. `guard/`, in chat and dash, paces
 the calls to somebody else's server, keeps a budget per window and opens a
 breaker when the far end says no, with each site's numbers in a `Policy` and its
-state behind a `Store`. `ntfy/`, in status, logging and auth, publishes an
-alert. Both are byte identical wherever they are, with no exceptions, and `make
+state behind a `Store`. `ntfy/`, in status, logging, auth, llm and cron, publishes
+an alert. Both are byte identical wherever they are, with no exceptions, and `make
 check` holds them to it the same way it holds `web/`, so a fix to either is made
 in every site that carries it. Most Dockerfiles copy the build stage by name, so
 a site taking one up needs its `COPY` line or the image fails to build.
@@ -114,7 +115,7 @@ reachable on the bridge and nowhere else.
 **Everything is named `orchard-<first label>`.** `orchard-caddy` and
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,
 `orchard-status`, `orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`,
-`orchard-auth`, `orchard-chat`, `orchard-llm`, `orchard-pond`
+`orchard-auth`, `orchard-chat`, `orchard-llm`, `orchard-cron`, `orchard-pond`
 and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
 SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
@@ -135,12 +136,13 @@ and probes every other site at `http://orchard-<label>:8000/healthz`,
 so renaming a container means rebuilding Caddy, the portfolio and every site,
 not just editing a compose file. No SQLite database refers to a container name.
 
-**`orchard-llm` is the exception.** chat and dash reach the gateway through
+**`orchard-llm` is the exception.** chat, dash and cron reach the gateway through
 `LLM_URL`, which compose sets and which falls back to that name, so it's the
 only one a dev run can point somewhere else without a rebuild.
 
 **Alerts leave through ntfy in the edge, and reading them is authenticated.**
-status publishes to the `status` topic, logging to `logging` and auth to `auth`,
+status publishes to the `status` topic, logging to `logging`, cron to
+`reminders` and auth to `auth`,
 all to `http://orchard-ntfy:8000` on the bridge with a write-only token from
 each site's `.env`, and reading is over the tunnel at `ntfy.bythewood.me` with a
 read-only account. There are three accounts, not two: `orchard-auth` writes the

@@ -1,0 +1,59 @@
+{{define "head"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{.Title}} &middot; cron</title>
+<link rel="stylesheet" href="{{asset "static/app.css"}}">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="/"><span class="key">C</span><span class="brand-name">cron</span></a>
+  <nav class="nav">
+    <a href="/" {{if eq .Title "Jobs"}}class="on"{{end}}>Jobs</a>
+    <a href="/runs" {{if eq .Title "Runs"}}class="on"{{end}}>Runs</a>
+    <a href="/keys" {{if eq .Title "Keys"}}class="on"{{end}}>Keys</a>
+  </nav>
+  <span class="model" title="Every time here is Eastern">eastern</span>
+</header>
+<main class="wrap">
+{{end}}
+
+{{define "foot"}}
+</main>
+<footer class="foot">
+  <span>Reminders and checks, pushed to the phone.</span>
+  <span class="footer-bar-end">
+    <span class="pond-guest" data-pond-foot>
+      <small data-pond-line>A frog from the pond</small>
+      <a href="https://pond.bythewood.me/" aria-label="The pond"><canvas width="44" height="34" aria-hidden="true"></canvas></a>
+    </span>
+    <a href="{{.Source}}" target="_blank" rel="noopener">View source</a>
+  </span>
+</footer>
+<script type="module" src="{{asset "static/guest.js"}}"></script>
+<script type="module" src="{{asset "static/app.js"}}"></script>
+</body>
+</html>
+{{end}}
+
+{{define "runs"}}
+{{if .}}
+<table class="runs">
+  <thead><tr><th>When</th><th>Job</th><th>What went out</th><th class="n">ms</th></tr></thead>
+  <tbody>
+  {{range .}}
+    <tr>
+      <td class="faint" title="{{eastern .At}}">{{ago .At}}</td>
+      <td><a href="/jobs/{{.JobID}}">{{.Name}}</a></td>
+      <td class="msg {{if .Err}}bad{{end}}">{{if .Err}}{{.Err}}{{else if .Pushed}}{{.Title}}: {{.Body}}{{else}}<span class="tag">quiet</span> {{.Body}}{{end}}</td>
+      <td class="n">{{.MS}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="empty">Nothing has run yet.</p>
+{{end}}
+{{end}}
