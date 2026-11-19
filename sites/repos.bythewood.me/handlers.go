@@ -177,7 +177,19 @@ func (s *site) index(w http.ResponseWriter, r *http.Request) {
 	var totalSize int64
 	var mirrors int
 	var newest time.Time
+	var week, failing int
+	touched := make([]float64, 12)
+	now := time.Now()
 	for _, c := range cards {
+		if now.Sub(c.LastPush) < 7*24*time.Hour {
+			week++
+		}
+		if i := 11 - int(now.Sub(c.LastPush).Hours()/(24*7)); i >= 0 && i < 12 {
+			touched[i]++
+		}
+		if c.LastSyncErr != "" {
+			failing++
+		}
 		if c.Archived {
 			archived = append(archived, c)
 		} else {
@@ -202,6 +214,9 @@ func (s *site) index(w http.ResponseWriter, r *http.Request) {
 		"TotalSize": totalSize,
 		"Mirrors":   mirrors,
 		"LastPush":  newest,
+		"Week":      week,
+		"Failing":   failing,
+		"Touched":   touched,
 	}))
 }
 

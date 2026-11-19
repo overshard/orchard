@@ -25,7 +25,10 @@ git push -u origin main</pre>
     {{template "pushlimit" (dict "Bridge" $c.BridgeContainer "Name" $c.Repo.Name)}}
     {{end}}
   </div>
+  {{template "clonebox" $d}}
 {{else}}
+<div class="o-cols repocols">
+<div class="repomain">
   <div class="toolbar">
     {{template "refswitcher" $d}}
     <span class="stat">{{$d.CommitCount}} {{pluralize $d.CommitCount "commit" "commits"}}</span>
@@ -59,6 +62,8 @@ git push -u origin main</pre>
     </article>
   {{end}}
 
+</div>
+<div class="side">
   {{if $c.SignedIn}}
   <section class="recent">
     <h2>Recent commits</h2>
@@ -68,9 +73,7 @@ git push -u origin main</pre>
     <a href="/{{$c.Repo.Name}}/log/{{$c.Rev}}">All commits</a>
   </section>
   {{end}}
-{{end}}
-
-{{template "clonebox" $d}}
+  {{template "clonebox" $d}}
 
 {{if and $.LoggedIn (not $c.Meta.Mirror)}}
 <details class="editbox">
@@ -88,5 +91,8 @@ git push -u origin main</pre>
     <button type="submit">Save</button>
   </form>
 </details>
+{{end}}
+</div>
+</div>
 {{end}}
 {{end}}

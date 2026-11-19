@@ -972,3 +972,25 @@ section > h2 {
 .repometa { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 0 0; font-size: 0.74rem; color: var(--muted); }
 .repometa a { color: var(--muted); }
 .repos .o-ph { margin-bottom: 4px; }
+
+// A repository's page: files and the README on the left, what you do with it
+// on the right.
+.repocols { margin-top: 0.5rem; }
+.repomain, .repocols .side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.repomain .readme { margin-top: 0; }
+.repocols .side .clonebox { margin-top: 0; }
+.repocols .recent {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 12px 14px;
+  margin: 0;
+
+  h2 { font-size: 0.95rem; margin: 0 0 8px; }
+  .commit:last-child { border-bottom: 0; }
+  > a { display: inline-block; margin-top: 8px; font-size: var(--t-sm); }
+}
+.repocols .editbox { margin: 0; }
+.repotbl td.lead { min-width: 16rem; }
+.repotbl td.lead .o-chip { margin-left: 6px; }
+section.o-panel { margin: 0; }
+.repocols .recent .commit:first-child { border-top: 0; }

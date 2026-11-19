@@ -75,48 +75,71 @@ git push -u origin main</pre>
 </div>
 {{end}}
 
-<ul class="repolist">
-{{range $d.Active}}{{template "repocard" .}}{{end}}
-</ul>
+{{if $d.Repos}}
+<div class="o-tiles">
+  <div class="o-tile">
+    <small>repositories</small>
+    <b>{{len $d.Active}}</b>
+    <span class="o-delta">{{if $d.Archived}}{{len $d.Archived}} archived as well{{else}}none archived{{end}}</span>
+    <span class="o-ticks" aria-hidden="true">{{range $d.Active}}<i class="{{if .LastSyncErr}}bad{{else if .Empty}}none{{end}}" title="{{.Name}}"></i>{{end}}</span>
+  </div>
+  <div class="o-tile">
+    <small>pushed &middot; 7d</small>
+    <b>{{$d.Week}}</b>
+    <span class="o-delta">last push {{humanTime $d.LastPush}}</span>
+    {{spark "ok" $d.Touched}}
+  </div>
+  <div class="o-tile">
+    <small>mirrors</small>
+    <b class="{{if $d.Failing}}bad{{end}}">{{$d.Mirrors}}</b>
+    <span class="o-delta {{if $d.Failing}}o-bad{{end}}">{{if $d.Failing}}{{$d.Failing}} failing to sync{{else if $d.Mirrors}}every one syncing{{else}}nothing mirrored{{end}}</span>
+    <span class="o-nospark"></span>
+  </div>
+  <div class="o-tile">
+    <small>on disk</small>
+    <b>{{humanBytes $d.TotalSize}}</b>
+    <span class="o-delta">every repository together</span>
+    <span class="o-nospark"></span>
+  </div>
+</div>
+
+<section class="o-panel flush">
+  <div class="o-ph2"><h2>Repositories</h2><span class="o-lab">last pushed first</span></div>
+  {{template "repotable" $d.Active}}
+</section>
+{{end}}
 
 {{if $d.Archived}}
-<section class="archivedrepos">
-  <div class="pagehead">
-    <h2 class="pagetitle">Archived <span class="count">{{len $d.Archived}}</span></h2>
-    <p class="hint">Old code that's no longer maintained, archived upstream and kept here as a read only copy.</p>
-  </div>
-  <ul class="repolist">
-  {{range $d.Archived}}{{template "repocard" .}}{{end}}
-  </ul>
+<section class="o-panel flush">
+  <div class="o-ph2"><h2>Archived</h2><span class="o-lab">read only copies, no longer maintained</span></div>
+  {{template "repotable" $d.Archived}}
 </section>
 {{end}}
 {{end}}
 
-{{define "repocard"}}
-<li class="repocard">
-  <div class="row">
-    <a class="name" href="/{{.Name}}">{{.Name}}</a>
-    {{if .Mirror}}<span class="badge mirror">mirror</span>{{end}}
-    {{if .UpstreamGone}}<span class="badge gone" title="No longer on GitHub. This is the only copy.">only copy</span>{{end}}
-    {{if .Empty}}<span class="badge empty">empty</span>{{end}}
-  </div>
-
-  {{if .Description}}<p class="desc">{{.Description}}</p>{{end}}
-  {{if .Topics}}<p class="topics">{{range .Topics}}<span class="topic">{{.}}</span>{{end}}</p>{{end}}
-
-  {{/*
-    One span per fact, so the flex gap falls between facts rather than
-    inside one. Zero counts are dropped: "0 tags" on every row is noise that
-    makes the real numbers harder to spot.
-  */}}
-  <p class="meta">
-    <span>{{humanBytes .Size}}</span>
-    <span>{{.Branches}} {{pluralize .Branches "branch" "branches"}}</span>
-    {{if .Tags}}<span>{{.Tags}} {{pluralize .Tags "tag" "tags"}}</span>{{end}}
-    <span>updated <time title="{{.LastPush.Format "2006-01-02 15:04:05 MST"}}">{{humanTime .LastPush}}</time></span>
-    {{if .Mirror}}<span>synced {{humanTime .LastSync}}</span>{{end}}
-  </p>
-
-  {{if .LastSyncErr}}<p class="syncerr">Last sync failed: {{.LastSyncErr}}</p>{{end}}
-</li>
+{{define "repotable"}}
+<div class="o-scroll">
+<table class="o-tbl stack repotbl">
+  <thead><tr><th>Repository</th><th class="r">Size</th><th class="r">Branches</th><th class="r">Tags</th><th>Updated</th><th>Synced</th></tr></thead>
+  <tbody>
+  {{range .}}
+    <tr data-href="/{{.Name}}" class="{{if .LastSyncErr}}hot{{else if .Empty}}off{{end}}">
+      <td class="lead">
+        <a class="name" href="/{{.Name}}">{{.Name}}</a>
+        {{if .Mirror}}<span class="o-chip">mirror</span>{{end}}
+        {{if .UpstreamGone}}<span class="o-chip warn" title="No longer on GitHub. This is the only copy.">only copy</span>{{end}}
+        {{if .Empty}}<span class="o-chip">empty</span>{{end}}
+        {{if .Description}}<span class="sub">{{.Description}}</span>{{end}}
+        {{if .LastSyncErr}}<span class="sub bad">Last sync failed: {{.LastSyncErr}}</span>{{end}}
+      </td>
+      <td class="r n" data-l="size">{{humanBytes .Size}}</td>
+      <td class="r n o-muted" data-l="branches">{{.Branches}}</td>
+      <td class="r n o-muted hide">{{if .Tags}}{{.Tags}}{{else}}&middot;{{end}}</td>
+      <td class="n" title="{{.LastPush.Format "2006-01-02 15:04:05 MST"}}" data-l="updated">{{humanTime .LastPush}}</td>
+      <td class="n o-muted hide">{{if .Mirror}}{{humanTime .LastSync}}{{else}}&middot;{{end}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
 {{end}}
