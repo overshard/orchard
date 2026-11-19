@@ -32,13 +32,13 @@
       <small>uptime &middot; last 100</small>
       <b>{{ if .HasUptime }}{{ printf "%.2f" .Uptime }}%{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">averaged across every site</span>
-      <span class="o-nospark"></span>
+      {{ spark (or (and .HasUptime (lt .Uptime 100.0) "warn") "ok") .UpShare }}
     </div>
     <div class="o-tile">
       <small>down now</small>
       <b {{ if $.Down }}class="bad"{{ end }}>{{ $.Down }}</b>
       <span class="o-delta {{ if $.Down }}o-bad{{ end }}">{{ if $.Down }}see the top of the list{{ else }}nothing down{{ end }}</span>
-      <span class="o-nospark"></span>
+      <span class="o-ticks" aria-hidden="true">{{ range .Sites }}<i class="{{ if .Down }}down{{ end }}" title="{{ .Name }}"></i>{{ end }}</span>
     </div>
     <div class="o-tile">
       <small>response &middot; avg</small>
@@ -50,7 +50,7 @@
       <small>lighthouse &middot; avg</small>
       <b>{{ if .HasLH }}{{ .Lighthouse }}{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ .SEOIssues }} seo issues &middot; {{ .SecIssues }} header</span>
-      <span class="o-nospark"></span>
+      <span class="o-ticks" aria-hidden="true">{{ range .Sites }}{{ if .HasLH }}<i class="{{ if lt .Score 50 }}bad{{ else if lt .Score 90 }}warn{{ end }}" style="height: {{ .Score }}%" title="{{ .Name }} &middot; {{ .Score }}"></i>{{ else }}<i class="none" style="height: 8%" title="{{ .Name }} &middot; not run"></i>{{ end }}{{ end }}</span>
     </div>
   </div>
   {{ end }}

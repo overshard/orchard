@@ -29,18 +29,23 @@
 .props td.lead { min-width: 13rem; }
 .props td.lead .o-chip { margin-left: 6px; }
 
-.three-up { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-@media (max-width: 1000px) { .three-up { grid-template-columns: minmax(0, 1fr); } }
+.side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.four-up { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1400px) { .four-up { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .four-up { grid-template-columns: minmax(0, 1fr); } }
+.o-chip:empty { display: none; }
 
 .chartbox { position: relative; height: 220px; }
 .chartbox.tall { height: 260px; }
 
 // A Lighthouse score as a dial, coloured by its band.
-.rings { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-around; padding: 6px 0; }
+.rings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; justify-items: center; padding: 6px 0; }
+@media (max-width: 560px) { .rings { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; } }
 
 .ring {
   display: grid;
   justify-items: center;
+  text-align: center;
   gap: 4px;
   font: 0.68rem var(--o-mono);
   color: var(--o-muted);

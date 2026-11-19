@@ -9,7 +9,7 @@
 {{ define "main" }}
 {{ $authed := .Authenticated }}
 {{ with .Property }}
-<main class="o-wrap o-main">
+<main class="o-wrap o-main"{{ if $authed }} id="monitoring-status" data-property-id="{{ .ID }}"{{ end }}>
   <div class="o-ph">
     <div>
       <span class="o-lab">status &middot; {{ if $authed }}properties &middot; {{ end }}{{ .Name }}</span>
@@ -42,7 +42,7 @@
       <small>http status</small>
       <b class="{{ if ne .CurrentStatus 200 }}bad{{ end }}">{{ .CurrentStatus }}</b>
       <span class="o-delta {{ if ne .CurrentStatus 200 }}o-bad{{ end }}">{{ if eq .CurrentStatus 200 }}answering{{ else }}failing now{{ end }}</span>
-      <span class="o-nospark"></span>
+      <span class="o-ticks" aria-hidden="true">{{ if .RecentTickStream }}{{ range .RecentTickStream }}<i class="{{ . }}"></i>{{ end }}{{ else }}{{ range seq 30 }}<i class="none"></i>{{ end }}{{ end }}</span>
     </div>
     <div class="o-tile">
       <small>response &middot; avg</small>
@@ -59,8 +59,8 @@
     <div class="o-tile">
       <small>security headers</small>
       <b class="{{ if .HasSecurityIssue }}warn{{ end }}">{{ if .HasSecurityIssue }}issues{{ else }}pass{{ end }}</b>
-      <span class="o-delta">see the list below</span>
-      <span class="o-nospark"></span>
+      <span class="o-delta">{{ secPass . }} of {{ len (secChecks .) }} pass</span>
+      <span class="o-ticks" aria-hidden="true">{{ range secChecks . }}<i class="{{ if not .OK }}bad{{ end }}" title="{{ .Name }}"></i>{{ end }}</span>
     </div>
   </div>
 
@@ -69,17 +69,40 @@
       <div class="o-ph2"><h2>Response time</h2><span class="o-lab">last 31 checks</span></div>
       <div class="chartbox tall"><canvas id="chart-response-times"></canvas></div>
     </section>
-    <section class="o-panel">
-      <div class="o-ph2"><h2>Lighthouse</h2><span class="o-lab">{{ if .LastLighthouseSuccessAt }}{{ naturaltime .LastLighthouseSuccessAt }}{{ else }}not run yet{{ end }}</span></div>
-      {{ with .LighthouseScores }}
-      <div class="rings">{{ range .Pairs }}{{ ring (lower .Label) .Score }}{{ end }}</div>
-      {{ else }}
-      <p class="o-empty"><b>No audit yet.</b>Lighthouse runs on a schedule, or from the button further down.</p>
+    <div class="side">
+      <section class="o-panel">
+        <div class="o-ph2"><h2>Lighthouse</h2><span class="o-lab">{{ if .LastLighthouseSuccessAt }}{{ naturaltime .LastLighthouseSuccessAt }}{{ else }}not run yet{{ end }}</span></div>
+        {{ with .LighthouseScores }}
+        <div class="rings">{{ range .Pairs }}{{ ring (lower .Label) .Score }}{{ end }}</div>
+        {{ else }}
+        <p class="o-empty"><b>No audit yet.</b>Lighthouse runs on a schedule, or from the button further down.</p>
+        {{ end }}
+      </section>
+      {{ if $authed }}
+      <section class="o-panel d-print-none">
+        <div class="o-ph2">
+          <h2>Lighthouse runs</h2>
+          <span class="monitor-acts">
+            <span class="o-chip" data-field="lighthouse.state_badge"></span>
+            <button type="button" id="rerun-lighthouse-btn" class="o-btn o-btn-sm">
+              <span class="rerun-lh-label">Rerun</span>
+              <span class="rerun-lh-spinner spinner d-none" role="status" aria-hidden="true"></span>
+            </button>
+          </span>
+        </div>
+        <div class="o-note bad d-none" data-field="lighthouse.error_box" role="alert">Last run failed: <code data-field="lighthouse.error_text"></code></div>
+        <dl class="o-kv">
+          <dt>last success</dt><dd class="o-mono" data-field="lighthouse.last_success">&mdash;</dd>
+          <dt>last attempt</dt><dd class="o-mono" data-field="lighthouse.last_attempt">&mdash;</dd>
+          <dt>took</dt><dd class="o-mono" data-field="lighthouse.duration">&mdash;</dd>
+          <dt>next run</dt><dd class="o-mono" data-field="lighthouse.next_run">&mdash;</dd>
+        </dl>
+      </section>
       {{ end }}
-    </section>
+    </div>
   </div>
 
-  <div class="o-cols three-up">
+  <div class="o-cols four-up">
     <section class="o-panel">
       <div class="o-ph2"><h2>Status codes</h2><span class="o-lab">last 100</span></div>
       <div class="chartbox"><canvas id="chart-status-codes"></canvas></div>
@@ -90,23 +113,14 @@
     </section>
     <section class="o-panel">
       <div class="o-ph2"><h2>Security headers</h2><span class="o-lab">latest response</span></div>
-      {{ template "check" dict "name" "Served over HTTPS" "ok" .IsHTTPS }}
-      {{ template "check" dict "name" "MIME types set" "ok" .HasMIMEType }}
-      {{ template "check" dict "name" "Content sniff protection" "ok" .HasContentSniffProtection }}
-      {{ template "check" dict "name" "Clickjack protection" "ok" .HasClickjackProtection }}
-      {{ template "check" dict "name" "Server version hidden" "ok" .HidesServerVersion }}
-      {{ template "check" dict "name" "HSTS" "ok" .HasHSTS }}
-      {{ template "check" dict "name" "HSTS preload" "ok" .HasHSTSPreload }}
+      {{ range secChecks . }}{{ template "check" dict "name" .Name "ok" .OK }}{{ end }}
     </section>
-  </div>
-
-  {{ if $authed }}
-  <div class="o-cols even d-print-none" id="monitoring-status" data-property-id="{{ .ID }}">
-    <section class="o-panel">
+    {{ if $authed }}
+    <section class="o-panel d-print-none">
       <div class="o-ph2">
         <h2>SEO crawl</h2>
         <span class="monitor-acts">
-          <span class="o-chip" data-field="crawler.state_badge">&nbsp;</span>
+          <span class="o-chip" data-field="crawler.state_badge"></span>
           <button type="button" id="recrawl-btn" class="o-btn o-btn-sm">
             <span class="recrawl-btn-label">Recrawl</span>
             <span class="recrawl-btn-spinner spinner d-none" role="status" aria-hidden="true"></span>
@@ -124,27 +138,8 @@
         <dt>next run</dt><dd class="o-mono" data-field="crawler.next_run">&mdash;</dd>
       </dl>
     </section>
-    <section class="o-panel">
-      <div class="o-ph2">
-        <h2>Lighthouse runs</h2>
-        <span class="monitor-acts">
-          <span class="o-chip" data-field="lighthouse.state_badge">&nbsp;</span>
-          <button type="button" id="rerun-lighthouse-btn" class="o-btn o-btn-sm">
-            <span class="rerun-lh-label">Rerun</span>
-            <span class="rerun-lh-spinner spinner d-none" role="status" aria-hidden="true"></span>
-          </button>
-        </span>
-      </div>
-      <div class="o-note bad d-none" data-field="lighthouse.error_box" role="alert">Last run failed: <code data-field="lighthouse.error_text"></code></div>
-      <dl class="o-kv">
-        <dt>last success</dt><dd class="o-mono" data-field="lighthouse.last_success">&mdash;</dd>
-        <dt>last attempt</dt><dd class="o-mono" data-field="lighthouse.last_attempt">&mdash;</dd>
-        <dt>took</dt><dd class="o-mono" data-field="lighthouse.duration">&mdash;</dd>
-        <dt>next run</dt><dd class="o-mono" data-field="lighthouse.next_run">&mdash;</dd>
-      </dl>
-    </section>
+    {{ end }}
   </div>
-  {{ end }}
 
   {{ with .LighthouseDetails }}
   <section class="o-panel">
@@ -186,7 +181,7 @@
 <section class="o-wrap o-main insights">
   {{ range .InsightGroups }}
   <div class="o-panel flush">
-    <div class="o-ph2"><h2>{{ .Type }}</h2><span class="o-lab">{{ len .Items }} found</span></div>
+    <div class="o-ph2"><h2>{{ insightTitle .Type }}</h2><span class="o-lab">{{ len .Items }} found</span></div>
     <div class="o-scroll">
     <table class="o-tbl stack">
       <thead><tr><th>Severity</th><th>Issue</th><th>Page</th><th>Item</th></tr></thead>

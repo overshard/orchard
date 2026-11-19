@@ -95,6 +95,17 @@ type listSummary struct {
 	HasLH      bool
 	SEOIssues  int
 	SecIssues  int
+	// UpShare is the share of sites up at each of the last 30 checks.
+	UpShare []float64
+	Sites   []siteMark
+}
+
+// siteMark is one site as a tick in a tile.
+type siteMark struct {
+	Name  string
+	Down  bool
+	Score int64
+	HasLH bool
 }
 
 func summarize(views []*PropertyView) listSummary {
@@ -104,7 +115,21 @@ func summarize(views []*PropertyView) listSummary {
 	var lhSum, msSum int64
 	sums := make([]float64, 30)
 	counts := make([]float64, 30)
+	ups := make([]float64, 30)
+	seen := make([]float64, 30)
 	for _, v := range views {
+		m := siteMark{Name: v.Name, Down: v.CurrentStatus != 200}
+		if v.AvgLighthouseScore != nil {
+			m.Score, m.HasLH = *v.AvgLighthouseScore, true
+		}
+		out.Sites = append(out.Sites, m)
+		toff := 30 - len(v.RecentTickStream)
+		for i, t := range v.RecentTickStream {
+			seen[toff+i]++
+			if t == "up" {
+				ups[toff+i]++
+			}
+		}
 		if v.RecentUptimePct != nil {
 			upSum += *v.RecentUptimePct
 			upN++
@@ -138,6 +163,48 @@ func summarize(views []*PropertyView) listSummary {
 		if counts[i] > 0 {
 			out.Response = append(out.Response, sums[i]/counts[i])
 		}
+		if seen[i] > 0 {
+			out.UpShare = append(out.UpShare, ups[i]/seen[i]*100)
+		}
 	}
 	return out
+}
+
+type secCheck struct {
+	Name string
+	OK   bool
+}
+
+// secChecks is the security header list, in the order the page shows it.
+func secChecks(v *PropertyView) []secCheck {
+	return []secCheck{
+		{"Served over HTTPS", v.IsHTTPS},
+		{"MIME types set", v.HasMIMEType},
+		{"Content sniff protection", v.HasContentSniffProtection},
+		{"Clickjack protection", v.HasClickjackProtection},
+		{"Server version hidden", v.HidesServerVersion},
+		{"HSTS", v.HasHSTS},
+		{"HSTS preload", v.HasHSTSPreload},
+	}
+}
+
+func secPass(v *PropertyView) int {
+	n := 0
+	for _, c := range secChecks(v) {
+		if c.OK {
+			n++
+		}
+	}
+	return n
+}
+
+// insightTitle is a crawler insight type as a heading.
+func insightTitle(kind string) string {
+	if kind == typeSEO {
+		return "SEO"
+	}
+	if kind == "" {
+		return kind
+	}
+	return strings.ToUpper(kind[:1]) + kind[1:]
 }
