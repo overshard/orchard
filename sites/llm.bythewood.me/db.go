@@ -127,8 +127,8 @@ func (s *Store) NewKey(name string) (string, Key, error) {
 }
 
 // AddKey registers a key minted by an earlier store, which is how a gateway
-// restored without its volume learns the keys still sitting in chat's, dash's
-// and pond's .env files. A key it already has, revoked or not, is left as it is.
+// restored without its volume learns the keys still sitting in dash's, pond's
+// and cron's .env files. A key it already has, revoked or not, is left as it is.
 func (s *Store) AddKey(name, secret string) (bool, error) {
 	name, secret = strings.TrimSpace(name), strings.TrimSpace(secret)
 	if name == "" {

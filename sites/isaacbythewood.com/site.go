@@ -77,13 +77,6 @@ var featured = Site{
 // scratch above the ports.
 var sites = []Site{
 	{
-		Name:        "chat",
-		Dir:         "chat.bythewood.me",
-		Description: "A conversation with a small model running on the card in my desktop, with tools for whatever it cannot know and an incognito mode that writes nothing down.",
-		Tech:        []string{"Go", "SQLite", "llama.cpp"},
-		Visit:       "https://chat.bythewood.me",
-	},
-	{
 		Name:        "llm",
 		Dir:         "llm.bythewood.me",
 		Description: "One set of weights on one card in front of every service here that wants one, with a key per caller and every prompt and completion written down.",

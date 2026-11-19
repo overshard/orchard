@@ -25,7 +25,7 @@ make clean    delete that binary
 ```
 
 `make llm-key NAME=<service>` at the root mints a key and prints it once.
-`make chat-key dash-key pond-key` mints those sites' keys into their `.env`
+`make dash-key pond-key cron-key` mints those sites' keys into their `.env`
 files, or hands llm back the ones already there, which is all it takes after
 llm's volume is lost.
 
@@ -58,7 +58,8 @@ sidecar. Templates and `static/` are written by hand, with no Vite.
   `LLM_UPSTREAM` and `LLM_GPU` pointed at real ones.
 - Background calls are turned away for 15 minutes after the gateway starts,
   since a start is usually a reboot and the game comes back after the
-  containers. A deploy does the same, and chat isn't affected.
+  containers. A deploy does the same, and calls not marked background aren't
+  affected.
 - The model server is built for a 3070's sm_86, and another card means changing
   `CMAKE_CUDA_ARCHITECTURES` in its Dockerfile.
 - A Windows NVIDIA driver update moves the driver store, and a container started

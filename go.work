@@ -6,7 +6,6 @@ use (
 	./sites/analytics.bythewood.me
 	./sites/auth.bythewood.me
 	./sites/blog.bythewood.me
-	./sites/chat.bythewood.me
 	./sites/cron.bythewood.me
 	./sites/dash.bythewood.me
 	./sites/isaacbythewood.com

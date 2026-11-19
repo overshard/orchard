@@ -65,7 +65,7 @@ COMPOSE_DOWN = $(DOCKER) compose
 .DEFAULT_GOAL := help
 .PHONY: help install up up-one deploy edge doctor down down-one run build check shared-check frog frog-check template-check new fmt fmt-check vet vuln deps test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
-	auth-init auth-recovery chat-key dash-key pond-key cron-key llm-key util require-site require-env require-tunnel
+	auth-init auth-recovery dash-key pond-key cron-key llm-key util require-site require-env require-tunnel
 
 help:
 	@echo "running system"
@@ -91,10 +91,10 @@ help:
 	@echo "  make ntfy                  create the three ntfy accounts"
 	@echo "  make ntfy-token            mint the publishers' tokens into the .env files"
 	@echo "  make auth-init             create the login account, printing its recovery codes"
-	@echo "  make chat-key              mint chat's gateway key into its .env, or give llm back the one it has"
-	@echo "  make dash-key              the same for dash, which writes the daily briefs with it"
+	@echo "  make dash-key              mint dash's gateway key into its .env, or give llm back the one it has"
 	@echo "  make pond-key              the same for pond, which writes its nightly lines with it"
-	@echo "  make llm-key NAME=chat     mint an api key for the model gateway, printed once"
+	@echo "  make cron-key              the same for cron, which runs its checks with it"
+	@echo "  make llm-key NAME=notes    mint an api key for the model gateway, printed once"
 	@echo "  make auth-recovery         replace the recovery codes when locked out"
 	@echo ""
 	@echo "  make password              print a suggested password, writing nothing"
@@ -297,20 +297,19 @@ doctor: util
 # `up` has to come before `ntfy`, since the accounts are created inside a
 # running container, and the second `up` is what hands the freshly minted tokens
 # to the sites that publish with them.
-# The first up leaves chat down, since it needs a key from llm, which is not
-# running until that same up starts it.
+# The keys come after the first up, since minting one needs llm running.
 install: tunnel-login tunnel env
 	-$(MAKE) --no-print-directory up
-	$(MAKE) --no-print-directory chat-key
 	$(MAKE) --no-print-directory dash-key
 	$(MAKE) --no-print-directory pond-key
+	$(MAKE) --no-print-directory cron-key
 	$(MAKE) --no-print-directory ntfy
 	$(MAKE) --no-print-directory ntfy-token
 	$(MAKE) --no-print-directory up
 	$(MAKE) --no-print-directory auth-init
 	@echo ""
 	@echo "point the ntfy app at https://ntfy.bythewood.me with the reading"
-	@echo "account above, and subscribe to status, logging and auth."
+	@echo "account above, and subscribe to alerts, reminders and auth."
 
 # A password out of /dev/urandom, in groups of eight so it can be read back off
 # a screen. Nothing is written, it is a suggestion to paste into Bitwarden.
@@ -412,9 +411,6 @@ define mint-key
 	sed -i "s|^LLM_KEY=.*|LLM_KEY=$$key|" "$$f"; \
 	echo "$(2)'s gateway key written to $$f"
 endef
-
-chat-key:
-	$(call mint-key,chat.bythewood.me,chat)
 
 dash-key:
 	$(call mint-key,dash.bythewood.me,dash)
@@ -542,7 +538,7 @@ shared-check:
 
 # The other sites draw frogs with a copy of pond's sprite code, so a change to
 # how a frog looks has to land in every copy. `make frog` copies pond's over
-# them all. chat and llm have no bundler, so theirs is the two files in one.
+# them all. cron and llm have no bundler, so theirs is the two files in one.
 FROG = sites/pond.bythewood.me/frontend/src/frog.js
 GUEST = sites/pond.bythewood.me/frontend/src/guest.js
 GUEST_DIRS = sites/analytics.bythewood.me/frontend/static_src/base/scripts \
@@ -555,7 +551,7 @@ FROG_COPIES = sites/dash.bythewood.me/frontend/static_src/scripts/frog.js \
 	sites/isaacbythewood.com/frontend/static_src/js/frog.js \
 	$(addsuffix /frog.js,$(GUEST_DIRS))
 GUEST_COPIES = $(addsuffix /guest.js,$(GUEST_DIRS))
-GUEST_BUNDLES = sites/chat.bythewood.me/static/guest.js sites/cron.bythewood.me/static/guest.js sites/llm.bythewood.me/static/guest.js
+GUEST_BUNDLES = sites/cron.bythewood.me/static/guest.js sites/llm.bythewood.me/static/guest.js
 GUEST_BUNDLE = { cat $(FROG); grep -v '^import .* from "./frog.js";$$' $(GUEST); }
 
 frog:

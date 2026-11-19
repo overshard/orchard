@@ -17,7 +17,7 @@ that is the split the estate runs on.
 - **dash is amber.** It is the only public page with no login, it is glanced at
   rather than read, and it is the one site allowed to be a costume. pond is a
   game and wears the same one.
-- **analytics, auth, chat, cron, llm, logging, repos and status are green.** They are
+- **analytics, auth, cron, llm, logging, repos and status are green.** They are
   tools you read for minutes at a time. Green is the primary, and amber is
   chrome only, so caps labels, the hero eyebrow, and warnings. Amber is never
   the primary on any of them.
@@ -103,7 +103,7 @@ glanced at. A section that wants the grid to show through sets
 
 ## The home page
 
-analytics, status, logging, chat and llm open the same way, and the home page is
+analytics, status, logging, cron and llm open the same way, and the home page is
 an advert for running the thing yourself rather than a dashboard. It ends by
 pointing at the source.
 
@@ -111,7 +111,7 @@ The skeleton, in order:
 
 1. **Eyebrow.** A pill with a green dot, then version, stage, and `self-hosted`.
    A site with no version to give puts one fact about itself there instead, the
-   repository count on repos, the model on chat and `openai compatible` on llm.
+   repository count on repos, `ntfy` on cron and `openai compatible` on llm.
 2. **Headline.** One line, on the pattern `<thing> for operators who host their
    own <noun>`, with the last two words in green.
 3. **Hero paragraph.** Roughly 30 words. A list of what it does, then the
@@ -133,7 +133,7 @@ is a working repository list and an advert would be in the way every visit.
 Repositories archived upstream sit below the rest under their own Archived
 heading at 0.6 opacity, each card back to full on hover, so old code reads as old.
 
-chat, llm and cron have no Bootstrap and no Vite, so their landing pages write
+llm and cron have no Bootstrap and no Vite, so their landing pages write
 the skeleton out by hand in a `.landing-body` block in `static/app.css`.
 That block is byte identical between them and carries the shared palette
 rather than the app's own, so a change to it is made in each, and checked
@@ -203,16 +203,15 @@ to fit, which is how "Downtime" rendered as "Downt".
 
 ### Direction, on a price or a reading
 
-`dash` and `chat` both draw a line whose colour says which way a number went,
-which is a different job from telling four series apart and does not use the
-palette above. Two colours and a neutral, defined per site so each sits on its
-own ground:
+`dash` draws a line whose colour says which way a number went, which is a
+different job from telling four series apart and does not use the palette
+above. Two colours and a neutral:
 
-| Slot | dash | chat | Job |
-|---|---|---|---|
-| up | `#5ddc82` | `#7fc98f` | gained, or a reading inside its good band |
-| down | `#ff5f4d` | `#d98063` | lost, or a reading past it |
-| flat | `#8a8172` | `#9c8e7a` | no move worth colouring |
+| Slot | dash | Job |
+|---|---|---|
+| up | `#5ddc82` | gained, or a reading inside its good band |
+| down | `#ff5f4d` | lost, or a reading past it |
+| flat | `#8a8172` | no move worth colouring |
 
 **Direction colours the move and the trace, never the figure itself.** The price
 stays `--text`, because it is the number being read and the move is the
@@ -265,60 +264,12 @@ offset, and `::selection` is `rgba(107, 158, 120, 0.3)`. Every site sets both,
 since without them tabbing through a form gets whatever Bootstrap does per
 component.
 
-**Citations are boxed.** `chat` boxes the number on its
-own, 1px `rgba(65, 78, 65, 0.55)` on `--panel` at `0.62rem`, raised `0.32em`,
-because it points off the site and a reader has to see it is a link worth
-tapping. It sits at the end of the sentence it belongs to and never mid
-clause.
-
-**An unread answer is a dot, never a count.** `chat` marks a conversation whose
-turn finished while the reader was somewhere else with a `0.4rem` circle in
-`--green-bright` after the title, and the same dot at `0.35rem` on the button
-that opens the sidebar, since on a phone the list it marks is off screen. A
-number would be answering a question nobody asks: how many replies are waiting
-does not change what you do about them, and the row already says which
-conversation it was.
-
-**A turn waiting its place in line says where it is.** `chat` runs one turn at
-a time on one card, so a conversation with a turn going shows it in the list in
-place of its time, `working` for the one on the card and `next up` or `queued #2`
-for the rest, in amber, with a ring after the title where a working one has the
-dot. The thread of a waiting turn says the same number in words, counting the
-turn on the card as one ahead, so the list and the thread never disagree.
-
-**A flagged conversation says so in place of its time.** `chat` marks one he asked
-to come back to with `flagged` in amber where the time goes, the same slot `working`
-and `queued #2` use, and opens its thread on a bordered note with an amber
-`FLAGGED` label, his own words, and a `clear` button. His words are the reason for
-the flag, so they are shown as he typed them.
-
 **Notifications are a switch somebody presses.** A browser only asks for
 permission from inside a press, and a public page asking on load is a prompt
 nobody wanted, so `dash` has a `NOTIFY` readout in panel 00 beside `LINK` that
-asks the first time and opens a menu of what to be told about after that, and
-`chat` asks on the first question sent. Both keep quiet about anything the
-reader is already looking at, apart from a severe weather warning on dash.
-
-**dash's quick chat is for its one signed in reader and looks like the rest of
-the page.** A `CHAT` readout joins `NOTIFY` and `LINK` in panel 00 and ctrl+k or
-cmd+k opens the same box, an amber panel head, the question under a left rule the
-way the CONDITIONS verdict sits, chat's answer in JetBrains Mono, and `OPEN IN
-CHAT` once there is a conversation to open. The page ships it to everybody,
-since it can come out of the edge's cache, and neither the readout nor the key
-does anything until `/api/quick` says the visitor is signed in. A phone has no
-ctrl+k, so the readout is the way in there and reads `OPEN`.
-
-**dash's quick chat shows its work as a tape deck.** Every turn gets a deck
-between the question and the answer: two reels and a strip of tape that run
-while it works, the stage in amber caps with a block cursor, a fourteen segment
-meter that lights whole segments on a stepped tick, jumps on each event, falls
-back between them and holds its peak a moment, a `TAPE` counter of
-tokens the model has written, and a clock. Under it a log of each model round,
-tool call, lookup and gate check as it happens, the call with a moving strip
-until it returns and a line under it saying what came back. The log folds to a
-one line summary the moment the answer starts, since the answer is what gets
-read then, and the summary opens it again. Everything that moves is transform
-or opacity and all of it stops when the turn does.
+asks the first time and opens a menu of what to be told about after that. It
+keeps quiet about anything the reader is already looking at, apart from a severe
+weather warning.
 
 **Content width** is Bootstrap's container scale, so 1140px and then 1320px past
 a 1400px viewport. `repos` matches it with a media query rather than sitting
@@ -347,8 +298,8 @@ sits to its left, that the frog came along, or that it found this site's hat on
 the visit that finds it, or for the house frog that hatching one finds a hat
 here. Only the mark links to the pond and nothing about it changes on hover.
 `guest.js` asks pond for the frog. The bar is on every page, signed in or not,
-so a hat is found wherever a visitor lands. chat's app has no bar, so its mark
-is the last row of the sidebar, and llm's is in its one line foot. dash says the
+so a hat is found wherever a visitor lands. llm's and cron's marks are in their
+one line foot. dash says the
 hat was found in its pond panel.
 
 **A frog never moves the page.** Its slot is in the markup from the start with
@@ -380,22 +331,6 @@ ghost button back to the repository.
 Left aligned like every other page here.
 
 ## Rules that are easy to get wrong
-
-**A flex row gives up the label, never the reading.** `chat`'s bar holds a
-title, then the flags, the context meter, the tokens a second and the model. The
-title is the only one that can lose width and still mean something, so
-`.bar-right` is `flex-shrink: 0` and the title ellipses. Without that the
-`INCOGNITO` flag appearing took its width out of the readings, and the tokens a
-second wrapped a character at a time into a vertical column. Anything narrow
-enough to wrap in that row needs `white-space: nowrap` of its own, which
-`.model` had and `.tps` and `.meter` did not.
-
-**The same row gives up the model name and the tokens a second on a phone.**
-Under `34rem` the name goes and the dot and the eject stay, because the model
-is the one thing in that bar the reader already knows and the two glyphs are
-what they act on. The tokens a second goes with it, since incognito,
-the meter and the speed all showing at once ran the row 83px past a 360px
-screen and pushed the model off the edge entirely.
 
 **A reading that is also a control says so by growing an affordance, not a
 slot.** A separate button beside a reading costs the title another 40px on
@@ -1179,10 +1114,9 @@ version of the old look and a handheld pet shell.
 | `logging` | green | Bootstrap. Dashboards run full width inside the container |
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
-| `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture from an older conversation shows in a panel with its size and a link to the full one. An unread dot on a conversation that finished a turn off screen, and working on every turn still going |
 | `llm` | green | Hand written CSS, no Bootstrap. Behind the landing is a dashboard of keys, usage and the call log |
 | `cron` | green | llm's stylesheet and landing, with a job form and run history behind it |
-| `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `CHAT` readout beside it that only appears signed in |
+| `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `BRIEFS` rerun beside it that only appears signed in |
 | `pond` | amber | Hand written CSS. A game in the Deck direction, 80s hardware with keycaps, readout glass and colour pixel art in its screen windows. Dive is full screen on a phone |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 

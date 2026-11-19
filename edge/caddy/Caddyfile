@@ -295,7 +295,7 @@ http://logging.bythewood.me {
 	}
 }
 
-# The live panels and the quick chat relay arrive over server-sent events, which
+# The live panels arrive over server-sent events, which
 # must not be buffered or compressed on the way out, so this imports the two
 # halves of (site) directly and gives encode a matcher instead of taking the
 # blanket one.
@@ -303,36 +303,12 @@ http://dash.bythewood.me {
 	import scanners
 	import headers
 
-	@compressible not path /events /api/quick/send
+	@compressible not path /events
 
 	encode @compressible zstd gzip
 
 	reverse_proxy orchard-dash:8000 {
 		import hold
-	}
-}
-
-# The answer arrives over server-sent events, which must not be buffered or
-# compressed, so this block imports scanners and headers directly rather than
-# taking (site) with its blanket encode. Same reason dash does.
-# It also runs a local model, so its timeouts have to outlast a slow turn.
-http://chat.bythewood.me {
-	import scanners
-	import headers
-
-	@compressible not path /api/send
-
-	encode @compressible zstd gzip
-
-	# A turn can call tools for several rounds before it answers, and the whole
-	# of it is one held open response.
-	reverse_proxy orchard-chat:8000 {
-		import hold
-		flush_interval -1
-		transport http {
-			response_header_timeout 15m
-			read_timeout 16m
-		}
 	}
 }
 

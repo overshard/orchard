@@ -401,9 +401,8 @@ button.danger { background: var(--terracotta); }
 @media (max-width: 52em) {
   .wrap, .foot { padding-left: 0.7rem; padding-right: 0.7rem; }
 
-  /* A table of six columns does not fit a phone and must not widen the page.
-     display:block turns it into its own scroll container, which is the same
-     trick the markdown tables in chat use. */
+  /* A table of six columns does not fit a phone and must not widen the page,
+     and display:block turns it into its own scroll container. */
   table { display: block; overflow-x: auto; white-space: nowrap; }
   td.msg { max-width: 14rem; }
 

@@ -26,7 +26,6 @@ tunnel with no public ports.
 | `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token, and it mirrors the GitHub account as a backup. Everything git is a subprocess |
 | `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, a markets line and a news summary Claude Haiku writes four times a day, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
-| `sites/chat.bythewood.me/` | A conversation with Claude Haiku, with tools, attachments, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records |
 | `sites/llm.bythewood.me/` | The model gateway. Claude Haiku behind an API key, with a monthly budget it enforces and every prompt and completion logged unless the caller marks the call incognito |
 | `sites/cron.bythewood.me/` | Reminders and scheduled checks pushed over the `reminders` ntfy topic. One-shots and cron lines on the Eastern clock, checks the model runs through llm, a page and a JSON API. SQLite |
 | `sites/pond.bythewood.me/` | A virtual pet game where every visitor gets a frog of their own. No accounts, a frog is kept by six words in a host only cookie and stored as an HMAC under a pepper in `.env`. SQLite, with every rule and every clock on the server |
@@ -58,10 +57,10 @@ whether the cookie on a request is a live session.
 to avoid it. Every file in `web/` is byte identical in every site that has it,
 and `make check` fails naming the file and the sites when one drifts. The two
 exceptions are `server.go`, which comes in four variants (the common one, the
-one with no write bound that chat and llm share for their streams, and dash's
+one with no write bound that llm uses for its streams, and dash's
 and repos' own), and `README.md`, which is written for its site.
 
-Two smaller packages are shared the same way. `guard/`, in chat and dash, paces
+Two smaller packages are shared the same way. `guard/`, in dash, paces
 the calls to somebody else's server, keeps a budget per window and opens a
 breaker when the far end says no, with each site's numbers in a `Policy` and its
 state behind a `Store`. `ntfy/`, in status, logging, auth, analytics, llm and cron,
@@ -115,7 +114,7 @@ reachable on the bridge and nowhere else.
 **Everything is named `orchard-<first label>`.** `orchard-caddy` and
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,
 `orchard-status`, `orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`,
-`orchard-auth`, `orchard-chat`, `orchard-llm`, `orchard-cron`, `orchard-pond`
+`orchard-auth`, `orchard-llm`, `orchard-cron`, `orchard-pond`
 and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
 SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
@@ -127,16 +126,15 @@ lookup table.
 `http://orchard-blog:8000/latest.json` for the latest-posts panel,
 `web/shipper.go` in every site posts to `http://orchard-logging:8000/ingest`,
 `web/session.go` in every site asks `http://orchard-auth:8000/verify`,
-`ntfy/ntfy.go` in status, logging and auth publishes to `http://orchard-ntfy:8000`,
+`ntfy/ntfy.go` in every site that pushes publishes to `http://orchard-ntfy:8000`,
 `sites/dash.bythewood.me/systems.go` reads `http://orchard-logging:8000/aggregate`
-and probes every other site at `http://orchard-<label>:8000/healthz`,
-`sites/dash.bythewood.me/quick.go` relays the quick chat to
-`http://orchard-chat:8000/api/send`, and `sites/pond.bythewood.me/day.go` reads
+and probes every other site at `http://orchard-<label>:8000/healthz`, and
+`sites/pond.bythewood.me/day.go` reads
 `http://orchard-dash:8000/api/state`. None of those reads the name at runtime,
 so renaming a container means rebuilding Caddy, the portfolio and every site,
 not just editing a compose file. No SQLite database refers to a container name.
 
-**`orchard-llm` is the exception.** chat, dash and cron reach the gateway through
+**`orchard-llm` is the exception.** dash, pond and cron reach the gateway through
 `LLM_URL`, which compose sets and which falls back to that name, so it's the
 only one a dev run can point somewhere else without a rebuild.
 
@@ -317,7 +315,7 @@ serif, which is how `blog_post.typ` asked for Inter and rendered in DejaVu.
 
 ## Per site detail
 
-dash and chat each keep their working detail in a `CLAUDE.md` in their own folder, which Claude Code loads when it touches that site. Read it before changing either one.
+dash keeps its working detail in a `CLAUDE.md` in its own folder, which Claude Code loads when it touches that site. Read it before changing dash.
 
 ## Signing in
 
