@@ -441,14 +441,16 @@ below live as tokens at the top of `frontend/src/index.css`.
 - **The top bar** is the `pond` wordmark in Pixelify Sans on the left, and on the
   right a Bag pill with how many things are in the bag, the pebbles pill and a
   small round gear key for settings (the name, the pond key, frog power, sound).
-  The bag opens from its pill and the pill lights while it's open. On the
-  share and key pages the bar is the wordmark and the gear.
+  The bag opens from its pill and the pill lights while it's open. Over a
+  scene it fades from dark to nothing with no line under it, and it fills back
+  in once the scene has scrolled up under it. On the share and key pages the
+  bar is the wordmark and the gear, always filled.
 - **The dock is five places by verb** along the bottom where a thumb is, each
   a pixel icon over a word. Pond is the frog and what to do next. Frogs is the
   reeds, every frog's card, and a frog's job screen. Play is the games. Make
   is the garden and kitchen, the Bank (the gravel bar, the dye works, the
   burrows with the paintings, and the far bank) and the wizard, behind a row
-  of three keys with the picture of the bank side of the pond under them.
+  of three keys with the shore scene over them.
   Town is the neighbours, the shops, the stall under the word Sell and the
   market, behind a row of four keys. The lit tab is lamp yellow on a card.
   Old links like `#reeds`, `#works`, `#bank`, `#market` and `#stall` still
@@ -458,8 +460,8 @@ below live as tokens at the top of `frontend/src/index.css`.
   thing turned up since that key was last opened and goes out on opening it.
   A daily thing is new once a day, the stall each time it sells more, and the
   gravel bar and the rent only once they're full. What was seen is kept in
-  the browser. The lit windows in the Make picture are the other half, lit for
-  anything ready.
+  the browser. The lanterns hung in the Make scene are the other half, one
+  over anything ready.
 - **A new pond opens up over its first days.** It starts with Pond, Play,
   Make and Town, and Make has only the wizard. Frogs and the garden and the
   Bank under Make come when the egg hatches a day in, and the Market key in
@@ -476,17 +478,38 @@ below live as tokens at the top of `frontend/src/index.css`.
   pond's goals are its four first day steps, and their prize is one lamp key
   at the top. Three rows show, and a small `+N` key on the end of the third
   opens the rest.
-- **Every screen gets a picture.** The reeds, the garden, settings and the
-  kitchen too, in a dark frame with their words under the picture and never
-  instead of it.
+- **Every place has a painted scene across the top**, edge to edge and up
+  under the top bar, drawn in `frontend/src/scenes.js` on the painters in
+  `frontend/src/paint.js`. Each is painted once at two CSS pixels a pixel (the
+  job three) and laid on its canvas at a whole number of device pixels a
+  pixel, so it's crisp at any width, laid out 195 wide and centred with the sky
+  and water carried on past the sides. Each canvas has a fixed height in the
+  CSS so nothing moves the page. Only fireflies, lamp flicker and rain move, a
+  few times a second while the scene is on screen, and reduced motion gets
+  them still. The pond is the night pond with the frog on its pad, the moon
+  and its path on the water and a lantern with its pool of light. Frogs is
+  every frog on a pad in two staggered rows with a lamp over the one out
+  front and the empty pads bare. A job is the frog at work under a lamp. Make
+  is the shore with the reed lodge on stilts, the garden beds and the cloche,
+  the gravel bar's sluice and wheel, three dye vats that steam their colours
+  while a batch boils and the burrow mound with a lit door each, everything
+  dimmed until it's built, and a tap on a building opens it. Town is stilt
+  huts and the mushroom house along a jetty under string lights with three of
+  the residents out on it, a different three each day. Shops is a shopfront
+  with a striped awning and its keeper, one over every shop, Sell is the
+  stall with the frog behind the counter and what's up on it, Market is the
+  boardwalk with a chalk board of how the goods moved, Play is a jetty with a
+  row of firefly jars, and the bag is the satchel on a table by a lamp with
+  the pond's own things spilled round it. The kitchen pot and the garden are
+  smaller pictures in a dark frame in the same night look.
+- **Night is night and day is dusk.** Every scene reads the real day, a
+  starry navy sky with the moon at night and a dusk sky with a low sun by
+  day, so the lamps still read, and rain greys both and falls over them.
 - **Empty spots have a dashed edge** with a dim outline of what goes there. An
   empty spot you can fill, like a stall spot, is a key with a dashed edge and a
   plus.
-- **What's coming.** The pictures are the old ones in a dark frame for now.
-  Later each tab gets a painted night scene across the top of the page under
-  the top bar, with the lanterns, the moon and fireflies. The frogs in those
-  scenes get a warm rim on the side the nearest lantern is on. After that come a
-  page a frog, laying an egg as its own screen, selling, a stamp book, the
+- **What's coming.** The frogs in the scenes get a warm rim on the side the
+  nearest lantern is on. After that come a page a frog, laying an egg as its own screen, selling, a stamp book, the
   games as jars on a shelf in place of the disks, and the market as a night
   market board.
 - **Colour lives in the pictures, the icons and rarity.** The frog, the water,
@@ -848,8 +871,11 @@ below live as tokens at the top of `frontend/src/index.css`.
   eyes and whatever is drawn over the frog, with no hop, tip or spin.
 - **The pond fits a phone with no scroll.** The frog's picture with its power
   pill, its name with the rarity beside it, the bubble and the Next strip all
-  sit above the dock at 412 by 915. Under 780 tall the picture narrows to
-  `19rem` and the rows drop from 40px to 34px to keep them there. The folded
+  sit above the dock at 412 by 915. The pond is drawn 352 by 272 in its own
+  units with the frog 8 to a cell, at a whole number of device pixels to the
+  unit and about 8 CSS pixels a cell on a phone, on the bottom of a
+  372px scene with the sky above. Under 780 tall the scene is 340px with less
+  sky and the rows drop from 40px to 34px. A desktop gets 480px. The folded
   gazette, Today at the pond and anything longer go below.
 - **Dive is the whole window, on a phone and a desktop.** It covers the bar and
   the dock, the pond takes its depth and length from the window, and a strip
@@ -889,7 +915,7 @@ below live as tokens at the top of `frontend/src/index.css`.
   a slot or a disk, all in Inter semibold caps, which would wrap at 14.
 - Rarity is a word in a box as well as a colour: common grey, uncommon green,
   rare blue, epic purple, legendary amber.
-- **The real day is on the pond's screen.** Night darkens it with fireflies,
+- **The real day is on the pond's screen.** Night brings the stars and fireflies,
   rain falls over it, the water runs clear with mayflies or murky with
   beetles on the market, ripples quicken with the VIX, and a cold day has
   frost on the pad and the frog dozing. Each thing gets a line under Today at
@@ -964,9 +990,8 @@ below live as tokens at the top of `frontend/src/index.css`.
   the jump over a slot for everything it opened, a target,
   a recipe, a find, a tool in town or the next step of mastery, each with
   what it is under its name. A pet or a 99 still pops its reveal after.
-- **A working frog shows it.** In the reeds strip a frog at a job has its
-  tool beside it, and in the Make picture the frog by the lodge holds its tool
-  with the job's thing at its feet.
+- **A working frog shows it.** In the Frogs scene a frog at a job has its
+  tool beside it.
 - **Frog power is a pill on the pond's picture.** It sits on the bottom edge
   of the frog's picture, half over it, with the rank in small caps, the
   number, and a green hairline along its foot for how far to the next rung.
@@ -993,7 +1018,7 @@ below live as tokens at the top of `frontend/src/index.css`.
   wooden frame. Under the burrows the four sit in a row, a piece showing as
   a square of the picture over bare canvas and the frame gilding round from
   the top left as it fills. A finished one pops up as a reveal and hangs on
-  the burrow wall in the Make picture as a small gold frame.
+  the burrow mound in the Make scene as a small gold frame.
 - **A frog's page has six stamps** under its name, a heart, a fly, a wave, a
   star, a leaf and a pebble, as a row of square keys with the stamp's pixel
   art on each. A visitor with a pond of its own presses one a day and it
