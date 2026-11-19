@@ -8,6 +8,35 @@
     </div>
   </div>
 
+  {{ with .Stats }}
+  <div class="o-tiles">
+    <div class="o-tile">
+      <small>sign ins &middot; 30d</small>
+      <b>{{ .SignIns }}</b>
+      <span class="o-delta">from {{ .Places }} {{ if eq .Places 1 }}place{{ else }}places{{ end }}</span>
+      {{ spark "ok" .SignInDays }}
+    </div>
+    <div class="o-tile">
+      <small>codes asked for &middot; 30d</small>
+      <b>{{ .Codes }}</b>
+      <span class="o-delta">each one pushed to the phone</span>
+      {{ spark "flat" .CodeDays }}
+    </div>
+    <div class="o-tile">
+      <small>refused &middot; 30d</small>
+      <b class="{{ if .Refused }}warn{{ end }}">{{ .Refused }}</b>
+      <span class="o-delta">wrong codes and limits hit</span>
+      {{ spark (or (and .Refused "warn") "flat") .RefusedDays }}
+    </div>
+    <div class="o-tile">
+      <small>kept here</small>
+      <b>{{ len $.Events }}</b>
+      <span class="o-delta">sign ins lit, refusals amber</span>
+      <span class="o-ticks" aria-hidden="true">{{ range .Last }}<i class="{{ . }}"></i>{{ end }}</span>
+    </div>
+  </div>
+  {{ end }}
+
   <section class="o-panel flush">
     {{ if .Events }}
     <div class="o-scroll">

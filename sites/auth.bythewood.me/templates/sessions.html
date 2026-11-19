@@ -3,7 +3,7 @@
   <div class="o-ph">
     <div>
       <span class="o-lab">auth &middot; sessions</span>
-      <h1>Signed in on <em>{{ len .Sessions }}</em>.</h1>
+      <h1>Signed in on <em>{{ len .Sessions }} {{ if eq (len .Sessions) 1 }}browser{{ else }}browsers{{ end }}</em>.</h1>
       <p>Every tool checks this list on each request, so revoking one takes effect everywhere at once.</p>
     </div>
     {{ if gt (len .Sessions) 1 }}<div class="o-acts">

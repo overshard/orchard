@@ -100,3 +100,59 @@ func sweepEvents(db *sql.DB) error {
         )`)
 	return err
 }
+
+// eventStats is the last 30 days of the activity log as counts and a series a
+// day each, oldest first, for the tiles over the table.
+type eventStats struct {
+	SignIns, Codes, Refused, Places   int
+	SignInDays, CodeDays, RefusedDays []float64
+	// Last is the newest events as tick classes, oldest first.
+	Last []string
+}
+
+func activityStats(db *sql.DB, now time.Time, events []Event) eventStats {
+	st := eventStats{SignInDays: make([]float64, 30), CodeDays: make([]float64, 30), RefusedDays: make([]float64, 30)}
+	rows, err := db.Query(`SELECT ts, kind, country, city FROM events WHERE ts >= ?`, now.AddDate(0, 0, -30).Unix())
+	if err != nil {
+		return st
+	}
+	defer rows.Close()
+	places := map[string]bool{}
+	for rows.Next() {
+		var ts int64
+		var kind, country, city string
+		if rows.Scan(&ts, &kind, &country, &city) != nil {
+			continue
+		}
+		i := 29 - int(now.Sub(time.Unix(ts, 0)).Hours()/24)
+		if i < 0 || i > 29 {
+			continue
+		}
+		switch kind {
+		case evLogin, evRecoveryUsed:
+			st.SignIns++
+			st.SignInDays[i]++
+			if country != "" {
+				places[city+"|"+country] = true
+			}
+		case evCodeRequested:
+			st.Codes++
+			st.CodeDays[i]++
+		case evCodeFailed, evRecoveryFailed, evRateLimited, evCeilingHit:
+			st.Refused++
+			st.RefusedDays[i]++
+		}
+	}
+	st.Places = len(places)
+	for i := min(len(events), 40) - 1; i >= 0; i-- {
+		switch eventClass(events[i].Kind) {
+		case "is-warn":
+			st.Last = append(st.Last, "warn")
+		case "is-note":
+			st.Last = append(st.Last, "")
+		default:
+			st.Last = append(st.Last, "none")
+		}
+	}
+	return st
+}

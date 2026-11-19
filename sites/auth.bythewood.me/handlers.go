@@ -38,6 +38,7 @@ type PageData struct {
 	InSudo    bool
 	Sessions  []Session
 	Events    []Event
+	Stats     eventStats
 	Remaining int
 	NtfyHost  string
 	NtfyUser  string
@@ -287,6 +288,7 @@ func (s *site) activity(w http.ResponseWriter, r *http.Request, l live) {
 	}
 	data := s.page(r, "Activity", "Every authentication event, newest first.")
 	data.Events = events
+	data.Stats = activityStats(s.db, time.Now(), events)
 	s.renderer.Render(w, http.StatusOK, "activity.html", data)
 }
 
