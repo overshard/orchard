@@ -79,6 +79,13 @@ func main() {
 		slog.Error("startup failed", slog.Any("err", err))
 		os.Exit(1)
 	}
+	go func() {
+		for {
+			store.Sweep(time.Now())
+			time.Sleep(time.Hour)
+		}
+	}()
+
 	slog.Info(fmt.Sprintf("%s serving %s", selfSource, baseURL))
 	if err := web.Serve(listenAddr, s.handler()); err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
