@@ -61,16 +61,19 @@ function piece(ctx, p, x, y) {
   }));
 }
 
-export function drawFarBank(ctx, n) {
+// x0 and x1 carry the bank on past the pond's sides on a wider canvas.
+export function drawFarBank(ctx, n, x0 = 0, x1 = 352) {
   if (!n) return;
-  ctx.fillStyle = "#1f3a2a"; ctx.fillRect(0, 0, 352, 20);
-  for (let x = 0; x < 352; x += 6) { ctx.fillStyle = "#24452e"; ctx.fillRect(x, 4 + ((x * 7) % 9), 2, 2); }
+  x0 = Math.floor(x0 / 6) * 6;
+  const w = x1 - x0;
+  ctx.fillStyle = "#1f3a2a"; ctx.fillRect(x0, 0, w, 20);
+  for (let x = x0; x < x1; x += 6) { ctx.fillStyle = "#24452e"; ctx.fillRect(x, 4 + ((((x * 7) % 9) + 9) % 9), 2, 2); }
   const shown = Math.min(n, PIECES.length);
   for (let i = 0; i < shown; i++) if (SPOTS[i].back) piece(ctx, PIECES[i], SPOTS[i].x, SPOTS[i].y);
-  ctx.fillStyle = "rgba(18,58,61,0.35)"; ctx.fillRect(0, 0, 352, 20);
-  ctx.fillStyle = "#335e3a"; ctx.fillRect(0, 20, 352, 8);
-  ctx.fillStyle = "#3f7a45"; ctx.fillRect(0, 20, 352, 2);
-  ctx.fillStyle = "#4a3a26"; ctx.fillRect(0, 28, 352, 2);
+  ctx.fillStyle = "rgba(18,58,61,0.35)"; ctx.fillRect(x0, 0, w, 20);
+  ctx.fillStyle = "#335e3a"; ctx.fillRect(x0, 20, w, 8);
+  ctx.fillStyle = "#3f7a45"; ctx.fillRect(x0, 20, w, 2);
+  ctx.fillStyle = "#4a3a26"; ctx.fillRect(x0, 28, w, 2);
   for (let i = 0; i < shown; i++) if (!SPOTS[i].back) piece(ctx, PIECES[i], SPOTS[i].x, SPOTS[i].y);
   if (n > PIECES.length) sign(ctx, n - PIECES.length);
 }

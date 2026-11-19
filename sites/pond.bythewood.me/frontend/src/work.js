@@ -262,7 +262,7 @@ function tick(now) {
       const pop = popAt ? Math.max(0, 1 - (now - popAt) / 600) : 0;
       const got = n && n.basket.length ? iconOf(n.basket[0].kind) : "";
       drawJob($("job-art"), {
-        job: jobKey, frog: f, night: p.day && p.day.night, working: !!(t && n && !n.stop), still: reduced,
+        job: jobKey, frog: f, day: p.day, working: !!(t && n && !n.stop), still: reduced,
         t: now / 1000, k: n ? n.frac : 0, pop, got, thing: t ? iconOf(t.kind) : JOB_THING[jobKey],
         fill: n ? n.n / w.cap : 0, full: n && n.stop === "full",
       });

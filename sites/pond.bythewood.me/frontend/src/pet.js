@@ -99,7 +99,9 @@ function petted(x, y, now) {
   }, () => { asking = false; });
 }
 
+// The pond sits inside a wider canvas, and says where a press lands on it.
 function at(e, scene) {
+  if (scene.toPond) return scene.toPond(e);
   const r = scene.getBoundingClientRect();
   return [(e.clientX - r.left) * 352 / r.width, (e.clientY - r.top) * 272 / r.height];
 }

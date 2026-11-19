@@ -144,8 +144,34 @@ canvas {
   height: 56px;
   margin: 0 auto;
   padding: 0 14px;
-  background: rgba(11, 18, 34, 0.94);
+  background: linear-gradient(rgba(5, 8, 18, 0.75), rgba(5, 8, 18, 0));
   border-bottom: 1px solid var(--line);
+  transition: border-color 0.2s;
+}
+
+/* Solid over the words, and faded to nothing over a scene at the top. */
+.bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(11, 18, 34, 0.94);
+  transition: opacity 0.2s;
+}
+
+.bar.over {
+  border-bottom-color: transparent;
+}
+
+.bar.over::before {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar,
+  .bar::before {
+    transition: none;
+  }
 }
 
 .mark {
@@ -352,6 +378,34 @@ button.primary:disabled {
   padding-top: 14px;
 }
 
+/* A painted scene runs edge to edge, and the one at the top of a place runs
+   up under the bar. Each has a fixed height so nothing moves the page. */
+.vista {
+  width: calc(100% + 28px);
+  height: 176px;
+  margin: 0 -14px 14px;
+}
+
+.vista.top {
+  margin-top: -70px;
+}
+
+#reeds-art { height: 224px; }
+#works-art { height: 256px; }
+#job-art { height: 228px; }
+#town-art { height: 232px; }
+#play-art { height: 220px; }
+#bag-art,
+#collect-art { height: 192px; }
+
+.vista.shopfront {
+  margin-top: 26px;
+}
+
+.vista.shopfront + h2 {
+  margin-top: 0;
+}
+
 /* A picture in a dark frame, which never takes a tap of its own. */
 .screen {
   position: relative;
@@ -391,19 +445,41 @@ button.screen:active:not(:disabled) {
    water is drawn. A drag that starts off the frog scrolls the page. */
 .frogscreen {
   position: relative;
+  margin: -70px -14px 0;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
 
 .frogscreen .scene {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
   touch-action: pan-y;
+}
+
+.frogscreen .scene:hover,
+.frogscreen .scene:active {
+  transform: none;
+  background: none;
+  box-shadow: none;
+}
+
+.frogscreen .scene canvas {
+  width: 100%;
+  height: 372px;
 }
 
 /* The camera key is a small key in the other top corner of the picture. */
 .frogscreen .snap {
   position: absolute;
-  top: 14px;
+  top: 66px;
   right: 14px;
   display: grid;
   place-items: center;
@@ -425,7 +501,7 @@ button.screen:active:not(:disabled) {
 
 .frogscreen .bond {
   position: absolute;
-  top: 16px;
+  top: 70px;
   left: 16px;
   width: 78px;
   height: 12px;
@@ -602,11 +678,17 @@ button.powerplate:active:not(:disabled) {
   }
 }
 
-/* A short phone gets a smaller screen, so what to do next stays in view. */
+/* A wide screen gets a taller pond, so the frog is no smaller than on a phone. */
+@media (min-width: 34rem) {
+  .frogscreen .scene canvas {
+    height: 480px;
+  }
+}
+
+/* A short phone gets less sky, so what to do next stays in view. */
 @media (max-height: 780px) and (max-width: 34rem) {
-  #v-pond .frogscreen {
-    max-width: 19rem;
-    margin: 0 auto;
+  .frogscreen .scene canvas {
+    height: 340px;
   }
 }
 
@@ -2438,8 +2520,7 @@ button.nrow.primary {
   margin-bottom: 12px;
 }
 
-.makehead .screen {
-  margin-bottom: 4px;
+#works-art {
   cursor: pointer;
 }
 

@@ -1,9 +1,9 @@
 import { $, post, state, setPond, watch, reduced, TIERS } from "./api.js";
 import { genome, cells, colours, W, H } from "./frog.js";
 import { draw } from "./lit.js";
-import { drawIcon } from "./icons.js";
 import { presentsFrom } from "./neighbours.js";
 import { initMarket } from "./market.js";
+import { drawTown, drawShop, drawStall, drawMarket } from "./scenes.js";
 import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal, ghost, TIER_GLOW } from "./ui.js";
 
 let tab = "neighbours";
@@ -12,7 +12,7 @@ function showTab(next) {
   tab = next;
   ["shops", "neighbours", "stall", "market"].forEach((k) => { $("town-" + k).hidden = k !== next; });
   document.querySelectorAll("#town-tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.town === next ? "true" : "false"));
-  if (next === "stall") drawStall();
+  drawTownArt();
 }
 
 export function enterTown(which) {
@@ -184,35 +184,21 @@ function renderStall(p) {
   $("stall-collect").textContent = can ? "Collect " + can.toLocaleString("en-US") : "Paid out for today";
   $("stall-room").hidden = can === st.takings;
   $("stall-room").textContent = "The neighbours pay up to " + p.sell_room + " a day between them, so the rest waits on the stall until tomorrow.";
-  drawStall();
+  drawTownArt();
 }
 
-// A little stall with a striped awning, the frog behind the counter and the
-// things for sale on top of it.
-function drawStall() {
-  const p = state.pond, cv = $("stall-art");
-  if (!p || !state.g || $("town-stall").hidden) return;
-  const x = cv.getContext("2d");
-  x.fillStyle = "#123a3d"; x.fillRect(0, 0, 352, 128);
-  x.fillStyle = "#56b45f"; x.fillRect(0, 112, 352, 16);
-  x.fillStyle = "#3f9a4d"; for (let i = 0; i < 352; i += 12) x.fillRect(i, 108, 4, 4);
-  const f = p.frog;
-  draw(x, cells(state.g, f.stage, { hat: f.hat.shape, legs: true }), W, H, colours(state.g, f.hat), 132, 4, 2);
-  for (let i = 0; i < 9; i++) { x.fillStyle = i % 2 ? "#fff6dc" : "#e2567a"; x.fillRect(64 + i * 25, 8, 25, 18); x.fillRect(64 + i * 25 + 4, 26, 17, 6); }
-  x.fillStyle = "#8a5a2b"; x.fillRect(70, 26, 6, 86); x.fillRect(276, 26, 6, 86);
-  x.fillStyle = "#c9974f"; x.fillRect(60, 74, 232, 12);
-  x.fillStyle = "#8a5a2b"; x.fillRect(64, 86, 224, 26);
-  x.fillStyle = "#6b4a2a"; for (let i = 0; i < 4; i++) x.fillRect(64, 92 + i * 6, 224, 2);
-  p.stall.rows.forEach((r) => {
-    const sx = 92 + r.slot * 64;
-    if (r.sold) {
-      drawIcon(x, "peb", sx + 4, 46, 2);
-      x.fillStyle = "#ffe27a"; x.font = "700 10px Inter, sans-serif"; x.fillText("SOLD", sx + 4, 44);
-    } else {
-      const a = thingArt(r, 3);
-      x.drawImage(a, sx + 16 - a.width / 2, 74 - a.height);
-    }
-  });
+// The scene over town is the jetty, a shopfront, the stall or the market by
+// the tab, and every shop below the first has its own front over it.
+function drawTownArt() {
+  const p = state.pond;
+  if (!p) return;
+  const cv = $("town-art");
+  if (tab === "shops") {
+    drawShop(cv, p, "wren");
+    document.querySelectorAll(".shopfront").forEach((c) => drawShop(c, p, c.dataset.shop));
+  } else if (tab === "stall") drawStall(cv, p);
+  else if (tab === "market") drawMarket(cv, p);
+  else drawTown(cv, p);
 }
 
 // ---------------------------------------------------------------- the wizard

@@ -62,7 +62,7 @@ function card(scene, frame) {
   if (f.deco) f.deco(x);
   x.fillStyle = "#2a241d"; x.fillRect(44, 44, 712, 552);
   x.imageSmoothingEnabled = false;
-  x.drawImage(scene, 48, 48, 704, 544);
+  x.drawImage(scene, ...(scene.pondBox ? scene.pondBox() : [0, 0, scene.width, scene.height]), 48, 48, 704, 544);
   x.fillStyle = f.ink; x.textBaseline = "alphabetic";
   x.font = "700 52px Inter, sans-serif";
   x.fillText(titled(p.frog.name), 46, 668, 520);

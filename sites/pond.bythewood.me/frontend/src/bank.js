@@ -1,4 +1,5 @@
 import { drawPot } from "./scenes.js";
+import { look, sky, stars, glow, lantern, rng } from "./paint.js";
 import { $, post, state, setPond, watch, reduced, heldNow, canBuild, offer, TIERS } from "./api.js";
 import { iconCanvas, dishCanvas } from "./icons.js";
 import { slot } from "./ui.js";
@@ -45,28 +46,41 @@ function plotsNow() {
   });
 }
 
+// The garden's sky is painted once for the day and the weather.
+const skyBuf = document.createElement("canvas");
+let skyKey = "";
+
+function gardenSky(day, why) {
+  const L = look(day), key = L.dark + ":" + why;
+  if (key === skyKey) return skyBuf;
+  skyKey = key;
+  skyBuf.width = GW; skyBuf.height = 34;
+  const g = skyBuf.getContext("2d");
+  sky(g, GW, 34, why === "frost" ? ["#3a4654", "#4a5664", "#5a6674"] : L.sky.slice(0, 4));
+  if (L.dark && !why) stars(g, GW, 24, rng(17), 18);
+  if (!L.dark && !why) { glow(g, 150, 30, 20, "#ffd8a0", 0.35); g.fillStyle = "#ffe2a8"; g.fillRect(146, 26, 9, 8); }
+  return skyBuf;
+}
+
 function drawGarden(now) {
   const p = state.pond, why = p.bank.garden.why, wet = why === "rain";
   gx.setTransform(S, 0, 0, S, 0, 0);
   gx.imageSmoothingEnabled = false;
-  gx.fillStyle = wet ? "#27323c" : why === "frost" ? "#3a4654" : p.day.night ? "#141c2a" : "#3b5a6a";
-  gx.fillRect(0, 0, GW, 34);
-  if (!p.day.night) {
-    gx.fillStyle = why ? "#9fb0bd" : "#ffd98a";
-    gx.fillRect(150, 6, 10, 10); gx.fillRect(148, 8, 14, 6); gx.fillRect(152, 4, 6, 14);
-  }
+  const L = look(p.day);
+  gx.drawImage(gardenSky(p.day, why), 0, 0);
   if (why) {
     gx.fillStyle = wet ? "#55626e" : "#c9d3dc";
     gx.fillRect(20, 6, 40, 7); gx.fillRect(28, 3, 22, 4); gx.fillRect(96, 9, 34, 6); gx.fillRect(104, 6, 16, 4);
   }
-  gx.fillStyle = "#2f5a3a";
+  gx.fillStyle = L.dark ? "#16301e" : "#2a4a26";
   for (let r = 0; r < GW; r += 7) gx.fillRect(r, 30 - ((r * 13) % 5), 2, 6 + ((r * 13) % 5));
-  gx.fillStyle = "#5a4630"; gx.fillRect(0, 34, GW, 26);
-  gx.fillStyle = "#6c5538";
+  gx.fillStyle = "#2a1e14"; gx.fillRect(0, 34, GW, 26);
+  gx.fillStyle = "#3a2a1c";
   for (let d = 3; d < GW; d += 11) gx.fillRect(d, 37 + (d % 3) * 6, 3, 1);
-  gx.fillStyle = "#123a3d"; gx.fillRect(0, 60, GW, 12);
-  gx.fillStyle = "#7fd6c2";
-  for (let w = (Math.floor(now / 400) % 2) * 4; w < GW; w += 16) gx.fillRect(w, 61, 7, 1);
+  gx.fillStyle = L.water[0]; gx.fillRect(0, 60, GW, 12);
+  gx.fillStyle = L.line2;
+  for (let w = (reduced ? 0 : Math.floor(now / 400) % 2) * 4; w < GW; w += 16) gx.fillRect(w, 61, 7, 1);
+  lantern(gx, 6, 18, 42, L.dark ? 0.35 : 0.2);
 
   const g = plotsNow(), n = Math.max(g.length, 1), span = Math.floor((GW - 8) / n), pw = Math.min(34, span - 6);
   g.forEach((k, i) => {
@@ -92,7 +106,7 @@ function drawGarden(now) {
     for (let i = 0; i < 4; i++) gx.fillRect(10 + i * 42, 52, 34, 1);
   }
   if (wet && !reduced) {
-    gx.fillStyle = "#8fb6c9";
+    gx.fillStyle = "rgba(190,210,235,0.6)";
     for (let i = 0; i < 40; i++) gx.fillRect((i * 37 + Math.floor(now / 60) * 3) % GW, (i * 23 + Math.floor(now / 60) * 5) % 58, 1, 3);
   }
   if (why === "frost" && !reduced) {

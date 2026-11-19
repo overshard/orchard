@@ -9,7 +9,8 @@ import { initWheel, enterWheel } from "./wheel.js";
 import { initReeds } from "./reeds.js";
 import { initJob, enterJob, leaveJob, greetAway } from "./work.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
-import { drawMake } from "./scenes.js";
+import { drawMake, MAKE_AT, drawPlayArt, drawBag } from "./scenes.js";
+import { vista, mid, look, backdrop, water, lantern, cattail, reeds, px } from "./paint.js";
 import { initShops } from "./shops.js";
 import { initUI, openSheet, closeSheet, reveal, thingArt, drawBox } from "./ui.js";
 import { sweepArt, shareKey } from "./sweep.js";
@@ -133,7 +134,7 @@ function show(next) {
   if (!VIEWS.includes(next)) next = "pond";
   if (MAKE.includes(next)) makeAt = next;
   $("make-head").hidden = !MAKE.includes(next);
-  $("make-pic").hidden = next === "wizard";
+  $("works-art").hidden = next === "wizard";
   document.querySelectorAll("#make-tabs button").forEach((b) => {
     b.setAttribute("aria-pressed", b.dataset.go === next ? "true" : "false");
   });
@@ -164,8 +165,18 @@ function show(next) {
   // A view's name is also the id of its canvas, and the browser scrolls to
   // that when the address changes, a frame after this runs.
   window.scrollTo(0, 0);
-  requestAnimationFrame(() => window.scrollTo(0, 0));
+  requestAnimationFrame(() => { window.scrollTo(0, 0); barOver(); });
 }
+
+// The bar fades out over the scene at the top of a place and fills back in
+// once the scene has scrolled up under it.
+function barOver() {
+  const top = [...document.querySelectorAll(".vista.top, #scene")].find((c) => c.getClientRects().length);
+  $("gear").closest(".bar").classList.toggle("over", !!top && top.getBoundingClientRect().bottom > 72);
+}
+
+let barAt = 0;
+window.addEventListener("scroll", () => { cancelAnimationFrame(barAt); barAt = requestAnimationFrame(barOver); }, { passive: true });
 
 window.addEventListener("load", () => window.scrollTo(0, 0));
 
@@ -188,11 +199,59 @@ let greetAt = 0, croakUntil = 0, lastTick = 0;
 
 function grown(stage) { return stage === "froglet" || stage === "frog" || stage === "elder"; }
 
-const WATER = {
-  "": ["#123a3d", "#103336", "#0e2c30", "#0c262a"],
-  clear: ["#15484b", "#13403f", "#103838", "#0d3033"],
-  murky: ["#28311f", "#232b1c", "#1e2518", "#192014"],
+// The pond is drawn in its own units, 352 by 272 with the frog 8 to a cell,
+// at a whole number of device pixels to the unit, centred on the bottom of a
+// wider canvas with the sky and the sides painted round it.
+const stage = { cw: 0, ch: 0, r: 0, W: 0, H: 0, k: 1, ox: 0, oy: 0, L: 0, T: 0, R: 352, back: null, key: "" };
+
+function fitStage() {
+  const r = window.devicePixelRatio || 1, cw = scene.clientWidth, ch = scene.clientHeight;
+  if (!cw || !ch) return false;
+  if (cw === stage.cw && ch === stage.ch && r === stage.r) return true;
+  const W = Math.round(cw * r), H = Math.round(ch * r);
+  scene.width = W; scene.height = H;
+  const k = Math.max(0.5, Math.floor(Math.min(W / 360, (H - 64 * r) / 272) * 2) / 2);
+  Object.assign(stage, { cw, ch, r, W, H, k, ox: Math.round((W - 352 * k) / 2), oy: H - 272 * k, key: "" });
+  stage.L = -stage.ox / k; stage.T = -stage.oy / k; stage.R = (W - stage.ox) / k;
+  return true;
+}
+
+scene.toPond = (e) => {
+  const r = scene.getBoundingClientRect(), f = scene.width / r.width;
+  return [((e.clientX - r.left) * f - stage.ox) / stage.k, ((e.clientY - r.top) * f - stage.oy) / stage.k];
 };
+scene.pondBox = () => [stage.ox, stage.oy, 352 * stage.k, 272 * stage.k];
+
+// Where the moon hangs and the lantern stands, in pond units.
+const MOON_X = 250, LAMP_X = 338;
+const WATERS = { clear: [["#2a4a62", "#203c52"], ["#0d2438", "#0a1c2e"]], murky: [["#3a3a30", "#2e2e26"], ["#1a2218", "#141a12"]] };
+
+// The sky, the far trees and the water, painted at two units a pixel and
+// kept until the day or the size changes.
+function backdropOf(day) {
+  const key = [stage.W, stage.H, stage.k, !!day.night, !!day.rain, !!day.moon, day.water || ""].join();
+  if (stage.key === key) return stage.back;
+  const n = 2 * stage.k, bw = Math.ceil(stage.W / n), bh = Math.ceil(stage.H / n), hor = bh - 136;
+  const cv = stage.back || document.createElement("canvas"), at = (x) => Math.round((stage.ox + x * stage.k) / n);
+  cv.width = bw; cv.height = bh;
+  const g = cv.getContext("2d"), L = look(day);
+  const r = backdrop(g, bw, bh, 7, { horizon: hor, moon: [at(MOON_X), hor - 15, 6] }, day);
+  if (WATERS[day.water]) { const [a, b] = WATERS[day.water][L.dark ? 1 : 0]; water(g, bw, hor, bh - hor, a, b, r, L.line, L.line2); }
+  const lx = at(LAMP_X);
+  for (let y = hor + 18, i = 0; y < hor + 64; y += 2, i++) {
+    const l = 2 + Math.floor(r() * 6);
+    g.globalAlpha = 0.5 - i * 0.02; px(g, "#ffcf6a", lx - l / 2 + Math.round((r() - 0.5) * 4), y, l, 1);
+  }
+  g.globalAlpha = 1;
+  lantern(g, lx, hor + 4, 80, L.dark ? 0.45 : 0.3);
+  reeds(g, 0, at(16), hor + 34, r); reeds(g, at(340), bw, hor + 40, r);
+  cattail(g, at(-4), hor + 60, hor + 8, 1); cattail(g, at(356), hor + 64, hor + 14, -1);
+  stage.back = cv; stage.key = key;
+  return cv;
+}
+
+// A wash over everything on the canvas, the sky and the sides as well.
+function wash(c) { sx.fillStyle = c; sx.fillRect(stage.L, stage.T, stage.R - stage.L, 272 - stage.T); }
 
 // A fixed scatter, so a thing on the water keeps its place from frame to frame.
 function scatter(i, salt) {
@@ -209,16 +268,19 @@ function drawPad(day) {
   for (let y = 222; y < 268; y += 4) for (let x = 20; x < 332; x += 4) {
     const a = (x + 2 - 176) / 150, b = (y + 2 - 246) / 20, d = a * a + b * b;
     if (d > 1 || (x > 286 && Math.abs(y - 240) < (x - 286) * 0.3)) continue;
-    sx.fillStyle = d > 0.82 ? (day.cold && scatter(x, y) < 0.6 ? "#cfe3ea" : "#1f5a2c") : (y < 236 ? "#56b45f" : "#3f9a4d");
+    sx.fillStyle = d > 0.82 ? (day.cold && scatter(x, y) < 0.6 ? "#cfe3ea" : y < 246 ? "#5fa860" : "#163a22") : (y < 236 ? "#3f8a4a" : "#2d6a38");
     sx.fillRect(x, y, 4, 4);
   }
 }
 
 // What the real day puts on the water behind the frog.
-const MOON = ["..aaa..", ".aabaa.", "aaaaaba", "abaaaaa", "aaaabaa", ".aaaaa.", "..aaa.."];
 const SPAWN = [[8, 152], [300, 132], [36, 64]];
 
 function drawBehind(day, t) {
+  if (day.night && !day.rain) for (let i = 0; i < 10; i++) {
+    const w = (day.moon ? 26 : 14) - i + Math.round(Math.sin((reduced ? 0 : t) * 1.3 + i) * 3);
+    sx.fillStyle = "rgba(232,220,176," + (0.42 - i * 0.035) + ")"; sx.fillRect(Math.round(MOON_X - w / 2), 4 + i * 10, w, 2);
+  }
   if (day.spawn) SPAWN.forEach(([x, y], n) => {
     for (let i = 0; i < 9; i++) {
       const ex = x + (i % 3) * 12 + (Math.floor(i / 3) % 2) * 4, ey = y + Math.floor(i / 3) * 12;
@@ -245,16 +307,17 @@ function drawBehind(day, t) {
 // then, and a dragonfly crossing whatever the day.
 function drawAmbient(day, t) {
   const sway = Math.round(Math.sin(t * 0.8) * 1);
+  const L = look(day), stem = L.dark ? ["#16301e", "#2a4a26"] : ["#2a4a26", "#3f6a36"];
   [[4, 6], [16, 9], [26, 5], [318, 7], [330, 10], [342, 6]].forEach(([x, h], i) => {
     const top = 272 - h * 12, lean = i % 2 ? sway : -sway;
-    sx.fillStyle = "#2f6b33"; sx.fillRect(x, top, 4, h * 12);
-    sx.fillStyle = "#3f8a45"; sx.fillRect(x + lean * 4, top - 4, 4, 8);
-    if (h > 8) { sx.fillStyle = "#6b4a2a"; sx.fillRect(x + lean * 4, top - 16, 4, 12); }
+    sx.fillStyle = stem[0]; sx.fillRect(x, top, 4, h * 12);
+    sx.fillStyle = stem[1]; sx.fillRect(x + lean * 4, top - 4, 4, 8);
+    if (h > 8) { sx.fillStyle = "#5a3a1e"; sx.fillRect(x + lean * 4, top - 16, 4, 12); sx.fillStyle = "#7a5230"; sx.fillRect(x + lean * 4, top - 16, 2, 10); }
   });
   const px = 40 + Math.sin(t * 0.07) * 16, py = 36 + Math.cos(t * 0.05) * 6;
-  sx.fillStyle = "#1f5a2c"; sx.fillRect(Math.round(px / 4) * 4, Math.round(py / 4) * 4 + 4, 40, 8);
-  sx.fillStyle = "#3f9a4d"; sx.fillRect(Math.round(px / 4) * 4 + 4, Math.round(py / 4) * 4, 32, 8);
-  sx.fillStyle = WATER[day.water || ""][0]; sx.fillRect(Math.round(px / 4) * 4 + 20, Math.round(py / 4) * 4, 4, 8);
+  sx.fillStyle = "#2d6a38"; sx.fillRect(Math.round(px / 4) * 4, Math.round(py / 4) * 4 + 4, 40, 8);
+  sx.fillStyle = "#3f8a4a"; sx.fillRect(Math.round(px / 4) * 4 + 4, Math.round(py / 4) * 4, 32, 8);
+  sx.fillStyle = L.water[0]; sx.fillRect(Math.round(px / 4) * 4 + 20, Math.round(py / 4) * 4, 4, 8);
   const ft = t % 9;
   if (ft < 1.6) {
     const n = Math.floor(t / 9), rx = 90 + scatter(n, 11) * 180, ry = 110 + scatter(n, 12) * 80, r = 4 + ft * 18;
@@ -322,26 +385,26 @@ function drawOver(day, t) {
   if (day.dragonfly) dragonfly(t, (t % 14) / 14);
   else if (t % 45 < 14) dragonfly(t, (t % 45) / 14);
   const warm = !day.night && tint();
-  if (warm) { sx.fillStyle = warm; sx.fillRect(0, 0, 352, 272); }
-  if (MOOD_TINT[day.mood]) { sx.fillStyle = MOOD_TINT[day.mood]; sx.fillRect(0, 0, 352, 272); }
-  if (day.rain) for (let i = 0; i < 26; i++) {
-    const rx = scatter(i, 7) * 352, ry = (scatter(i, 8) * 272 + t * 160) % 272;
+  if (warm) wash(warm);
+  if (MOOD_TINT[day.mood]) wash(MOOD_TINT[day.mood]);
+  const span = 272 - stage.T, ft = reduced ? 0 : t;
+  if (day.rain) for (let i = 0; i < 34; i++) {
+    const rx = stage.L + scatter(i, 7) * (stage.R - stage.L), ry = stage.T + (scatter(i, 8) * span + ft * 160) % span;
     sx.fillStyle = "rgba(200,230,240,0.45)"; sx.fillRect(Math.round(rx), Math.round(ry), 2, 8);
   }
-  if (day.night) {
-    sx.fillStyle = "rgba(4,6,18,0.55)"; sx.fillRect(0, 0, 352, 272);
-    if (day.moon && !day.rain) {
-      MOON.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== ".") block(256 + x * 4, 16 + y * 4, ch === "a" ? "#f4f1e6" : "#c9cfd6"); }));
-      for (let i = 0; i < 6; i++) {
-        const w = 28 - i * 3 + Math.round(Math.sin(t * 1.3 + i) * 3);
-        sx.fillStyle = "rgba(230,238,246," + (0.32 - i * 0.04) + ")"; sx.fillRect(Math.round(270 - w / 2), 60 + i * 30, w, 3);
-      }
-    }
-    if (!day.cold && !day.rain) for (let i = 0; i < (day.fireflies ? 22 : 7); i++) {
-      if (Math.sin(t * 2 + i * 1.9) < 0.2) continue;
-      const fx = scatter(i, 9) * 330 + Math.sin(t * 0.5 + i) * 10, fy = 30 + scatter(i, 10) * 160 + Math.cos(t * 0.6 + i) * 8;
-      block(fx, fy, "#ffe27a"); sx.fillStyle = "rgba(255,226,122,0.18)"; sx.fillRect(Math.round(fx / 4) * 4 - 4, Math.round(fy / 4) * 4 - 4, 12, 12);
-    }
+  if (day.night) wash("rgba(4,6,18,0.22)");
+  // The lantern flickers a little, and fireflies come out on a dry night.
+  const flick = (Math.sin(ft * 6.1) + Math.sin(ft * 2.7)) / 2;
+  if (flick > 0) {
+    sx.fillStyle = "rgba(255,207,106," + (0.08 * flick) + ")";
+    sx.beginPath(); sx.arc(LAMP_X, 20, 30, 0, 7); sx.fill();
+  }
+  if (day.night && !day.cold && !day.rain) for (let i = 0; i < (day.fireflies ? 22 : 9); i++) {
+    if (Math.sin(ft * 2 + i * 1.9) < 0.2) continue;
+    const fx = stage.L + scatter(i, 9) * (stage.R - stage.L) + Math.sin(ft * 0.5 + i) * 10, fy = scatter(i, 10) * 190 + Math.cos(ft * 0.6 + i) * 8;
+    sx.fillStyle = "rgba(255,246,160,0.16)"; sx.fillRect(Math.round(fx / 2) * 2 - 6, Math.round(fy / 2) * 2 - 6, 14, 14);
+    sx.fillStyle = "rgba(255,246,160,0.22)"; sx.fillRect(Math.round(fx / 2) * 2 - 2, Math.round(fy / 2) * 2 - 2, 6, 6);
+    sx.fillStyle = "#fffbd0"; sx.fillRect(Math.round(fx / 2) * 2, Math.round(fy / 2) * 2, 2, 2);
   }
 }
 
@@ -466,16 +529,21 @@ function drawSparkles(t, b) {
 
 function drawScene(now) {
   const p = state.pond, g = state.g;
-  if (!p || !g) return;
+  if (!p || !g || !fitStage()) return;
   const f = p.frog, day = p.day || {}, t = now / 1000, k = greetAt ? Math.min(1, (now - greetAt) / 2100) : 1, moving = k < 1;
-  WATER[day.water || ""].forEach((c, i) => { sx.fillStyle = c; sx.fillRect(0, i * 68, 352, 68); });
-  const ripples = [6, 10, 14][day.wind || 0], drift = [5, 14, 28][day.wind || 0];
-  sx.fillStyle = "rgba(127,214,194,0.22)";
+  const back = backdropOf(day), n = 2 * stage.k;
+  sx.setTransform(1, 0, 0, 1, 0, 0);
+  sx.imageSmoothingEnabled = false;
+  sx.drawImage(back, 0, stage.H - back.height * n, back.width * n, back.height * n);
+  sx.setTransform(stage.k, 0, 0, stage.k, stage.ox, stage.oy);
+  sx.imageSmoothingEnabled = false;
+  const ripples = [6, 10, 14][day.wind || 0], drift = [5, 14, 28][day.wind || 0], span = stage.R - stage.L + 40;
+  sx.fillStyle = "rgba(90,140,190,0.3)";
   for (let i = 0; i < ripples; i++) {
-    const x = Math.round(((i * 67 + t * drift) % 392) - 20), y = 14 + (i * 97) % 240;
+    const x = Math.round(stage.L + ((i * 67 + t * drift) % span) - 20), y = 14 + (i * 97) % 240;
     sx.fillRect(x, y, 20, 2); sx.fillRect(x + 20, y + 2, 12, 2);
   }
-  drawFarBank(sx, p.bank.far.patches);
+  drawFarBank(sx, p.bank.far.patches, stage.L, stage.R);
   drawBehind(day, t);
   drawAmbient(day, t);
   drawSwimmers(p, day, t);
@@ -598,6 +666,9 @@ function renderPond(p) {
   renderNext(p);
   renderMake(p);
   renderPlay(p);
+  drawPlayArt($("play-art"), p);
+  drawBag($("bag-art"), p);
+  drawBag($("collect-art"), p);
 }
 
 function el(tag, cls, text) {
@@ -732,8 +803,8 @@ function renderMake(p) {
 
 // A tap on the picture opens the place under the finger.
 $("works-art").addEventListener("click", (e) => {
-  const r = e.target.getBoundingClientRect(), k = (e.clientX - r.left) / r.width;
-  location.hash = "#" + (k < 0.2 ? "frogs" : k < 0.41 ? "garden" : "bank");
+  const sc = vista(e.target), x = sc.at(e)[0] - mid(sc.w, 195);
+  location.hash = "#" + MAKE_AT.find(([end]) => x < end)[1];
 });
 
 let allRows = false;

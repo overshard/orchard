@@ -2,7 +2,7 @@
 <div id="app">
   <section class="view" id="v-pond">
     <div class="frogscreen">
-      <button type="button" class="scene screen" id="scene-btn" aria-label="Your frog. Press it to hear its call, or rub it.">
+      <button type="button" class="scene" id="scene-btn" aria-label="Your frog. Press it to hear its call, or rub it.">
         <canvas id="scene" width="352" height="272"></canvas>
       </button>
       <canvas class="bond" id="bond" width="39" height="6" role="img" aria-label="0 of 5 hearts"></canvas>
@@ -35,6 +35,7 @@
   </section>
 
   <section class="view" id="v-play" hidden>
+    <canvas class="vista top" id="play-art" aria-hidden="true"></canvas>
     <div id="shelves"></div>
     <a class="game" href="#wheel" id="play-wheel">
       <canvas id="play-wheel-art" width="168" height="96" aria-hidden="true"></canvas>
@@ -95,6 +96,7 @@
   </section>
 
   <section class="view" id="v-bag" hidden>
+    <canvas class="vista top" id="bag-art" aria-hidden="true"></canvas>
     <div class="places pair" role="group" aria-label="In the bag">
       <button type="button" data-go="bag" aria-pressed="true"><canvas data-icon="i_bag" width="24" height="24"></canvas>Holding</button>
       <button type="button" data-go="collect" aria-pressed="false"><canvas data-icon="i_star" width="24" height="24"></canvas>Collection</button>
@@ -105,6 +107,7 @@
   </section>
 
   <section class="view" id="v-collect" hidden>
+    <canvas class="vista top" id="collect-art" aria-hidden="true"></canvas>
     <div class="places pair" role="group" aria-label="In the bag">
       <button type="button" data-go="bag" aria-pressed="false"><canvas data-icon="i_bag" width="24" height="24"></canvas>Holding</button>
       <button type="button" data-go="collect" aria-pressed="true"><canvas data-icon="i_star" width="24" height="24"></canvas>Collection</button>
@@ -123,16 +126,16 @@
   </section>
 
   <div class="makehead" id="make-head" hidden>
+    <canvas class="vista top" id="works-art" aria-label="Your frogs' lodge, the garden and the bank along the water. A lantern hangs over anything ready."></canvas>
     <div class="places three" id="make-tabs" role="group" aria-label="Make">
       <button type="button" data-go="garden" aria-pressed="false"><canvas data-icon="sprout" width="24" height="24"></canvas>Garden</button>
       <button type="button" data-go="bank" aria-pressed="false"><canvas data-icon="i_bank" width="24" height="24"></canvas>Bank</button>
       <button type="button" data-go="wizard" aria-pressed="false"><canvas data-icon="i_wizard" width="24" height="24"></canvas>Wizard</button>
     </div>
-    <div class="screen" id="make-pic"><canvas id="works-art" width="552" height="180" aria-label="Your frogs' lodge, the garden and the bank along the water. A lit window has something ready."></canvas></div>
   </div>
 
   <section class="view" id="v-reeds" hidden>
-    <div class="screen"><canvas id="reeds-art" width="384" height="84" aria-label="Every frog on its lily pad"></canvas></div>
+    <canvas class="vista top" id="reeds-art" aria-label="Every frog on its lily pad"></canvas>
     <p class="line" id="reeds-line"></p>
     <div class="reeds" id="reeds"></div>
     <p class="dim" id="reeds-out" role="status"></p>
@@ -157,12 +160,12 @@
   </section>
 
   <section class="view" id="v-job" hidden>
+    <canvas class="vista top" id="job-art"></canvas>
     <a class="back" href="#frogs">&larr; Frogs</a>
     <div class="wk-top">
       <b id="job-name"></b>
       <span id="job-what"></span>
     </div>
-    <div class="screen"><canvas id="job-art" width="384" height="168"></canvas></div>
     <div class="wk-bar" id="job-work">
       <span class="meter wk-act"><i id="job-act"></i></span>
       <span class="readout"><span class="k">Next</span><span class="v" id="job-left">0:00</span></span>
@@ -288,6 +291,7 @@
   </section>
 
   <section class="view" id="v-town" hidden>
+    <canvas class="vista top" id="town-art" aria-hidden="true"></canvas>
     <div class="places four" id="town-tabs" role="group" aria-label="In town">
       <button type="button" data-town="neighbours" aria-pressed="true"><canvas data-icon="i_folk" width="24" height="24"></canvas>Neighbours</button>
       <button type="button" data-town="shops" aria-pressed="false"><canvas data-icon="i_shops" width="24" height="24"></canvas>Shops</button>
@@ -307,15 +311,18 @@
       <p class="dim" id="wren-want" hidden></p>
       <p class="line" id="shop-out-wren" role="status"></p>
 
+      <canvas class="vista shopfront" data-shop="brindle" aria-hidden="true"></canvas>
       <h2>Big Bean's Larder</h2>
       <p class="dim" id="brindle-note"></p>
       <ul class="shelf" id="shelf-brindle"></ul>
       <p class="line" id="shop-out-brindle" role="status"></p>
 
+      <canvas class="vista shopfront" data-shop="fenn" aria-hidden="true"></canvas>
       <h2>Tansy's Pad and Reed</h2>
       <ul class="shelf" id="shelf-fenn"></ul>
       <p class="line" id="shop-out-fenn" role="status"></p>
 
+      <canvas class="vista shopfront" data-shop="moss" aria-hidden="true"></canvas>
       <h2>Moth's Curios</h2>
       <p class="dim">Restocks whenever he feels like it.</p>
       <div class="boxbuy">
@@ -326,11 +333,13 @@
       <ul class="shelf" id="shelf-moss"></ul>
       <p class="line" id="shop-out-moss" role="status"></p>
 
+      <canvas class="vista shopfront" data-shop="sedge" aria-hidden="true"></canvas>
       <h2>Sedge's Tackle</h2>
       <p class="dim">Bait off the old log, three tins and a lure a day. Fishing puts the best you have on the hook.</p>
       <ul class="shelf" id="shelf-sedge"></ul>
       <p class="line" id="shop-out-sedge" role="status"></p>
 
+      <canvas class="vista shopfront" data-shop="marsh" aria-hidden="true"></canvas>
       <h2>Marsh's Frames</h2>
       <p class="dim">Backdrops for your postcard, one of each, for the camera key on the pond.</p>
       <ul class="shelf" id="shelf-marsh"></ul>
@@ -348,7 +357,6 @@
     </div>
 
     <div id="town-stall" hidden>
-      <div class="stallart screen"><canvas id="stall-art" width="352" height="128" aria-hidden="true"></canvas></div>
       <p class="help" hidden>Put up to eight things on your stall for a day. Neighbours wander by all day and somebody nearly always buys within the hour at the going rate, and the chance drops fast as the price goes up. What a thing goes for changes with the day and falls as more of it is put up. Asking over the rate costs a small fee that isn't given back. A hat or trinket has to be a spare, and whoever buys likes you a little more for it. The neighbours only pay out so much a day, and anything sold past that waits on the stall until the next.</p>
       <h2>Your stall <span class="dim" id="stall-n"></span></h2>
       <div class="stall" id="stall-rows"></div>
