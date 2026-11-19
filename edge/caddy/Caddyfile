@@ -85,8 +85,7 @@
 # as an origin error and counts it against origin health. A 404 is what these
 # paths already returned.
 #
-# This is the full list. Cloudflare catches only the high volume families first,
-# recorded in cloudflare-rules.txt beside this file.
+# This is the full list, and the only one. Cloudflare runs no rules of its own.
 #
 # Some of these clauses look wrong and are not.
 #
@@ -115,10 +114,8 @@
 #   hashed asset lands under /static/ and an unanchored config\.js would take
 #   one of them down.
 #
-# Rule 1's first line at Cloudflare sits outside the repos guard, so it covers
-# repos too. Nothing here serves a path starting with a dot and no site registers
-# a .well-known route, so it cannot reach repository content. Adding one means
-# changing that rule first, since Cloudflare blocks it before Caddy sees it.
+# A path starting with a dot is refused on every host, repos too, since nothing
+# here serves one. mcp's OAuth metadata is the one exception, see dotfiles.
 #
 # Everything generic stays out. /info, /console, /new/, /old/ and /backup/ are
 # all plausible routes here one day and each is worth a cheap 404, and /code is
@@ -127,6 +124,21 @@
 # Do not turn on Bot Fight Mode to solve this. status probes its own public
 # hostnames with a plain Go client, which cannot solve a JS challenge, so every
 # site here would report a permanent false outage.
+
+# Root anchored, so repository content and /orchard.git are never touched.
+(dotfiles) {
+	@dotfile {
+		path_regexp dotfile ^/\.
+		not path /.well-known/oauth-*
+	}
+
+	log_skip @dotfile
+
+	handle @dotfile {
+		header Cache-Control "no-store"
+		respond 404
+	}
+}
 
 # repos.bythewood.me serves arbitrary paths out of arbitrary repositories, so
 # matching on path content collides with real files: it took
@@ -141,6 +153,8 @@
 # /orchard.git/info/refs is not exempt and must not match, which is why every
 # dotfile clause keeps its leading slash. Clone and push over HTTPS depend on it.
 (scanners_repos) {
+	import dotfiles
+
 	@hostile_repos {
 		not path_regexp repo_content ^/[^/]+/(?:blob|raw|tree|commit|log|archive|branches|tags)(?:/|$)
 		path_regexp hostile_repos (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode|remote/fgt_lang|remote/login|global-protect/|ssl-vpn/|app/rest/|blade-auth/|blade-system/|pimcore-studio/|php-cgi/|administrator/|language/en-gb/|media/system/|api/v1/totp/|_cat/|_cluster/|_watcher/|_snapshot/|_nodes|api/datasources|api/alert-notifications|api/v1/provisioning/|api/org|api/dashboards|api/2\.0/mlflow/|containers/json|v1\.24/|images/json|v2/keys/|api/contents|auth/v1/|rest/v1/|api/v1/validate/code|api/v1/auto_login|druid/|hazelcast/|geoserver/|ws/v1/cluster|editor/filemanager/|plugins/editors/|media/jui/|@fs/|__vite_rsc_|@vite/|proc/self/|userfiles|read-document|inngest|api/fs/exec|api/exec|api/designer/|api/templates/preview|_debugbar/|_debug_toolbar/|__debug__/|debug/pprof|debug/vars|debug-kit|telescope/requests|server-status|server-info|nginx_status|graphql|actuator|swagger|openapi\.json|_payload\.json|app/etc/local\.xml|_darcs/|CVS/Root|stripe|firebase|amplifyconfiguration|amplify_outputs|awsconfiguration|aws-exports|aws_credentials|google-services|gc-service|gcp-service|client_secrets?\.|terraform\.tfstate|terraform\.tfvars|serverless\.ya?ml|sam-template|vercel\.json|netlify\.toml|docker-compose\.|compose\.ya?ml|Dockerfile$|Dockerfile\.|rclone\.conf|web\.config|gradle\.properties|application\.properties|bootstrap\.(?:yml|properties)|appsettings|settings\.py|secret_token|master\.key|schema\.prisma|composer\.(?:json|lock)|Gemfile|Rakefile|Jakefile|behat\.yml|circle\.yml|codeception\.yml|renovate\.json|platformio\.ini)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|joomla|keys-status|\.(?:php|asp|jsp|cgi|axd|sql|bak|esp|action)|\.(?:zip|rar|7z|tgz|tar\.gz)$|^/(?:env|_environment)$|\.astro\.mjs\.map$|\.(?:pem|key|p12|pfx|jks|keystore)$|^/(?:api/)?(?:proxy|fetch|redirect|request|url|webhook|load|out)$|^/(?:ip|null)$|^/(?:[^/]+/){0,2}_{0,2}env(?:-config)?\.(?:js|json|ts|txt|ya?ml|old)$|^/(?:[^/]+/){0,2}config(?:uration)?\.(?:json|js|ts|py|rb|ya?ml|toml|sh)$|^/(?:[^/]+/){0,2}(?:secrets?|credentials?|app-config|service_account|auth|token)\.(?:json|js|ts|py|rb|ya?ml|ini|csv|txt)$|^/config/[^/]*\.(?:ya?ml|json|exs|rb|conf|properties)$|^/(?:[^/]+/){0,2}(?:id_dsa|id_ecdsa|private-?key|privatekey)(?:$|\.)|^/api/(?:v\d+/)?(?:config|settings|keys|env|sysConfig)(?:/|$)|^/api/(?:session/properties|postman\.json)$|^/(?:s3/)?credentials$|^/s3\.(?:key|secret|ya?ml|properties)$
@@ -157,6 +171,8 @@
 }
 
 (scanners) {
+	import dotfiles
+
 	# Matched anywhere in the path rather than at the root, since most of the
 	# volume arrives nested under a guessed prefix (/blog/wp-json/, /app/.env).
 	# Ordinary 404s like /login or /apple-touch-icon.png are left alone.
@@ -241,6 +257,19 @@ http://auth.bythewood.me {
 	# The wildcard catches /verify/ too.
 	handle /verify* {
 		respond "not here" 404
+	}
+
+	# Signing in is only ever from the US. Cloudflare sets CF-IPCountry on every
+	# request and nothing reaches Caddy except through the tunnel, so a client
+	# can't send its own. Travelling means taking this out first.
+	@abroad {
+		path /login /code /recovery
+		not header Cf-Ipcountry US
+	}
+
+	handle @abroad {
+		header Cache-Control "no-store"
+		respond "Signing in is only open from the US." 403
 	}
 
 	handle {
