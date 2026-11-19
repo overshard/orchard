@@ -253,7 +253,7 @@
     <div class="row"><button type="button" class="primary" id="cook">Cook</button></div>
     <p class="line" id="cook-out" role="status"></p>
     <ul class="things dishes" id="dishes"></ul>
-    <p class="dim" id="bean-room" hidden></p>
+    <div id="bean-room" hidden></div>
   </section>
 
   <section class="view inmake" id="v-bank" hidden>
@@ -396,14 +396,15 @@
     </div>
 
     <div id="town-stall" hidden>
-      <p class="help" hidden>Put up to eight things on your stall for a day. Neighbours wander by all day and somebody nearly always buys within the hour at the going rate, and the chance drops fast as the price goes up. What a thing goes for changes with the day and falls as more of it is put up. Asking over the rate costs a small fee that isn't given back. A hat or trinket has to be a spare, and whoever buys likes you a little more for it. The neighbours only pay out so much a day, and anything sold past that waits on the stall until the next.</p>
-      <h2>Your stall <span class="dim" id="stall-n"></span></h2>
-      <div class="stall" id="stall-rows"></div>
-      <div class="row">
-        <button type="button" class="primary" id="stall-collect">Collect</button>
-      </div>
-      <p class="dim" id="stall-room" hidden></p>
+      <p class="help" hidden>Put up to eight things on your stall for a day. What a thing goes for changes with the day and falls as more of it goes up on anybody's stall, and the arrow says how far today's rate is from its usual. Quick asks a little under the rate and nearly always sells within the hour, Fair asks the rate and sells today, and Greedy asks three times it and maybe sells, for a fee of a tenth of what's over that isn't given back. Pebbles land as soon as it sells. What the shops and the stall pay comes down as the day's selling goes up, in full at first, then half, then a little, and it starts again at midnight. A hat or trinket has to be a spare, and whoever buys likes you a little more for it.</p>
+      <div id="sell-taper"></div>
+      <p class="dim" id="sell-now"></p>
       <p class="line" id="stall-out" role="status"></p>
+      <h2>To sell</h2>
+      <div class="sells" id="sell-list"></div>
+      <p class="dim" id="sell-none" hidden>Nothing to sell yet. A hat or trinket has to be a spare.</p>
+      <h2>On your stall <span class="dim" id="stall-n"></span></h2>
+      <div class="stall" id="stall-rows"></div>
     </div>
 
     <div id="town-market" hidden>

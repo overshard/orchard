@@ -505,7 +505,7 @@ func TestA99EarnsTheHood(t *testing.T) {
 	if !inBag {
 		t.Error("the hood isn't in the bag to wear, or it can be sold")
 	}
-	if _, err := s.stallList(id, hatKind(hood), 10); err == nil {
+	if _, err := s.stallList(id, hatKind(hood), "fair"); err == nil {
 		t.Error("a hood went on the stall")
 	}
 }
@@ -968,9 +968,11 @@ func wizardToTully() [tierCount]float64 {
 }
 
 // A bug catcher at 99 with every tool, full mastery, the nature for it and a
-// legendary meal in it all day can't sell a day's catch for more than the
-// day's room at any buyer, the wizard's hats included.
-func TestADaysCatchSellsForNoMoreThanTheRoom(t *testing.T) {
+// legendary meal in it all day can't sell a day's catch for more than
+// catchCeil at any buyer down the taper, the wizard's hats included.
+func TestADaysCatchTapersOff(t *testing.T) {
+	// About six days of ordinary play.
+	const catchCeil = 1200
 	bugs, _ := jobOf("bugs")
 	tg := bugs.best(maxLevel)
 	m := masteryCap(maxLevel)
@@ -984,10 +986,12 @@ func TestADaysCatchSellsForNoMoreThanTheRoom(t *testing.T) {
 		finds[x.kind] = 24 * (1 + boost) / float64(x.per)
 	}
 
-	s, _ := testStore(t)
+	s, clock := testStore(t)
 	_, id := newPond(t, s)
 	give(t, s, id, 100000)
 	purse := func() int { v, _ := s.view(id); return v.Pebbles }
+	// Each buyer gets a day of its own, so none shares the taper.
+	nextDay := func() { *clock = clock.Add(24 * time.Hour) }
 
 	stock(t, s, id, tg.kind, n)
 	for range n / 2 {
@@ -997,16 +1001,14 @@ func TestADaysCatchSellsForNoMoreThanTheRoom(t *testing.T) {
 	}
 	jam, before := dishOf(6, 6).kind(), purse()
 	for range n / 2 {
-		if _, err := s.sellDish(id, jam); errors.Is(err, errBeanFull) {
-			break
-		} else if err != nil {
+		if _, err := s.sellDish(id, jam); err != nil {
 			t.Fatal(err)
 		}
 	}
 	bean := purse() - before
 
+	nextDay()
 	stock(t, s, id, tg.kind, n)
-	w, _ := worthOf(tg.kind)
 	stall, left := 0, n
 	for left > 0 {
 		v, _ := s.view(id)
@@ -1014,22 +1016,20 @@ func TestADaysCatchSellsForNoMoreThanTheRoom(t *testing.T) {
 			if left == 0 {
 				break
 			}
-			if _, err := s.stallList(id, tg.kind, stallCap(tg.kind, w)); err != nil {
+			if _, err := s.stallList(id, tg.kind, "greedy"); err != nil {
 				t.Fatal(err)
 			}
 			left--
 		}
 		exec(t, s, `UPDATE stall SET sells_at = ? WHERE pond_id = ?`, s.now().Unix(), id)
 		paid, err := s.stallCollect(id)
-		if errors.Is(err, errStallPaid) {
-			break
-		}
 		if err != nil {
 			t.Fatal(err)
 		}
 		stall += paid.Pebbles
 	}
 
+	nextDay()
 	moth := 0
 	for k := range finds {
 		if _, ok := trinketOf(k); !ok {
@@ -1059,6 +1059,7 @@ func TestADaysCatchSellsForNoMoreThanTheRoom(t *testing.T) {
 			stock(t, s, id, hatKind(h), 1)
 		}
 	}
+	nextDay()
 	stock(t, s, id, tg.kind, n)
 	for range n / wizardTakes {
 		if _, err := s.wizard(id, tg.kind); err != nil {
@@ -1081,8 +1082,8 @@ func TestADaysCatchSellsForNoMoreThanTheRoom(t *testing.T) {
 	t.Logf("through the wizard Little Tully would pay about %.0f for a day with no limit", unlimited)
 	t.Logf("a day's catch sold for %d at Big Bean's, %d off the stall, %d at Moth's and %d at Little Tully's", bean, stall, moth, tully)
 	for route, got := range map[string]int{"Big Bean": bean, "the stall": stall, "Moth": moth, "Little Tully": tully} {
-		if got > sellRoom {
-			t.Errorf("%s paid %d for a day's catch, over the room of %d", route, got, sellRoom)
+		if got > catchCeil {
+			t.Errorf("%s paid %d for a day's catch, over %d", route, got, catchCeil)
 		}
 	}
 }

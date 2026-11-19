@@ -130,8 +130,7 @@ func TestListingOnTheStallIsRemembered(t *testing.T) {
 	if v, _ := s.view(id); !strings.Contains(goalKinds(v.Goals), "stall") {
 		t.Fatalf("no stall goal: %s", goalKinds(v.Goals))
 	}
-	worth, _ := worthOf("sticks")
-	if _, err := s.stallList(id, "sticks", worth); err != nil {
+	if _, err := s.stallList(id, "sticks", "fair"); err != nil {
 		t.Fatal(err)
 	}
 	exec(t, s, `DELETE FROM stall WHERE pond_id = ?`, id)

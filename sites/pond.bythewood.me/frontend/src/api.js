@@ -111,7 +111,12 @@ export function room(view) {
 }
 
 // What a buyer pays today, which is a thing's worth or what's left of his day.
-export function offer(buyer, worth) { return Math.min(worth, state.pond.room[buyer]); }
+// What a sale at a price lands today, down the taper the server keeps.
+export function taperPaid(t, face) {
+  const half = Math.min(Math.max(face - t.full, 0), t.half - t.full);
+  return Math.min(face, t.full) + Math.floor(half / 2) + Math.floor(Math.max(face - t.half, 0) / t.tail);
+}
+export function offer(worth) { const t = state.pond.taper; return taperPaid(t, t.sold + worth) - taperPaid(t, t.sold); }
 
 export function onResize(fn) {
   let t = 0;

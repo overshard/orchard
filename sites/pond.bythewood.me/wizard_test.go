@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"math"
 	"path/filepath"
 	"testing"
@@ -131,23 +132,21 @@ func TestStallSellsAndCollects(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
 	stock(t, s, id, "fossil", 4)
-	w, _ := worthOf("fossil")
 	stock(t, s, id, "moonstone", stallSlots)
-	if _, err := s.stallList(id, "fossil", w*11); !errors.Is(err, errBadPrice) {
-		t.Fatalf("listed at eleven times, %v", err)
+	if _, err := s.stallList(id, "fossil", "earth"); !errors.Is(err, errBadPrice) {
+		t.Fatalf("listed off the keys, %v", err)
 	}
-	for i := range 3 {
-		if _, err := s.stallList(id, "fossil", w/2+i); err != nil {
+	for range 3 {
+		if _, err := s.stallList(id, "fossil", "quick"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	aw, _ := worthOf("moonstone")
 	for range stallSlots - 3 {
-		if _, err := s.stallList(id, "moonstone", aw/2); err != nil {
+		if _, err := s.stallList(id, "moonstone", "quick"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := s.stallList(id, "fossil", w); !errors.Is(err, errStallFull) {
+	if _, err := s.stallList(id, "fossil", "fair"); !errors.Is(err, errStallFull) {
 		t.Fatalf("one too many went up, %v", err)
 	}
 	for i := 3; i < stallSlots; i++ {
@@ -162,22 +161,21 @@ func TestStallSellsAndCollects(t *testing.T) {
 	if v.held["fossil"] != 2 || len(v.Stall.Rows) != 2 {
 		t.Fatalf("taking it back left %d held and %d up", v.held["fossil"], len(v.Stall.Rows))
 	}
-	before := v.Pebbles
+	before, face := v.Pebbles, 0
+	for _, r := range v.Stall.Rows {
+		face += r.Price
+	}
 	if _, err := s.stallCollect(id); !errors.Is(err, errNotYet) {
 		t.Fatalf("collected before a sale, %v", err)
 	}
-	*clock = clock.Add(25 * time.Hour)
-	got := 0
-	for len(v.Stall.Rows) > 0 {
-		paid, err := s.stallCollect(id)
-		if err != nil {
-			t.Fatal(err)
-		}
-		v, got = paid.Pond, got+paid.Pebbles
-		*clock = clock.Add(24 * time.Hour)
+	exec(t, s, `UPDATE stall SET sells_at = listed_at + 3600 WHERE pond_id = ?`, id)
+	*clock = clock.Add(2 * time.Hour)
+	paid, err := s.stallCollect(id)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if v.Pebbles != before+w/2+1+w/2+2 || got != w/2+1+w/2+2 {
-		t.Fatalf("pebbles %d from %d, %d collected", v.Pebbles, before, got)
+	if v = paid.Pond; len(v.Stall.Rows) != 0 || v.Pebbles != before+taperPaid(face) || paid.Pebbles != taperPaid(face) {
+		t.Fatalf("pebbles %d from %d, %d collected of %d sold", v.Pebbles, before, paid.Pebbles, face)
 	}
 	met := 0
 	for _, f := range v.Neighbours.All {
@@ -189,46 +187,76 @@ func TestStallSellsAndCollects(t *testing.T) {
 
 	h := hatKind(hat{Shape: 4, Colour: 0})
 	stock(t, s, id, h, 1)
-	hw, _ := worthOf(h)
-	if _, err := s.stallList(id, h, hw); !errors.Is(err, errNotHeld) {
+	if _, err := s.stallList(id, h, "fair"); !errors.Is(err, errNotHeld) {
 		t.Fatalf("sold the only hat, %v", err)
 	}
-	if _, err := s.stallList(id, "f_lantern", 10); !errors.Is(err, errNotHeld) {
+	if _, err := s.stallList(id, "f_lantern", "fair"); !errors.Is(err, errNotHeld) {
 		t.Fatalf("sold the furniture, %v", err)
 	}
 }
 
-// Eight jams sold off the stall pay out the day's room and no more, the rest
-// waits on the stall, and the next day pays the next room's worth of it.
-func TestStallPaysADaysWorth(t *testing.T) {
+// Eight jams sold off the stall all land at once, down the day's taper, and
+// nothing is left waiting.
+func TestStallPaysDownTheTaper(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
 	jam := dishOf(6, 6).kind()
 	stock(t, s, id, jam, stallSlots)
 	for range stallSlots {
-		if _, err := s.stallList(id, jam, dishWorth[4]/2); err != nil {
+		if _, err := s.stallList(id, jam, "fair"); err != nil {
 			t.Fatal(err)
 		}
 	}
 	exec(t, s, `UPDATE stall SET sells_at = ? WHERE pond_id = ?`, clock.Unix(), id)
 	v, _ := s.view(id)
-	before, owed := v.Pebbles, v.Stall.Takings
+	owed := v.Stall.Takings
 	paid, err := s.stallCollect(id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if paid.Pebbles != sellRoom || paid.Pond.Pebbles-before != sellRoom || paid.Pond.Stall.Takings != owed-sellRoom {
-		t.Fatalf("collected %d, purse moved %d, %d still waiting of %d", paid.Pebbles, paid.Pond.Pebbles-before, paid.Pond.Stall.Takings, owed)
+	if paid.Pebbles != taperPaid(owed) || paid.Pond.Taper.Paid != paid.Pebbles || paid.Pond.Stall.Takings != 0 || paid.Pond.Taper.Sold != owed {
+		t.Fatalf("collected %d of %d, %+v, %d still waiting", paid.Pebbles, owed, paid.Pond.Taper, paid.Pond.Stall.Takings)
 	}
-	if _, err := s.stallCollect(id); !errors.Is(err, errStallPaid) {
-		t.Fatalf("collected twice in a day, %v", err)
+	if _, err := s.stallCollect(id); !errors.Is(err, errNotYet) {
+		t.Fatalf("collected twice, %v", err)
 	}
-	if _, err := s.stallTake(id, paid.Pond.Stall.Rows[0].Slot); !errors.Is(err, errStallPaid) {
-		t.Fatalf("took a sold thing past the room, %v", err)
+}
+
+// Takings that were waiting on a stall for another day's room are paid in
+// full the first time the store opens with the taper, and only then.
+func TestWaitingTakingsArePaidOnce(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "pond.db")
+	pepper := []byte("a pepper for tests, long enough to pass")
+	s, err := openStore(path, pepper)
+	if err != nil {
+		t.Fatal(err)
 	}
-	*clock = clock.Add(24 * time.Hour)
-	if paid, err = s.stallCollect(id); err != nil || paid.Pebbles != sellRoom {
-		t.Fatalf("the next day collected %d, %v", paid.Pebbles, err)
+	_, id := newPond(t, s)
+	before, _ := s.view(id)
+	now := time.Now().Unix()
+	for _, q := range []string{
+		`ALTER TABLE sold DROP COLUMN face`,
+		fmt.Sprintf(`INSERT INTO sold (pond_id, buyer, day, paid) VALUES (%d, 'stall', '%s', 150)`, id, dayOf(time.Now())),
+		fmt.Sprintf(`INSERT INTO stall (pond_id, slot, kind, price, listed_at, sells_at, buyer) VALUES (%d, 0, 'fossil', 400, %d, %d, 'Old Clover')`, id, now-7200, now-3600),
+		fmt.Sprintf(`INSERT INTO stall (pond_id, slot, kind, price, listed_at, sells_at, buyer) VALUES (%d, 1, 'fossil', 90, %d, 0, '')`, id, now),
+	} {
+		if _, err := s.w.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s.Close()
+	for range 2 {
+		if s, err = openStore(path, pepper); err != nil {
+			t.Fatal(err)
+		}
+		v, err := s.view(id)
+		s.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v.Pebbles != before.Pebbles+400 || len(v.Stall.Rows) != 1 || v.Taper.Sold != 150 {
+			t.Fatalf("purse %d from %d, %d rows up, %d sold today", v.Pebbles, before.Pebbles, len(v.Stall.Rows), v.Taper.Sold)
+		}
 	}
 }
 
@@ -254,6 +282,24 @@ func TestStallOddsFollowThePrice(t *testing.T) {
 	now := time.Date(2026, 11, 10, 12, 0, 0, 0, pondZone)
 	if a, b := stallRate("fossil", 100, 0, now), stallRate("fossil", 100, 18, now); b*2 > a+1 {
 		t.Errorf("eighteen up lately moved the rate from %d to %d", a, b)
+	}
+}
+
+// Quick sells within the hour, Fair sells today and Greedy maybe, against
+// the stall's own odds, on anything priced off a rate a shop doesn't cap.
+func TestThePriceKeysMeanWhatTheySay(t *testing.T) {
+	day := func(c float64) float64 { return 1 - math.Pow(1-c, stallLooks) }
+	for rate := 2; rate <= 3000; rate++ {
+		k := keysFor("sticks", 1000, rate)
+		if k[0].Chance < 0.95 || k[0].Fee != 0 || k[0].Price >= rate {
+			t.Fatalf("quick at %d is %+v", rate, k[0])
+		}
+		if day(k[1].Chance) < 0.999 || k[1].Fee != 0 || k[1].Price != rate {
+			t.Fatalf("fair at %d is %+v", rate, k[1])
+		}
+		if d := day(k[2].Chance); d < 0.4 || d > 0.7 || k[2].Fee == 0 {
+			t.Fatalf("greedy at %d is %+v, %.2f a day", rate, k[2], d)
+		}
 	}
 }
 
@@ -310,11 +356,13 @@ func TestStallCapsUnderEveryShop(t *testing.T) {
 			t.Errorf("%s is at Moth's and has no floor", r.kind)
 		}
 	}
-	s, _ := testStore(t)
-	_, id := newPond(t, s)
-	stock(t, s, id, "dye_blue", 1)
-	if _, err := s.stallList(id, "dye_blue", bargainPrice); !errors.Is(err, errBadPrice) {
-		t.Fatalf("a blue dye went up for Moth's bargain price, %v", err)
+	for _, k := range kinds {
+		w, _ := worthOf(k)
+		for _, key := range keysFor(k, w, 2*w) {
+			if p, ok := shopFloor(k); ok && key.Price >= p {
+				t.Errorf("%s goes up %s for %d on a good day and a shop sells it for %d", k, key.Key, key.Price, p)
+			}
+		}
 	}
 }
 

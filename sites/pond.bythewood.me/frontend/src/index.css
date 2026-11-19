@@ -4168,42 +4168,185 @@ div.slot {
   overflow-y: auto;
 }
 
-.pricer {
+.stallrow.over {
+  opacity: 0.7;
+}
+
+.taper {
   display: grid;
-  gap: 6px;
-  margin: 10px 0;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--edge);
+}
+
+.taper-head,
+.taper .cuts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+}
+
+.taper-head {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.taper-head b {
+  justify-self: end;
+  color: var(--text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.taper .cuts span:nth-child(2) {
   text-align: center;
 }
 
-.pricer b {
-  justify-self: center;
-  padding: 2px 14px;
-  border-radius: 10px;
-  background: var(--well);
-  box-shadow: var(--edge);
+.taper .cuts span:nth-child(3) {
+  text-align: right;
+}
+
+.taper .cuts .now {
   color: var(--text);
-  font-family: var(--ui);
-  font-variant-numeric: tabular-nums;
+}
+
+.taper .bands {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.taper .bands span {
+  height: 10px;
+  overflow: hidden;
+  background: var(--well);
+  box-shadow: var(--sunk);
+}
+
+.taper .bands span:first-child {
+  border-radius: 5px 0 0 5px;
+}
+
+.taper .bands span:last-child {
+  border-radius: 0 5px 5px 0;
+}
+
+.taper .bands i {
+  display: block;
+  height: 100%;
+  background: var(--ok);
+  transform-origin: left;
+  transition: transform 0.6s;
+}
+
+.taper .bands span:nth-child(2) i {
+  opacity: 0.65;
+}
+
+.taper .bands span:nth-child(3) i {
+  opacity: 0.4;
+}
+
+.sells {
+  display: grid;
+  gap: 10px;
+}
+
+.sellitem {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--edge);
+}
+
+.sellitem > canvas {
+  width: 40px;
+  height: auto;
+}
+
+.sellitem .what {
+  display: grid;
+  min-width: 0;
+}
+
+.sellitem .what b {
+  font-size: 15px;
   font-weight: 600;
-  font-size: 28px;
 }
 
-.pricer input {
-  width: 100%;
-  accent-color: var(--lamp);
+.sellitem .what span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.pricer > span {
+.sellitem .what span.said {
+  color: var(--ok);
+  white-space: normal;
+}
+
+.trend {
   color: var(--muted);
   font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
-.pricer .tiles {
-  text-align: left;
+.trend.rise {
+  color: var(--ok);
 }
 
-.stallrow.over {
+.trend.fall {
+  color: var(--bad);
+}
+
+.pricekeys {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.pricekeys button {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 6px 4px;
+  font-size: 17px;
+}
+
+.pricekeys small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pricekeys button.primary small {
+  color: inherit;
   opacity: 0.7;
+}
+
+.pricekeys button:disabled small {
+  color: var(--dim);
 }
 
 .reveal {
@@ -4362,29 +4505,6 @@ div.slot {
 
 .stallrow.sold {
   box-shadow: var(--edge), inset 3px 0 0 var(--ok);
-}
-
-.stallrow.empty {
-  grid-template-columns: minmax(0, 1fr);
-  padding: 0;
-  background: none;
-  box-shadow: none;
-}
-
-.stallrow.empty button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin: 0 0 3px;
-  border: 1px dashed var(--line-2);
-  color: var(--muted);
-}
-
-.stallrow.empty button .ghost {
-  width: 24px;
-  height: 24px;
-  margin: 0;
 }
 
 .odds {

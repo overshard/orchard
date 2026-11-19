@@ -362,7 +362,7 @@ func sellGood(tx *sql.Tx, p *pond, a asset, price float64, n int) error {
 		return err
 	}
 	pays := sellPays(price, n, goodFee)
-	left, err := roomLeft(tx, p.ID, buyerMarket, p.today)
+	left, err := marketLeft(tx, p.ID, p.today)
 	if err != nil {
 		return err
 	}
@@ -433,7 +433,7 @@ func marketOf(q querier, p *pond, now time.Time) (marketView, error) {
 		return v, err
 	}
 	v.Fees.Share, v.Fees.Good, v.Fees.Coin = int(shareFee*100), int(goodFee*100), int(coinFee*100)
-	if v.Room, err = roomLeft(q, p.ID, buyerMarket, day); err != nil {
+	if v.Room, err = marketLeft(q, p.ID, day); err != nil {
 		return v, err
 	}
 	if err := q.QueryRow(`SELECT div_total FROM ponds WHERE id = ?`, p.ID).Scan(&v.Earned); err != nil {

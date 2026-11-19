@@ -285,6 +285,7 @@ CREATE TABLE IF NOT EXISTS sold (
     buyer   TEXT NOT NULL,
     day     TEXT NOT NULL,
     paid    INTEGER NOT NULL,
+    face    INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (pond_id, buyer)
 ) WITHOUT ROWID;
 
@@ -464,6 +465,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "visitor_day", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "paint", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "far", "INTEGER NOT NULL DEFAULT 0"},
+	{"sold", "face", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) (map[string]bool, error) {
@@ -567,6 +569,12 @@ func openStore(path string, pepper []byte) (*store, error) {
 	if err := migrateJobs(w, time.Now()); err != nil {
 		w.Close()
 		return nil, err
+	}
+	if added["sold.face"] {
+		if err := payWaiting(w, time.Now()); err != nil {
+			w.Close()
+			return nil, err
+		}
 	}
 	if added["ponds.rank_top"] {
 		if err := seedRanks(w, time.Now()); err != nil {
@@ -1006,10 +1014,9 @@ type view struct {
 	Frames []string   `json:"frames"`
 	Bag    []bagThing `json:"bag"`
 	Stall  stallView  `json:"stall"`
-	// Room is what's left of each buyer's day, by shop key, out of SellRoom.
-	Room     map[string]int `json:"room"`
-	SellRoom int            `json:"sell_room"`
-	Wizard   struct {
+	// Taper is the day's selling to the shops and the stall.
+	Taper  taperView `json:"taper"`
+	Wizard struct {
 		Takes int `json:"takes"`
 		Up    int `json:"up"`
 		Same  int `json:"same"`
@@ -1285,8 +1292,7 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if v.Stall, err = stallOf(q, p.ID, now); err != nil {
 		return err
 	}
-	v.SellRoom = sellRoom
-	if v.Room, err = roomsOf(q, p.ID, dayOf(now)); err != nil {
+	if v.Taper, err = taperOf(q, p.ID, dayOf(now)); err != nil {
 		return err
 	}
 	if v.Market, err = marketOf(q, p, now); err != nil {

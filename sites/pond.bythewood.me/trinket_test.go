@@ -93,9 +93,8 @@ func TestTrinketSpares(t *testing.T) {
 	}
 }
 
-// Moth pays out the day's room for crafted things and no more, and has it
-// all again the next day.
-func TestMothBuysADaysWorth(t *testing.T) {
+// Moth buys every spare, paid down the day's taper.
+func TestMothBuysDownTheTaper(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
 	stock(t, s, id, "t_statue", 6)
@@ -105,7 +104,7 @@ func TestMothBuysADaysWorth(t *testing.T) {
 	before := v.Pebbles
 	for {
 		after, err := s.sellTrinket(id, "t_statue")
-		if errors.Is(err, errMothFull) {
+		if errors.Is(err, errNotHeld) {
 			break
 		}
 		if err != nil {
@@ -113,12 +112,14 @@ func TestMothBuysADaysWorth(t *testing.T) {
 		}
 		v = after
 	}
-	if v.Pebbles-before != min(sellRoom, 5*each) || v.Room[shopMoss] != max(0, sellRoom-5*each) {
-		t.Fatalf("a day of statues paid %d with %d left", v.Pebbles-before, v.Room[shopMoss])
+	if v.Pebbles-before != taperPaid(5*each) {
+		t.Fatalf("a day of statues paid %d, want %d", v.Pebbles-before, taperPaid(5*each))
 	}
 	*clock = clock.Add(24 * time.Hour)
+	stock(t, s, id, "t_statue", 1)
+	v, _ = s.view(id)
 	before = v.Pebbles
-	if v, err := s.sellTrinket(id, "t_statue"); err != nil || v.Pebbles-before != min(each, sellRoom) {
+	if v, err := s.sellTrinket(id, "t_statue"); err != nil || v.Pebbles-before != taperPaid(each) {
 		t.Fatalf("a statue the next day paid %d, %v", v.Pebbles-before, err)
 	}
 }

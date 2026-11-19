@@ -73,9 +73,6 @@ func todoOf(v *view) []todo {
 	if v.Market.Due > 0 {
 		add("dividend", "peb", fmt.Sprintf("%d in dividends", v.Market.Due), "market")
 	}
-	if v.Stall.Takings > 0 {
-		add("stall", "i_stall", fmt.Sprintf("Stall sold %d", v.Stall.Takings), "town")
-	}
 
 	if w := v.Want; w.Ready && v.Pebbles >= w.Price {
 		add("wanted", "hat", "Little Tully has your "+strings.ToLower(w.Hat.Name), "town")
@@ -201,7 +198,7 @@ type leftView struct {
 }
 
 func leftOf(v *view, now time.Time) leftView {
-	l := leftView{Sell: v.Stall.Room, Spins: v.Wheel.Free}
+	l := leftView{Sell: max(0, taperFull-v.Taper.Sold), Spins: v.Wheel.Free}
 	if l.Spins == 0 {
 		l.SpinIn = max(0, v.Wheel.NextIn)
 	}

@@ -84,8 +84,8 @@ function seeOpen() {
   drawPips();
 }
 
-// What comes round every day is new each day, and the stall is new again
-// each time it sells more. The rest is new until it's been seen once.
+// What comes round every day is new each day. The rest is new until it's
+// been seen once.
 const DAILY = ["log", "dive", "arcade", "favour", "gift", "rested", "dividend"];
 
 function sortPips(p, todo) {
@@ -93,7 +93,7 @@ function sortPips(p, todo) {
   behind = {};
   const put = (key, t) => { if (key) (behind[key] = behind[key] || []).push(t); };
   todo.forEach((t) => {
-    const token = t.kind + ":" + (t.kind === "stall" ? t.label : DAILY.includes(t.kind) ? p.today : ""), to = ALIAS[t.to] || t.to, tab = TAB_OF[to] || to;
+    const token = t.kind + ":" + (DAILY.includes(t.kind) ? p.today : ""), to = ALIAS[t.to] || t.to, tab = TAB_OF[to] || to;
     put(tab, token);
     put(tab === "make" ? to : tab === "town" ? (TOWN.includes(to) ? to : TOWN_KEY[t.kind]) : "", token);
   });

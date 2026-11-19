@@ -7,6 +7,7 @@ import (
 	"hash/fnv"
 	"math"
 	"math/rand/v2"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -17,9 +18,9 @@ import (
 // the going rate and hardly ever at ten times it.
 const (
 	stallSlots = 8
-	// The price can go from half a thing's worth to ten times it.
-	stallLow, stallHigh = 0.5, 10.0
-	stallLooks          = 24
+	// Nothing goes up for more than ten times its worth.
+	stallHigh  = 10.0
+	stallLooks = 24
 	// Listings of a kind count against its rate for this long.
 	stallGlut = 48 * time.Hour
 )
@@ -70,7 +71,34 @@ func stallCap(kind string, worth int) int {
 	if p, ok := shopFloor(kind); ok {
 		hi = min(hi, p-1)
 	}
-	return max(hi, max(1, int(math.Ceil(float64(worth)*stallLow))))
+	return max(hi, 1)
+}
+
+// The price keys as shares of today's rate. Nine tenths of the rate or less
+// sells at the top chance of a look, the rate sells most hours, and three
+// times it sells on a little over half the days it's up.
+var stallKeys = []stallShare{{"quick", 0.9}, {"fair", 1}, {"greedy", 3}}
+
+type stallShare struct {
+	key   string
+	share float64
+}
+
+type stallKey struct {
+	Key    string  `json:"key"`
+	Price  int     `json:"price"`
+	Fee    int     `json:"fee"`
+	Chance float64 `json:"chance"`
+}
+
+func keysFor(kind string, worth, rate int) []stallKey {
+	hi := stallCap(kind, worth)
+	out := make([]stallKey, len(stallKeys))
+	for i, k := range stallKeys {
+		price := min(hi, max(1, int(math.Floor(float64(rate)*k.share+1e-9))))
+		out[i] = stallKey{k.key, price, stallFee(price, rate), stallChance(price, rate)}
+	}
+	return out
 }
 
 // shopFloor is the least any shop ever asks for a kind.
@@ -188,9 +216,9 @@ type stallRow struct {
 type stallView struct {
 	Slots int        `json:"slots"`
 	Rows  []stallRow `json:"rows"`
-	// Pebbles waiting from what's sold, and how much of it can be paid today.
+	// Takings is what's sold since the pond last looked, which the page
+	// collects as soon as it sees it.
 	Takings int `json:"takings"`
-	Room    int `json:"room"`
 }
 
 // bagThing is anything a pond holds, hats included, with what can be done
@@ -204,10 +232,14 @@ type bagThing struct {
 	Count int    `json:"count"`
 	Free  int    `json:"free"`
 	Worth int    `json:"worth"`
-	// Rate is what it goes for on the stall today.
-	Rate int  `json:"rate"`
-	Max  int  `json:"max"`
-	Hat  *hat `json:"hat,omitempty"`
+	// Rate is what it goes for on the stall today and Trend how far that is
+	// over or under its worth, in percent. Listed is how many went up on any
+	// stall in the glut window.
+	Rate   int        `json:"rate"`
+	Trend  int        `json:"trend"`
+	Listed int        `json:"listed"`
+	Keys   []stallKey `json:"keys,omitempty"`
+	Hat    *hat       `json:"hat,omitempty"`
 	// A dish is drawn from its two ingredients.
 	A string `json:"a,omitempty"`
 	B string `json:"b,omitempty"`
@@ -259,7 +291,13 @@ func bagOf(held map[string]int, hats []hatView, hoods []hoodView, listed map[str
 			free--
 		}
 		a, b := dishParts(kind)
-		out = append(out, bagThing{kind, thingName(kind), t, sortOf(kind), n, free, w, stallRate(kind, w, listed[kind], now), stallCap(kind, w), h, a, b, nil})
+		rate := stallRate(kind, w, listed[kind], now)
+		th := bagThing{Kind: kind, Name: thingName(kind), Tier: t, Sort: sortOf(kind), Count: n, Free: free, Worth: w,
+			Rate: rate, Trend: int(math.Round(100 * float64(rate-w) / float64(w))), Listed: listed[kind], Hat: h, A: a, B: b}
+		if free > 0 && !strings.HasPrefix(kind, "f_") {
+			th.Keys = keysFor(kind, w, rate)
+		}
+		out = append(out, th)
 	}
 	for k, n := range held {
 		add(k, n, nil)
@@ -288,10 +326,6 @@ func bagOf(held map[string]int, hats []hatView, hoods []hoodView, listed map[str
 
 func stallOf(q querier, id int64, now time.Time) (stallView, error) {
 	v := stallView{Slots: stallSlots, Rows: []stallRow{}}
-	var err error
-	if v.Room, err = roomLeft(q, id, buyerStall, dayOf(now)); err != nil {
-		return v, err
-	}
 	rows, err := q.Query(`SELECT slot, kind, price, listed_at, sells_at, buyer, chance, ends_at FROM stall WHERE pond_id = ? ORDER BY slot`, id)
 	if err != nil {
 		return v, err
@@ -360,13 +394,14 @@ func giveThing(tx *sql.Tx, id int64, kind string) error {
 	return addItem(tx, id, kind, 1)
 }
 
-func (s *store) stallList(id int64, kind string, price int) (*view, error) {
+// stallList puts a thing up at one of the price keys, priced off today's rate.
+func (s *store) stallList(id int64, kind, key string) (*view, error) {
 	worth, ok := worthOf(kind)
 	if !ok || strings.HasPrefix(kind, "f_") {
 		return nil, errNotHeld
 	}
-	lo, hi := max(1, int(math.Ceil(float64(worth)*stallLow))), stallCap(kind, worth)
-	if price < lo || price > hi {
+	pick := slices.IndexFunc(stallKeys, func(k stallShare) bool { return k.key == key })
+	if pick < 0 {
 		return nil, errBadPrice
 	}
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
@@ -404,6 +439,7 @@ func (s *store) stallList(id int64, kind string, price int) (*view, error) {
 			return err
 		}
 		rate := stallRate(kind, worth, listed[kind], now)
+		price := keysFor(kind, worth, rate)[pick].Price
 		fee := stallFee(price, rate)
 		if p.Pebbles < fee {
 			return errPoor
@@ -440,10 +476,7 @@ func (s *store) stallTake(id int64, slot int) (*view, error) {
 			return err
 		}
 		if sells > 0 && sells <= now.Unix() {
-			paid, err := stallPay(tx, p, slot, price)
-			if err == nil && paid == 0 {
-				err = errStallPaid
-			}
+			_, err := stallPay(tx, p, slot, price)
 			return err
 		}
 		if _, err := tx.Exec(`DELETE FROM stall WHERE pond_id = ? AND slot = ?`, p.ID, slot); err != nil {
@@ -453,18 +486,13 @@ func (s *store) stallTake(id int64, slot int) (*view, error) {
 	})
 }
 
-// stallPay takes what's left of the day's room off a sold thing, and it comes
-// down once it's paid in full.
+// stallPay pays for a sold thing down the day's taper and takes it down.
 func stallPay(tx *sql.Tx, p *pond, slot, price int) (int, error) {
 	paid, err := payOut(tx, p, buyerStall, price)
-	if err != nil || paid == 0 {
+	if err != nil {
 		return 0, err
 	}
-	if paid < price {
-		_, err = tx.Exec(`UPDATE stall SET price = price - ? WHERE pond_id = ? AND slot = ?`, paid, p.ID, slot)
-	} else {
-		_, err = tx.Exec(`DELETE FROM stall WHERE pond_id = ? AND slot = ?`, p.ID, slot)
-	}
+	_, err = tx.Exec(`DELETE FROM stall WHERE pond_id = ? AND slot = ?`, p.ID, slot)
 	return paid, err
 }
 
@@ -473,18 +501,18 @@ func stallPay(tx *sql.Tx, p *pond, slot, price int) (int, error) {
 func (s *store) stallCollect(id int64) (*paidOut, error) {
 	out := &paidOut{Prizes: []prize{}, From: []int{}}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		rows, err := tx.Query(`SELECT slot, price, buyer FROM stall WHERE pond_id = ? AND sells_at > 0 AND sells_at <= ? ORDER BY slot`, p.ID, now.Unix())
+		rows, err := tx.Query(`SELECT slot, kind, price, buyer FROM stall WHERE pond_id = ? AND sells_at > 0 AND sells_at <= ? ORDER BY slot`, p.ID, now.Unix())
 		if err != nil {
 			return err
 		}
 		type sale struct {
 			slot, price int
-			buyer       string
+			kind, buyer string
 		}
 		var sales []sale
 		for rows.Next() {
 			var x sale
-			if err := rows.Scan(&x.slot, &x.price, &x.buyer); err != nil {
+			if err := rows.Scan(&x.slot, &x.kind, &x.price, &x.buyer); err != nil {
 				rows.Close()
 				return err
 			}
@@ -497,27 +525,19 @@ func (s *store) stallCollect(id int64) (*paidOut, error) {
 			return errNotYet
 		}
 		var buyers []int
-		waiting := false
 		for _, x := range sales {
 			paid, err := stallPay(tx, p, x.slot, x.price)
 			if err != nil {
 				return err
 			}
 			out.Pebbles += paid
-			if paid < x.price {
-				waiting = true
-				break
-			}
 			if who := residentNamed(x.buyer); who >= 0 {
 				buyers = append(buyers, who)
 			}
 		}
-		if out.Pebbles == 0 {
-			return errStallPaid
-		}
-		out.Line = fmt.Sprintf("+%d pebbles.", out.Pebbles)
-		if waiting {
-			out.Line += " The rest comes tomorrow."
+		out.Line = fmt.Sprintf("Sold %d off the stall. +%d pebbles.", len(sales), out.Pebbles)
+		if len(sales) == 1 {
+			out.Line = fmt.Sprintf("%s bought the %s. +%d pebbles.", sales[0].buyer, strings.ToLower(thingName(sales[0].kind)), out.Pebbles)
 		}
 		for _, who := range buyers {
 			zs, err := befriend(tx, p, who, 1, "")

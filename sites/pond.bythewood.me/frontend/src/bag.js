@@ -1,7 +1,6 @@
 import { $, post, state, setPond, watch, titled, offer } from "./api.js";
-import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal, ghost } from "./ui.js";
-import { pricePicker, toWizard } from "./town.js";
-import { beanLine } from "./bank.js";
+import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal, ghost, taperMeter } from "./ui.js";
+import { priceKeys, toWizard } from "./town.js";
 
 const SORTS = [["all", "All"], ["hat", "Hats"], ["trinket", "Trinkets"], ["rock", "Rocks"], ["food", "Food"], ["dish", "Dishes"], ["material", "Materials"], ["thing", "Other"]];
 const SPOTS = ["Left", "Right", "Water"];
@@ -75,11 +74,9 @@ export function show(t) {
       else r.append(button("Wear it", act("/api/hats/wear", t.hat), "primary"));
       const hv = p.hats.find((h) => same(h, t.hat));
       if (t.free > 0 && hv) {
-        const pays = offer("wren", hv.wren), b = button("Sell to Little Tully" + (pays ? ", " + pays : ""), act("/api/hats/sell", t.hat, (d) => sheetSay("Little Tully took it for " + pays + "." + toward(d.pond || d))));
-        b.disabled = !pays;
-        r.append(b);
-        line(body, p.room.wren ? "Little Tully spends up to " + p.sell_room + " a day on hats, and has " + p.room.wren + " left today."
-          : "Little Tully has bought all the hats he can today. He buys again tomorrow.");
+        const pays = offer(hv.wren);
+        r.append(button("Sell to Little Tully, " + pays, act("/api/hats/sell", t.hat, (d) => sheetSay("Little Tully took it for " + pays + "." + toward(d.pond || d)))));
+        body.append(taperMeter(p.taper));
       }
     }
     if (t.sort === "trinket") {
@@ -92,11 +89,9 @@ export function show(t) {
       });
       const tv = p.trinkets.all.find((x) => x.kind === t.kind);
       if (t.free > 0 && tv) {
-        const pays = offer("moss", tv.moss), b = button("Sell to Moth" + (pays ? ", " + pays : ""), act("/api/trinkets/sell", { kind: t.kind }, () => sheetSay("Moth took it for " + pays + ".")));
-        b.disabled = !pays;
-        row().append(b);
-        line(body, p.room.moss ? "Moth spends up to " + p.sell_room + " a day on trinkets, and has " + p.room.moss + " left today."
-          : "Moth has bought all the trinkets there's room for today. Try again tomorrow.");
+        const pays = offer(tv.moss);
+        row().append(button("Sell to Moth, " + pays, act("/api/trinkets/sell", { kind: t.kind }, () => sheetSay("Moth took it for " + pays + "."))));
+        body.append(taperMeter(p.taper));
       }
     }
     if (t.kind === "geode") {
@@ -116,16 +111,15 @@ export function show(t) {
         hungry.forEach((f, i) => r.append(button("Feed " + titled(f.name) + (f.fav && f.fav.dish.kind === t.kind ? ", its favourite" : ""), act("/api/frogs/feed", { frog: f.id, dish: t.kind },
           () => sheetSay(titled(f.name) + " ate it up.")), i === 0 ? "primary" : "")));
       }
-      const pays = offer("brindle", t.worth), b = button("Sell to Big Bean" + (pays ? ", " + pays : ""), act("/api/kitchen/sell", { dish: t.kind }, () => sheetSay("Big Bean took it for " + pays + ".")));
-      b.disabled = !pays;
-      row().append(b);
-      line(body, beanLine(p));
+      const pays = offer(t.worth);
+      row().append(button("Sell to Big Bean, " + pays, act("/api/kitchen/sell", { dish: t.kind }, () => sheetSay("Big Bean took it for " + pays + "."))));
+      body.append(taperMeter(p.taper));
     }
-    if (t.free > 0) {
-      const r = row();
-      r.append(button("Put it on your stall", () => { body.textContent = ""; pricePicker(body, t); }));
-      if (t.free >= p.wizard.takes && t.sort !== "material") r.append(button("Take three to the wizard", () => { closeSheet(); toWizard(t.kind); }));
+    if (t.free > 0 && t.keys) {
+      line(body, "On your stall it goes for about " + t.rate.toLocaleString("en-US") + " today.");
+      body.append(priceKeys(t, (v, msg) => { setPond(v); reopen(); sheetSay(msg); }, sheetSay));
     }
+    if (t.free >= p.wizard.takes && t.sort !== "material") row().append(button("Take three to the wizard", () => { closeSheet(); toWizard(t.kind); }));
   });
 }
 

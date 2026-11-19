@@ -197,7 +197,7 @@ func TestAWantedHatCantBeTurnedIntoPebbles(t *testing.T) {
 	if _, err := s.sell(id, wanted); !errors.Is(err, errNotHeld) {
 		t.Errorf("sold it back: %v", err)
 	}
-	if _, err := s.stallList(id, hatKind(wanted), 560); !errors.Is(err, errNotHeld) {
+	if _, err := s.stallList(id, hatKind(wanted), "fair"); !errors.Is(err, errNotHeld) {
 		t.Errorf("put it on the stall: %v", err)
 	}
 	if _, err := s.wizard(id, hatKind(wanted)); !errors.Is(err, errNotHeld) {

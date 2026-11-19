@@ -2,7 +2,7 @@ import { drawPot } from "./scenes.js";
 import { look, sky, stars, glow, lantern, rng } from "./paint.js";
 import { $, post, state, setPond, watch, reduced, heldNow, canBuild, offer, TIERS } from "./api.js";
 import { iconCanvas, dishCanvas } from "./icons.js";
-import { slot } from "./ui.js";
+import { slot, taperMeter } from "./ui.js";
 import { genome, cells, colours, W, H } from "./frog.js";
 import { draw } from "./lit.js";
 import { presentsFrom } from "./neighbours.js";
@@ -15,11 +15,6 @@ let picked = [], growing = [], seenAt = 0, raf = 0, on = false;
 
 function say(id, msg) { $(id).textContent = msg; }
 
-export function beanLine(p) {
-  const left = p.room.brindle;
-  if (!left) return "Big Bean has bought all the dishes he can today. He buys again tomorrow.";
-  return "Big Bean spends up to " + p.sell_room + " a day on dishes, and has " + left + " left today.";
-}
 
 function hours(sec) {
   if (sec < 3600) return Math.max(1, Math.round(sec / 60)) + " min";
@@ -217,8 +212,8 @@ function render(p) {
   k.dishes.forEach((d) => {
     const li = document.createElement("li"), name = document.createElement("span"), sell = document.createElement("button");
     name.textContent = d.name + (d.count > 1 ? " x" + d.count : "");
-    const pays = offer("brindle", d.worth);
-    sell.type = "button"; sell.textContent = pays ? "Sell " + pays : "Sell"; sell.disabled = !pays;
+    const pays = offer(d.worth);
+    sell.type = "button"; sell.textContent = "Sell " + pays;
     sell.addEventListener("click", () => {
       sell.disabled = true;
       const before = state.pond.pebbles;
@@ -231,7 +226,7 @@ function render(p) {
     dishes.append(li);
   });
   $("bean-room").hidden = !k.dishes.length;
-  say("bean-room", beanLine(p));
+  $("bean-room").replaceChildren(taperMeter(p.taper));
 }
 
 // ---------------------------------------------------------------- dye works

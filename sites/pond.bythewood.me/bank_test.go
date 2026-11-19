@@ -130,48 +130,65 @@ func TestGardenGrowsPicksAndCooks(t *testing.T) {
 	}
 	before := c.Pond.Pebbles
 	v, err = s.sellDish(id, c.Dish.Kind)
-	if err != nil || v.Pebbles != before+min(600, sellRoom) || len(v.Kitchen.Dishes) != 0 || len(v.Kitchen.Cookbook) != 1 {
+	if err != nil || v.Pebbles != before+taperPaid(600) || len(v.Kitchen.Dishes) != 0 || len(v.Kitchen.Cookbook) != 1 {
 		t.Fatalf("%+v %v", v.Kitchen, err)
 	}
 }
 
-// Big Bean pays out no more than his room in a day however much is cooked,
-// and has all of it again the next day.
-func TestBigBeanBuysADaysWorth(t *testing.T) {
+// Big Bean always buys, and what he pays comes down the day's taper with
+// whatever else was sold that day, then starts again in full the next day.
+func TestBigBeanBuysDownTheTaper(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
 	soup, jam := dishOf(0, 0).kind(), dishOf(6, 6).kind()
 	stock(t, s, id, soup, 40)
-	stock(t, s, id, jam, 2)
+	stock(t, s, id, jam, 3)
+	stock(t, s, id, "t_statue", 2)
 	v, _ := s.view(id)
-	start, sold := v.Pebbles, 0
-	for {
-		after, err := s.sellDish(id, soup)
-		if errors.Is(err, errBeanFull) {
-			break
-		}
-		if err != nil {
+	start, face := v.Pebbles, 0
+	for range 40 {
+		var err error
+		if v, err = s.sellDish(id, soup); err != nil {
 			t.Fatal(err)
 		}
-		sold++
-		v = after
+		face += dishWorth[dishOf(0, 0).tier]
 	}
-	if v.Pebbles-start != sellRoom || v.Room[shopBrindle] != 0 {
-		t.Fatalf("a day of soup paid %d with %d left, want %d", v.Pebbles-start, v.Room[shopBrindle], sellRoom)
+	for range 2 {
+		var err error
+		if v, err = s.sellDish(id, jam); err != nil {
+			t.Fatal(err)
+		}
+		face += dishWorth[4]
 	}
-	if _, err := s.sellDish(id, jam); !errors.Is(err, errBeanFull) {
-		t.Fatalf("a jam sold past the room, %v", err)
+	st, _ := trinketOf("t_statue")
+	if v, _ = s.sellTrinket(id, "t_statue"); v == nil {
+		t.Fatal("Moth wouldn't buy a statue")
 	}
-	if v, _ = s.view(id); v.held[jam] != 2 || v.held[soup] != 40-sold {
-		t.Fatalf("a refused sale took something, %d jam and %d soup", v.held[jam], v.held[soup])
+	face += hatRate[st.tier] / 4
+	if v.Pebbles-start != taperPaid(face) || v.Taper.Sold != face || v.Taper.Paid != taperPaid(face) {
+		t.Fatalf("%d sold at face paid %d, the taper says %d and %+v", face, v.Pebbles-start, taperPaid(face), v.Taper)
+	}
+	if v.held[soup] != 0 || v.held[jam] != 1 {
+		t.Fatalf("%d soup and %d jam left", v.held[soup], v.held[jam])
 	}
 	*clock = clock.Add(24 * time.Hour)
-	if v, _ = s.view(id); v.Room[shopBrindle] != sellRoom {
-		t.Fatalf("the next day has %d of room", v.Room[shopBrindle])
+	if v, _ = s.view(id); v.Taper.Sold != 0 {
+		t.Fatalf("the next day starts at %d sold", v.Taper.Sold)
 	}
 	before := v.Pebbles
-	if v, err := s.sellDish(id, jam); err != nil || v.Pebbles-before != min(dishWorth[4], sellRoom) {
+	if v, err := s.sellDish(id, jam); err != nil || v.Pebbles-before != taperPaid(dishWorth[4]) {
 		t.Fatalf("a jam the next day paid %d, %v", v.Pebbles-before, err)
+	}
+}
+
+func TestTheTaperSteps(t *testing.T) {
+	if taperPaid(taperFull) != taperFull || taperPaid(taperHalf) != taperFull+(taperHalf-taperFull)/2 {
+		t.Fatalf("the steps pay %d and %d", taperPaid(taperFull), taperPaid(taperHalf))
+	}
+	for face := 1; face < 5000; face++ {
+		if step := taperPaid(face) - taperPaid(face-1); step < 0 || step > 1 {
+			t.Fatalf("the pebble at %d pays %d", face, step)
+		}
 	}
 }
 

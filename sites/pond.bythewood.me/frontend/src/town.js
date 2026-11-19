@@ -4,7 +4,7 @@ import { draw } from "./lit.js";
 import { presentsFrom } from "./neighbours.js";
 import { initMarket } from "./market.js";
 import { drawTown, drawShop, drawStall, drawMarket } from "./scenes.js";
-import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal, ghost, TIER_GLOW } from "./ui.js";
+import { slot, thingArt, button, reveal, ghost, taperMeter, TIER_GLOW } from "./ui.js";
 
 let tab = "neighbours";
 
@@ -63,127 +63,121 @@ function renderBoxes(p) {
 
 // ---------------------------------------------------------------- the stall
 
-// The same sums the server does when a thing goes up.
-function stallChance(price, rate) { return Math.min(0.95, Math.max(0.0005, 0.9 / Math.pow(price / rate, 3))); }
-function stallFee(price, rate) { return price <= rate ? 0 : Math.floor((price - rate + 9) / 10); }
 function pct(c) { return c >= 0.095 ? Math.round(c * 100) + "%" : c >= 0.01 ? (c * 100).toFixed(1) + "%" : "under 1%"; }
+function num(n) { return n.toLocaleString("en-US"); }
 
-// How wanted a thing is today, as a word for its tile.
-function demand(t) {
-  const d = t.rate / t.worth;
-  return d >= 1.5 ? "In demand" : d >= 1.15 ? "Wanted" : d <= 0.7 ? "Flooded" : d <= 0.9 ? "Slow" : "";
+const KEYS = { quick: "Quick", fair: "Fair", greedy: "Greedy" };
+
+// How soon a price sells, off the chance of each hourly look over its day.
+// A Greedy price held under a shop's can sell as soon as Fair.
+function soon(c) { return c >= 0.95 ? "1h" : 1 - Math.pow(1 - c, 24) >= 0.99 ? "today" : "maybe"; }
+
+// A word on why a thing goes for what it does today.
+function noteOf(t) {
+  const d = t.rate / t.worth, have = t.sort === "hat" || t.sort === "trinket" ? t.free + " spare" : "×" + t.free;
+  const why = t.listed >= 6 ? t.listed + " up on stalls lately" : t.wanted ? "wanted for something"
+    : d >= 1.5 ? "in demand today" : d >= 1.15 ? "wanted today" : d <= 0.9 ? "slow today" : "";
+  return why ? have + " · " + why : have;
 }
 
-export function pricePicker(body, t) {
-  const lo = Math.max(1, Math.ceil(t.worth * 0.5)), hi = t.max;
-  // The slider steps finely near the rate and coarsely toward ten times.
-  const steps = [];
-  for (let m = 0.5; m <= 10.001; m += m < 2 ? 0.05 : m < 5 ? 0.25 : 0.5) {
-    const v = Math.max(lo, Math.min(hi, Math.round(t.worth * m)));
-    if (steps[steps.length - 1] !== v) steps.push(v);
-  }
-  if (!steps.includes(t.rate) && t.rate >= lo && t.rate <= hi) { steps.push(t.rate); steps.sort((a, b) => a - b); }
-  const near = steps.reduce((a, v, i) => (Math.abs(v - t.rate) < Math.abs(steps[a] - t.rate) ? i : a), 0);
-  const wrap = document.createElement("div"), price = document.createElement("b"), range = document.createElement("input"), odds = document.createElement("div");
-  wrap.className = "pricer";
-  odds.className = "tiles";
-  range.type = "range"; range.min = 0; range.max = steps.length - 1; range.value = near; range.step = 1;
-  range.setAttribute("aria-label", "Price");
-  const tile = (k) => {
-    const box = document.createElement("span"), kk = document.createElement("span"), v = document.createElement("span");
-    box.className = "readout"; kk.className = "k"; v.className = "v"; kk.textContent = k;
-    box.append(kk, v); odds.append(box);
-    return v;
-  };
-  const hour = tile("Sells within the hour"), day = tile("Sells by tomorrow"), fee = tile("Fee"), word = document.createElement("span");
-  let go = null;
-  const upd = () => {
-    const v = steps[+range.value], c = stallChance(v, t.rate), f = stallFee(v, t.rate), r = v / t.rate;
-    price.textContent = v.toLocaleString("en-US");
-    hour.textContent = pct(c); day.textContent = pct(1 - Math.pow(1 - c, 24)); fee.textContent = f || "None";
-    const want = demand(t);
-    word.textContent = (want ? want + " today. " : "") + "Goes for about " + t.rate.toLocaleString("en-US") + ". "
-      + (r < 0.95 ? "A bargain." : r < 1.05 ? "The going rate." : r < 2 ? "A bit dear." : r < 4 ? "A long shot." : "Somebody might be daft enough.")
-      + (f ? " The fee isn't given back." : "");
-    if (go) go.disabled = f > state.pond.pebbles;
-  };
-  range.addEventListener("input", upd);
-  wrap.append(price, range, odds, word);
-  const put = button("Put it up", (b) => {
-    b.disabled = true;
-    post("/api/stall/list", { kind: t.kind, price: steps[+range.value] }).then((v) => {
+// The three price keys for a thing, each what it asks and how soon it goes.
+// done gets the pond and a line once it's up.
+export function priceKeys(t, done, fail) {
+  const p = state.pond, box = document.createElement("div"), full = p.stall.rows.length >= p.stall.slots;
+  box.className = "pricekeys";
+  t.keys.forEach((k) => {
+    const b = document.createElement("button"), what = document.createElement("small"), price = document.createElement("span");
+    b.type = "button";
+    if (k.key === "fair") b.className = "primary";
+    what.textContent = KEYS[k.key] + " · " + soon(k.chance);
+    price.textContent = num(k.price);
+    b.append(what, price);
+    if (k.fee) { const fee = document.createElement("small"); fee.textContent = "fee " + num(k.fee); b.append(fee); }
+    b.disabled = full || k.fee > p.pebbles;
+    b.setAttribute("aria-label", KEYS[k.key] + ", sells " + soon(k.chance) + ", " + k.price + " pebbles" + (k.fee ? ", fee " + k.fee : ""));
+    b.addEventListener("click", () => {
+      box.querySelectorAll("button").forEach((x) => { x.disabled = true; });
+      post("/api/stall/list", { kind: t.kind, key: k.key }).then((v) => done(v, t.name + " is up for " + num(k.price) + "."), (e) => {
+        fail(e.message);
+        box.querySelectorAll("button").forEach((x) => { x.disabled = false; });
+      });
+    });
+    box.append(b);
+  });
+  return box;
+}
+
+let said = null, collecting = false;
+
+function renderSell(p) {
+  const t = p.taper;
+  $("sell-taper").replaceChildren(taperMeter(t));
+  $("sell-now").textContent = t.sold < t.full ? "What sells now pays in full, up to " + t.full + " today."
+    : t.sold < t.half ? "What sells now pays half, until " + t.half + " is sold today."
+    : "What sells now pays 1 pebble in " + t.tail + " until midnight.";
+  const list = $("sell-list"), can = p.bag.filter((t) => t.free > 0 && t.keys);
+  list.textContent = "";
+  $("sell-none").hidden = can.length > 0;
+  can.sort((a, b) => b.trend - a.trend || b.rate - a.rate);
+  can.forEach((t) => {
+    const item = document.createElement("div"), what = document.createElement("span"), name = document.createElement("b"), note = document.createElement("span"), trend = document.createElement("span");
+    item.className = "sellitem";
+    name.textContent = t.name;
+    note.textContent = noteOf(t);
+    if (said && said.kind === t.kind) { note.textContent = said.line; note.className = "said"; }
+    what.className = "what";
+    what.append(name, note);
+    trend.className = "trend" + (t.trend > 0 ? " rise" : t.trend < 0 ? " fall" : "");
+    trend.textContent = t.trend > 0 ? "▲ " + t.trend + "%" : t.trend < 0 ? "▼ " + -t.trend + "%" : "Steady";
+    item.append(thingArt(t, 3), what, trend, priceKeys(t, (v, line) => {
+      said = { kind: t.kind, line };
       setPond(v);
-      closeSheet();
-      location.hash = "stall";
-      showTab("stall");
-      $("stall-out").textContent = t.name + " is on your stall.";
-    }, (e) => { sheetSay(e.message); b.disabled = false; });
-  }, "primary");
-  go = put;
-  upd();
-  body.append(wrap, put);
-}
-
-function pickForStall() {
-  const p = state.pond, can = p.bag.filter((t) => t.free > 0);
-  openSheet({ kind: "i_town", name: "Your stall" }, can.length ? "Pick something to sell." : "Nothing to sell yet. A hat or trinket has to be a spare.", (body) => {
-    const grid = document.createElement("div");
-    grid.className = "slots";
-    can.sort((a, b) => b.rate / b.worth - a.rate / a.worth);
-    can.forEach((t) => grid.append(slot(thingArt(t, 4), { tier: t.tier, name: demand(t) ? t.name + " · " + demand(t) : t.name, count: t.free, onClick: () => {
-      body.textContent = "";
-      $("sheet-name").textContent = t.name;
-      $("sheet-art").replaceChildren(thingArt(t, 6));
-      $("sheet-what").textContent = "";
-      pricePicker(body, t);
-    } })));
-    body.append(grid);
+      if (!v.bag.some((x) => x.kind === t.kind && x.free > 0)) $("stall-out").textContent = line;
+    }, (msg) => { $("stall-out").textContent = msg; }));
+    list.append(item);
   });
 }
 
 function renderStall(p) {
   const st = p.stall, box = $("stall-rows");
+  // Nothing waits on the stall, so a sale the page sees is collected there and then.
+  if (st.takings && !collecting) {
+    collecting = true;
+    post("/api/stall/collect").then((d) => {
+      collecting = false;
+      $("stall-out").textContent = d.line;
+      setPond(d.pond);
+      presentsFrom(d);
+    }, () => { collecting = false; });
+  }
+  renderSell(p);
   box.textContent = "";
-  const free = st.slots - st.rows.length, now = Math.floor(Date.now() / 1000);
+  const now = Math.floor(Date.now() / 1000);
   $("stall-n").textContent = st.rows.length + " of " + st.slots + " up";
-  for (let i = 0; i < st.slots; i++) {
-    const r = st.rows.find((x) => x.slot === i), row = document.createElement("div");
-    if (!r) continue;
+  st.rows.forEach((r) => {
+    const row = document.createElement("div");
     row.className = "stallrow" + (r.sold ? " sold" : r.over ? " over" : "");
     const what = document.createElement("span"), name = document.createElement("b"), note = document.createElement("span"), price = document.createElement("span");
     name.textContent = r.name;
     note.className = "dim";
     note.textContent = r.sold ? "Sold to " + r.buyer + "!" : r.over ? "No takers at that price"
-      : r.ends ? pct(r.chance) + " to sell within the hour · " + Math.max(1, Math.ceil((r.ends - now) / 3600)) + "h left" : "Up for sale";
+      : pct(r.chance) + " an hour · " + Math.max(1, Math.ceil((r.ends - now) / 3600)) + "h left";
     what.append(name, note);
-    price.className = "price"; price.textContent = r.price.toLocaleString("en-US");
+    price.className = "price"; price.textContent = num(r.price);
     row.append(thingArt(r, 4), what, price);
-    const take = button(r.sold ? "Collect" : "Take back", (b) => {
-      b.disabled = true;
-      const before = state.pond.pebbles;
-      post("/api/stall/take", { slot: r.slot }).then((v) => {
-        setPond(v);
-        // It may have sold since the page last heard.
-        $("stall-out").textContent = v.pebbles > before ? "Sold! +" + (v.pebbles - before) + " pebbles." : r.name + " is back in your bag.";
-      }, (e) => { $("stall-out").textContent = e.message; b.disabled = false; });
-    }, r.sold ? "primary" : "");
-    take.disabled = r.sold && !st.room;
-    row.append(take);
+    if (!r.sold) {
+      row.append(button("Take back", (b) => {
+        b.disabled = true;
+        const before = state.pond.pebbles;
+        post("/api/stall/take", { slot: r.slot }).then((v) => {
+          setPond(v);
+          // It may have sold since the page last heard.
+          $("stall-out").textContent = v.pebbles > before ? "Sold! +" + (v.pebbles - before) + " pebbles." : r.name + " is back in your bag.";
+        }, (e) => { $("stall-out").textContent = e.message; b.disabled = false; });
+      }));
+    }
     box.append(row);
-  }
-  if (free > 0) {
-    const row = document.createElement("div"), b = button("+ Put something up", pickForStall);
-    row.className = "stallrow empty";
-    b.prepend(ghost("i_bag"));
-    row.append(b);
-    box.append(row);
-  }
-  const can = Math.min(st.takings, st.room);
-  $("stall-collect").hidden = !st.takings;
-  $("stall-collect").disabled = !can;
-  $("stall-collect").textContent = can ? "Collect " + can.toLocaleString("en-US") : "Paid out for today";
-  $("stall-room").hidden = can === st.takings;
-  $("stall-room").textContent = "The neighbours pay up to " + p.sell_room + " a day between them, so the rest waits on the stall until tomorrow.";
+  });
   drawTownArt();
 }
 
@@ -329,11 +323,6 @@ export function initTown() {
   $("town-tabs").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (b) showTab(b.dataset.town);
-  });
-  $("stall-collect").addEventListener("click", function () {
-    this.disabled = true;
-    post("/api/stall/collect").then((d) => { this.disabled = false; setPond(d.pond); $("stall-out").textContent = d.line; presentsFrom(d); },
-      (e) => { $("stall-out").textContent = e.message; this.disabled = false; });
   });
   $("wiz-cast").addEventListener("click", cast);
 }

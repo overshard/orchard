@@ -67,7 +67,6 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, errPoor), errors.Is(err, errNotYet), errors.Is(err, errNotHeld), errors.Is(err, errBadRun), errors.Is(err, errBadTap), errors.Is(err, errBadName), errors.Is(err, errBadPrice), errors.Is(err, errStallFull),
 		errors.Is(err, errFullPads), errors.Is(err, errMaxed), errors.Is(err, errSoldOut), errors.Is(err, errFed), errors.Is(err, errLevel), errors.Is(err, errToolLevel), errors.Is(err, errShort), errors.Is(err, errGiven),
 		errors.Is(err, errNoBurrow), errors.Is(err, errNotLodge), errors.Is(err, errHaveIt), errors.Is(err, errCap), errors.Is(err, errFirm), errors.Is(err, errCount),
-		errors.Is(err, errBeanFull), errors.Is(err, errStallPaid), errors.Is(err, errMothFull), errors.Is(err, errTullyFull),
 		errors.Is(err, errMarketFull), errors.Is(err, errNoLot), errors.Is(err, errBlackShut), errors.Is(err, errDealt), errors.Is(err, errNoCoin),
 		errors.Is(err, errOwnPage), errors.Is(err, errStamped), errors.Is(err, errStampsDone), errors.Is(err, errStampsFull):
 		writeError(w, http.StatusConflict, err.Error())
@@ -668,13 +667,13 @@ func (s *site) apiWizard(id int64, r *http.Request, w http.ResponseWriter) (any,
 
 func (s *site) apiStallList(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	var in struct {
-		Kind  string `json:"kind"`
-		Price int    `json:"price"`
+		Kind string `json:"kind"`
+		Key  string `json:"key"`
 	}
 	if !readJSON(w, r, &in) {
 		return nil, nil
 	}
-	return s.store.stallList(id, in.Kind, in.Price)
+	return s.store.stallList(id, in.Kind, in.Key)
 }
 
 func (s *site) apiStallTake(id int64, r *http.Request, w http.ResponseWriter) (any, error) {

@@ -456,7 +456,7 @@ func TestKeepingAFishForTheKitchen(t *testing.T) {
 			t.Errorf("a fillet in the bag = %+v", b)
 		}
 	}
-	if _, err := s.stallList(id, "fillet", 5); err == nil {
+	if _, err := s.stallList(id, "fillet", "fair"); err == nil {
 		t.Error("a fillet went on the stall")
 	}
 	if _, err := s.wizard(id, "smallfry"); err == nil {

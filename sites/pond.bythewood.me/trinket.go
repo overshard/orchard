@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cmp"
 	"database/sql"
 	"math/rand/v2"
 	"strings"
@@ -161,16 +160,13 @@ func (s *store) place(id int64, spot int, kind string) (*view, error) {
 	})
 }
 
-// sellTrinket is Moth buying a spare at a quarter of the going rate, or for
-// what's left of the day's room when that's less.
+// sellTrinket is Moth buying a spare at a quarter of the going rate, paid down
+// the day's taper.
 func (s *store) sellTrinket(id int64, kind string) (*view, error) {
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		t, ok := trinketOf(kind)
 		if !ok {
 			return errNotHeld
-		}
-		if left, err := roomLeft(tx, p.ID, shopMoss, p.today); err != nil || left == 0 {
-			return cmp.Or(err, errMothFull)
 		}
 		res, err := tx.Exec(`UPDATE items SET count = count - 1 WHERE pond_id = ? AND kind = ? AND count > 1`, p.ID, kind)
 		if err != nil {

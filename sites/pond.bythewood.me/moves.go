@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cmp"
 	"database/sql"
 	"fmt"
 	"math/rand/v2"
@@ -291,14 +290,10 @@ func (s *store) wear(id int64, h hat) (*view, error) {
 	})
 }
 
-// sell lets Little Tully have a spare, for what's left of the day's room when
-// that's less than it's worth. The last copy of a hat is never a spare, so
+// sell lets Little Tully have a spare, paid down the day's taper. The last copy of a hat is never a spare, so
 // nothing leaves the collection. What he pays also counts toward a wanted hat.
 func (s *store) sell(id int64, h hat) (*view, error) {
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		if left, err := roomLeft(tx, p.ID, shopWren, p.today); err != nil || left == 0 {
-			return cmp.Or(err, errTullyFull)
-		}
 		res, err := tx.Exec(`UPDATE hats SET count = count - 1
 			WHERE pond_id = ? AND shape = ? AND colour = ? AND count > 1`, p.ID, h.Shape, h.Colour)
 		if err != nil {

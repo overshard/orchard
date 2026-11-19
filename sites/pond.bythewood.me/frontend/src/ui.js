@@ -105,6 +105,30 @@ export function ghost(key) {
   return c;
 }
 
+// The day's selling to the shops and the stall as three bands, full, half and
+// the tail, each filled as far as today's selling reaches into it.
+const CUT = { 2: "Half", 4: "Quarter" };
+export function taperMeter(t) {
+  const box = document.createElement("div"), head = document.createElement("div"), bands = document.createElement("div"), cuts = document.createElement("div");
+  box.className = "taper"; head.className = "taper-head"; bands.className = "bands"; cuts.className = "cuts";
+  const k = document.createElement("span"), n = document.createElement("b");
+  k.textContent = "Sold today";
+  n.textContent = t.sold.toLocaleString("en-US") + (t.sold > t.paid ? " · paid " + t.paid.toLocaleString("en-US") : "");
+  head.append(k, n);
+  const edges = [[0, t.full], [t.full, t.half], [t.half, 2 * t.half]];
+  const words = ["Full to " + t.full, "Half to " + t.half, (CUT[t.tail] || "1 in " + t.tail) + " after"];
+  edges.forEach(([lo, hi], i) => {
+    const band = document.createElement("span"), fill = document.createElement("i"), word = document.createElement("span");
+    fill.style.transform = "scaleX(" + Math.min(1, Math.max(0, (t.sold - lo) / (hi - lo))) + ")";
+    band.append(fill); bands.append(band);
+    word.textContent = words[i];
+    if (t.sold >= lo && (t.sold < hi || i === 2)) word.className = "now";
+    cuts.append(word);
+  });
+  box.append(head, bands, cuts);
+  return box;
+}
+
 export function button(label, fn, cls) {
   const b = document.createElement("button");
   b.type = "button"; b.textContent = label;

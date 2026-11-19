@@ -50,7 +50,7 @@ func TestWhatTodayHasLeft(t *testing.T) {
 	_, id := newPond(t, s)
 	v, _ := s.view(id)
 	l := v.Left
-	if l.Dishes != len(v.Neighbours.All) || l.Sell != sellRoom || l.Runs < diveFullRuns || l.NewIn <= 0 || l.NewIn > 25*3600 {
+	if l.Dishes != len(v.Neighbours.All) || l.Sell != taperFull || l.Runs < diveFullRuns || l.NewIn <= 0 || l.NewIn > 25*3600 {
 		t.Errorf("a new pond's day: %+v", l)
 	}
 	if (l.Spins == 0) == (l.SpinIn == 0) {

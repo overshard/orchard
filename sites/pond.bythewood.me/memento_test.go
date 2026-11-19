@@ -154,7 +154,7 @@ func TestAMementoCantBeSoldOrSpent(t *testing.T) {
 			t.Errorf("%s is in the bag", b.Kind)
 		}
 	}
-	if _, err := s.stallList(id, "m_float", 100); !errors.Is(err, errNotHeld) {
+	if _, err := s.stallList(id, "m_float", "fair"); !errors.Is(err, errNotHeld) {
 		t.Errorf("put a memento on the stall: %v", err)
 	}
 	if _, err := s.wizard(id, "m_float"); !errors.Is(err, errNotHeld) {

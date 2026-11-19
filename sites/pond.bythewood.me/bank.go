@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cmp"
 	"database/sql"
 	"errors"
 	"log/slog"
@@ -433,16 +432,12 @@ func (s *store) cook(id int64, a, b string) (*cooked, error) {
 	return out, err
 }
 
-// sellDish is Big Bean buying a dish at its worth, or for what he has left
-// to spend today when that's less.
+// sellDish is Big Bean buying a dish at its worth, paid down the day's taper.
 func (s *store) sellDish(id int64, kind string) (*view, error) {
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		d, ok := dishOfKind(kind)
 		if !ok {
 			return errNotHeld
-		}
-		if left, err := roomLeft(tx, p.ID, shopBrindle, p.today); err != nil || left == 0 {
-			return cmp.Or(err, errBeanFull)
 		}
 		if err := takeItem(tx, p.ID, kind, 1); err != nil {
 			return err
