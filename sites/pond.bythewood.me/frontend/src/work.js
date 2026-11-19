@@ -141,7 +141,7 @@ function render(p) {
   if (!on) return;
   if (!frogOf(p)) choose(p);
   const f = frogOf(p);
-  if (!f) { location.hash = "#reeds"; return; }
+  if (!f) { location.hash = "#frogs"; return; }
   const d = defOf(jobKey), l = levelOf(f, jobKey), at = f.work.job === jobKey;
   const t = at && d.targets.find((x) => x.key === f.work.target);
   $("job-name").textContent = titled(f.name);

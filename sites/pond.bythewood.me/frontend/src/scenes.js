@@ -4,7 +4,7 @@ import { drawIcon } from "./icons.js";
 // The thing each job brings, for an icon.
 export const JOB_THING = { garden: "watercress", bugs: "cricket", sticks: "sticks", reeds: "reeds", mud: "clay", pebbles: "peb", craft: "t_basket" };
 
-// The pictures that sit over the text screens, so Works, the reeds and the
+// The pictures that sit over the text screens, so Make, the reeds and the
 // kitchen each have something to look at above their words.
 
 function px(g, col, x, y, w, h) { g.fillStyle = col; g.fillRect(x, y, w, h); }
@@ -51,7 +51,7 @@ function hut(g, x, wall, roof) {
 // The whole bank side of the pond in one window: the reeds, the garden, the
 // gravel bar, the dye works and the burrows. ready is the kinds of thing
 // waiting, and each one lights a window. One not built yet is dimmed out.
-export function drawWorks(cv, p, ready) {
+export function drawMake(cv, p, ready) {
   const g = setup(cv, WKW, WKH, 3), night = p.day && p.day.night, b = p.bank;
   px(g, night ? "#141c2a" : "#3b5a6a", 0, 0, WKW, 22);
   px(g, "#2f5a3a", 0, 18, WKW, 4);

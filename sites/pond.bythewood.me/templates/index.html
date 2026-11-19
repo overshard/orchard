@@ -122,16 +122,16 @@
     <div class="pinboard" id="col-pins" hidden></div>
   </section>
 
-  <div class="workshead" id="works-head" hidden>
-    <div class="screen"><canvas id="works-art" width="552" height="180" aria-label="The reeds, the garden and the bank along the water. A lit window has something ready."></canvas></div>
-    <div class="places three" id="works-tabs" role="group" aria-label="In the works">
-      <button type="button" data-go="reeds" aria-pressed="false"><canvas data-icon="f_reeds" width="40" height="40"></canvas>Reeds</button>
+  <div class="makehead" id="make-head" hidden>
+    <div class="places three" id="make-tabs" role="group" aria-label="Make">
       <button type="button" data-go="garden" aria-pressed="false"><canvas data-icon="watercress" width="40" height="40"></canvas>Garden</button>
       <button type="button" data-go="bank" aria-pressed="false"><canvas data-icon="i_bank" width="40" height="40"></canvas>Bank</button>
+      <button type="button" data-go="wizard" aria-pressed="false"><canvas data-icon="i_wizard" width="40" height="40"></canvas>Wizard</button>
     </div>
+    <div class="screen" id="make-pic"><canvas id="works-art" width="552" height="180" aria-label="Your frogs' lodge, the garden and the bank along the water. A lit window has something ready."></canvas></div>
   </div>
 
-  <section class="view inworks" id="v-reeds" hidden>
+  <section class="view" id="v-reeds" hidden>
     <div class="screen"><canvas id="reeds-art" width="384" height="84" aria-label="Every frog on its lily pad"></canvas></div>
     <p class="line" id="reeds-line"></p>
     <div class="reeds" id="reeds"></div>
@@ -157,7 +157,7 @@
   </section>
 
   <section class="view" id="v-job" hidden>
-    <a class="back" href="#reeds">&larr; Reeds</a>
+    <a class="back" href="#frogs">&larr; Frogs</a>
     <div class="wk-top">
       <b id="job-name"></b>
       <span id="job-what"></span>
@@ -193,7 +193,7 @@
     <div class="slots" id="job-finds"></div>
   </section>
 
-  <section class="view inworks" id="v-garden" hidden>
+  <section class="view inmake" id="v-garden" hidden>
     <div class="screen"><canvas id="garden" width="528" height="216" aria-label="The garden plots by the water"></canvas></div>
     <p class="dim" id="garden-note"></p>
     <div class="row">
@@ -214,12 +214,7 @@
     <p class="dim" id="bean-room" hidden></p>
   </section>
 
-  <section class="view inworks" id="v-bank" hidden>
-    <div class="places pair" id="bank-tabs" role="group" aria-label="In the bank">
-      <button type="button" data-bank="works" aria-pressed="true"><canvas data-icon="i_bank" width="40" height="40"></canvas>Bank</button>
-      <button type="button" data-bank="market" aria-pressed="false"><canvas data-icon="i_market" width="40" height="40"></canvas>Market</button>
-    </div>
-    <div id="bank-works">
+  <section class="view inmake" id="v-bank" hidden>
     <p class="line" id="bank-line"></p>
     <h2>Gravel bar</h2>
     <p class="help" hidden>Makes pebbles by itself while you're away and holds eight hours of them. 6 an hour at first and 30 by level 5.</p>
@@ -280,33 +275,24 @@
     <p class="dim" id="far-note"></p>
     <div class="row"><button type="button" id="far-buy">Buy a patch</button></div>
     <p class="line" id="far-out" role="status"></p>
-    </div>
-    <div id="bank-market" hidden>
-      <div class="ticker" aria-hidden="true"><div class="tape" id="mkt-tape"></div></div>
-      <button type="button" class="tiles" id="mkt-tiles" aria-label="Your holdings"></button>
-      <div id="mkt-div" hidden></div>
-      <h2>The pond market</h2>
-      <p class="help" id="mkt-help" hidden></p>
-      <div class="chiprow" id="mkt-sorts" role="group" aria-label="Show"></div>
-      <p class="dim" id="mkt-open"></p>
-      <ul class="market" id="mkt-list"></ul>
-      <div id="mkt-black" hidden>
-        <div class="screen"><canvas id="bm-art" width="352" height="168" aria-label="The back door of the market"></canvas></div>
-        <p class="bm-line" id="bm-line"></p>
-        <div class="bm-coins" id="bm-coins"></div>
-        <ul class="shelf bm" id="bm-deals"></ul>
-        <p class="line" id="bm-out" role="status"></p>
-      </div>
-      <p class="line" id="mkt-out" role="status"></p>
-    </div>
+  </section>
+
+  <section class="view inmake" id="v-wizard" hidden>
+    <div class="screen"><canvas id="wiz-art" width="352" height="232" aria-hidden="true"></canvas></div>
+    <p class="bubble" id="wiz-line">Bring me three of a thing and I'll make it something else. Probably worse.</p>
+    <div class="odds" id="wiz-odds"></div>
+    <h2>Three of a kind</h2>
+    <div class="slots" id="wiz-grid"></div>
+    <p class="empty" id="wiz-none" hidden>You need three of the same thing. Rocks from the wheel and spare hats are a good start.</p>
+    <div class="row"><button type="button" class="primary big" id="wiz-cast" disabled>Pick three of something</button></div>
   </section>
 
   <section class="view" id="v-town" hidden>
     <div class="places four" id="town-tabs" role="group" aria-label="In town">
       <button type="button" data-town="neighbours" aria-pressed="true"><canvas data-icon="i_folk" width="40" height="40"></canvas>Neighbours</button>
       <button type="button" data-town="shops" aria-pressed="false"><canvas data-icon="i_shops" width="40" height="40"></canvas>Shops</button>
-      <button type="button" data-town="stall" aria-pressed="false"><canvas data-icon="i_stall" width="40" height="40"></canvas>Stall</button>
-      <button type="button" data-town="wizard" aria-pressed="false"><canvas data-icon="i_wizard" width="40" height="40"></canvas>Wizard</button>
+      <button type="button" data-town="stall" aria-pressed="false"><canvas data-icon="i_stall" width="40" height="40"></canvas>Sell</button>
+      <button type="button" data-town="market" aria-pressed="false" hidden><canvas data-icon="i_market" width="40" height="40"></canvas>Market</button>
     </div>
 
     <div id="town-shops" hidden>
@@ -373,14 +359,23 @@
       <p class="line" id="stall-out" role="status"></p>
     </div>
 
-    <div id="town-wizard" hidden>
-      <div class="screen"><canvas id="wiz-art" width="352" height="232" aria-hidden="true"></canvas></div>
-      <p class="bubble" id="wiz-line">Bring me three of a thing and I'll make it something else. Probably worse.</p>
-      <div class="odds" id="wiz-odds"></div>
-      <h2>Three of a kind</h2>
-      <div class="slots" id="wiz-grid"></div>
-      <p class="empty" id="wiz-none" hidden>You need three of the same thing. Rocks from the wheel and spare hats are a good start.</p>
-      <div class="row"><button type="button" class="primary big" id="wiz-cast" disabled>Pick three of something</button></div>
+    <div id="town-market" hidden>
+      <div class="ticker" aria-hidden="true"><div class="tape" id="mkt-tape"></div></div>
+      <button type="button" class="tiles" id="mkt-tiles" aria-label="Your holdings"></button>
+      <div id="mkt-div" hidden></div>
+      <h2>The pond market</h2>
+      <p class="help" id="mkt-help" hidden></p>
+      <div class="chiprow" id="mkt-sorts" role="group" aria-label="Show"></div>
+      <p class="dim" id="mkt-open"></p>
+      <ul class="market" id="mkt-list"></ul>
+      <div id="mkt-black" hidden>
+        <div class="screen"><canvas id="bm-art" width="352" height="168" aria-label="The back door of the market"></canvas></div>
+        <p class="bm-line" id="bm-line"></p>
+        <div class="bm-coins" id="bm-coins"></div>
+        <ul class="shelf bm" id="bm-deals"></ul>
+        <p class="line" id="bm-out" role="status"></p>
+      </div>
+      <p class="line" id="mkt-out" role="status"></p>
     </div>
   </section>
 
@@ -478,11 +473,11 @@
   </div>
 </div>
 
-<nav class="tabs" id="tabs" aria-label="Places in the pond">
+<nav class="dock" id="tabs" aria-label="Places in the pond">
   <button type="button" data-view="pond" aria-pressed="true"><canvas data-icon="i_pond" width="24" height="24"></canvas>Pond</button>
+  <button type="button" data-view="frogs" aria-pressed="false" hidden><canvas data-icon="f_reeds" width="24" height="24"></canvas>Frogs</button>
   <button type="button" data-view="play" aria-pressed="false"><canvas data-icon="i_play" width="24" height="24"></canvas>Play</button>
-  <button type="button" data-view="bag" aria-pressed="false"><canvas data-icon="i_bag" width="24" height="24"></canvas>Bag</button>
-  <button type="button" data-view="works" aria-pressed="false" hidden><canvas data-icon="i_works" width="24" height="24"></canvas>Works</button>
+  <button type="button" data-view="make" aria-pressed="false"><canvas data-icon="i_works" width="24" height="24"></canvas>Make</button>
   <button type="button" data-view="town" aria-pressed="false"><canvas data-icon="i_town" width="24" height="24"></canvas>Town</button>
 </nav>
 {{ end }}

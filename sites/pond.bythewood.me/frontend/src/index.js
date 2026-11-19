@@ -8,13 +8,13 @@ import { initWheel, enterWheel } from "./wheel.js";
 import { initReeds } from "./reeds.js";
 import { initJob, enterJob, leaveJob, greetAway } from "./work.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
-import { drawWorks } from "./scenes.js";
+import { drawMake } from "./scenes.js";
 import { initShops } from "./shops.js";
 import { initUI, openSheet, closeSheet, reveal, thingArt, drawBox } from "./ui.js";
 import { sweepArt, shareKey } from "./sweep.js";
 import { initBag } from "./bag.js";
 import { initCollect } from "./collect.js";
-import { initTown, enterTown, leaveTown } from "./town.js";
+import { initTown, enterTown, leaveTown, enterWizard, leaveWizard } from "./town.js";
 import { initNeighbours, art as residentArt, presentsFrom } from "./neighbours.js";
 import { initSettings } from "./settings.js";
 import { initPower, seePower } from "./power.js";
@@ -28,15 +28,18 @@ import { initPet, setBox, pose, over as petOver, busy as petBusy, tapTrick, arri
 
 buildPlay($("shelves"), $("v-dive"));
 const SIDE = DISKS.filter((d) => d.game);
-const VIEWS = ["pond", "play", "dive", ...SIDE.map((d) => d.key), "wheel", "bag", "collect", "reeds", "job", "garden", "bank", "town", "settings"];
-// Places that open from another light that one's key.
-const WORKS = ["reeds", "garden", "bank"];
-const TOWN = ["neighbours", "shops", "stall", "wizard"];
+const VIEWS = ["pond", "play", "dive", ...SIDE.map((d) => d.key), "wheel", "bag", "collect", "reeds", "job", "garden", "bank", "wizard", "town", "settings"];
+// The places behind a key inside Make and inside Town.
+const MAKE = ["garden", "bank", "wizard"];
+const TOWN = ["neighbours", "shops", "stall", "market"];
 // The key in town a waiting thing is behind, by its kind.
-const TOWN_KEY = { stall: "stall", favour: "neighbours", gift: "neighbours" };
-const TAB_OF = { neighbours: "town", shops: "town", stall: "town", wizard: "town", market: "works", reeds: "works", job: "works", garden: "works", bank: "works", collect: "bag", dive: "play", wheel: "play" };
+const TOWN_KEY = { stall: "stall", favour: "neighbours", gift: "neighbours", dividend: "market" };
+// The dock key each place lights. Places that open from another light that one's key.
+const TAB_OF = { reeds: "frogs", job: "frogs", garden: "make", bank: "make", wizard: "make", neighbours: "town", shops: "town", stall: "town", market: "town", collect: "bag", dive: "play", wheel: "play" };
 SIDE.forEach((d) => { TAB_OF[d.key] = "play"; });
-let view = "pond", fetchedAt = Date.now(), worksAt = "", waitingAt = new Set();
+// Old links and the words a link might use for a place.
+const ALIAS = { frogs: "reeds", reed: "reeds", works: "make", sell: "stall", folk: "neighbours", kitchen: "garden" };
+let view = "pond", fetchedAt = Date.now(), makeAt = "", waitingAt = new Set();
 // What the server last said is open, kept so the keys are right before the
 // pond has loaded. A browser with nothing kept is most likely a new egg.
 let open = { works: false, market: false }, wanted = "";
@@ -46,11 +49,13 @@ try { open = JSON.parse(localStorage.getItem("pond-open")) || open; } catch (e) 
 watch(() => { if (view === "dive" || GAMES[view]) drawPlay(); });
 const GAMES = Object.fromEntries(SIDE.map((d) => [d.key, arcade(d.game)]));
 
-// The Works key opens the place in it that was open last, and the first time
+// The Make key opens the place in it that was open last, and the first time
 // one with something waiting.
 function placeOf(next) {
-  if (next !== "works") return next;
-  return worksAt || WORKS.find((w) => waitingAt.has(w)) || WORKS[0];
+  next = ALIAS[next] || next;
+  if (next !== "make") return next;
+  const can = MAKE.filter(isOpen);
+  return (can.includes(makeAt) && makeAt) || can.find((w) => waitingAt.has(w)) || can[0];
 }
 
 // A key's pip lights for a thing that turned up since the key was last
@@ -61,16 +66,16 @@ try { seen = JSON.parse(localStorage.getItem("pond-pips")) || {}; } catch (e) { 
 function drawPips() {
   const lit = (key) => (behind[key] || []).some((t) => !(seen[key] || []).includes(t));
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("wait", lit(b.dataset.view)));
-  document.querySelectorAll("#works-tabs button").forEach((b) => b.classList.toggle("wait", lit(b.dataset.go)));
+  document.querySelectorAll("#make-tabs button").forEach((b) => b.classList.toggle("wait", lit(b.dataset.go)));
   document.querySelectorAll("#town-tabs button").forEach((b) => b.classList.toggle("wait", lit(b.dataset.town)));
+  $("bagpill").classList.toggle("wait", lit("bag"));
 }
 
 // Everything behind the keys that are open now has been seen.
 function seeOpen() {
   const keys = [TAB_OF[view] || view];
-  if (WORKS.includes(view)) keys.push(view);
-  const town = view === "town" && document.querySelector('#town-tabs button[aria-pressed="true"]');
-  if (town) keys.push(town.dataset.town);
+  if (MAKE.includes(view)) keys.push(view);
+  if (view === "town") keys.push(townAt());
   keys.forEach((k) => { if (behind[k]) seen[k] = behind[k]; });
   try { localStorage.setItem("pond-pips", JSON.stringify(seen)); } catch (e) { /* private window */ }
   drawPips();
@@ -85,9 +90,9 @@ function sortPips(p, todo) {
   behind = {};
   const put = (key, t) => { if (key) (behind[key] = behind[key] || []).push(t); };
   todo.forEach((t) => {
-    const token = t.kind + ":" + (t.kind === "stall" ? t.label : DAILY.includes(t.kind) ? p.today : ""), tab = TAB_OF[t.to] || t.to;
+    const token = t.kind + ":" + (t.kind === "stall" ? t.label : DAILY.includes(t.kind) ? p.today : ""), to = ALIAS[t.to] || t.to, tab = TAB_OF[to] || to;
     put(tab, token);
-    put(tab === "works" ? t.to : tab === "town" ? TOWN_KEY[t.kind] : "", token);
+    put(tab === "make" ? to : tab === "town" ? (TOWN.includes(to) ? to : TOWN_KEY[t.kind]) : "", token);
   });
   // A thing that went away is new again when it comes back.
   Object.keys(seen).forEach((k) => { if (k !== "pond") seen[k] = [].concat(seen[k]).filter((t) => (behind[k] || []).includes(t)); });
@@ -96,45 +101,39 @@ function sortPips(p, todo) {
 
 function isOpen(v) {
   if (v === "market") return open.works && open.market;
-  return v === "works" || v === "job" || WORKS.includes(v) ? open.works : true;
+  return v === "frogs" || v === "reeds" || v === "job" || v === "garden" || v === "bank" ? open.works : true;
 }
 
 function townAt() { return document.querySelector('#town-tabs button[aria-pressed="true"]').dataset.town; }
-function bankAt() { return $("bank-market").hidden ? "bank" : "market"; }
-
-function bankTab(which) {
-  document.querySelectorAll("#bank-tabs button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.bank === which ? "true" : "false"));
-  $("bank-works").hidden = which !== "works";
-  $("bank-market").hidden = which !== "market";
-}
 
 function applyOpen(o) {
   const changed = o.works !== open.works || o.market !== open.market;
   open = { works: o.works, market: o.market };
-  document.querySelector('#tabs button[data-view="works"]').hidden = !open.works;
-  $("bank-tabs").hidden = !open.market;
-  if (!open.market) bankTab("works");
+  document.querySelector('#tabs button[data-view="frogs"]').hidden = !open.works;
+  document.querySelectorAll("#make-tabs button").forEach((b) => { b.hidden = !isOpen(b.dataset.go); });
+  document.querySelector('#town-tabs button[data-town="market"]').hidden = !isOpen("market");
   if (!changed) return;
   try { localStorage.setItem("pond-open", JSON.stringify(open)); } catch (e) { /* private window */ }
-  if (!isOpen(view)) show("pond");
+  if (!isOpen(view) || (view === "town" && !isOpen(townAt()))) show("pond");
   else if (wanted && isOpen(wanted)) { history.replaceState(null, "", "#" + wanted); show(wanted); }
 }
 
 function show(next) {
+  next = ALIAS[next] || next;
   // A link to a place that isn't open yet lands on the pond, and is kept in
   // case the pond loads and says it's open after all.
   wanted = "";
   if (!isOpen(next)) { wanted = next; next = "pond"; history.replaceState(null, "", location.pathname); }
-  const market = next === "market", key = TOWN.includes(next) ? next : "";
-  next = placeOf(market ? "bank" : key ? "town" : next);
+  const key = TOWN.includes(next) ? next : "";
+  next = placeOf(key ? "town" : next);
   const race = next === "race";
   // The daily race is Dive on the day's course.
   if (next === "race" || next === "dive") { diveMode(next); next = "dive"; }
   if (!VIEWS.includes(next)) next = "pond";
-  if (market) bankTab("market");
-  if (WORKS.includes(next)) worksAt = next;
-  $("works-head").hidden = !WORKS.includes(next);
-  document.querySelectorAll("#works-tabs button").forEach((b) => {
+  if (MAKE.includes(next)) makeAt = next;
+  $("make-head").hidden = !MAKE.includes(next);
+  $("make-pic").hidden = next === "wizard";
+  document.querySelectorAll("#make-tabs button").forEach((b) => {
     b.setAttribute("aria-pressed", b.dataset.go === next ? "true" : "false");
   });
   if (view === "dive" && next !== "dive") leaveDive();
@@ -145,6 +144,7 @@ function show(next) {
   document.querySelectorAll("#tabs button").forEach((b) => {
     b.setAttribute("aria-pressed", b.dataset.view === lit ? "true" : "false");
   });
+  $("bagpill").classList.toggle("lit", lit === "bag");
   $("gear").classList.toggle("lit", next === "settings");
   // A title card copies its art off the Play disks, so they're drawn first.
   if (next === "dive" || GAMES[next]) drawPlay();
@@ -155,8 +155,9 @@ function show(next) {
   if (next === "garden") enterBank(); else leaveBank();
   if (next === "job") enterJob(); else leaveJob();
   if (next === "town") enterTown(key); else leaveTown();
+  if (next === "wizard") enterWizard(); else leaveWizard();
   if (next === "pond") seePower();
-  titlePlace(race ? "race" : next === "town" ? townAt() : next === "bank" ? bankAt() : next);
+  titlePlace(race ? "race" : next === "town" ? townAt() : next);
   seeOpen();
   freshen();
   // A view's name is also the id of its canvas, and the browser scrolls to
@@ -167,9 +168,13 @@ function show(next) {
 
 window.addEventListener("load", () => window.scrollTo(0, 0));
 
+// A dock key puts its tab's name in the address, and Make the place it opens.
 $("tabs").addEventListener("click", (e) => {
-  const b = e.target.closest("button"), v = b && placeOf(b.dataset.view);
-  if (v) { history.replaceState(null, "", v === "pond" ? location.pathname : "#" + v); show(v); }
+  const b = e.target.closest("button");
+  if (!b) return;
+  const v = b.dataset.view, at = placeOf(v);
+  history.replaceState(null, "", v === "pond" ? location.pathname : "#" + (v === "make" ? at : v));
+  show(at);
 });
 
 window.addEventListener("hashchange", () => show(location.hash.slice(1)));
@@ -575,8 +580,9 @@ function renderPond(p) {
 
   applyOpen(p.open);
   drawBond();
-  $("purse").hidden = false;
+  $("purse").hidden = $("bagpill").hidden = false;
   $("purse-n").textContent = (p.pebbles - state.held).toLocaleString("en-US");
+  $("bag-n").textContent = p.bag.reduce((n, t) => n + t.count, 0).toLocaleString("en-US");
   $("nudge").hidden = !p.nudge;
   const lines = (p.day && p.day.lines) || [], today = $("today");
   today.textContent = "";
@@ -589,7 +595,7 @@ function renderPond(p) {
   $("today-head").hidden = today.hidden = lines.length === 0;
   renderPaper(p.gazette);
   renderNext(p);
-  renderWorks(p);
+  renderMake(p);
   renderPlay(p);
 }
 
@@ -715,18 +721,18 @@ $("gazette").addEventListener("click", () => {
   openSheet({ bare: true, name: "The Pond Gazette" }, "", (body) => body.append(paper(p.gazette, p.neighbours)));
 });
 
-// The picture over Works lights a window for each kind of thing that's ready.
-function renderWorks(p) {
+// The picture over Make lights a window for each kind of thing that's ready.
+function renderMake(p) {
   const ready = new Set(p.todo.map((t) => t.kind));
   if (heldNow(p.bank.gravel) >= 1) ready.add("gravel");
   if (heldNow(p.bank.burrows) >= 1) ready.add("rent");
-  drawWorks($("works-art"), p, ready);
+  drawMake($("works-art"), p, ready);
 }
 
 // A tap on the picture opens the place under the finger.
 $("works-art").addEventListener("click", (e) => {
   const r = e.target.getBoundingClientRect(), k = (e.clientX - r.left) / r.width;
-  location.hash = "#" + (k < 0.2 ? "reeds" : k < 0.41 ? "garden" : "bank");
+  location.hash = "#" + (k < 0.2 ? "frogs" : k < 0.41 ? "garden" : "bank");
 });
 
 let allRows = false;
@@ -795,7 +801,7 @@ function renderNext(p) {
 setInterval(() => {
   if (!state.pond || document.hidden) return;
   renderNext(state.pond);
-  renderWorks(state.pond);
+  renderMake(state.pond);
 }, 20000);
 
 // ---------------------------------------------------------------- play
@@ -955,6 +961,7 @@ $("dev").addEventListener("click", (e) => {
 // ---------------------------------------------------------------- boot
 
 drawIcon($("purse-icon").getContext("2d"), "peb", 0, 0, 2);
+drawIcon($("bag-icon").getContext("2d"), "i_bag", 0, 0, 2);
 initUI();
 watch(renderPond);
 initDive();
@@ -966,7 +973,6 @@ initShops();
 initBag();
 initCollect();
 document.querySelectorAll(".places button[data-go]").forEach((b) => b.addEventListener("click", () => { location.hash = "#" + b.dataset.go; }));
-document.querySelectorAll("#bank-tabs button").forEach((b) => b.addEventListener("click", () => { bankTab(b.dataset.bank); titlePlace(bankAt()); }));
 initTown();
 $("town-tabs").addEventListener("click", () => { seeOpen(); titlePlace(townAt()); });
 initNeighbours();

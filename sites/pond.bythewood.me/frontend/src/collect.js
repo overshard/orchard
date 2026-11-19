@@ -3,7 +3,6 @@ import { genome, bred, cells, colours, draw, W, H, MORPHS } from "./frog.js";
 import { iconCanvas, dishCanvas, furnCanvas } from "./icons.js";
 import { hatTile } from "./hats.js";
 import { slot, openSheet, closeSheet, sheetSay, button, shade, reveal } from "./ui.js";
-import { enterTown } from "./town.js";
 import { fishArt, inches } from "./fishes.js";
 import { sceneryCanvas } from "./scenery.js";
 import { pinCanvas } from "./pins.js";
@@ -127,7 +126,7 @@ function wantBox(p, show) {
     : pebbles(w.fill) + " of " + pebbles(w.bar) + " in spares sold to Little Tully.";
   words.append(bar, line);
   box.append(shade(hatTile(w.hat, true)), words);
-  if (w.ready) box.append(button("Shop", () => { enterTown("shops"); location.hash = "#town"; }, "primary"));
+  if (w.ready) box.append(button("Shop", () => { location.hash = "#shops"; }, "primary"));
 }
 
 // Every collection, each a list of what there is, found or not.

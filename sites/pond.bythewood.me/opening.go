@@ -2,9 +2,9 @@ package main
 
 import "time"
 
-// A new pond opens up over its first days, Works when the egg hatches and
-// the market three days after that. Only create sets staged, so a pond made
-// before this is fully open.
+// A new pond opens up over its first days, the frogs and the garden when the
+// egg hatches and the market three days after that. Only create sets staged,
+// so a pond made before this is fully open.
 const (
 	worksOpenAfter  = 24 * time.Hour
 	marketOpenAfter = 4 * 24 * time.Hour
@@ -27,7 +27,7 @@ func openOf(p *pond, now time.Time) openView {
 // has says whether the page's view a row points at is open.
 func (o openView) has(to string) bool {
 	switch to {
-	case "reeds", "job", "garden", "bank":
+	case "reeds", "frogs", "job", "garden", "bank":
 		return o.Works
 	case "market":
 		return o.Works && o.Market
@@ -43,9 +43,9 @@ func openingNotice(p *pond, now time.Time) string {
 	age := now.Sub(time.Unix(p.CreatedAt, 0))
 	switch {
 	case age >= marketOpenAfter && age < marketOpenAfter+24*time.Hour:
-		return "The pond market opens its board today, behind the new Market key at the bank"
+		return "The pond market opens its board today, behind the new Market key in town"
 	case age >= worksOpenAfter && age < worksOpenAfter+24*time.Hour:
-		return "The works open along the bank today, with the reeds, a garden and a gravel bar on the new Works key"
+		return "The reeds open today on the new Frogs key, and a garden and a gravel bar under Make"
 	}
 	return ""
 }

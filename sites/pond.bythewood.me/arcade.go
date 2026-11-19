@@ -314,7 +314,7 @@ func (s *store) arcadeFinish(id int64, key, run string, score int, landed, count
 				}
 				kinds = append(kinds, c.Kind)
 			}
-			// The kitchen is in the works, so nothing is offered before they open.
+			// The kitchen opens with the garden, so nothing is offered before it does.
 			if r.kept < fishKeeps && len(kinds) > 0 && openOf(p, now).Works {
 				r.keep, out.Keeps = strings.Join(kinds, ","), fishKeeps-r.kept
 			}

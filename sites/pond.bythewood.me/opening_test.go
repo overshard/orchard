@@ -29,8 +29,8 @@ func TestANewPondOpensOverItsFirstDays(t *testing.T) {
 	}{
 		{0, false, false, ""},
 		{23 * time.Hour, false, false, ""},
-		{time.Hour, true, false, "Works"},
-		{23 * time.Hour, true, false, "Works"},
+		{time.Hour, true, false, "Frogs"},
+		{23 * time.Hour, true, false, "Frogs"},
 		{time.Hour, true, false, ""},
 		{47 * time.Hour, true, false, ""},
 		{time.Hour, true, true, "Market"},

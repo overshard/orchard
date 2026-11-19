@@ -9,14 +9,19 @@ let tab = "neighbours";
 
 function showTab(next) {
   tab = next;
-  ["shops", "neighbours", "stall", "wizard"].forEach((k) => { $("town-" + k).hidden = k !== next; });
+  ["shops", "neighbours", "stall", "market"].forEach((k) => { $("town-" + k).hidden = k !== next; });
   document.querySelectorAll("#town-tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.town === next ? "true" : "false"));
-  if (next === "wizard") { wizOn = true; cancelAnimationFrame(wizRaf); wizRaf = requestAnimationFrame(wizTick); } else wizOn = false;
   if (next === "stall") drawStall();
 }
 
-export function enterTown(which) { showTab(which || tab); }
-export function leaveTown() { wizOn = false; }
+export function enterTown(which) {
+  // The market key is hidden until the market opens, and the place behind it with it.
+  if (!which && document.querySelector('#town-tabs button[data-town="' + tab + '"]').hidden) tab = "neighbours";
+  showTab(which || tab);
+}
+export function leaveTown() {}
+export function enterWizard() { wizOn = true; cancelAnimationFrame(wizRaf); wizRaf = requestAnimationFrame(wizTick); }
+export function leaveWizard() { wizOn = false; }
 
 // ---------------------------------------------------------------- boxes
 
@@ -108,7 +113,7 @@ export function pricePicker(body, t) {
     post("/api/stall/list", { kind: t.kind, price: steps[+range.value] }).then((v) => {
       setPond(v);
       closeSheet();
-      location.hash = "town";
+      location.hash = "stall";
       showTab("stall");
       $("stall-out").textContent = t.name + " is on your stall.";
     }, (e) => { sheetSay(e.message); b.disabled = false; });
@@ -201,7 +206,7 @@ function drawStall() {
     const sx = 92 + r.slot * 64;
     if (r.sold) {
       drawIcon(x, "peb", sx + 4, 46, 3);
-      x.fillStyle = "#ffe27a"; x.font = "bold 10px 'JetBrains Mono', monospace"; x.fillText("SOLD", sx + 4, 44);
+      x.fillStyle = "#ffe27a"; x.font = "bold 10px 'Pixelify Sans', monospace"; x.fillText("SOLD", sx + 4, 44);
     } else {
       const a = thingArt(r, 3);
       x.drawImage(a, sx + 16 - a.width / 2, 74 - a.height);
@@ -217,8 +222,7 @@ let wizG = null;
 
 export function toWizard(kind) {
   pick = kind;
-  location.hash = "town";
-  showTab("wizard");
+  location.hash = "wizard";
   renderWizard(state.pond);
 }
 
