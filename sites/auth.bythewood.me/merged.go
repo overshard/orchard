@@ -14,7 +14,7 @@ import (
 )
 
 // The tools auth asks for their state, by container, over the bridge.
-var stateTools = []string{"status", "logging", "analytics", "cron", "llm", "repos"}
+var stateTools = []string{"status", "logging", "analytics", "cron", "llm", "repos", "mcp"}
 
 type merged struct {
 	Tools []suite.State `json:"tools"`

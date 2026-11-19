@@ -104,9 +104,12 @@
 .tools {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+// Seven tools in rows of four, so the last one takes the gap.
+.tools .tool:last-child { grid-column: span 2; }
+@media (max-width: 1200px) { .tools { grid-template-columns: repeat(3, minmax(0, 1fr)); } .tools .tool:last-child { grid-column: span 1; } }
 @media (max-width: 900px) { .tools { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .tools { grid-template-columns: minmax(0, 1fr); } }
 
