@@ -116,6 +116,40 @@ export function drawCard(cv, p, f) {
   });
 }
 
+// A frog close up on its own page, twice the size, on its pad by the lantern.
+export function drawFrogPage(cv, p, f) {
+  vista(cv).draw((g, w, h) => {
+    const day = p.day, o = mid(w, SW), hor = h - 84;
+    const r = backdrop(g, w, h, 13, { horizon: hor, stars: 24, moon: [30, 16, 6] }, day);
+    g.translate(o, 0);
+    lantern(g, 172, hor + 2, 70, look(day).dark ? 0.4 : 0.25);
+    pad(g, 97, h - 14, 50, 9, true);
+    frogAt(g, f, 97 - W, h - 14 - 2 * H + 4, true, 2);
+    cattail(g, 8, h, hor + 14, 1); cattail(g, 14, h, hor + 24, -1);
+    reeds(g, 150, 195, h - 2, r);
+    return moving(day, o, [8, 20, 180, hor - 30, h - 40], 13, [[172, hor + 8, 24]]);
+  });
+}
+
+// The parent on a pad and its frogspawn glowing on the water beside it.
+export function drawLaying(cv, p, f) {
+  vista(cv).draw((g, w, h) => {
+    const day = p.day, o = mid(w, SW), hor = h - 82, L = look(day);
+    const r = backdrop(g, w, h, 17, { horizon: hor, stars: 16, moon: [170, 12, 5] }, day);
+    g.translate(o, 0);
+    pad(g, 58, h - 12, 28, 6);
+    frogAt(g, f, 58 - W / 2, h - 12 - H + 2, true);
+    glow(g, 140, h - 30, 26, "#9fe6b8", L.dark ? 0.4 : 0.25);
+    for (let i = 0; i < 16; i++) {
+      const x = 126 + (i % 5) * 7 + (Math.floor(i / 5) % 2) * 3, y = h - 44 + Math.floor(i / 5) * 6;
+      g.fillStyle = "#cfe8d0"; g.beginPath(); g.arc(x, y, 3, 0, 7); g.fill();
+      px(g, "#1a3a2a", x, y); px(g, "#ffffff", x - 1, y - 2);
+    }
+    cattail(g, 186, h, hor + 10, -1); cattail(g, 180, h, hor + 20, 1); reeds(g, 0, 30, h - 2, r);
+    return moving(day, o, [5, 100, 190, hor, h - 50], 17, []);
+  });
+}
+
 // ---------------------------------------------------------------- make
 
 // The place a tap on the shore opens, by how far across it lands.

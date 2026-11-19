@@ -144,6 +144,60 @@
     <p class="dim" id="reeds-out" role="status"></p>
   </section>
 
+  <section class="view" id="v-frog" hidden>
+    <canvas class="vista top" id="frog-art" aria-hidden="true"></canvas>
+    <a class="back" href="#frogs">&larr; Frogs</a>
+    <div class="who">
+      <h1 id="fp-name">&nbsp;</h1>
+      <p class="chips"><span class="tier" id="fp-tier"></span> <span class="tier chance" id="fp-odds"></span></p>
+      <p class="stats" id="fp-what"></p>
+    </div>
+    <div class="fstats" id="fp-stats"></div>
+    <div class="fkeys">
+      <button type="button" class="primary" id="fp-lay">Lay an egg</button>
+      <button type="button" id="fp-feed">Feed</button>
+      <button type="button" id="fp-front">Out front</button>
+    </div>
+    <p class="dim" id="fp-out" role="status"></p>
+    <div id="fp-job-box">
+      <h2>Work <span id="fp-job-head"></span></h2>
+      <p class="help" hidden>Every frog past the egg can work one job, at one target the job opens by level. A job is a run of actions, and each one that finishes puts its thing in the frog's basket and pays xp for it, or a fifth of that when it misses. The basket holds 12 hours of actions and then the frog stops until you take it. Levels go to 99 and only go up, a better frog works faster, and a frog works a quarter faster at the job its nature suits. Finds turn up at higher levels. Crafting makes one thing an action out of sticks, reeds and clay, and a frog that's full from a dish sometimes brings in two. Each target has its own mastery, and Tansy, Moth and Big Bean each sell a tool or two that makes a job quicker for every frog good enough to use it. A gardener also makes the plots grow faster. A 99 earns the pond that job's hood, and once in a long while a frog brings home a pet.</p>
+      <div class="fjob" id="fp-job"></div>
+      <div class="nrow" id="fp-basket"><span class="nrow-what"><b id="fp-basket-head"></b><span id="fp-basket-what"></span></span><button type="button" class="primary" id="fp-take">Take</button></div>
+      <div class="row"><button type="button" id="fp-work">Job screen</button><button type="button" id="fp-change">Change job</button></div>
+    </div>
+    <div id="fp-bond-box">
+      <h2>Hearts today <span id="fp-bond-n"></span></h2>
+      <div class="dayboard five" id="fp-bond"></div>
+    </div>
+    <div id="fp-favs-box">
+      <h2>Favourites</h2>
+      <div class="slots big" id="fp-favs"></div>
+    </div>
+    <h2>Diary</h2>
+    <div class="nrow" id="fp-diary"><span class="nrow-what"><b id="fp-diary-day"></b><span id="fp-diary-line"></span></span></div>
+  </section>
+
+  <section class="view" id="v-lay" hidden>
+    <canvas class="vista top" id="lay-art" aria-hidden="true"></canvas>
+    <a class="back" id="lay-back" href="#frogs">&larr; Back</a>
+    <div class="who">
+      <h1>Lay an egg</h1>
+      <p class="stats" id="lay-from"></p>
+    </div>
+    <div class="layslots" id="lay-slots">
+      <button type="button" data-slot="dye"></button>
+      <button type="button" data-slot="pattern"></button>
+      <button type="button" data-slot="drops"></button>
+    </div>
+    <p class="laytake" id="lay-take"></p>
+    <h2>What could hatch</h2>
+    <p class="help" hidden>An egg is its parent with the numbers nudged, and about one in sixteen throws back to something else. A dye, a pattern or eye drops take about two times in three and are used up either way. A frog fed a dish first does better, the rarer the dish the more often they take, and a rare one or better can give odd eyes on its own. Drops make a frog ten times rarer. Moth in town sells all three. Any grown frog can lay, once a week each.</p>
+    <div class="hatch" id="lay-outs"></div>
+    <button type="button" class="primary big" id="lay-go">Lay the egg</button>
+    <p class="line" id="lay-out" role="status"></p>
+  </section>
+
   <section class="view" id="v-job" hidden>
     <canvas class="vista top" id="job-art"></canvas>
     <a class="back" href="#frogs">&larr; Frogs</a>

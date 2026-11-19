@@ -11,6 +11,8 @@ const AT = {
   bag: "rummaging in the bag",
   collect: "admiring the collection",
   reeds: "in the reeds",
+  frog: "in the reeds",
+  lay: "at the egg bench",
   job: "at work",
   garden: "in the garden",
   bank: "at the bank",

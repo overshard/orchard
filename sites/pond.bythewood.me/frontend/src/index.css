@@ -1625,6 +1625,150 @@ body:has(.dock) main {
   padding: 6px 14px;
 }
 
+/* A frog's own page and laying from it. */
+#frog-art { height: 256px; }
+#lay-art { height: 220px; }
+
+#v-frog .who,
+#v-lay .who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 6px 0 4px;
+}
+
+#v-frog .who .chips,
+#v-lay .who .chips {
+  margin: 4px 0;
+}
+
+#v-frog .who .stats,
+#v-lay .who .stats {
+  flex: 0 0 100%;
+}
+
+.tier.chance {
+  flex: none;
+  color: #9fc8ff;
+}
+
+#fp-job-head {
+  margin-left: auto;
+}
+
+.fstats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.fstat {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
+}
+
+.fstat span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: var(--track);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.fstat b {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.fstat.lit {
+  box-shadow: var(--edge), inset 3px 0 0 var(--ok);
+}
+
+.fkeys {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 8px;
+}
+
+.fkeys button {
+  min-width: 0;
+  padding: 8px 6px;
+}
+
+.fkeys button[hidden] + button {
+  grid-column: 1 / 3;
+}
+
+.fjob {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fjob canvas {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+.fjob .meter {
+  flex: 1;
+}
+
+#fp-basket .nrow-what,
+#fp-diary .nrow-what {
+  display: grid;
+  gap: 1px;
+  padding: 6px 0;
+  white-space: normal;
+}
+
+#fp-basket .nrow-what span,
+#fp-diary .nrow-what span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.fstat.trick {
+  justify-items: center;
+  padding: 8px 4px;
+  text-align: center;
+}
+
+.fstat.trick canvas {
+  width: 24px;
+  height: 24px;
+}
+
+.fstat.trick:not(.lit) {
+  box-shadow: none;
+  outline: 1px dashed var(--line-2);
+  outline-offset: -1px;
+  background: transparent;
+}
+
+.fstat.trick:not(.lit) canvas,
+.fstat.trick:not(.lit) b {
+  opacity: 0.35;
+}
+
 /* The readout of what today has left, and the hearts on a frog's page. */
 .dayboard {
   display: grid;
@@ -1674,6 +1818,177 @@ body:has(.dock) main {
 }
 
 h2 .m {
+  color: var(--muted);
+}
+
+.layslots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 6px;
+}
+
+.layslot {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 112px;
+  margin: 0;
+  padding: 10px 4px;
+  border: 1px dashed var(--line-2);
+  border-radius: 10px;
+  box-shadow: none;
+  color: var(--muted);
+  text-align: center;
+}
+
+.layslot.on {
+  border: 1px solid var(--lamp-dark);
+  background: var(--card-2);
+  color: var(--text);
+}
+
+.layslot-k {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+}
+
+.layslot canvas {
+  width: 36px;
+  height: 36px;
+}
+
+.layslot b {
+  color: var(--lamp);
+  font-size: 30px;
+  line-height: 36px;
+}
+
+.layslot:disabled b {
+  color: var(--dim);
+}
+
+.layslot-n {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.laytake {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.hatch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 16px;
+}
+
+.hatchling {
+  position: relative;
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
+}
+
+.hatchling canvas {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 56 / 44;
+}
+
+.hatchling-t {
+  display: grid;
+  gap: 1px;
+  padding: 6px 8px 8px;
+}
+
+.hatchling-t b {
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hatchling-t span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.hatchling.any canvas {
+  opacity: 0.45;
+}
+
+.hatchling.hint {
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  background: transparent;
+  box-shadow: none;
+  outline: 1px dashed var(--line-2);
+  outline-offset: -1px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.newtag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--ok);
+  color: #0b2212;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+}
+
+button.big {
+  display: block;
+  width: 100%;
+  padding: 13px;
+  font-size: 17px;
+}
+
+/* A row in a sheet to pick something from the bag. */
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0 0 8px;
+  text-align: left;
+}
+
+.pick.on {
+  box-shadow: var(--pushed);
+}
+
+.pick canvas {
+  flex: none;
+  max-height: 36px;
+}
+
+.pick-n {
+  flex: 1;
+}
+
+.pick-c {
   color: var(--muted);
 }
 

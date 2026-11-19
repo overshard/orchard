@@ -7,6 +7,7 @@ import { arcade } from "./arcade.js";
 import { buildPlay, drawDisks, DISKS, raceLine } from "./play.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initReeds } from "./reeds.js";
+import { initFrogPage, enterFrog, enterLay, leaveFrog } from "./frogpage.js";
 import { initJob, enterJob, leaveJob, greetAway } from "./work.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
 import { drawMake, MAKE_AT, drawPlayArt, drawBag } from "./scenes.js";
@@ -30,14 +31,14 @@ import { initPet, setBox, pose, over as petOver, busy as petBusy, tapTrick, arri
 
 buildPlay($("shelves"), $("v-dive"));
 const SIDE = DISKS.filter((d) => d.game);
-const VIEWS = ["pond", "play", "dive", ...SIDE.map((d) => d.key), "wheel", "bag", "collect", "reeds", "job", "garden", "bank", "wizard", "town", "settings"];
+const VIEWS = ["pond", "play", "dive", ...SIDE.map((d) => d.key), "wheel", "bag", "collect", "reeds", "frog", "lay", "job", "garden", "bank", "wizard", "town", "settings"];
 // The places behind a key inside Make and inside Town.
 const MAKE = ["garden", "bank", "wizard"];
 const TOWN = ["neighbours", "shops", "stall", "market"];
 // The key in town a waiting thing is behind, by its kind.
 const TOWN_KEY = { stall: "stall", favour: "neighbours", gift: "neighbours", dividend: "market" };
 // The dock key each place lights. Places that open from another light that one's key.
-const TAB_OF = { reeds: "frogs", job: "frogs", garden: "make", bank: "make", wizard: "make", neighbours: "town", shops: "town", stall: "town", market: "town", collect: "bag", dive: "play", wheel: "play" };
+const TAB_OF = { reeds: "frogs", frog: "frogs", lay: "frogs", job: "frogs", garden: "make", bank: "make", wizard: "make", neighbours: "town", shops: "town", stall: "town", market: "town", collect: "bag", dive: "play", wheel: "play" };
 SIDE.forEach((d) => { TAB_OF[d.key] = "play"; });
 // Old links and the words a link might use for a place.
 const ALIAS = { frogs: "reeds", reed: "reeds", works: "make", sell: "stall", folk: "neighbours", kitchen: "garden" };
@@ -103,7 +104,7 @@ function sortPips(p, todo) {
 
 function isOpen(v) {
   if (v === "market") return open.works && open.market;
-  return v === "frogs" || v === "reeds" || v === "job" || v === "garden" || v === "bank" ? open.works : true;
+  return ["frogs", "reeds", "frog", "lay", "job", "garden", "bank"].includes(v) ? open.works : true;
 }
 
 function townAt() { return document.querySelector('#town-tabs button[aria-pressed="true"]').dataset.town; }
@@ -122,10 +123,14 @@ function applyOpen(o) {
 
 function show(next) {
   next = ALIAS[next] || next;
+  // A frog's page and laying from it carry the frog, as #frog-12 and #lay-12.
+  const asked = next, one = /^(frog|lay)-(\d+)$/.exec(next);
+  if (one) next = one[1];
+  else if (next === "frog" || next === "lay") next = "reeds";
   // A link to a place that isn't open yet lands on the pond, and is kept in
   // case the pond loads and says it's open after all.
   wanted = "";
-  if (!isOpen(next)) { wanted = next; next = "pond"; history.replaceState(null, "", location.pathname); }
+  if (!isOpen(next)) { wanted = asked; next = "pond"; history.replaceState(null, "", location.pathname); }
   const key = TOWN.includes(next) ? next : "";
   next = placeOf(key ? "town" : next);
   const race = next === "race";
@@ -156,6 +161,7 @@ function show(next) {
   if (next === "play") drawPlay();
   if (next === "garden") enterBank(); else leaveBank();
   if (next === "job") enterJob(); else leaveJob();
+  if (next === "frog") enterFrog(+one[2]); else if (next === "lay") enterLay(+one[2]); else leaveFrog();
   if (next === "town") enterTown(key); else leaveTown();
   if (next === "wizard") enterWizard(); else leaveWizard();
   if (next === "pond") seePower();
@@ -1078,6 +1084,7 @@ watch(renderPond);
 initDive();
 initWheel();
 initReeds();
+initFrogPage();
 initJob();
 initBank();
 initShops();
