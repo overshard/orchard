@@ -223,23 +223,24 @@ const (
 	paintings   = 4
 )
 
-// addPaint puts n pieces in and says which painting that finished, or -1.
-func addPaint(tx *sql.Tx, id int64, n int) (int, error) {
+// addPaint puts n pieces in and says how many went in, since the last
+// painting stops taking them, and which painting that finished, or -1.
+func addPaint(tx *sql.Tx, id int64, n int) (int, int, error) {
 	var was int
 	if err := tx.QueryRow(`SELECT paint FROM ponds WHERE id = ?`, id).Scan(&was); err != nil {
-		return -1, err
+		return 0, -1, err
 	}
 	now := min(was+n, paintPieces*paintings)
 	if now == was {
-		return -1, nil
+		return 0, -1, nil
 	}
 	if _, err := tx.Exec(`UPDATE ponds SET paint = ? WHERE id = ?`, now, id); err != nil {
-		return -1, err
+		return 0, -1, err
 	}
 	if now/paintPieces > was/paintPieces {
-		return now/paintPieces - 1, nil
+		return now - was, now/paintPieces - 1, nil
 	}
-	return -1, nil
+	return now - was, -1, nil
 }
 
 func burrowViewOf(q querier, id int64, now time.Time) (burrowView, error) {

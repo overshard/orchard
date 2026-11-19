@@ -29,6 +29,20 @@ type greeting struct {
 	Pond    *view `json:"pond"`
 }
 
+// piecesSaid is what the away list adds when n stamps brought pieces of the
+// painting, which they stop doing once all four are done.
+func piecesSaid(n, pieces int) string {
+	switch {
+	case pieces == 0:
+		return ""
+	case n == 1:
+		return ", and it brought a piece of the painting"
+	case pieces == n:
+		return ", and each brought a piece of the painting"
+	}
+	return ", and " + plural(pieces, "piece") + " of the painting came with them"
+}
+
 func plural(n int, one string) string {
 	if n == 1 {
 		return fmt.Sprintf("%d %s", n, one)
@@ -141,22 +155,28 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 			if g.Visitor, err = dealVisitor(tx, p, now); err != nil {
 				return err
 			}
-			if g.Visitor != nil {
-				g.Missed = append(g.Missed, [2]string{"Visitor", g.Visitor.Name + " came by and left " + g.Visitor.Gift.Text})
-			}
 		}
 		if g.Stamps, err = stampsIn(tx, p, now); err != nil {
 			return err
-		}
-		if n := len(g.Stamps); n > 0 {
-			g.Missed = append(g.Missed, [2]string{"Stamps", plural(n, "stamp") + " on your frog's page"})
 		}
 		pieces := len(g.Stamps)
 		if g.Visitor != nil {
 			pieces++
 		}
-		if g.Painted, err = addPaint(tx, p.ID, pieces); err != nil {
+		var added int
+		if added, g.Painted, err = addPaint(tx, p.ID, pieces); err != nil {
 			return err
+		}
+		if g.Visitor != nil {
+			line := g.Visitor.Name + " came by and left " + g.Visitor.Gift.Text
+			if added > 0 {
+				line += ", and a piece of the painting"
+				added--
+			}
+			g.Missed = append(g.Missed, [2]string{"Visitor", line})
+		}
+		if n := len(g.Stamps); n > 0 {
+			g.Missed = append(g.Missed, [2]string{"Stamps", plural(n, "stamp") + " on your frog's page" + piecesSaid(n, added)})
 		}
 
 		if gap := now.Sub(time.Unix(p.LastGiftAt, 0)); gap >= giftGap {
