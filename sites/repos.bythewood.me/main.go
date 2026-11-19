@@ -208,6 +208,7 @@ func realMain() error {
 		_, _ = w.Write([]byte("ok\n"))
 	})
 
+	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
 	mux.HandleFunc("GET /", s.notFound)
 
 	wr := &wire{store: store, db: db, backend: backend, allowCreate: true}
@@ -257,7 +258,7 @@ func staticRouter(dist fs.FS, assets *web.Assets, next http.Handler) http.Handle
 			static.ServeHTTP(w, r)
 			return
 		}
-		if strings.HasPrefix(r.URL.Path, "/suite/") && r.Method == http.MethodGet {
+		if strings.HasPrefix(r.URL.Path, "/suite/") && r.URL.Path != "/suite/state" && r.Method == http.MethodGet {
 			shared.ServeHTTP(w, r)
 			return
 		}

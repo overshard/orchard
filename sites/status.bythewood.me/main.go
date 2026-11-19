@@ -213,6 +213,7 @@ func realMain() error {
 	mux.HandleFunc("GET /sitemap.xml", sitemap)
 
 	mux.Handle("GET /static/", web.Static(dist, assets))
+	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
 	mux.Handle("GET /suite/", suite.Handler())
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {

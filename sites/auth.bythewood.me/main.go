@@ -73,6 +73,8 @@ type site struct {
 	baseStyles  []string
 	pagesScript string
 	pagesStyles []string
+
+	merged mergedCache
 }
 
 func main() {
@@ -272,6 +274,7 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("GET /robots.txt", robots)
 
 	mux.Handle("GET /static/", web.Static(s.dist, s.assets))
+	mux.HandleFunc("GET /suite/merged", s.suiteMerged)
 	mux.Handle("GET /suite/", suite.Handler())
 
 	mux.HandleFunc("GET /healthz", healthz)

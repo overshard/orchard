@@ -237,6 +237,7 @@ func realMain() error {
 	mux.HandleFunc("GET /sitemap.xml", sitemap)
 
 	mux.Handle("GET /static/", web.Static(dist, assets))
+	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
 	mux.Handle("GET /suite/", suite.Handler())
 
 	// Per-country admin-1 topojson, generated at image build, so the filenames
