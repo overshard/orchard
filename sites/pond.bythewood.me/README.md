@@ -33,8 +33,12 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
 - `main.go` wires the routes and the pages, `api.go` is the JSON handlers.
 - `store.go` opens SQLite and loads and saves a pond, `moves.go` is each thing
   a visitor can do to one, and `game.go` is the rules and the odds.
-- `breed.go` is the egg bench, the reeds and pads. A frog off the bench keeps
-  how it differs from its seed as JSON in `frogs.genome_json`.
+- `breed.go` is the egg bench, the reeds and pads. Any grown frog lays, once
+  a week each, off its own meal. A frog off the bench keeps how it differs
+  from its seed as JSON in `frogs.genome_json`. `layOdds` walks every roll
+  `breedFed` makes to give what an egg could hatch and how often, which
+  `GET /api/lay/odds` sends the lay screen, and a test holds it to breeding a
+  few thousand eggs, so a change to one is a change to both.
 - `jobs.go` is frog jobs. Every frog past the egg works one target of one
   job, a list opened by level, as a run of actions on the server's clock.
   Each finished action puts its thing in the frog's basket and pays xp for
@@ -242,7 +246,8 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   day steps in `starter.go`, and after their prize it's the first few down a
   list. `ponds.tried` has a bit for a thing that leaves no trace once done.
   A row's `to` is a hash the page opens, a view, a key in town or `market`,
-  and `index.js` draws both lists as the Next strip.
+  and `index.js` draws both lists as the Next strip. `leftOf` there is the
+  Today tiles under it, what today still has room for, sent as `left`.
 - `opening.go` is how a new pond opens up, Frogs and the garden and bank
   under Make a day in and the market three days after that, sent with the view as `open`. The page hides the keys
   for a closed place and the gazette carries a notice the day one opens.
@@ -293,6 +298,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   `vista()` there sizes a scene's canvas to its device pixels and keeps the
   fireflies and lamps going while it's on screen. The pond's own scene is
   still drawn frame by frame in `index.js`.
+  `reeds.js` is the roster under Frogs, a card a frog, and `frogpage.js` is a
+  frog's own page at `#frog-<id>` and laying an egg from it at `#lay-<id>`.
+  `show` in `index.js` reads the id off the hash, since a hash is only ever
+  a plain name.
   `work.js` is a frog's job screen at `#job`, lit under Frogs, and the
   card that says what came in. `workNow` in `api.js` counts a basket on
   between fetches off the actions the server dealt ahead and nothing else.
@@ -321,8 +330,12 @@ they have none, for other sites to draw.
   change to it is copied to all four and all five deployed. A new site that
   reads `/api/panel` has to be added to `panelOrigins` in `api.go`. `make check` fails on a stale copy.
 - The pond scene is wider than the pond. Everything on it is drawn in pond
-  units, 352 by 272, and `scene.toPond` and `scene.pondBox` in `index.js`
-  turn a press or the postcard into those, so draw nothing at canvas pixels.
+  units, 352 by 272 with the frog 8 to a cell, and `scene.toPond` and
+  `scene.pondBox` in `index.js` turn a press or the postcard into those, so
+  draw nothing at canvas pixels. The pad comes `EXT` units below 272 and the
+  water goes `SHORE` units above 0 up to the far bank, so the wash, the rain
+  and the reeds run to `stage.B` and anything up the back of the water is
+  drawn at a negative y.
 - `words.txt` can never lose or reorder a word once a key is out, since a key
   is six words off it.
 - The server owns the clock and every earner has a daily cap in `game.go`. A
@@ -389,9 +402,9 @@ they have none, for other sites to draw.
   never runs a query of its own, since the check runs after every move.
 - A rub of the frog doesn't go through `act`, so a badge for hearts lands on
   the next move or greeting and not on the rub.
-- The far bank's pieces stand between the hearts and the camera key, which
-  at 360 wide reach about 100 and 310 across the 352 wide scene. Swimmers
-  in the reeds drop below the bank when it's there, and set pieces, the
+- The far bank is drawn `SHORE` units up the water, along the foot of the far
+  trees, clear of the hearts and the camera key over the sky. Swimmers in
+  the reeds drop below the bank when it's there, and set pieces, the
   floating trinket and the teacup draw over it.
 - Scenery is placed by hand in `scenery.js` to clear a grown frog, the
   furniture, the trinket spots and both top corners of the glass, so look at
