@@ -69,7 +69,7 @@ function coinArt(s) {
 
 function art(f, s) {
   if (f.kind === "coin") return coinArt(s);
-  if (f.kind === "good") { const cv = iconCanvas(f.item, s); cv.setAttribute("aria-hidden", "true"); return cv; }
+  if (f.kind === "good") { const cv = iconCanvas(f.item, Math.max(1, Math.round(s * 2 / 3))); cv.setAttribute("aria-hidden", "true"); return cv; }
   return front(f.key, s);
 }
 
@@ -314,7 +314,7 @@ function render(p) {
     say.className = "what";
     say.textContent = m.due ? m.due + " in dividends" : "Dividends come each evening";
     key.disabled = !m.due;
-    due.replaceChildren(iconCanvas("peb", 3), say, tile("A day", m.daily.toFixed(1)), key);
+    due.replaceChildren(iconCanvas("peb", 2), say, tile("A day", m.daily.toFixed(1)), key);
   }
   $("mkt-help").textContent = "Shares are the businesses round the pond, and each one moves with what every pond did in its line of work that day, plus a little drift nobody can see coming. " +
     "A share pays a dividend every evening off how its business did, collected here. Goods are bought and sold by the lot of " + m.lot + ", straight into the bag and out of it, and the more of a thing ponds bring in the cheaper it gets. " +

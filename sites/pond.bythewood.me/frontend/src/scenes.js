@@ -80,7 +80,7 @@ export function drawMake(cv, p, ready) {
   const busy = p.frogs.find((x) => x.work && x.work.job);
   if (busy) {
     tool(g, busy.work.job, 23, 43, 1);
-    drawIcon(g, JOB_THING[busy.work.job], 27, 47, 1);
+    drawIcon(g, JOB_THING[busy.work.job], 25, 43, 1);
   }
 
   // The garden, a shed and a bed for each row of plots with what's coming up.
@@ -165,7 +165,7 @@ export function drawPot(cv, picked, night) {
   px(g, "#2b2b30", 46, 20, 28, 12); px(g, "#3a3a42", 44, 19, 32, 2); px(g, "#1f1f24", 48, 31, 24, 2);
   px(g, picked.length === 2 ? "#c9974f" : "#1a1a1e", 46, 21, 28, 2);
   px(g, "#e2412d", 50, 34, 4, 3); px(g, "#ffb000", 55, 33, 6, 4); px(g, "#ffe27a", 57, 34, 2, 2); px(g, "#e2412d", 62, 34, 5, 3); px(g, "#8a5a2b", 48, 37, 22, 2);
-  picked.forEach((k, i) => drawIcon(g, k, 44 + i * 18, 2, 2));
+  picked.forEach((k, i) => drawIcon(g, k, 46 + i * 18, 6, 1));
   if (picked.length === 2) for (let s = 0; s < 3; s++) px(g, "rgba(255,246,220,0.5)", 52 + s * 7, 14 - (s % 2) * 3, 2, 3);
 }
 
@@ -259,21 +259,21 @@ export function drawJob(cv, o) {
     if (job === "bugs") {
       for (let i = 0; i < 3; i++) {
         const a = t * (0.7 + i * 0.3) + i * 2;
-        drawIcon(g, thing, 72 + Math.round(Math.cos(a) * 10) + i * 8, 10 + Math.round(Math.sin(a * 1.3) * 6) + i * 6, 1);
+        drawIcon(g, thing, 70 + Math.round(Math.cos(a) * 10) + i * 8, 8 + Math.round(Math.sin(a * 1.3) * 6) + i * 6, 1);
       }
     } else if (job !== "pebbles" && job !== "craft") {
-      drawIcon(g, thing, 70, JH - 16, 1);
+      drawIcon(g, thing, 68, JH - 20, 1);
     } else if (job === "craft") {
-      drawIcon(g, thing, 78, 29, 1);
+      drawIcon(g, thing, 76, 25, 1);
     }
     // The last thing in rises off the work into the basket.
-    if (o.pop > 0 && !o.still) drawIcon(g, o.got || thing, 82 + Math.round((1 - o.pop) * 22), 24 - Math.round(Math.sin((1 - o.pop) * Math.PI) * 12), 1);
+    if (o.pop > 0 && !o.still) drawIcon(g, o.got || thing, 80 + Math.round((1 - o.pop) * 22), 22 - Math.round(Math.sin((1 - o.pop) * Math.PI) * 12), 1);
   }
 
   // The basket, a heap showing over its rim as it fills.
   const bx = 104, by = JH - 14;
   const heap = Math.round(Math.min(1, o.fill) * 6);
-  if (heap && thing) for (let i = 0; i < heap; i++) drawIcon(g, thing, bx + (i % 3) * 5 - 2, by - 4 - Math.floor(i / 3) * 3, 1);
+  if (heap && thing) for (let i = 0; i < heap; i++) drawIcon(g, thing, bx + (i % 3) * 5 - 4, by - 8 - Math.floor(i / 3) * 3, 1);
   px(g, "#8a5a2b", bx, by, 18, 10); px(g, "#c9974f", bx, by, 18, 2);
   for (let x = bx + 2; x < bx + 18; x += 4) px(g, "#6b4a2a", x, by + 3, 2, 6);
   if (o.full) px(g, "#ffb000", bx + 7, by - 12, 3, 3);

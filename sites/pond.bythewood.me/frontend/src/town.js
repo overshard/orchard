@@ -156,7 +156,7 @@ function renderStall(p) {
       : r.ends ? pct(r.chance) + " to sell within the hour · " + Math.max(1, Math.ceil((r.ends - now) / 3600)) + "h left" : "Up for sale";
     what.append(name, note);
     price.className = "price"; price.textContent = r.price.toLocaleString("en-US");
-    row.append(thingArt(r, 3), what, price);
+    row.append(thingArt(r, 4), what, price);
     const take = button(r.sold ? "Collect" : "Take back", (b) => {
       b.disabled = true;
       const before = state.pond.pebbles;
@@ -205,7 +205,7 @@ function drawStall() {
   p.stall.rows.forEach((r) => {
     const sx = 92 + r.slot * 64;
     if (r.sold) {
-      drawIcon(x, "peb", sx + 4, 46, 3);
+      drawIcon(x, "peb", sx + 4, 46, 2);
       x.fillStyle = "#ffe27a"; x.font = "bold 10px 'Pixelify Sans', monospace"; x.fillText("SOLD", sx + 4, 44);
     } else {
       const a = thingArt(r, 3);

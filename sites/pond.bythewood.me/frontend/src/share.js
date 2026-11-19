@@ -15,7 +15,7 @@ let croakUntil = 0;
 function frame(now) {
   const t = now / 1000;
   ["#123a3d", "#103336", "#0e2c30", "#0c262a"].forEach((c, i) => { sx.fillStyle = c; sx.fillRect(0, i * 68, 352, 68); });
-  if (spots[2]) drawIcon(sx, spots[2], 160, 12 + Math.round(Math.sin(t * 0.9 + 2)) * 4, 4);
+  if (spots[2]) drawIcon(sx, spots[2], 152, 4 + Math.round(Math.sin(t * 0.9 + 2)) * 4, 4);
   if (grown) {
     for (let y = 222; y < 268; y += 4) for (let x = 20; x < 332; x += 4) {
       const a = (x + 2 - 176) / 150, b = (y + 2 - 246) / 20, dd = a * a + b * b;
@@ -31,8 +31,8 @@ function frame(now) {
     if (now < croakUntil) o.croak = 0.55 + 0.45 * Math.abs(Math.sin(t * g.rate * 0.5));
   }
   draw(sx, cells(g, stage, o), W, H, colours(g, hat), 0, 0, 8);
-  if (grown && spots[0]) drawIcon(sx, spots[0], 40, 236, 4);
-  if (grown && spots[1]) drawIcon(sx, spots[1], 280, 236, 4);
+  if (grown && spots[0]) drawIcon(sx, spots[0], 32, 220, 4);
+  if (grown && spots[1]) drawIcon(sx, spots[1], 272, 220, 4);
 }
 
 let last = 0;
@@ -64,7 +64,7 @@ document.querySelectorAll("canvas.find").forEach((cv) => {
   const f = cv.dataset;
   if (f.shape !== undefined) { const t = hatTile({ shape: +f.shape, colour: +f.colour }, true); t.setAttribute("aria-hidden", "true"); cv.replaceWith(t); }
   else if (f.kind.startsWith("fish_")) { const t = fishArt(f.kind.slice(5)); t.setAttribute("aria-hidden", "true"); cv.replaceWith(t); }
-  else drawIcon(cv.getContext("2d"), f.kind, 0, 0, 4);
+  else drawIcon(cv.getContext("2d"), f.kind, 0, 0, 3);
 });
 
 // The page is the same cached copy for everybody, so what this visitor can

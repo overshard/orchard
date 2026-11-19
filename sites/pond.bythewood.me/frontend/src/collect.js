@@ -49,9 +49,9 @@ function cookbook(p) {
   const out = k.cookbook.map((d) => {
     const i = left.indexOf(d.tier);
     if (i >= 0) left.splice(i, 1);
-    return { art: () => dishCanvas(d, 4), name: d.name, tier: d.tier, found: true, what: "A dish." };
+    return { art: () => dishCanvas(d, 3), name: d.name, tier: d.tier, found: true, what: "A dish." };
   });
-  left.sort((a, b) => a - b).forEach((t) => out.push({ art: () => dishCanvas({ a: "duckweed", b: "duckweed", name: "", tier: 0 }, 4), name: "", tier: t, found: false, what: "Two things from the garden make it." }));
+  left.sort((a, b) => a - b).forEach((t) => out.push({ art: () => dishCanvas({ a: "duckweed", b: "duckweed", name: "", tier: 0 }, 3), name: "", tier: t, found: false, what: "Two things from the garden make it." }));
   return out;
 }
 
@@ -114,7 +114,9 @@ function wantBox(p, show) {
     line.textContent = "Tap a hat you haven't found and Little Tully will look out for it."
       + (w.fill ? " Your spares have put " + pebbles(w.fill) + " by." : "");
     words.append(line);
-    box.append(iconCanvas("hat", 5), words);
+    const art = iconCanvas("hat", 4);
+    art.style.width = "48px";
+    box.append(art, words);
     return;
   }
   const bar = document.createElement("span"), fill = document.createElement("i");
@@ -134,12 +136,12 @@ function cats(p) {
   const furn = (p.shops.fenn && p.shops.fenn.lines) || [];
   return [
     { key: "hats", name: "Hats", icon: "hat", all: hatShelf(p) },
-    { key: "trinkets", name: "Trinkets", icon: "t_duck", all: p.trinkets.all.map((t) => ({ kind: t.kind, art: () => iconCanvas(t.kind, 4), name: t.name, tier: t.tier, found: t.found, what: t.pet ? "A pet. Now and then a frog brings one home from " + t.pet.toLowerCase() + "." : "Boxes at Moth's and presents." })) },
+    { key: "trinkets", name: "Trinkets", icon: "t_duck", all: p.trinkets.all.map((t) => ({ kind: t.kind, art: () => iconCanvas(t.kind, 3), name: t.name, tier: t.tier, found: t.found, what: t.pet ? "A pet. Now and then a frog brings one home from " + t.pet.toLowerCase() + "." : "Boxes at Moth's and presents." })) },
     { key: "hoods", name: "Hoods", icon: "i_hood", all: p.hoods.map((h) => ({ art: () => hatTile(h, true), name: h.name, tier: 4, found: h.got, what: "A frog that gets to 99 at " + h.name.replace(" hood", "").toLowerCase() + " earns it." })) },
     { key: "sites", name: "Site hats", icon: "i_site", all: p.sites.map((h) => ({ art: () => hatTile(h, true), name: h.name, tier: 0, found: h.got, what: "Your frog finds it the first time you open " + h.host + "." })) },
-    { key: "rocks", name: "Rocks", icon: "agate", all: p.rocks.map((r) => ({ kind: r.kind, art: () => iconCanvas(r.kind, 4), name: r.name, tier: r.tier, found: r.found, what: "The wheel, the reeds and Moth." })) },
-    { key: "keepsakes", name: "Keepsakes", icon: "k_frost", all: p.keepsakes.map((k) => ({ kind: k.kind, art: () => iconCanvas(k.kind, 4), name: k.name, tier: k.tier, found: k.days > 0, what: k.hint, sub: k.days ? k.first : "" })) },
-    { key: "mementos", name: "Mementos", icon: "m_medal", all: p.mementos.map((m) => ({ kind: m.kind, art: () => iconCanvas(m.kind, 4), name: m.name, tier: m.tier, found: !!m.day, what: m.from + " gives it to a best friend.", sub: m.day, note: "From " + m.from + ", for being best friends. Kept since " + m.day + "." })) },
+    { key: "rocks", name: "Rocks", icon: "agate", all: p.rocks.map((r) => ({ kind: r.kind, art: () => iconCanvas(r.kind, 3), name: r.name, tier: r.tier, found: r.found, what: "The wheel, the reeds and Moth." })) },
+    { key: "keepsakes", name: "Keepsakes", icon: "heart", all: p.keepsakes.map((k) => ({ kind: k.kind, art: () => iconCanvas(k.kind, 3), name: k.name, tier: k.tier, found: k.days > 0, what: k.hint, sub: k.days ? k.first : "" })) },
+    { key: "mementos", name: "Mementos", icon: "m_medal", all: p.mementos.map((m) => ({ kind: m.kind, art: () => iconCanvas(m.kind, 3), name: m.name, tier: m.tier, found: !!m.day, what: m.from + " gives it to a best friend.", sub: m.day, note: "From " + m.from + ", for being best friends. Kept since " + m.day + "." })) },
     { key: "fish", name: "Fish", icon: "i_fish", all: fishBook(p) },
     { key: "frogs", name: "Frog looks", icon: "i_pond", all: register(p) },
     { key: "dishes", name: "Cookbook", icon: "lotus", all: cookbook(p) },
@@ -161,10 +163,10 @@ function waitingOn(p) {
 
 function memberArt(m, big) {
   if (m.sort === "hat") return hatTile(m.hat, true);
-  if (m.sort === "dish") return dishCanvas(m, big ? 6 : 4);
+  if (m.sort === "dish") return dishCanvas(m, big ? 4 : 3);
   if (m.sort === "fish") return fishArt(m.kind.slice(5), big ? 200 : 56);
   if (m.sort === "furniture") return furnCanvas(m.kind);
-  return iconCanvas(m.kind, big ? 6 : 4);
+  return iconCanvas(m.kind, big ? 4 : 3);
 }
 
 // A set is a panel with what it puts on the water and its four members.
@@ -260,7 +262,7 @@ function render(p) {
     count.textContent = n + "/" + c.all.length;
     bar.className = "meter"; fill.style.transform = "scaleX(" + (c.all.length ? n / c.all.length : 0) + ")";
     bar.append(fill);
-    b.append(iconCanvas(c.icon, 3), name, count, bar);
+    b.append(iconCanvas(c.icon, 2), name, count, bar);
     b.addEventListener("click", () => { cat = c.key; render(state.pond); });
     box.append(b);
   });

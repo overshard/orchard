@@ -182,8 +182,8 @@ canvas {
 }
 
 .pill canvas {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
 }
 
 a.pill.lit {
@@ -413,8 +413,8 @@ button.screen:active:not(:disabled) {
 }
 
 .frogscreen .snap canvas {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   image-rendering: pixelated;
 }
 
@@ -976,8 +976,9 @@ div.hattile {
 }
 
 .dock canvas {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
+  margin: 2px;
 }
 
 .dock button[aria-pressed="true"],
@@ -1958,8 +1959,9 @@ body:has(.dock) main {
 
 .larder canvas {
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
+  margin: -4px 0;
   image-rendering: pixelated;
 }
 
@@ -2004,8 +2006,9 @@ h2 .count {
 
 .cookbook canvas {
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
+  margin: -4px 0;
 }
 
 .cookbook .tier {
@@ -2236,8 +2239,9 @@ a.nrow:not(.goal) {
 
 .nrow canvas {
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
+  margin: -2px 0;
 }
 
 .nrow-what {
@@ -2885,8 +2889,9 @@ h2 .q[aria-expanded="true"] {
 }
 
 .ghost {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
+  margin: 2px;
   opacity: 0.22;
   filter: grayscale(1) brightness(1.6);
 }
@@ -3762,8 +3767,9 @@ div.slot {
 }
 
 .stallrow canvas {
-  width: 32px;
+  width: 36px;
   height: auto;
+  margin: 0 -2px;
 }
 
 .stallrow > span:first-of-type {
@@ -3806,6 +3812,7 @@ div.slot {
 .stallrow.empty button .ghost {
   width: 24px;
   height: 24px;
+  margin: 0;
 }
 
 .odds {
@@ -4088,7 +4095,8 @@ button.big {
 
 .wk-tool canvas {
   flex: none;
-  width: 32px;
+  width: 36px;
+  margin: 0 -2px;
   image-rendering: pixelated;
 }
 

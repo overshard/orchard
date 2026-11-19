@@ -1,184 +1,295 @@
-// Eight by eight icons, each a grid of letters and the colour of each letter.
-export const ICONS = {
-  peb: [["........", "..aab...", ".aaaab..", ".aaabbc.", ".abbbcc.", "..bccc..", "........", "........"], { a: "#d5d8dc", b: "#9aa0a6", c: "#6d747a" }],
-  cricket: [["......c.", ".....c..", "..aaab..", ".aaaabb.", "aabbbbb.", ".c.c.c..", "c..c..c.", "........"], { a: "#c9974f", b: "#8a6230", c: "#4a3318" }],
-  agate: [["..aaaa..", ".abbbba.", "abccccba", "abcbbcba", "abccccba", ".abbbba.", "..aaaa..", "........"], { a: "#e8a05a", b: "#f6dcb0", c: "#b8642e" }],
-  quartz: [["...a....", "..aab...", "..aab...", ".aaabb..", ".aaabbc.", ".aabbbc.", "..bbcc..", "........"], { a: "#e6e0f2", b: "#a79fc0", c: "#6f6890" }],
-  geode: [["..aaaa..", ".aabbaa.", "aabccbaa", "abccccba", "aabccbaa", ".aabbaa.", "..aaaa..", "........"], { a: "#5b534a", b: "#b88ae0", c: "#ecdcff" }],
-  hat: [["..a.a...", ".aaaaa..", "..aba...", ".aaaaa..", "..a.a...", "...c....", "...c....", "........"], { a: "#fff6dc", b: "#f2c230", c: "#2f7a3f" }],
-  dye_blue: [["..cc....", "..cc....", ".aaaa...", ".abaa...", ".abaa...", ".aaaa...", ".aaaa...", "........"], { a: "#3d8fd6", b: "#b5dcff", c: "#d5d8dc" }],
-  dye_gold: [["..cc....", "..cc....", ".aaaa...", ".abaa...", ".abaa...", ".aaaa...", ".aaaa...", "........"], { a: "#f2c230", b: "#fff6dc", c: "#d5d8dc" }],
-  dye_berry: [["..cc....", "..cc....", ".aaaa...", ".abaa...", ".abaa...", ".aaaa...", ".aaaa...", "........"], { a: "#e2567a", b: "#ffd0ea", c: "#d5d8dc" }],
-  dye_olive: [["..cc....", "..cc....", ".aaaa...", ".abaa...", ".abaa...", ".aaaa...", ".aaaa...", "........"], { a: "#8a9a3a", b: "#d6e08f", c: "#d5d8dc" }],
-  dye_brown: [["..cc....", "..cc....", ".aaaa...", ".abaa...", ".abaa...", ".aaaa...", ".aaaa...", "........"], { a: "#8a5a2b", b: "#e3c57a", c: "#d5d8dc" }],
-  dye_grey: [["..cc....", "..cc....", ".aaaa...", ".abaa...", ".abaa...", ".aaaa...", ".aaaa...", "........"], { a: "#9aa0a6", b: "#e9e3d6", c: "#d5d8dc" }],
-  snail: [["........", "..aaa...", ".abbba..", ".ababa.c", ".abbba.c", "..aaaccc", ".ccccccc", "........"], { a: "#8a5a2b", b: "#e3c57a", c: "#cfc7a8" }],
-  cap: [["........", "..aaaa..", ".abbbba.", "abbccbba", "abbccbba", ".abbbba.", "..aaaa..", "........"], { a: "#6d747a", b: "#d5d8dc", c: "#e2567a" }],
-  feather: [["......a.", ".....ab.", "....abb.", "...abba.", "..abba..", ".caba...", ".cc.....", "c......."], { a: "#9aa0a6", b: "#e9e3d6", c: "#6d747a" }],
-  amethyst: [["...a....", "..aba...", ".abbba..", ".abcba..", "abbcbba.", "abbbbba.", ".aaaaa..", "........"], { a: "#6f4aa8", b: "#b88ae0", c: "#ecdcff" }],
-  calcite: [["........", "..aaa...", ".abbba..", ".abcbba.", ".abbcba.", "..abbba.", "...aaa..", "........"], { a: "#9aa0a6", b: "#e9e3d6", c: "#ffffff" }],
-  pyrite: [["........", ".aaaa...", ".abbaaa.", ".abbabba", ".aaaabba", "...aaaa.", "........", "........"], { a: "#a87a12", b: "#ffe27a" }],
-  banded: [["..aaaa..", ".bbbbbb.", "aaaaaaaa", "cccccccc", "aaaaaaaa", ".bbbbbb.", "..aaaa..", "........"], { a: "#b8642e", b: "#f6dcb0", c: "#e8a05a" }],
-  fossil: [["........", "..aaaa..", ".abbbba.", ".abaaba.", ".ababba.", ".abbaaa.", "..aaaa..", "........"], { a: "#8a7a5a", b: "#e3d6b0" }],
-  wood: [["........", ".aaaaaa.", "abbcbbba", "abcccbba", "abbcbbca", "abbbbcba", ".aaaaaa.", "........"], { a: "#6b4a2a", b: "#b08a5a", c: "#8a6a42" }],
-  moonstone: [["........", "..aaaa..", ".abbcca.", "abbbccca", "abbbbcca", ".abbbba.", "..aaaa..", "........"], { a: "#8fa3b8", b: "#e6eef6", c: "#b5dcff" }],
-  drops_red: [["...c....", "..ccc...", "...c....", "..aaa...", ".aabaa..", ".abaaa..", ".aaaaa..", "..aaa..."], { a: "#e2412d", b: "#ffd0c8", c: "#d5d8dc" }],
-  drops_pale: [["...c....", "..ccc...", "...c....", "..aaa...", ".aabaa..", ".abaaa..", ".aaaaa..", "..aaa..."], { a: "#9fd8e8", b: "#ffffff", c: "#d5d8dc" }],
-  stamp_spots: [["...aa...", "...aa...", "..bbbb..", "..bbbb..", "cccccccc", "cdccdccc", "ccccccdc", "cdcccccc"], { a: "#8a5a2b", b: "#c9974f", c: "#3f9a4d", d: "#1f5a2c" }],
-  stamp_bands: [["...aa...", "...aa...", "..bbbb..", "..bbbb..", "cccccccc", "dddddddd", "cccccccc", "dddddddd"], { a: "#8a5a2b", b: "#c9974f", c: "#3f9a4d", d: "#1f5a2c" }],
-  stamp_speckled: [["...aa...", "...aa...", "..bbbb..", "..bbbb..", "cccccccc", "cdcdccdc", "ccdccdcc", "dccdcdcc"], { a: "#8a5a2b", b: "#c9974f", c: "#3f9a4d", d: "#1f5a2c" }],
-  stamp_mask: [["...aa...", "...aa...", "..bbbb..", "..bbbb..", "cccccccc", "dddccddd", "dddccddd", "cccccccc"], { a: "#8a5a2b", b: "#c9974f", c: "#3f9a4d", d: "#1f5a2c" }],
-  stamp_stripe: [["...aa...", "...aa...", "..bbbb..", "..bbbb..", "cccddccc", "cccddccc", "cccddccc", "cccddccc"], { a: "#8a5a2b", b: "#c9974f", c: "#3f9a4d", d: "#e3c57a" }],
-  f_stones: [["........", "........", "...ab...", "..aaab..", ".bbbbb..", "....ab..", "...bbbbb", "........"], { a: "#8a939e", b: "#5b6470" }],
-  f_reeds: [["..b..b..", "..b.bb..", ".bb.bb.b", ".bb.a..b", ".a..a.bb", ".a.aa.a.", ".a.a..a.", ".aaa.aa."], { a: "#2f7a3f", b: "#6b4a2a" }],
-  bait_worms: [["..a..a..", ".a.aa.a.", "bbbbbbb.", "bcccccbd", "bcdddcb.", "bcccccb.", "bbbbbbb.", "........"], { a: "#e2867a", b: "#9aa0a6", c: "#d5d8dc", d: "#6d747a" }],
-  bait_lure: [["......a.", ".bbb..a.", "bcccbba.", "bcdcccb.", "bcccbba.", ".bbb..a.", "......a.", "........"], { a: "#d5d8dc", b: "#e0b030", c: "#ffe27a", d: "#2a241d" }],
-  pc_lily: [["aaaaaaaa", "abbbbbba", "abccccba", "pbccccbp", "abccccba", "abccccba", "abbbbbba", "aaapaaaa"], { a: "#3f9a4d", b: "#f1e4c8", c: "#123a3d", p: "#f59ab3" }],
-  pc_stamp: [["a.a.a.a.", ".bbbbbb.", "abccccba", ".bccccb.", "abccccba", ".bbbbbb.", "abbbbbba", ".a.a.a.."], { a: "#f1e4c8", b: "#f1e4c8", c: "#123a3d" }],
-  pc_night: [["aaaaaaaa", "ayaaaaya", "abbbbbba", "abccccba", "abccccba", "abbbbbba", "aaayaaaa", "aaaaaaaa"], { a: "#14203a", b: "#0a0f1e", c: "#123a3d", y: "#ffe27a" }],
-  pc_gilt: [["abababab", "baaaaaab", "aaccccaa", "baccccab", "aaccccaa", "baccccab", "baaaaaab", "babababa"], { a: "#e0b030", b: "#8a5a10", c: "#123a3d" }],
-  t_acorn: [["...a....", ".bbbbb..", "bcbcbcb.", "bbbbbbb.", ".ddddd..", ".ddedd..", "..ddd...", "...d...."], { a: "#6b4a2a", b: "#8a5a2b", c: "#5a3f24", d: "#c9974f", e: "#e3c57a" }],
-  t_pinecone: [["...a....", "..bcb...", ".bcbcb..", ".cbcbc..", ".bcbcb..", ".cbcbc..", "..bcb...", "...b...."], { a: "#3f9a4d", b: "#8a5a2b", c: "#5a3f24" }],
-  t_marble: [["........", "..aaa...", ".abcaa..", ".acbba..", ".aabba..", "..aaa...", "........", "........"], { a: "#3d8fd6", b: "#b5dcff", c: "#e2567a" }],
-  t_button: [["........", "..aaaa..", ".aaaaaa.", ".abaaba.", "..cccc..", "...cc...", "...cc...", "..cccc.."], { a: "#e9dcc0", b: "#c9b896", c: "#fff6dc" }],
-  t_boat: [["........", "...a....", "...ab...", "...abb..", "aaaaaaaa", ".aaaaaa.", "..aaaa..", "cccccccc"], { a: "#e9e3d6", b: "#c9c3b6", c: "#7fd6c2" }],
-  t_duck: [["..aa....", ".aaba...", ".aaaacc.", "..aa....", "aaaaaaa.", "aaaaaaa.", ".aaaaa..", "........"], { a: "#f2c230", b: "#1a1a1a", c: "#e08a1a" }],
-  t_cone: [["...a....", "...a....", "..bbb...", "..aaa...", ".aaaaa..", ".bbbbb..", "aaaaaaa.", "cccccccc"], { a: "#e86a1a", b: "#fff6dc", c: "#3a3a3a" }],
-  t_chanterelle: [["........", ".aaaaaa.", "aabbbbaa", "..aaaa..", "...aa...", "...aa...", "..aaaa..", "........"], { a: "#f2a23a", b: "#c9741a" }],
-  t_clover: [["..a.a...", ".aaaaa..", "..aba...", ".aaaaa..", "..a.a...", "...c....", "....c...", "........"], { a: "#3f9a4d", b: "#9fe08f", c: "#2f7a3f" }],
-  t_earring: [["...a....", "..a.a...", "...a....", "...b....", "..bcb...", ".bcccb..", "..bcb...", "...b...."], { a: "#ffe27a", b: "#c9b25a", c: "#3d8fd6" }],
-  t_globe: [[".aaaaaa.", "abbcbbba", "abbbbcba", "abcdddba", "abbdddba", ".aaaaaa.", "eeeeeeee", ".eeeeee."], { a: "#cfe3ea", b: "#3b5a6a", c: "#ffffff", d: "#3f9a4d", e: "#8a5a2b" }],
-  t_gnome: [["...a....", "..aaa...", ".aaaaa..", "..bbb...", ".bdddb..", ".eddde..", ".eeeee..", "..f.f..."], { a: "#e2412d", b: "#f6dcb0", d: "#fff6dc", e: "#3d8fd6", f: "#5a3f24" }],
-  t_agaric: [["..aaaa..", ".abaaba.", "aaaabaaa", "abaaaaba", "..cccc..", "...cc...", "...cc...", "..cccc.."], { a: "#e2412d", b: "#fff6dc", c: "#e9dcc0" }],
-  t_robot: [["...a....", "..bbbb..", "..bcbc..", "..bbbb..", ".dbbbbd.", ".dbeebd.", "..bbbb..", "..b..b.."], { a: "#e2412d", b: "#9aa0a6", c: "#ffe27a", d: "#6d747a", e: "#3d8fd6" }],
-  t_disco: [["...a....", "..bcbc..", ".bcdcbc.", ".cbcbcb.", ".bcbcdc.", "..cbcb..", "........", "........"], { a: "#6d747a", b: "#e9e3d6", c: "#9aa0a6", d: "#ffffff" }],
-  t_jar: [["..aaaa..", ".b....b.", ".bcbbcb.", ".bbcbbb.", ".bbbbcb.", ".bcbbbb.", ".bbbbbb.", "..bbbb.."], { a: "#6d747a", b: "#2a4a5a", c: "#ffe27a" }],
-  t_goldmorel: [["...aa...", "..abba..", ".ababba.", ".abbaba.", "..abba..", "...cc...", "...cc...", "..cccc.."], { a: "#ffe27a", b: "#a87a12", c: "#fff6dc" }],
-  t_pearl: [["........", "........", "..aaa...", ".abaaa..", ".aaaac..", "..acc...", "dddddddd", ".dddddd."], { a: "#f6f0e6", b: "#ffffff", c: "#cfc7b8", d: "#e3c57a" }],
-  t_raft: [["........", "...c....", "...cd...", "...cdd..", "aaaaaaaa", "babababa", "aaaaaaaa", "eeeeeeee"], { a: "#8a5a2b", b: "#6b4a2a", c: "#e9e3d6", d: "#c9c3b6", e: "#7fd6c2" }],
-  t_basket: [["........", "..aaaa..", ".a....a.", "bbbbbbbb", "bcbcbcbc", "cbcbcbcb", ".bcbcbc.", "..bbbb.."], { a: "#b08a5a", b: "#c9974f", c: "#8a6230" }],
-  t_pot: [["........", "..aaaa..", "...bb...", "..bbbb..", ".bbcbbb.", ".bbbbbb.", "..bbbb..", "...bb..."], { a: "#a8642e", b: "#c9743a", c: "#e8a05a" }],
-  t_flute: [["......aa", ".....aba", "....aba.", "...aba..", "..aba...", ".aba....", "aba.....", "aa......"], { a: "#8a7a3a", b: "#d6c88f" }],
-  t_statue: [["........", ".a....a.", "abaaaaba", "aaaaaaaa", "aacaacaa", ".aaaaaa.", "dddddddd", ".dddddd."], { a: "#b8642e", b: "#1a1a1a", c: "#e8a05a", d: "#8a939e" }],
-  t_bee: [["..c.c...", ".ccccc..", "..ccc...", ".babab..", "bababab.", ".babab..", "..a.a...", "........"], { a: "#1a1a1a", b: "#f2c230", c: "#cfe3ea" }],
-  t_ladybird: [["...bb...", "..bbbb..", ".aabbaa.", "abaaaaba", "aaaaaaaa", "aabaabaa", ".aaaaaa.", "..b..b.."], { a: "#e2412d", b: "#1a1a1a" }],
-  t_hedgehog: [["........", "...a.a..", "..aaaaa.", ".aaaaaaa", "cdaaaaaa", "bccaaaaa", ".cc.c.c.", "........"], { a: "#6b4a2a", b: "#1a1a1a", c: "#e3c57a", d: "#1a1a1a" }],
-  t_dragonfly: [["...cc...", "bbbaabbb", ".bbaabb.", "bbbaabbb", "...aa...", "...aa...", "...aa...", "....a..."], { a: "#3d8fd6", b: "#cfe3ea", c: "#1a1a1a" }],
-  t_newt: [["........", ".aa.....", "abaa....", "aaaacaa.", ".aaaaaaa", ".c..c..a", "........", "........"], { a: "#e8742a", b: "#1a1a1a", c: "#f2c230" }],
-  t_crayfish: [["a......a", "aa....aa", ".a.cc.a.", "..aaaa..", "..abba..", "..aaaa..", "...ab...", "..aaaa.."], { a: "#c9432d", b: "#8a2a1a", c: "#1a1a1a" }],
-  t_mouse: [["........", ".aa.....", "abaa....", "acaaaa..", "aaaaaaa.", ".aaaaaad", "..b..b.d", "......d."], { a: "#a8865a", b: "#e9dcc0", c: "#1a1a1a", d: "#e3a0a0" }],
-  i_site: [["........", "..bbbb..", ".b.bb.b.", "bbbbbbbb", "b..bb..b", "bbbbbbbb", ".b.bb.b.", "..bbbb.."], { b: "#f2a23a" }],
-  i_hood: [["...a....", "..aaa...", ".aaaaa..", ".aabaa..", "aaaaaaa.", "abbbbba.", "a.....a.", "........"], { a: "#6b3fa8", b: "#f2c230" }],
-  sticks: [["......a.", ".....a..", "..b.a...", "...ba...", "...a.b..", "..a.....", ".a......", "a......."], { a: "#8a5a2b", b: "#3f9a4d" }],
-  reeds: [["..a..a..", "..a.aa..", ".aa.a...", ".b..b.b.", ".b..b.b.", ".b.bb.b.", ".b.b..b.", "bbbbbbbb"], { a: "#8a5a2b", b: "#6b9a3f" }],
-  clay: [["........", "........", "..aaa...", ".abbaa..", "aabbbaa.", "aaaaaab.", ".aaaaaa.", "........"], { a: "#a8642e", b: "#c9743a" }],
-  k_frost: [["....a...", "...aba..", "..abbba.", ".abcbcba", ".abbcbba", "..abcba.", "...aca..", "....c..."], { a: "#b5dcff", b: "#e86a1a", c: "#8a5a2b" }],
-  k_web: [["a..a..a.", ".a.a.a..", "..bab...", "aaabaaa.", "..bab...", ".a.a.a..", "a..a..a.", "........"], { a: "#cfe3ea", b: "#ffffff" }],
-  k_storm: [["......a.", ".....a..", "..b.a...", "...ba...", "...bb...", "..bb.b..", ".bb...b.", "b......."], { a: "#ffe27a", b: "#6b4a2a" }],
-  k_shell: [["........", "...a....", "..aba...", ".ababa..", "abababa.", "aaaaaaa.", ".ccccc..", "........"], { a: "#f6dcb0", b: "#e8a05a", c: "#c9974f" }],
-  k_snow: [["........", "..aaa...", ".abaaa..", ".aaaab..", ".aaabb..", "..abb...", "........", "........"], { a: "#ffffff", b: "#b5dcff" }],
-  k_lily: [["........", "..a.a...", ".aabaa..", "..aaa...", "cccccccc", ".cdddc..", "..ccc...", "........"], { a: "#ffd0ea", b: "#ffe27a", c: "#3f9a4d", d: "#9fe08f" }],
-  k_penny: [["........", "..aaaa..", ".abbbba.", ".abcbba.", ".abbbba.", "..aaaa..", "dddddddd", ".dddddd."], { a: "#a8642e", b: "#d6884a", c: "#f6dcb0", d: "#2a4a5a" }],
-  k_kite: [["...a....", "..aba...", ".abbba..", "..aba...", "...a....", "...c....", "....c.c.", ".....c.."], { a: "#e2412d", b: "#ffe27a", c: "#e9e3d6" }],
-  k_wing: [["........", "aa......", "abaa....", ".abbaa..", "..abbba.", "...aabbc", ".....aac", "......cc"], { a: "#b5dcff", b: "#e6eef6", c: "#3d8fd6" }],
-  k_amber: [["........", "..aaaa..", ".abbbba.", "abbcbbba", "abcccbba", ".abbbba.", "..aaaa..", "........"], { a: "#a87a12", b: "#f2a23a", c: "#3a2a12" }],
-  k_heron: [["......a.", ".....ab.", "....abb.", "...abba.", "..abba..", ".abba...", ".cc.....", "c......."], { a: "#6d747a", b: "#b8c0c8", c: "#3a3a3a" }],
-  k_moon: [["..aaa...", ".abbba..", "abbbbba.", "abbcbba.", ".abbba..", "..aaa...", "dddddddd", "........"], { a: "#e6eef6", b: "#ffffff", c: "#cfe3ea", d: "#7fd6c2" }],
-  k_blossom: [["..a.a...", ".aabaa..", "..aba...", ".a.c.a..", "...c....", "...cc...", "...c....", "........"], { a: "#ffd0ea", b: "#e2567a", c: "#6b4a2a" }],
-  k_daisy: [["..a.a...", ".a.a.a..", "a.aba.a.", ".aabaa..", "a.aaa.a.", "...c....", "..cc....", "...c...."], { a: "#ffffff", b: "#ffd23a", c: "#2f7a3f" }],
-  k_maple: [["...a....", ".a.a.a..", ".aaaaa..", "aaabaaa.", ".aabaa..", "...b....", "...b....", "........"], { a: "#e2412d", b: "#8a2a1a" }],
-  k_holly: [["........", ".a...a..", "aaa.aaa.", ".aaaaa..", "..bcb...", "...b....", "........", "........"], { a: "#2f7a3f", b: "#e2412d", c: "#ff8a7a" }],
-  k_spawn: [["........", ".aaa.aaa", "abcbabcb", "aaaaaaaa", ".abcbabc", ".aaa.aaa", "........", "........"], { a: "#cfe3ea", b: "#ffffff", c: "#1a1a1a" }],
-  k_days7: [["........", "..aaaa..", ".abbbba.", "abbbbcba", "abbbccba", ".accccc.", "..aaaa..", "........"], { a: "#5b6470", b: "#aab2bb", c: "#8a939e" }],
-  k_days30: [["dddddddd", "dddcdddd", "dddcdbdd", "ddbcdbdd", "ddbcbddd", "dddcbddd", "dddcdddd", "dddddddd"], { b: "#3f9a4d", c: "#6b4a2a", d: "#f1e4c8" }],
-  k_days100: [["..aaaa..", "..abba..", ".a....a.", ".acccca.", ".acdcca.", ".accdca.", ".acccca.", "..aaaa.."], { a: "#cfe3ea", b: "#8a5a2b", c: "#2f8f8a", d: "#7fd6c2" }],
-  k_days365: [["..aaaa..", ".abbbba.", "abccccba", "abcbbcba", "abcbdcba", "abccccba", ".abbbba.", "..aaaa.."], { a: "#6b4a2a", b: "#e3c57a", c: "#c9974f", d: "#8a5a2b" }],
-  duckweed: [["........", "..aa....", ".aaba.a.", "..aa.aba", ".a....a.", "aba.aa..", ".a.abba.", "....aa.."], { a: "#58b85a", b: "#9fe08f" }],
-  watercress: [["..a..a..", ".aba.aba", "..a.ca..", "...c.c..", "..aca...", ".abac...", "..a.c...", "....c..."], { a: "#3f9a4d", b: "#8fd88a", c: "#2f7a3f" }],
-  mayfly: [["..a..a..", "..ba.ab.", "...bbb..", "..abba..", ".a.bb.a.", "...bb...", "..d..d..", ".d....d."], { a: "#e6e0f2", b: "#c9b25a", d: "#8a7a3a" }],
-  lotus: [["..aaaa..", ".abbbba.", "abcbcbba", "abbcbcba", ".abbbba.", "..aaaa..", "...dd...", "...dd..."], { a: "#6f8f4a", b: "#a9c46a", c: "#3a4a22", d: "#4f6a32" }],
-  marigold: [["..a.a...", ".aaaaa..", ".aabaa..", ".aaaaa..", "..a.a...", "...c....", "..cc....", "...c...."], { a: "#ffd23a", b: "#e08a1a", c: "#2f7a3f" }],
-  firefly: [["........", "..a..a..", "...bb...", "..bbbb..", "..cccc..", ".dccccd.", "..dccd..", "...dd..."], { a: "#9aa0a6", b: "#5a4a38", c: "#ffe27a", d: "#fff6c8" }],
-  morel: [["...aa...", "..abba..", ".ababba.", ".abbaba.", "..abba..", "...cc...", "...cc...", "..cccc.."], { a: "#9a7448", b: "#5a3f24", c: "#e9dcc0" }],
-  i_pond: [[".bb..bb.", "bcbaabcb", "abbaabba", "aaaaaaaa", "adaaaada", "aaddddaa", ".aaaaaa.", "........"], { a: "#56b45f", b: "#fff6dc", c: "#0a0908", d: "#1f5a2c" }],
-  i_cam: [["........", "..aa....", "aaaaaaaa", "abbccbba", "abcddcba", "abbccbba", "aaaaaaaa", "........"], { a: "#ffb000", b: "#2a241d", c: "#ece5d8", d: "#7fd6c2" }],
-  i_rest: [["aaaa....", "..a.....", ".a...b.b", "aaaa..b.", ".....b.b", ".cc.....", "..c.....", ".cc....."], { a: "#fff6dc", b: "#ffe27a", c: "#cfe3ea" }],
-  i_play: [["........", ".aaaaaa.", "aabaaaca", "abbbacaa", "aabaaaaa", "aaa..aaa", ".a....a.", "........"], { a: "#9aa0a6", b: "#2f2820", c: "#e2567a" }],
-  i_bag: [["...bb...", "..b..b..", "..aaaa..", ".aaaaaa.", "aaacaaaa", "aacccaaa", "aaacaaaa", ".aaaaaa."], { a: "#c9974f", b: "#8a6230", c: "#fff6dc" }],
-  i_set: [["aaa.bbb.", "aaa.bbb.", "aaa.bbb.", "........", "ccc.ddd.", "ccc.ddd.", "ccc.ddd.", "........"], { a: "#fff6dc", b: "#ffe27a", c: "#f59ab3", d: "#9fd8e8" }],
-  i_pin: [["..aaaa..", ".abbbba.", "abbcbbba", "abcccbba", "abbcbbba", ".abbbba.", "..aaaa..", "........"], { a: "#d9a520", b: "#1f5a2c", c: "#fff6dc" }],
-  i_star: [["...a....", "...a....", "..aba...", "aaabaaa.", ".abbba..", "..aaa...", ".aa.aa..", "aa...aa."], { a: "#ffe27a", b: "#fff6dc" }],
-  i_bank: [["........", "........", "...ab...", "..aabb..", ".cabbcc.", "ccaabbcc", "cccccccc", "........"], { a: "#d5d8dc", b: "#9aa0a6", c: "#6d747a" }],
-  i_works: [["......b.", "......b.", "a.a.a.b.", "aaaaaab.", "cccccccc", "cdcdcdcc", "cccccccc", "........"], { a: "#b8456a", b: "#9aa0a6", c: "#8a5a2b", d: "#ffe27a" }],
-  i_town: [["...aa...", "..aaaa..", ".aaaaaa.", "bcbcbcbc", "d.dddd.d", "d.deed.d", "d.deed.d", "dddddddd"], { a: "#e2567a", b: "#fff6dc", c: "#e2567a", d: "#8a5a2b", e: "#ffe27a" }],
-  i_shops: [["aaaaaaaa", "babababa", ".cccccc.", ".cddcee.", ".cddcee.", ".ccccee.", ".ccccee.", "ffffffff"], { a: "#4fae5b", b: "#fff6dc", c: "#c9974f", d: "#9fd8e8", e: "#6b4422", f: "#5b534a" }],
-  i_folk: [[".bb..bb.", "bcbaabcb", "abbaabba", "aaaaaaaa", "adaaaada", "aaddddaa", ".aaaaaa.", "........"], { a: "#b0773a", b: "#fff6dc", c: "#0a0908", d: "#6b4422" }],
-  i_stall: [["abababab", "abababab", "c......c", "c..dd..c", "eeeeeeee", "effffffe", "e......e", "e......e"], { a: "#e2567a", b: "#fff6dc", c: "#8a5a2b", d: "#56b45f", e: "#c9974f", f: "#8a5a2b" }],
-  i_wizard: [["....a...", "...aa...", "...aba..", "..aaaa..", "..abaa..", ".aaaaab.", "cccccccc", "........"], { a: "#8a5ccf", b: "#ffe27a", c: "#4a2f78" }],
-  i_market: [["aaaaaaaa", "abbbbbca", "abbbbcba", "abbcbcba", "abcbcbba", "acbbbbba", "abbbbbba", "aaaaaaaa"], { a: "#5b534a", b: "#0b1006", c: "#7fd67f" }],
-  smallfry: [["........", ".aab.a..", "aaaaaa..", ".aab.a..", "........", "..aab.a.", ".aaaaaa.", "..aab.a."], { a: "#9fb7c0", b: "#dfe9ec" }],
-  fillet: [["........", "..aaaa..", ".abbbba.", "abbcbbba", "abbbcbba", ".abbbba.", "..aaaa..", "........"], { a: "#c9744f", b: "#f2b8a0", c: "#fff6dc" }],
-  i_fish: [["........", "a....bb.", "aa.bbbbb", "aabbbbcb", "aabddddb", "aa.dddd.", "a....d..", "........"], { a: "#d2553a", b: "#c9b04a", c: "#0a0908", d: "#efe2a0" }],
-  i_gear: [["...aa...", ".a.aa.a.", "..aaaa..", "aaa..aaa", "aaa..aaa", "..aaaa..", ".a.aa.a.", "...aa..."], { a: "#ffb000" }],
-  m_float: [["...a....", "...a....", "..bbb...", ".bbbbb..", ".ccccc..", "..ccc...", "...a....", "...a...."], { a: "#8a5a2b", b: "#e2412d", c: "#fff6dc" }],
-  m_notebook: [["........", ".abbbbb.", ".abcccb.", ".abbbbb.", ".abdddb.", ".abbbbb.", ".abbbbb.", "........"], { a: "#5a3f24", b: "#b8456a", c: "#fff6dc", d: "#e3a0b8" }],
-  m_gizmo: [["........", ".a...a..", "..a.a...", "...b....", "..a.a.c.", ".a...ac.", "a....dd.", ".....dd."], { a: "#8a5a2b", b: "#fff6dc", c: "#e9e3d6", d: "#9aa0a6" }],
-  m_bag: [["..aaaa..", ".a....a.", ".bbbbbb.", "bccccccb", "bbbddbbb", "bbbbbbbb", "bbbbbbbb", ".bbbbbb."], { a: "#6b4a2a", b: "#4fae5b", c: "#2f7a3f", d: "#ffe27a" }],
-  m_trowel: [["......aa", ".....aa.", "....aa..", "...bb...", "..bcb...", ".bccb...", "bccb....", "bbb....."], { a: "#8a5a2b", b: "#6d747a", c: "#d5d8dc" }],
-  m_mud: [["..aaaa..", "..aaaa..", ".b....b.", ".bccccb.", ".bcdccb.", ".bccdcb.", ".bccccb.", "..bbbb.."], { a: "#c9974f", b: "#cfe3ea", c: "#6b4a2a", d: "#8a6230" }],
-  m_spoon: [[".aaa....", "abbba...", "abbba...", ".aaa....", "...a....", "....a...", ".....a..", "......a."], { a: "#c9974f", b: "#e3c57a" }],
-  m_leaf: [["....aa..", "..aaaab.", ".aacaab.", ".acaacb.", ".aacaab.", ".aaaab..", "..abb...", ".d......"], { a: "#3f9a4d", b: "#2f7a3f", c: "#fff6dc", d: "#8a5a2b" }],
-  m_medal: [["a....b..", ".a..b...", "..ab....", "..ccc...", ".cdddc..", ".cdedc..", ".cdddc..", "..ccc..."], { a: "#e2412d", b: "#3d8fd6", c: "#9aa0a6", d: "#d5d8dc", e: "#ffffff" }],
-  m_poem: [[".aaaaaa.", "abbbbbba", ".bccccb.", ".bbbbbb.", ".bcccbb.", ".bbbbbb.", "abbbbbba", ".aaaaaa."], { a: "#c9b896", b: "#fff6dc", c: "#5a3f24" }],
-  m_lantern: [["...aa...", "..a..a..", ".aaaaaa.", ".bcccdb.", ".bccdcb.", ".bcccdb.", ".aaaaaa.", "..aaaa.."], { a: "#5b534a", b: "#6d747a", c: "#ffe27a", d: "#fff6dc" }],
-  m_shiny: [["...a....", "...a..b.", "..aca...", "aacccaa.", "..aca...", "...a....", ".b.a....", "........"], { a: "#ffe27a", b: "#b5dcff", c: "#ffffff" }],
+// Twelve by twelve icons in letters off P, or off a few colours laid over it.
+// The dark edge round every filled cell is added in code, and a capital with
+// nothing above it is drawn lighter, so every icon is lit the same way.
+const EDGE = "#0a0d16";
+const P = {
+  g: "#3f8a4a", G: "#6fd08c", l: "#a8e8a0", y: "#c98a2a", Y: "#ffcf6a", w: "#fff6d0", W: "#ffffff", k: "#111522",
+  b: "#8a5a32", B: "#c48a4a", s: "#7f8a99", S: "#b9c3cf", r: "#a8424a", R: "#e2687a", p: "#f6b8cc",
+  u: "#2f7fa8", U: "#6fc0e0", v: "#6a4ab0", V: "#a88aff", o: "#c0602a", O: "#ff9a4a", d: "#4a2e1a", D: "#6a4428", n: "#2a3a5a",
+  a: "#a87a12", A: "#f2c230", t: "#2f8f8a", T: "#7fd6c2", e: "#3a4250", h: "#b8a27a", H: "#efe0b8",
+  i: "#8fb8d0", I: "#d8f0fa", q: "#8a2a1a", Q: "#e2412d", z: "#24502c", m: "#8a3a63", M: "#e07ab0",
+  f: "#d8781a", F: "#ffd23a", L: "#e0d4ff",
 };
+
+export const ICONS = {
+  // The places and the tabs.
+  i_pond: [["............", "............", "....pp......", "...pRRp.....", "....pp......", "..gggggg.g..", ".gGGGGGG.gg.", ".gGlGGGGGGg.", ".gGGGGGGGGg.", "..gggggggg..", "............", "............"]],
+  i_frogs: [["............", "..ww....ww..", ".wkkw..wkkw.", ".wkkwGGwkkw.", "..wwGGGGww..", ".GGGGGGGGGG.", ".GGlGGGGGGG.", ".GGkkkkkkGG.", ".GGGGGGGGGG.", "..GGgggGGG..", ".GG..gg..GG.", "............"]],
+  i_play: [["............", "....ssss....", "...sSSSSs...", "...s.YY.s...", "...sYwwYs...", "...sYwYYs...", "...sYYYYs...", "...sYYYYs...", "...sSSSSs...", "....ssss....", "............", "............"]],
+  i_make: [["............", "..sss.......", ".sSSSs......", ".sSSSSs.....", "..ssbbs.....", "....bb......", "....bb...G..", "....bb..GgG.", "....bb...g..", "....bb...g..", "............", "............"]],
+  i_town: [["............", ".....r......", "....rRr.....", "...rRRRr....", "..rRRRRRr...", "..wwYYwwB...", "..wwYYwwB...", "..BBYYBBB...", "..BBYYBBB...", "............", "............", "............"]],
+  i_bag: [["............", "....bbbb....", "...b....b...", "..BBBBBBBB..", ".BBBBBBBBBB.", ".BBBBYYBBBB.", ".BBBBYYBBBB.", ".BBBBBBBBBB.", ".BbbbbbbbbB.", "..bbbbbbbb..", "............", "............"]],
+  i_folk: [["............", "...BBBBBB...", "..BOOOOOOB..", "..BOwOOwOB..", "..BOkOOkOB..", "..BOOOOOOB..", "..BOORROOB..", "...BBBBBB...", "..VVVVVVVV..", ".VVVVVVVVVV.", ".VVVVVVVVVV.", "............"]],
+  i_fish: [["............", "............", "..........u.", "....uuuu.uu.", "..uuUUUUuuu.", ".uUWkUUUUuu.", ".uUUUUUUUuu.", "..uuUUUUuuu.", "....uuuu.uu.", "..........u.", "............", "............"]],
+  i_works: [["...U..R.....", "..U..R..Y...", "...U..R.Y...", "............", "..UURRYYYY..", ".DDDDDDDDDD.", ".DBBBBBBBBD.", ".DBBdddBBBD.", ".DBBBBBBBBD.", "..DDDDDDDD..", "............", "............"]],
+  i_market: [["............", ".nnnnnnnnnn.", ".n........n.", ".n......G.n.", ".n.....G..n.", ".n.G..G...n.", ".n..GG....n.", ".nG.......n.", ".nnnnnnnnnn.", "....b..b....", "...bb..bb...", "............"]],
+  i_bank: [["............", "............", ".....SS.....", "....SWSs....", "...SSSss.S..", "..BBSSsBBSs.", ".BBBBBBBBBB.", ".BbBBbBBbBB.", ".bbbbbbbbbb.", "............", "............", "............"]],
+  i_shops: [["............", ".RwRwRwRwRw.", ".RwRwRwRwRw.", "..rwrwrwrw..", "..B......B..", "..BHHHHUUB..", "..BHHHHUUB..", "..BhhhhUUB..", ".DDDDDDDDDD.", "............", "............", "............"]],
+  i_stall: [["............", ".RwRwRwRwRw.", ".rwrwrwrwrw.", ".B........B.", ".B..GG.YY.B.", ".B..GG.YY.B.", ".BBBBBBBBBB.", ".bDDDDDDDDb.", ".b........b.", ".b........b.", "............", "............"]],
+  i_wizard: [["......V.....", ".....VV.....", ".....VVv....", "....VVYv....", "....VVVvv...", "...VVYVVv...", "...VVVVVvv..", "..vvvvvvvvv.", ".VVVVVVVVVV.", "............", "............", "............"]],
+  i_set: [["............", ".www..YYY...", ".wWw..YwY...", ".www..YYY...", "............", ".ppp..UUU...", ".pWp..UWU...", ".ppp..UUU...", "............", "............", "............", "............"]],
+  i_pin: [["............", "....AAAA....", "...AYYYYa...", "..AYGGGGYa..", "..AYGwGGYa..", "..AYGGGGYa..", "..AYGGGGYa..", "...aYYYYa...", "....aaaa....", "............", "............", "............"]],
+  i_star: [["............", ".....Y......", ".....Y......", "....YwY.....", ".YYYYwYYYY..", "..YYYYYYY...", "...YYYYY....", "...YY.YY....", "..YY...YY...", "............", "............", "............"]],
+  i_cam: [["............", "............", "...SSS......", ".SSSSSSSSSS.", ".SeeeeeeeeS.", ".SeeTTTTeeS.", ".SeTkkkkTeS.", ".SeeTTTTeeS.", ".SSSSSSSSSS.", "............", "............", "............"]],
+  i_rest: [["............", "......YYYY..", "........Y...", ".......Y....", "......YYYY..", "..IIII......", "....I.......", "...I........", "..IIII......", "............", "............", "............"]],
+  i_gear: [["............", ".....YY.....", "..Y.YYYY.Y..", "...YYYYYY...", "..YYY..YYY..", ".YYY....YYY.", ".YYY....YYY.", "..YYY..YYY..", "...YYYYYY...", "..Y.YYYY.Y..", ".....YY.....", "............"]],
+  i_site: [["............", "....YYYY....", "..YY.YY.YY..", ".Y...YY...Y.", ".YYYYYYYYYY.", ".Y..Y..Y..Y.", ".YYYYYYYYYY.", ".Y...YY...Y.", "..YY.YY.YY..", "....YYYY....", "............", "............"]],
+  i_hood: [["............", ".....V......", "....VVV.....", "...VVVVV....", "...VVAVV....", "..VVkkkVV...", "..VVkkkVV...", ".VVVVVVVVV..", ".vAAAAAAAv..", ".v.......v..", "............", "............"]],
+
+  // New keys the Next strip and the tabs use.
+  sprout: [["............", "...GG.GG....", "..GlG.GlG...", "...GGGGG....", ".....G......", ".....G......", "..DDDDDDDD..", ".DdDdDdDdDd.", ".dDdDdDdDdD.", "............", "............", "............"]],
+  bowl: [["............", "...W..W.....", "....W..W....", "............", "..ssssssss..", ".sSSSSSSSSs.", "..sSSSSSSs..", "..sSSSSSSs..", "...ssssss...", "...OoOOoO...", "....O..O....", "............"]],
+  basket: [["............", "....bbbb....", "...b....b...", "..b......b..", ".BYBYBYBYBY.", ".YBYBYBYBYB.", "..BYBYBYBY..", "..YBYBYBYB..", "...bbbbbb...", "............", "............", "............"]],
+  burrow: [["............", "....GGGG....", "..GGlGGGGG..", ".GGGGGGGGGG.", ".GGGddddGGG.", ".GGdYYYYdGG.", ".GGdYwYYdGG.", ".GGdYYYYdGG.", ".gggggggggg.", "............", "............", "............"]],
+  spin: [["............", "....RYRY....", "...YRYRYR...", "..RYRYRYRY..", "..YRYwwRYR..", "..RYRwwYRY..", "..YRYRYRYR..", "...RYRYRY...", "....YRYR....", ".....bb.....", "....bbbb....", "............"]],
+  heart: [["............", "............", "..RR...RR...", ".RpRR.RRRR..", ".RpRRRRRRR..", ".RRRRRRRRR..", "..RRRRRRR...", "...RRRRR....", "....RRR.....", ".....R......", "............", "............"]],
+  log: [["............", "............", "..DDDDDDDD..", ".DdddddddDD.", ".DdBBBdddDdD", ".DdBdBdddDdD", ".DdBBBdddDD.", "..DDDDDDDD..", "............", "............", "............", "............"]],
+  key: [["............", "............", "..YYY.......", ".Y...Y......", ".Y...YYYYYY.", ".Y...Y..Y.Y.", "..YYY...Y...", "............", "............", "............", "............", "............"]],
+  egg: [["............", "..lll.lll...", ".lGGl.lGGl..", ".lGkl.lGkl..", "..lll.lll...", "....lll.....", "...lGGl.....", "...lGkl.....", "....lll.....", "............", "............", "............"]],
+
+  // The games, g_ and the game's key.
+  g_fish: [["............", "........b...", ".......b.W..", "......b..W..", ".....b...W..", "....b...RWR.", "...b....RRR.", "..b......R..", ".b..........", "UUUUUUUUUUUU", "uuuuuuuuuuuu", "............"]],
+  g_dive: [["............", "...UU.......", "..U..U......", "......GG....", ".....GGGG...", "....GlGGG...", "....GGGG....", "...uuGGuuu..", "..uUUUUUUUu.", "..uuuuuuuuu.", "............", "............"]],
+  g_swarm: [["............", ".k.....k....", "kWk...kWk...", ".k..k..k....", "...kWk...k..", "....k...kWk.", ".k.......k..", "kWk..k......", ".k..kWk.....", ".....k......", "............", "............"]],
+  g_lash: [["............", "..ww........", ".wkkw.......", ".wkkwGG.....", "..wwGGGRRRR.", "..GGGGG...R.", "..GGGGG...RR", "...GGG...k..", "............", "............", "............", "............"]],
+  g_whirl: [["............", "...uuuuu....", "..u.....u...", ".u..UUU..u..", ".u.U...U.u..", ".u.U.W.U.u..", ".u.U..U..u..", ".u..UU...u..", "..u.....u...", "...uuuuu....", "............", "............"]],
+  g_sling: [["............", ".D.......D..", ".D.......D..", ".DD.....DD..", "..DD...DD...", "...DDDDD....", "....DD......", "....DD...S..", "....DD..SSS.", "....DD...S..", "............", "............"]],
+  g_sweep: [["............", ".SSS.SSS.SSS", ".SSS.SSS.SkS", "............", ".SSS.SkS.SSS", ".SSS.SSS.SSS", "............", ".SkS.SSS.SSS", ".SSS.SSS.SSS", "............", "............", "............"]],
+  g_putt: [["............", "......R.....", "......RR....", "......RRR...", "......b.....", "......b.....", "..ggggbgggg.", ".gGGGGkGGGGg", ".gGlGGGGGGGg", "..gggggggg..", "............", "............"]],
+  g_race: [["............", "..bWkWkW....", "..bkWkWk....", "..bWkWkW....", "..bkWkWk....", "..b.........", "..b.........", "..b.........", ".bbb........", "............", "............", "............"]],
+  g_cross: [["............", "............", ".SSSSSSSSSS.", ".e.ee.ee.e..", ".SSSSSSSSSS.", "............", "....GGGG....", "...GwGGwG...", "...GGGGGG...", "UUUUUUUUUUUU", "uuuuuuuuuuuu", "............"]],
+  g_raft: [["............", "............", "....GG......", "...GGGG.....", "...GwwG.....", ".BBBBBBBBB..", ".bBbBbBbBb..", "..........U.", ".UUU..UUU...", "UuuuUUuuuUU.", "............", "............"]],
+  g_leap: [["............", ".....GG.....", "....GwwG....", "....GGGG....", "....G..G....", "............", "...gGGGg....", "..........gG", "..........gG", "..gGGGg.....", "............", "............"]],
+  g_school: [["............", "............", "..SS........", ".SkSss......", "..SS..SS....", ".....SkSss..", "......SS....", "..SS........", ".SkSss......", "..SS........", "............", "............"]],
+  g_stack: [["............", "....gGGGg...", "............", "...gGGGGg...", "............", "..gGGGGGGg..", "............", ".gGGGGGGGGg.", "............", "UUUUUUUUUUUU", "............", "............"]],
+  g_skip: [["............", "............", "......SS....", ".....SWSs...", ".....ssss...", "............", "............", "..U...U...U.", ".U.U.U.U.U.U", "............", "............", "............"]],
+  g_drop: [["............", ".....SS.....", "....SWSs....", ".....ss.....", "............", "..G.....G...", "..G..G..G...", "..G..G..G...", "..g..G..g...", ".....g......", "............", "............"]],
+  g_chorus: [["............", ".......YY...", ".......Y.Y..", ".......Y....", ".....YYY....", "....YYYY....", ".....YY.....", "............", "..DDDDDDDD..", ".DdddddddDD.", "..DDDDDDDD..", "............"]],
+  g_shell: [["............", "............", "............", "...BBB......", "..BBBBB.....", ".BBbBbBB....", ".bbbbbbb....", "........SSS.", ".......SWSSs", "......ssssss", "............", "............"]],
+  g_jar: [["............", "...BBBBBB...", "....SSSS....", "...S....S...", "..S.lk.lk.S.", "..S.ll.ll.S.", "..S..lk...S.", "..S..ll...S.", "..S.......S.", "...SSSSSSS..", "............", "............"]],
+  g_flick: [["............", "..ww........", ".wkkw.......", ".wkkwGG.....", "..wwGGGRRRRk", "..GGGGG...kW", "..GGGGG....k", "...GGG......", "............", "............", "............", "............"]],
+
+  // Rocks.
+  peb: [["............", "............", "............", "....ssss....", "...sSSSSs...", "..sSWSSSSs..", "..sSSSSSSs..", "...ssssss...", "............", "............", "............", "............"]],
+  agate: [["............", "....oooo....", "...oOHHOo...", "..oOHOOHOo..", "..oHOooOHo..", "..oHOooOHo..", "..oOHOOHOo..", "...oOHHOo...", "....oooo....", "............", "............", "............"]],
+  quartz: [["............", ".....L......", "....LLc.....", "....LLc.....", "...LLLc..L..", "...LLLccLLc.", "..LLLLccLLc.", "..LLLcccLcc.", "...hhhhhhhh.", "............", "............", "............"], { L: "#e6e0f2", c: "#a79fc0", h: "#6f6890" }],
+  geode: [["............", "....cccc....", "...cVVVVc...", "..cVLLLLVc..", "..cVLWLLVc..", "..cVLLLLVc..", "..cVVLLVVc..", "...cVVVVc...", "....cccc....", "............", "............", "............"], { c: "#5b534a" }],
+  amethyst: [["............", ".....V......", "....VLv.....", "...VVLvv....", "...VVLvv....", "..VVVLvvv...", "..VVVLvvv...", "..VVVLvvv...", "...vvvvv....", "............", "............", "............"]],
+  calcite: [["............", ".....SS.....", "....SWWs....", "...SWWSss...", "..SWWSSsss..", "...SWSSss...", "....SSss....", ".....ss.....", "............", "............", "............", "............"]],
+  pyrite: [["............", "............", "..AAAAA.....", "..AYYYAa....", "..AYwYAa....", "..AYYYAAAAA.", "..aaaaaAYYa.", ".......AYYa.", ".......aaaa.", "............", "............", "............"]],
+  banded: [["............", "....oooo....", "...HHHHHH...", "..OOOOOOOO..", "..oooooooo..", "..HHHHHHHH..", "..OOOOOOOO..", "...oooooo...", "....HHHH....", "............", "............", "............"]],
+  fossil: [["............", "...hhhhhh...", "..hHHHHHHh..", ".hHHccccHHh.", ".hHcHHHHcHh.", ".hHcHccHcHh.", ".hHcHHcccHh.", ".hHHcHHHHHh.", "..hHHHHHHh..", "...hhhhhh...", "............", "............"], { h: "#8a7a5a", H: "#e3d6b0", c: "#8a7a5a" }],
+  wood: [["............", "............", ".DDDDDDDDDD.", ".DBBhBBBBBD.", ".DBhhhBBhBD.", ".DBBhBBhhBD.", ".DBBBBBBhBD.", ".DDDDDDDDDD.", "............", "............", "............", "............"]],
+  moonstone: [["............", "....iiii....", "...iIIUUi...", "..iIIIIUUi..", "..iIWIIIUi..", "..iIIIIIIi..", "...iIIIIi...", "....iiii....", "............", "............", "............", "............"]],
+
+  // Garden, larder and wheel things.
+  cricket: [["............", "..........b.", "...BBBB..b..", "..BBkBBBBb..", ".BBBBBBBBB..", "..BBBBBBBBb.", "..b.b..b..b.", ".b..b..b...b", "............", "............", "............", "............"]],
+  hat: [["............", "............", "....RRRR....", "...RRpRRR...", "...RRRRRR...", "...YYYYYY...", ".RRRRRRRRRR.", "..rrrrrrrr..", "............", "............", "............", "............"]],
+  sticks: [["............", "..........b.", ".........bB.", "...b....bB..", "...Bb..bB...", "....BbbB....", "....bBBb....", "...bB..Bb...", "..bB....B...", ".bB.........", "............", "............"]],
+  reeds: [["............", "..D...D.....", "..D..DdD....", ".DdD..D..D..", "..D...g.DdD.", "..g...g..D..", "..g..gg..g..", "..gg.g..gg..", "...gggggg...", "............", "............", "............"]],
+  clay: [["............", "............", "....oooo....", "..ooOOOOoo..", ".oOOOwOOOOo.", ".oOOOOOOOOo.", ".ooOOOOOOoo.", "..oooooooo..", "............", "............", "............", "............"]],
+  duckweed: [["............", "..GG........", ".GlGG...GG..", ".GGGG..GlGG.", "..GG...GGGG.", ".......gGG..", "...GG.......", "..GlGG..GG..", "..GGGG.GlGG.", "...gG..GGGG.", "............", "............"]],
+  watercress: [["............", "...GG..GG...", "..GlGG.GlGG.", "..GGGgGGGG..", "...GG.gGG...", ".GG..g......", "GlGGgg......", ".GGG.g......", ".....g......", ".....g......", "............", "............"]],
+  mayfly: [["............", "..II...II...", "..IWI.IWI...", "...IIhII....", ".....hh.....", ".....hh.....", "......h.....", "......h.....", ".....h.h....", "....h...h...", "............", "............"], { h: "#c9b25a" }],
+  lotus: [["............", ".....pp.....", "....pMMp....", "..p.pMMp.p..", "..pMpMMpMp..", "..pMMMMMMp..", "...pMMMMp...", "..GGGGGGGG..", ".GgGGGGGGgG.", "..gggggggg..", "............", "............"]],
+  marigold: [["............", "....F.F.....", "...FFFFF....", "..FFfFfFF...", "...FfffF....", "..FFfFfFF...", "...FFFFF....", "....FgF.....", ".....g..G...", ".....gGGG...", ".....g......", "............"]],
+  firefly: [["............", "...S..S.....", "....SS......", "...eeee.....", "..eeEEee....", "..eYYYYe....", "..YwYYYY....", "...YYYY.....", "....YY......", "............", "............", "............"], { E: "#5a4a38", e: "#3a2e22" }],
+  morel: [["............", ".....hh.....", "....hDhh....", "...hDhDhh...", "...hhDhDh...", "...hDhhDh...", "...hhDhhh...", "....hhhh....", ".....HH.....", ".....HH.....", "....HHHH....", "............"], { h: "#9a7448", D: "#5a3f24", H: "#e9dcc0" }],
+  snail: [["............", "............", "...BBBB.....", "..BHHHHB....", "..BHBBHB....", "..BHBHHB..h.", "..BHHHB...h.", "...BBBhhhhh.", ".hhhhhhhhhh.", "............", "............", "............"], { h: "#cfc7a8" }],
+  cap: [["............", "............", "...cccccc...", "..cSSSSSSc..", ".cSSRRRSSSc.", ".cSRRRRRSSc.", ".cSSRRRSSSc.", "..cSSSSSSc..", "...cccccc...", "............", "............", "............"], { c: "#6d747a" }],
+  feather: [["............", ".........Ss.", "........SSs.", ".......SSs..", "......SSs...", ".....SSs....", "....SSs.....", "...SSs......", "..eSs.......", ".e..........", "e...........", "............"]],
+  smallfry: [["............", "............", "..SSS..S....", ".SWSSSSS....", "..SSS..S....", "............", "......SSS..S", ".....SWSSSSS", "......SSS..S", "............", "............", "............"], { S: "#9fb7c0", W: "#dfe9ec" }],
+  fillet: [["............", "............", "....oooo....", "..ooppppo...", ".oppPPPppo..", ".opwPPpPPpo.", ".opPPwPPPpo.", "..opPPPppo..", "...ooopoo...", "............", "............", "............"], { o: "#c9744f", P: "#f2b8a0", p: "#e8a088" }],
+
+  // Drops, dyes and patterns are filled in below from one shape each.
+
+  f_stones: [["............", "............", "............", "....SSSS....", "...SSWSSs...", "...ssssss...", "......SSSs..", "..SSS.SSSss.", ".SSSSsssss..", ".ssssss.....", "............", "............"]],
+  f_reeds: [["............", "...D....D...", "...D...DdD..", "..DdD...D...", "...D..D.g...", "...g.DdDg...", "...g..D.g...", "...g..g.g...", "..gg..g.gg..", ".gggggggggg.", "............", "............"]],
+  bait_worms: [["............", "..R...R.....", ".R.R.R.R....", "...R...R....", "..SSSSSSSS..", ".SeeeeeeeeS.", ".SeDDDDDDeS.", ".SeDdDDdDeS.", ".SeeeeeeeeS.", "..SSSSSSSS..", "............", "............"]],
+  bait_lure: [["............", ".......S....", "..YYYY.S....", ".YYwYYYS....", ".YYkYYYYs...", ".aYYYYYa....", "..aaaa.S....", ".......S.S..", "........SS..", "............", "............", "............"]],
+
+  // Trinkets.
+  t_acorn: [["............", ".....d......", "...DDDDD....", "..DdDdDdD...", "..DDDDDDD...", "..BBBBBBB...", "..BHBBBBB...", "...BBBBB....", "....BBB.....", ".....B......", "............", "............"], { H: "#e3c57a" }],
+  t_pinecone: [["............", ".....G......", "....DbD.....", "...DbDbD....", "...bDbDb....", "..DbDbDbD...", "..bDbDbDb...", "...DbDbD....", "....bDb.....", ".....D......", "............", "............"]],
+  t_marble: [["............", "............", "....uuuu....", "...uUUUUu...", "..uUWRUUUu..", "..uUURRUUu..", "..uUUURRUu..", "..uUUUUUUu..", "...uuuuuu...", "............", "............", "............"]],
+  t_button: [["............", "............", "....HHHH....", "...HHHHHH...", "..HHhHHhHH..", "..HHHHHHHH..", "..HHhHHhHH..", "...HHHHHH...", "....hhhh....", "............", "............", "............"]],
+  t_boat: [["............", ".....W......", ".....WW.....", ".....WWW....", ".....WWWW...", ".....b......", "..SSSSSSSS..", "...SSSSSS...", "TTTTTTTTTTTT", "............", "............", "............"]],
+  t_duck: [["............", "....FFF.....", "...FFkFF....", "...FFFFFOO..", "....FFF.....", ".F..FFFF....", ".FFFFFFFFF..", ".FFFFFFFFF..", "..fffffff...", "............", "............", "............"]],
+  t_cone: [["............", ".....O......", ".....O......", "....OOO.....", "....www.....", "...OOOOO....", "...OOOOO....", "..wwwwwww...", "..OOOOOOO...", ".eeeeeeeee..", "............", "............"]],
+  t_chanterelle: [["............", "............", "..FFF..FFF..", ".FffFFFFffF.", "..FFffffFF..", "...FFFFFF...", "....FFFF....", "....FFFF....", ".....FF.....", "....FFFF....", "............", "............"]],
+  t_clover: [["............", "...GG.GG....", "..GlGGGlG...", "..GGGgGGG...", "...GgggG....", "..GGGgGGG...", "..GlGGGlG...", "...GG.GG....", ".....g......", "......g.....", "............", "............"]],
+  t_earring: [["............", ".....YY.....", "....Y..Y....", ".....YY.....", ".....A......", "....AUA.....", "...AUUUA....", "...AUWUA....", "....AUA.....", ".....A......", "............", "............"]],
+  t_globe: [["............", "...IIIIII...", "..IuuuWuuI..", "..IuWuuuuI..", "..IuuGGuuI..", "..IuGGGGuI..", "...IIIIII...", "..BBBBBBBB..", "..bbbbbbbb..", "............", "............", "............"]],
+  t_gnome: [["............", ".....Q......", "....QQ......", "....QQQ.....", "...QQQQQ....", "...HHHHH....", "...HkHkH....", "...wwwww....", "..UwwwwwU...", "..UUUUUUU...", "...d...d....", "............"]],
+  t_agaric: [["............", "....QQQQ....", "..QQwQQQQQ..", ".QQQQQQwQQQ.", ".QwQQQQQQwQ.", ".qqqqqqqqqq.", "....HHHH....", "....HHHH....", "....HHHH....", "...HHHHHH...", "............", "............"]],
+  t_robot: [["............", ".....Q......", ".....S......", "...SSSSS....", "...SYSYS....", "...SSSSS....", "..eSSSSSe...", "..eSUUSSe...", "...SSSSS....", "...S...S....", "............", "............"]],
+  t_disco: [["............", ".....e......", "....SWSS....", "...SsSsSs...", "..SsWsSsSs..", "..sSsSsWsS..", "..SsSsSsSs..", "...sSsSsS...", "....SsSs....", "............", "............", "............"]],
+  t_jar: [["............", "...BBBBBB...", "....SSSS....", "...S....S...", "..S..Y...S..", "..S...Y..S..", "..S.Y....S..", "..S....Y.S..", "..S..Y...S..", "...SSSSSS...", "............", "............"]],
+  t_goldmorel: [["............", ".....AA.....", "....AaAA....", "...AaAaAA...", "...AAaAaA...", "...AaAAaA...", "...AAaAAA...", "....AAAA....", ".....HH.....", ".....HH.....", "....HHHH....", "............"]],
+  t_pearl: [["............", "............", "............", "....WWW.....", "...WWWWW....", "...WWWWh....", "....hhh.....", "..HHHHHHHH..", ".BHHHHHHHHB.", "..BBBBBBBB..", "............", "............"], { W: "#f6f0e6", h: "#cfc7b8" }],
+  t_raft: [["............", ".....W......", ".....WW.....", ".....WWW....", ".....b......", ".BBBBBBBBBB.", ".bBbBbBbBbB.", ".BBBBBBBBBB.", "TTTTTTTTTTTT", "............", "............", "............"]],
+  t_basket: [["............", "....bbbb....", "...b....b...", "..b......b..", ".BYBYBYBYBY.", ".YBYBYBYBYB.", "..BYBYBYBY..", "..YBYBYBYB..", "...bbbbbb...", "............", "............", "............"]],
+  t_pot: [["............", "............", "....oooo....", ".....OO.....", "....OOOO....", "...OOOOOO...", "..OOOOOOOO..", "..OwOOOOOO..", "...OOOOOO...", "....oooo....", "............", "............"]],
+  t_flute: [["............", ".........hH.", "........hHh.", ".......hkh..", "......hHh...", ".....hkh....", "....hHh.....", "...hkh......", "..hHh.......", ".hHh........", "............", "............"], { h: "#8a7a3a", H: "#d6c88f" }],
+  t_statue: [["............", "...ww..ww...", "..wkkwwkkw..", "..OOOOOOOO..", ".OOOOOOOOOO.", ".OOoooooOOO.", ".OOOOOOOOOO.", "..OO....OO..", ".SSSSSSSSSS.", ".ssssssssss.", "............", "............"]],
+  t_bee: [["............", "....II.II...", "....IIIII...", ".....III....", "...AAAAAA...", "..AkAkkAkA..", "..AAkAAkAA..", "...AkkAkA...", "....AAAA....", "............", "............", "............"]],
+  t_ladybird: [["............", ".....kk.....", "....kkkk....", "...QQkkQQ...", "..QQkQQkQQ..", "..QQQkkQQQ..", "..QkQQQQkQ..", "..QQQkkQQQ..", "...QQQQQQ...", "....k..k....", "............", "............"]],
+  t_hedgehog: [["............", "....D.D.D...", "...DDDDDDD..", "..DdDDdDDdD.", ".HDDDDDDDDD.", "HkHDDdDDDdD.", "HHHHDDDDDD..", ".HH.H...H...", "............", "............", "............", "............"], { H: "#e3c57a" }],
+  t_dragonfly: [["............", ".....kk.....", "IIII.uu.IIII", ".III.uu.III.", "IIII.uu.IIII", ".....uu.....", ".....uu.....", ".....uu.....", ".....uu.....", "......u.....", "............", "............"]],
+  t_newt: [["............", "............", ".OO.........", "OkOO........", "OOOOFOOO....", ".OOOOOOOOO..", ".O..O..O.OO.", "..........O.", "...........O", "............", "............", "............"]],
+  t_crayfish: [["............", ".QQ......QQ.", ".Q.Q....Q.Q.", "..QQ....QQ..", "....QkkQ....", "....QQQQ....", "....QqqQ....", "....QQQQ....", ".....QQ.....", "....QQQQ....", "............", "............"]],
+  t_mouse: [["............", "..hh........", ".hHHh.......", ".hHhh.......", "..hhhhhh....", ".khhhhhhh...", "..hhhhhhh...", "...h...h.p..", ".........p..", "........p...", "............", "............"], { h: "#a8865a", H: "#e9dcc0" }],
+
+  // Keepsakes.
+  k_frost: [["............", ".....I......", "...I.I.I....", "....III.....", ".IIIIWIIII..", "....III.....", "...I.I.I....", ".....I......", "............", "............", "............", "............"]],
+  k_web: [["............", ".I...I...I..", "..I..I..I...", "...IIIII....", ".IIIWIWIII..", "...IIIII....", "..I..I..I...", ".I...I...I..", "............", "............", "............", "............"]],
+  k_storm: [["............", "..SSSS......", ".SSSSSSSS...", "SSSSSSSSSS..", ".ssssssss...", "....YY......", "...YY.......", "....YY......", ".....Y......", "............", "............", "............"]],
+  k_shell: [["............", "............", ".....H......", "....HOH.....", "...HOHOH....", "..HOHOHOH...", "..HOHOHOH...", "...HHHHH....", "....OOO.....", "............", "............", "............"]],
+  k_snow: [["............", "............", "....WWWW....", "...WWWWWW...", "..WWWWWWIW..", "..WWWWWIIW..", "..WWWWIIIW..", "...WIIIII...", "....IIII....", "............", "............", "............"]],
+  k_lily: [["............", "............", "....p..p....", "...pMppMp...", "....pFFp....", "...pMppMp...", ".GGGGGGGGGG.", ".gGlGGGGGGg.", "..gggggggg..", "............", "............", "............"]],
+  k_penny: [["............", "....oooo....", "...oOOOOo...", "..oOOwOOOo..", "..oOOOOOOo..", "..oOOOOOOo..", "...oOOOOo...", "....oooo....", ".uuuuuuuuuu.", "..uuuuuuuu..", "............", "............"]],
+  k_kite: [["............", ".....Q......", "....QYQ.....", "...QYYYQ....", "..QQQQQQQ...", "...QYYYQ....", "....QYQ.....", ".....Q......", "......w.w...", ".......w....", "............", "............"]],
+  k_wing: [["............", ".II.........", ".IWII.......", "..IWWII.....", "...IWWWII...", "....IWWWWu..", ".....IIIIu..", "........uu..", "............", "............", "............", "............"]],
+  k_amber: [["............", "............", "....yyyy....", "...yFFFFy...", "..yFFFFFFy..", "..yFFdFFFy..", "..yFFFFFFy..", "...yFFFFy...", "....yyyy....", "............", "............", "............"], { F: "#f2a23a", d: "#3a2a12" }],
+  k_heron: [["............", "......SS....", ".....SkSS...", "......SSee..", "......S.....", ".....SS.....", "....SSSS....", "...SSSSSs...", "....SSSs....", ".....e.e....", ".....e.e....", "............"]],
+  k_moon: [["............", "....WWW.....", "...WWWWW....", "..WWWIWWW...", "..WWWWWWW...", "..WIWWWWW...", "...WWWWW....", "....WWW.....", "TTTTTTTTTTTT", "............", "............", "............"]],
+  k_blossom: [["............", "...p..p.....", "..pMppMp....", "...pFFp.....", "..pMppMp....", "...p.Dp.....", ".....D......", ".....DD.....", ".....D......", "............", "............", "............"]],
+  k_daisy: [["............", "....W.W.....", "..W.WWW.W...", "...WWFWW....", "..WWFFFWW...", "...WWFWW....", "..W.WWW.W...", "....WgW.....", ".....g......", "....gg......", "............", "............"]],
+  k_maple: [["............", ".....Q......", "..Q..Q..Q...", "..QQQQQQQ...", "...QQqQQ....", ".QQQQqQQQQ..", "..QQQqQQQ...", "....QqQ.....", ".....q......", ".....q......", "............", "............"]],
+  k_holly: [["............", "..G......G..", ".GGG....GGG.", ".GlGG..GGlG.", "..GGGGGGGG..", "...GGQQGG...", "....QQwQ....", ".....QQ.....", "............", "............", "............", "............"]],
+  k_spawn: [["............", "............", "..III.III...", ".IIkIIIkII..", ".IIIIIIIII..", "..III.III.I.", "....III..IkI", "...IIkII..I.", "....III.....", "............", "............", "............"]],
+  k_days7: [["............", "....ssss....", "...sSSSSs...", "..sSWSSSSs..", "..sSSSSSSs..", "..sSSSSSSs..", "...ssssss...", "............", "............", "............", "............", "............"]],
+  k_days30: [["............", ".HHHHHHHHHH.", ".HH.......H.", ".H....G...H.", ".H...GGG..H.", ".H....b...H.", ".H....b...H.", ".H...bbb..H.", ".HHHHHHHHHH.", "............", "............", "............"]],
+  k_days100: [["............", "....hhhh....", "....hDDh....", "...I....I...", "..I......I..", "..ITTTTTTI..", "..ITtTTTTI..", "..ITTTtTTI..", "..ITTTTTTI..", "...IIIIII...", "............", "............"], { h: "#cfe3ea" }],
+  k_days365: [["............", "...DDDDDD...", "..DHHHHHHD..", ".DHBBBBBBHD.", ".DHBDDDDBHD.", ".DHBDBBDBHD.", ".DHBDDDDBHD.", ".DHBBBBBBHD.", "..DHHHHHHD..", "...DDDDDD...", "............", "............"], { H: "#e3c57a" }],
+
+  // Mementos.
+  m_float: [["............", ".....b......", ".....b......", "....QQQ.....", "...QQQQQ....", "...WWWWW....", "....WWW.....", ".....b......", ".....b......", "UUUUUUUUUUUU", "............", "............"]],
+  m_notebook: [["............", "..dmmmmmm...", "..dMMMMMM...", "..dMwwwwM...", "..dMMMMMM...", "..dMppppM...", "..dMMMMMM...", "..dMMMMMM...", "..dmmmmmm...", "............", "............", "............"]],
+  m_gizmo: [["............", "..b.....b...", "...b...b....", "....b.b.....", ".....W......", "....b.b.....", "...b...b.SS.", "..b.....bSS.", "........sss.", "............", "............", "............"]],
+  m_bag: [["............", "....DDDD....", "...D....D...", "..GGGGGGGG..", ".GgggggggG..", ".GGGGYYGGG..", ".GGGGYYGGG..", ".GGGGGGGGG..", "..gggggggg..", "............", "............", "............"]],
+  m_trowel: [["............", ".........bb.", "........bb..", ".......bb...", "......ss....", ".....sSs....", "....sSSs....", "...sSSs.....", "..sSSs......", "..sss.......", "............", "............"]],
+  m_mud: [["............", "...BBBBBB...", "...BBBBBB...", "..I......I..", "..IDDDDDDI..", "..IDdDDDDI..", "..IDDDdDDI..", "..IDDDDDDI..", "...IIIIII...", "............", "............", "............"]],
+  m_spoon: [["............", "..BBB.......", ".BHHHB......", ".BHHHB......", ".BHHHB......", "..BBBb......", ".....b......", "......b.....", ".......b....", "........b...", "............", "............"], { H: "#e3c57a" }],
+  m_leaf: [["............", "........GG..", "......GGGG..", "....GGGlGG..", "...GGGlGGG..", "..GGGlGGGG..", "..GGlGGGG...", "..GlGGGG....", "..lGGG......", ".D..........", "............", "............"]],
+  m_medal: [["............", "..Q.....U...", "...Q...U....", "....Q.U.....", ".....A......", "....AAAA....", "...AAYYAA...", "...AYwYYA...", "...AAYYAA...", "....AAAA....", "............", "............"]],
+  m_poem: [["............", "..hhhhhhhh..", ".hHHHHHHHHh.", "..HddddddH..", "..HHHHHHHH..", "..HdddddHH..", "..HHHHHHHH..", "..HddddHHH..", ".hHHHHHHHHh.", "..hhhhhhhh..", "............", "............"]],
+  m_lantern: [["............", ".....ee.....", "....e..e....", "...eeeeee...", "...SYYYwS...", "...SYYwYS...", "...SYYYYS...", "...SYYYYS...", "...eeeeee...", "....eeee....", "............", "............"]],
+  m_shiny: [["............", ".....Y......", ".....Y......", "....YwY..I..", ".YYYwWwYYY..", "....YwY.....", ".....Y......", "..I..Y......", "............", "............", "............", "............"]],
+
+  mastery: [["............", "..AAAAAAAA..", ".AAYYYYYYAA.", ".A.AYwYYA.A.", "..AAYYYYAA..", "....AYYA....", ".....AA.....", ".....AA.....", "....aaaa....", "...AAAAAA...", "............", "............"]],
+};
+
+// One shape each for things that only differ by colour. c is the main colour
+// and d its shade.
+const DROP = ["............", ".....SS.....", ".....ss.....", "....cccc....", "...cCCCCc...", "...cWCCCc...", "...cCCCCc...", "...cCCCCc...", "....cccc....", "............", "............", "............"];
+const DYE = ["............", ".....SS.....", ".....ss.....", "....CCCC....", "...CCCCCC...", "...CWCCCC...", "...CWCCCC...", "...CCCCCC...", "....dddd....", "............", "............", "............"];
+const DYES = { blue: "#3d8fd6", gold: "#f2c230", berry: "#e2567a", olive: "#8a9a3a", brown: "#8a5a2b", grey: "#9aa0a6" };
+const DROPS = { red: "#e2412d", pale: "#9fd8e8" };
+Object.entries(DYES).forEach(([k, c]) => { ICONS["dye_" + k] = [DYE, { C: c, d: darker(c) }]; });
+Object.entries(DROPS).forEach(([k, c]) => { ICONS["drops_" + k] = [DROP.map((r) => r.replace(/c/g, "d")), { C: c, d: darker(c) }]; });
+
+// A pattern is a stamp, its face cut in the pattern it prints.
+const STAMP_TOP = ["............", "....DD......", "....DD......", "..BBBBBB....", "..BBBBBB...."];
+const STAMP_FACE = {
+  spots: [".GGGGGGGG...", ".GgGGGgGG...", ".GGGgGGGg...", ".gGGGGgGG..."],
+  bands: [".GGGGGGGG...", ".gggggggg...", ".GGGGGGGG...", ".gggggggg..."],
+  speckled: [".GgGgGGgG...", ".GGgGgGGg...", ".gGGgGgGG...", ".GgGGgGGg..."],
+  mask: [".GGGGGGGG...", ".gggGGggg...", ".gggGGggg...", ".GGGGGGGG..."],
+  stripe: [".GGGHHGGG...", ".gggHHggg...", ".GGGHHGGG...", ".gggHHggg..."],
+};
+Object.entries(STAMP_FACE).forEach(([k, face]) => { ICONS["stamp_" + k] = [[...STAMP_TOP, ...face, "............", "............", "............"]]; });
+
+// A frame is a picture in a border, and each kind changes the border.
+const PIC = ["..OOOO.O..", "..OOOOOO..", "rrrOOOOO..", "rrrrrOOO..", "gggggggggg"];
+function framed(edge, inner) {
+  return ["............", edge.repeat(12).slice(0, 12), edge + inner.repeat(10) + edge, ...PIC.map((r) => edge + inner + r.slice(1, 9) + inner + edge), edge + inner.repeat(10) + edge, edge.repeat(12).slice(0, 12), "............", "............"];
+}
+ICONS.pc_gilt = [framed("A", "Y")];
+ICONS.pc_lily = [framed("G", "g").map((r, i) => (i === 1 ? "GGGpGGGGGpGG" : r))];
+ICONS.pc_night = [framed("n", "e").map((r, i) => (i === 2 ? "neYeeeeeeYen" : r))];
+ICONS.pc_stamp = [["............", "..w.w.w.w...", ".wwwwwwwww..", "..wGGGGGw...", ".wwGkGGkGww.", "..wGGGGGw...", ".wwGlllGww..", "..wGGGGGw...", ".wwwwwwwww..", "..w.w.w.w...", "............", "............"]];
 
 // A job's tool is one shape a job, its working part in the tier's metal: a
 // twig or plain wood, then iron, then brass. Each is tool_<job>_<tier>.
 const TOOL_SHAPES = {
-  bugs: ["..aaaa..", ".acacaa.", ".aacaca.", ".acacaa.", "..aaaa..", "...b....", "....b...", ".....b.."],
-  pebbles: ["........", "c......c", "caaaaaac", "addaadda", "addaadda", ".aa..aa.", "........", "........"],
-  garden: ["........", "..bbb...", ".b...b..", "aaaaa..a", "aaaaaaa.", "aaaaaa..", "aaaaa...", "........"],
-  sticks: ["..aaa...", ".aaab...", "aaa.b...", "....b...", "....b...", "....b...", "....b...", "........"],
-  reeds: ["..aaa...", ".a...a..", "......a.", "......a.", ".....a..", "....b...", "...b....", "..b....."],
-  mud: ["....b...", "...bbb..", "....b...", "....b...", "...aaa..", "...aaa..", "...aaa..", "....a..."],
-  craft: ["aaaaa...", "aaaaa...", "..b.....", "..b.....", "..b.....", "..b.....", "..b.....", "........"],
+  bugs: ["............", "...AAAAA....", "..A.a.a.A...", "..Aa.a.aA...", "..A.a.a.A...", "...AAAAA....", ".....B......", "......B.....", ".......B....", "........B...", ".........B..", "............"],
+  pebbles: ["............", "............", "............", ".B........B.", ".BAAAAAAAAB.", "..ATTTTTTA..", "..AtTtTTtA..", "...AAAAAA...", "............", "............", "............", "............"],
+  garden: ["............", "...BBB......", "..B...B.....", ".AAAAAA...A.", ".AAAAAAA.A..", ".AAAAAAAA...", ".aAAAAAA....", ".aaaaaa.....", "............", "............", "............", "............"],
+  sticks: ["............", "...AAA......", "..AAAAB.....", "..AAa.B.....", "......B.....", "......B.....", "......B.....", "......B.....", "......b.....", "............", "............", "............"],
+  reeds: ["............", "....AAAA....", "...A....A...", ".........A..", ".........A..", "........A...", ".......A....", "......B.....", ".....B......", "....B.......", "............", "............"],
+  mud: [".....BB.....", "....B..B....", ".....BB.....", "......B.....", "......B.....", ".....AAA....", ".....AAA....", ".....AAA....", ".....aAa....", "......a.....", "............", "............"],
+  craft: ["............", "..AAAAAA....", "..AAAAAA....", "..aaBaaa....", "....B.......", "....B.......", "....B.......", "....B.......", "....b.......", "............", "............", "............"],
 };
-const TOOL_METAL = ["#c9974f", "#cfd3d6", "#f2c230"];
-ICONS.mastery = [["...a....", "...a....", ".aabaa..", "aabbbaa.", ".abbba..", ".ab.ba..", "aa...aa.", "........"], { a: "#ffb000", b: "#ffe27a" }];
-Object.entries(TOOL_SHAPES).forEach(([job, rows]) => TOOL_METAL.forEach((a, i) => {
-  ICONS["tool_" + job + "_" + (i + 1)] = [rows, { a, b: "#8a5a2b", c: "#4a3318", d: "#7fd6c2" }];
+const TOOL_METAL = [["#c9974f", "#8a6230"], ["#cfd3d6", "#7f8a99"], ["#f2c230", "#a87a12"]];
+Object.entries(TOOL_SHAPES).forEach(([job, rows]) => TOOL_METAL.forEach(([A, a], i) => {
+  ICONS["tool_" + job + "_" + (i + 1)] = [rows, { A, a }];
 }));
+
+function darker(hex) {
+  const n = parseInt(hex.slice(1), 16), f = (v) => Math.round(v * 0.65);
+  return "#" + [n >> 16, (n >> 8) & 255, n & 255].map((v) => f(v).toString(16).padStart(2, "0")).join("");
+}
+function lighter(hex) {
+  const n = parseInt(hex.slice(1), 16), f = (v) => Math.round(v + (255 - v) * 0.25);
+  return "#" + [n >> 16, (n >> 8) & 255, n & 255].map((v) => f(v).toString(16).padStart(2, "0")).join("");
+}
+
+// The finished colour of each cell, the edge and the light worked out once
+// per icon and kept, since scenes draw icons every frame.
+const cache = {};
+function cellsOf(rows, pal) {
+  const at = (x, y) => x >= 0 && y >= 0 && x < 12 && y < 12 && rows[y].charAt(x) !== "." && rows[y].charAt(x) !== "";
+  const out = [];
+  for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) {
+    let c = null;
+    if (at(x, y)) {
+      const ch = rows[y].charAt(x);
+      c = (pal && pal[ch]) || P[ch];
+      if (c && ch !== ch.toLowerCase() && !at(x, y - 1)) c = lighter(c);
+    } else if (at(x - 1, y) || at(x + 1, y) || at(x, y - 1) || at(x, y + 1)) c = EDGE;
+    out.push(c);
+  }
+  return out;
+}
+export function iconCells(key) {
+  if (!ICONS[key]) key = "peb";
+  if (!cache[key]) cache[key] = cellsOf(ICONS[key][0], ICONS[key][1]);
+  return cache[key];
+}
+
+// The two colours an ingredient is mostly made of, for the dishes.
+function mainColours(key) {
+  const n = {};
+  ICONS[key || "peb"][0].join("").split("").forEach((ch) => { if (ch !== ".") n[ch] = (n[ch] || 0) + 1; });
+  const pal = ICONS[key][1] || {}, top = Object.keys(n).sort((a, b) => n[b] - n[a]);
+  const col = (ch) => (ch && (pal[ch] || P[ch])) || "#9aa0a6";
+  return [col(top[0]), col(top[1] || top[0])];
+}
 
 // A dish is drawn as a bowl, a plate or a skewer in its two ingredients'
 // colours, with sparkles on the better ones.
 const DISH_SHAPES = {
-  bowl: ["........", "...s.s..", ".xxyyxy.", "bbbbbbbb", "bwwwwwwb", ".bwwwwb.", "..bbbb..", "........"],
-  plate: ["........", "..xxyy..", ".xyxyxy.", ".yxyxyx.", "..yyxx..", "bbbbbbbb", ".wwwwww.", "........"],
-  stick: ["......k.", ".....x..", "....xx..", "...yy...", "..yy....", ".xx.....", "kx......", "k......."],
+  bowl: ["............", "............", "....s..s....", "..xxyyxyxy..", ".SSSSSSSSSS.", ".sSSSSSSSSs.", "..sSSSSSSs..", "...ssssss...", "............", "............", "............", "............"],
+  plate: ["............", "............", "....xxyy....", "...xyxyxyx..", "...yxyxyxy..", "....yyxx....", ".SSSSSSSSSS.", "..ssssssss..", "............", "............", "............", "............"],
+  stick: ["............", ".........B..", "........xx..", ".......xxx..", "......yyy...", ".....yyy....", "....xxx.....", "...xxx......", "..B.........", ".B..........", "............", "............"],
 };
 
 export function drawDish(ctx, d, x, y, s) {
   const shape = /skewer/i.test(d.name) ? "stick" : /soup|stew|tea|broth|jam/i.test(d.name) ? "bowl" : "plate";
-  const A = ICONS[d.a][1], B = ICONS[d.b][1];
-  const col = { x: A.a, y: B.b || B.a, b: "#d5d8dc", w: "#9aa0a6", s: "rgba(255,246,220,0.5)", k: "#c9974f" };
-  DISH_SHAPES[shape].forEach((row, r) => {
-    for (let c = 0; c < 8; c++) {
-      const ch = row.charAt(c);
-      if (ch !== ".") { ctx.fillStyle = col[ch]; ctx.fillRect(x + c * s, y + r * s, s, s); }
-    }
-  });
+  const [xa] = mainColours(ICONS[d.a] ? d.a : "peb"), [ya, yb] = mainColours(ICONS[d.b] ? d.b : "peb");
+  const cells = cellsOf(DISH_SHAPES[shape], { x: xa, y: ya === xa ? yb : ya, s: "#7f8a99", S: "#d5d8dc", B: "#c48a4a" });
+  cells.forEach((c, i) => { if (c) { ctx.fillStyle = c; ctx.fillRect(x + (i % 12) * s, y + Math.floor(i / 12) * s, s, s); } });
   if (d.tier >= 3) {
-    ctx.fillStyle = "#fff6dc";
-    ctx.fillRect(x, y + s, s, s); ctx.fillRect(x + 7 * s, y, s, s);
-    if (d.tier === 4) ctx.fillRect(x + 6 * s, y + 5 * s, s, s);
+    ctx.fillStyle = "#fff6d0";
+    ctx.fillRect(x, y + s, s, s); ctx.fillRect(x + 11 * s, y, s, s);
+    if (d.tier === 4) ctx.fillRect(x + 10 * s, y + 9 * s, s, s);
   }
 }
 
 export function dishCanvas(d, s) {
   const cv = document.createElement("canvas");
-  cv.width = cv.height = 8 * s;
+  cv.width = cv.height = 12 * s;
   drawDish(cv.getContext("2d"), d, 0, 0, s);
   return cv;
 }
@@ -188,16 +299,12 @@ export const SLICE_ICON = { P25: "peb", P40: "peb", CRI: "cricket", AGA: "agate"
 export const SLICE_NAME = { P25: "25 pebbles", P40: "40 pebbles", CRI: "Cricket", AGA: "River agate", QUA: "Smoky quartz", GEO: "Geode", HAT: "Hat of the day", DYE: "Dye of the day" };
 
 export function drawIcon(ctx, key, x, y, s) {
-  const ic = ICONS[key] || ICONS.peb;
-  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
-    const ch = ic[0][r].charAt(c);
-    if (ch !== ".") { ctx.fillStyle = ic[1][ch]; ctx.fillRect(x + c * s, y + r * s, s, s); }
-  }
+  iconCells(key).forEach((c, i) => { if (c) { ctx.fillStyle = c; ctx.fillRect(x + (i % 12) * s, y + Math.floor(i / 12) * s, s, s); } });
 }
 
 export function iconCanvas(key, s) {
   const cv = document.createElement("canvas");
-  cv.width = cv.height = 8 * s;
+  cv.width = cv.height = 12 * s;
   drawIcon(cv.getContext("2d"), key, 0, 0, s);
   return cv;
 }
@@ -228,7 +335,7 @@ export function drawFurn(ctx, key, x, y, s, lit) {
 
 // Stones and bulrushes are drawn by hand on the pond, so the shop has icons.
 export function furnCanvas(key) {
-  if (!FURN[key]) return iconCanvas(key, 3);
+  if (!FURN[key]) return iconCanvas(key, 2);
   const rows = FURN[key][0], cv = document.createElement("canvas");
   cv.width = rows[0].length * 2; cv.height = rows.length * 2;
   drawFurn(cv.getContext("2d"), key, 0, 0, 2, true);

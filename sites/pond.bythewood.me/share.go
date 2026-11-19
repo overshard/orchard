@@ -294,15 +294,15 @@ func drawCard(sh *shown) *image.RGBA {
 			drawTrinket(img, sh.Spots[spot], ox+x*px/8, oy+y*px/8, px/2)
 		}
 	}
-	at(2, 160, 12)
+	at(2, 152, 4)
 	if grown {
 		lilyPad(img, ox, oy, px)
 	}
 	g := lookFor(f.Seed, f.Mods)
 	drawSprite(img, spriteCells(g, f.Stage, f.Day, f.Hat.Shape), spriteColours(g, f.Hat), ox, oy, px)
 	if grown {
-		at(0, 40, 236)
-		at(1, 280, 236)
+		at(0, 32, 220)
+		at(1, 272, 220)
 	}
 	for i := 0; i < sh0; i += 4 {
 		for x := sx; x < sx+sw; x++ {
@@ -342,18 +342,35 @@ func drawCard(sh *shown) *image.RGBA {
 	return img
 }
 
+// drawTrinket draws an icon the way icons.js does, a dark edge round every
+// filled cell and a capital with nothing above it a quarter lighter.
 func drawTrinket(img *image.RGBA, kind string, x, y, s int) {
 	ic, ok := trinketIcons[kind]
 	if !ok {
 		return
 	}
+	at := func(r, c int) bool {
+		return r >= 0 && c >= 0 && r < len(ic.rows) && c < len(ic.rows[r]) && ic.rows[r][c] != '.'
+	}
 	for r, row := range ic.rows {
 		for c := range len(row) {
-			if hex, ok := ic.col[row[c]]; ok {
-				fill(img, x+c*s, y+r*s, s, s, rgb(hex))
+			switch {
+			case at(r, c):
+				col := rgb(ic.col[row[c]])
+				if row[c] >= 'A' && row[c] <= 'Z' && !at(r-1, c) {
+					col = lighter(col)
+				}
+				fill(img, x+c*s, y+r*s, s, s, col)
+			case at(r-1, c) || at(r+1, c) || at(r, c-1) || at(r, c+1):
+				fill(img, x+c*s, y+r*s, s, s, rgb("#0a0d16"))
 			}
 		}
 	}
+}
+
+func lighter(c color.RGBA) color.RGBA {
+	f := func(v uint8) uint8 { return uint8(math.Round(float64(v) + float64(255-v)*0.25)) }
+	return color.RGBA{f(c.R), f(c.G), f(c.B), c.A}
 }
 
 // bracket draws an amber corner, top left when flip is false and bottom right

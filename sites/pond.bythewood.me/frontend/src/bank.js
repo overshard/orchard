@@ -193,7 +193,7 @@ function render(p) {
     const words = document.createElement("span"), name = document.createElement("b");
     name.textContent = known.name;
     words.append("In the cookbook", name, TIERS[known.tier] + ", Big Bean pays " + known.worth);
-    rec.append(dishCanvas(known, 3), words);
+    rec.append(dishCanvas(known, 2), words);
   } else if (picked.length === 2) rec.textContent = "Not in the cookbook yet. Cook it to see what it makes.";
   drawPot($("pot-art"), picked, p.day && p.day.night);
 
@@ -212,7 +212,7 @@ function render(p) {
         setPond(v);
       }, (e) => { say("cook-out", e.message); sell.disabled = false; });
     });
-    li.append(dishCanvas(d, 3), name, sell);
+    li.append(dishCanvas(d, 2), name, sell);
     dishes.append(li);
   });
   $("bean-room").hidden = !k.dishes.length;
@@ -264,7 +264,7 @@ function renderDye(p) {
   box.hidden = !d.level || d.busy;
   d.rocks.filter((r) => r.count > 0).forEach((r) => {
     const times = rocks.filter((x) => x === r.kind).length;
-    const b = slot(iconCanvas(r.kind, 4), {
+    const b = slot(iconCanvas(r.kind, 3), {
       tier: tier[r.kind] || 0, name: r.name, count: r.count, on: times > 0,
       sub: times ? "In x" + times : "", onClick: () => pickRock(r.kind, r.count),
     });

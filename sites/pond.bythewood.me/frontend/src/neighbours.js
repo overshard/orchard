@@ -221,7 +221,7 @@ function dishRows(n, body) {
     const row = el("div", "nb-dish"), what = el("span", "what"), pts = worth(n, d);
     const why = d.kind === n.fav_kind ? "Its favourite, " : d.kind === n.also_kind ? "Its fish favourite, " : "";
     what.append(el("b", "", d.name), el("span", "", why + TIERS[d.tier].toLowerCase() + ", " + d.count + " in your bag"));
-    row.append(dishCanvas(d, 3), what, el("b", "nb-plus", "+" + pts),
+    row.append(dishCanvas(d, 2), what, el("b", "nb-plus", "+" + pts),
       button("Give", (b) => give(n, d, b, sheetSay), d.kind === n.fav_kind ? "primary" : ""));
     body.append(row);
   });
@@ -243,12 +243,12 @@ function show(n, d, kind) {
     const facts = el("div", "facts"), r = recipe(n), st = favState(n);
     facts.append(fact("Right now", n.now.doing));
     const said = st.s === "bag" ? ", and there's one in your bag" : st.s === "cook" ? ", and you can cook it" : st.s === "need" ? ", short of " + st.short.map(nameOf).join(" and ") : "";
-    facts.append(fact("Favourite dish", n.fav + ", " + favWorth(n) + " points", r ? dishCanvas({ a: r[0], b: r[1], name: n.fav }, 4) : null,
+    facts.append(fact("Favourite dish", n.fav + ", " + favWorth(n) + " points", r ? dishCanvas({ a: r[0], b: r[1], name: n.fav }, 3) : null,
       r ? nameOf(r[0]) + " and " + nameOf(r[1]) + said : "It'll say how to cook it at two hearts"));
-    if (n.also) facts.append(fact("Also likes", n.also + ", " + state.pond.neighbours.gift_points[n.also_tier] * 2 + " points", n.also_a ? dishCanvas({ a: n.also_a, b: n.also_b, name: n.also }, 4) : null,
+    if (n.also) facts.append(fact("Also likes", n.also + ", " + state.pond.neighbours.gift_points[n.also_tier] * 2 + " points", n.also_a ? dishCanvas({ a: n.also_a, b: n.also_b, name: n.also }, 3) : null,
       n.also_a ? nameOf(n.also_a) + " and " + nameOf(n.also_b) + ", from fish you've kept" : "A fish dish, and it'll say which fish at two hearts"));
     const m = p.mementos[n.id];
-    facts.append(fact("Memento", m.day ? m.name : "Something of its own, for a best friend", m.day ? iconCanvas(m.kind, 4) : null, m.day ? "Yours since " + m.day : ""));
+    facts.append(fact("Memento", m.day ? m.name : "Something of its own, for a best friend", m.day ? iconCanvas(m.kind, 3) : null, m.day ? "Yours since " + m.day : ""));
     if (n.shop) facts.append(fact("Keeps shop", n.shop));
     if (n.gossip) facts.append(fact("Heard", n.gossip));
     facts.append(fact("About", n.bio));

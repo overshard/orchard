@@ -76,7 +76,7 @@ function card(scene, frame) {
   // A postmark in the corner, the pebble off the purse in a ring.
   x.strokeStyle = f.ring; x.lineWidth = 3;
   x.beginPath(); x.arc(706, 652, 34, 0, Math.PI * 2); x.stroke();
-  drawIcon(x, "peb", 706 - 20, 652 - 20, 5);
+  drawIcon(x, "peb", 706 - 18, 652 - 18, 3);
   return cv;
 }
 

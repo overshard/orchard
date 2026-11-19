@@ -1,6 +1,6 @@
 import { $, post, state, setPond, watch, reduced, TIERS } from "./api.js";
 import { cells, colours, draw as drawCells, hatCells, hatColours, W, H } from "./frog.js";
-import { ICONS, SLICE_ICON, SLICE_NAME, drawIcon } from "./icons.js";
+import { iconCells, SLICE_ICON, SLICE_NAME, drawIcon } from "./icons.js";
 
 // The wheel is a lily pad the frog points at with its tongue. The server
 // picks the slice and this only turns the pad round to it.
@@ -26,9 +26,9 @@ function build() {
     else {
       col = k === "DYE" ? (edge < 0.6 ? "#a87a12" : "#e3b23a") : k === "HAT" ? (edge < 0.6 ? "#8f3a63" : "#d8659a") : (edge < 0.6 ? "#1f5a2c" : i % 2 ? "#3f9a4d" : "#56b45f");
       if (edge >= 0.6 && r > OR - 7 && (i % 2 ? 0 : 1) && k !== "DYE" && k !== "HAT") col = "#63c26a";
-      const u = r - 51, v = (a - mid) * r, ic = ICONS[iconOf(k)], row = Math.floor((8 - u) / 2), cl = Math.floor((v + 8) / 2);
+      const u = r - 51, v = (a - mid) * r, ic = iconCells(iconOf(k)), row = Math.floor((8 - u) * 0.75), cl = Math.floor((v + 8) * 0.75);
       if (k === "HAT") { const hp = hatAt((v + dayHat.w * dayHat.sc / 2) / dayHat.sc, (dayHat.h * dayHat.sc / 2 - u) / dayHat.sc); if (hp) col = hp; }
-      else if (row >= 0 && row < 8 && cl >= 0 && cl < 8) { const ch = ic[0][row].charAt(cl); if (ch !== ".") col = ic[1][ch]; }
+      else if (row >= 0 && row < 12 && cl >= 0 && cl < 12 && ic[row * 12 + cl]) col = ic[row * 12 + cl];
     }
     o.fillStyle = col; o.fillRect(x, y, 1, 1);
   }
@@ -61,7 +61,7 @@ function drawHat(ctx, x, y, size) {
   }
 }
 function slotIcon(ctx, k, x, y, s) {
-  if (k === "HAT") drawHat(ctx, x, y, s * 8); else drawIcon(ctx, iconOf(k), x, y, s);
+  if (k === "HAT") drawHat(ctx, x, y, s * 12); else drawIcon(ctx, iconOf(k), x, y, s);
 }
 
 function under() {
@@ -90,7 +90,7 @@ function drawWheel(now) {
   wx.textBaseline = "alphabetic"; wx.textAlign = "left"; wx.font = "500 13px " + PX;
   wx.fillStyle = "#7fd6c2"; wx.fillText("TONGUE'S ON", 16, 24);
   wx.fillStyle = "#fff6dc"; wx.font = "700 18px " + PX; wx.fillText(nameOf(on).toUpperCase(), 16, 47);
-  slotIcon(wx, on, 456, 6, 6);
+  slotIcon(wx, on, 456, 6, 4);
   const g = state.g, f = state.pond.frog, grownUp = f.stage === "frog" || f.stage === "elder" || f.stage === "froglet";
   const c = cells(g, f.stage, { blink: tongue > 0, hat: f.hat.shape, legs: f.day >= 6, t: 0 });
   drawCells(wx, c, W, H, colours(g, f.hat), CX - 44 + Math.round(wob * 3), grownUp ? 6 : -4, 2);
@@ -171,7 +171,7 @@ function legend() {
     const li = document.createElement("li"), n = document.createElement("span"), o = document.createElement("span");
     n.textContent = nameOf(k); o.className = "o"; o.textContent = seen[k] + " in " + NS;
     const cv = document.createElement("canvas");
-    cv.width = cv.height = 24; slotIcon(cv.getContext("2d"), k, 0, 0, 3);
+    cv.width = cv.height = 24; slotIcon(cv.getContext("2d"), k, 0, 0, 2);
     li.append(cv, n, o);
     box.append(li);
   });

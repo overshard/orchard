@@ -123,7 +123,7 @@ export function jobSheet(f) {
       const bar = el("span", "meter"), fill = document.createElement("i");
       fill.style.transform = "scaleX(" + (l.level >= 99 ? 1 : (l.xp - l.from) / Math.max(1, l.to - l.from)) + ")";
       bar.append(fill);
-      b.append(iconCanvas(JOB_THING[d.key], 3), el("b", "", d.name + (d.nature && f.nature === d.nature ? " ★" : "")), el("span", "lv", l.level), bar);
+      b.append(iconCanvas(JOB_THING[d.key], 2), el("b", "", d.name + (d.nature && f.nature === d.nature ? " ★" : "")), el("span", "lv", l.level), bar);
       b.addEventListener("click", () => { closeSheet(); openJob(f, d.key); });
       body.append(b);
     });
@@ -166,7 +166,7 @@ function render(p) {
   finds.textContent = "";
   d.finds.forEach((x) => {
     const got = l.level >= x.level;
-    finds.append(slot(iconCanvas(x.kind, 4), { tier: x.tier, name: got ? x.name : "Level " + x.level, found: got ? undefined : false }));
+    finds.append(slot(iconCanvas(x.kind, 3), { tier: x.tier, name: got ? x.name : "Level " + x.level, found: got ? undefined : false }));
     if (!got) finds.lastChild.querySelector(".nm").textContent = "Level " + x.level;
   });
   $("job-finds-head").hidden = d.finds.length === 0;
@@ -186,7 +186,7 @@ function toolRow(p, f, d, l, at) {
   else if (owned) line = "The pond's " + d.tools[owned - 1].name.toLowerCase() + " needs level " + d.tools[owned - 1].level + ".";
   else line = KEEPER[better.shop] + " sells a " + better.name.toLowerCase() + " for frogs at level " + better.level + ".";
   if (t && better) line += " " + KEEPER[better.shop] + " has a " + better.name.toLowerCase() + " for level " + better.level + ".";
-  const art = iconCanvas("tool_" + d.key + "_" + (t ? t.tier : 1), 4), text = el("span", "wk-what");
+  const art = iconCanvas("tool_" + d.key + "_" + (t ? t.tier : 1), 3), text = el("span", "wk-what");
   if (!t) shade(art);
   text.append(el("b", "", t ? t.name : "No tool yet"), el("span", "", line));
   box.textContent = "";
@@ -202,7 +202,7 @@ function toolRow(p, f, d, l, at) {
 function targetRow(f, d, x, level, cur) {
   const open = level >= x.level, b = el("button", "wk-tgt" + (cur ? " on" : ""));
   b.type = "button";
-  const art = iconCanvas(iconOf(x.kind), 3);
+  const art = iconCanvas(iconOf(x.kind), 2);
   if (!open) shade(art);
   const text = el("span", "wk-what");
   text.append(el("b", "", open ? x.name : "???"));
@@ -233,7 +233,7 @@ function live(p, f, force) {
     lastN = n.n;
     const box = $("job-basket");
     box.textContent = "";
-    n.basket.forEach((x) => box.append(slot(iconCanvas(iconOf(x.kind), 4), { tier: x.tier, name: x.name, count: x.n, sub: x.find ? "find" : "" })));
+    n.basket.forEach((x) => box.append(slot(iconCanvas(iconOf(x.kind), 3), { tier: x.tier, name: x.name, count: x.n, sub: x.find ? "find" : "" })));
     if (!n.basket.length) box.append(el("p", "dim wk-empty", n.misses ? "Nothing yet, " + n.misses + " missed." : "Empty for now."));
     $("job-tally").textContent = n.n + (n.n === 1 ? " action" : " actions") + (n.misses ? ", " + n.misses + " missed" : "") + ", " + n.xp.toLocaleString("en-US") + " xp waiting";
     $("job-take").disabled = n.n === 0;
@@ -296,7 +296,7 @@ export function awayCard(rows, took) {
       const said = r.actions + (r.actions === 1 ? " action" : " actions") + (r.misses ? ", " + r.misses + " missed, " + (r.why || "nothing came of them") : "") + ".";
       box.append(el("p", "", said));
       const slots = el("div", "slots wk-slots");
-      (r.things || []).forEach((x) => slots.append(slot(iconCanvas(iconOf(x.kind), 3), { tier: x.tier, name: x.name, count: x.n, sub: x.find ? "find" : "" })));
+      (r.things || []).forEach((x) => slots.append(slot(iconCanvas(iconOf(x.kind), 2), { tier: x.tier, name: x.name, count: x.n, sub: x.find ? "find" : "" })));
       if (slots.childElementCount) box.append(slots);
       const lv = el("p", "wk-lv-line");
       lv.append(el("span", "readout", ""));
@@ -352,7 +352,7 @@ function levelArt(w) {
   box.append(glass);
   if (w.opened.length) {
     const row = el("div", "slots lvup-slots");
-    w.opened.forEach((o) => row.append(slot(iconCanvas(iconOf(o.key), 4), { tier: o.tier, name: o.name, sub: OPEN_SUB[o.kind] })));
+    w.opened.forEach((o) => row.append(slot(iconCanvas(iconOf(o.key), 3), { tier: o.tier, name: o.name, sub: OPEN_SUB[o.kind] })));
     box.append(row);
   }
   return box;
@@ -369,7 +369,7 @@ export function big(done) {
       });
     }
     const pet = Object.keys(w.finds || {}).map((k) => p.trinkets.all.find((t) => t.kind === k && t.pet)).find(Boolean);
-    if (pet) reveal({ kick: "A pet!", art: iconCanvas(pet.kind, 8), name: pet.name, tier: pet.tier, line: w.frog + " found it at work. It's in your bag." });
+    if (pet) reveal({ kick: "A pet!", art: iconCanvas(pet.kind, 5), name: pet.name, tier: pet.tier, line: w.frog + " found it at work. It's in your bag." });
     const hood = w.up && w.level === 99 && p.hoods.find((h) => h.name.startsWith(w.job));
     if (hood) reveal({ kick: "Level 99!", art: hatTile(hood, true), name: hood.name, tier: 4, line: w.frog + " maxed " + w.job.toLowerCase() + ". Any frog can wear the hood, it's in your bag." });
   }

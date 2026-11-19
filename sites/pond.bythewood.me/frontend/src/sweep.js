@@ -237,7 +237,7 @@ function sweepCard(n) {
   x.fillText("pond.bythewood.me", 752, 392);
   x.strokeStyle = "#b3a583"; x.lineWidth = 3;
   x.beginPath(); x.arc(706, 86, 34, 0, Math.PI * 2); x.stroke();
-  drawIcon(x, "peb", 706 - 20, 86 - 20, 5);
+  drawIcon(x, "peb", 706 - 18, 86 - 18, 3);
   return cv;
 }
 

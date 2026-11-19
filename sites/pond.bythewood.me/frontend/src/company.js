@@ -6,7 +6,8 @@ export function callerArt(c, s, thing) {
   const cv = document.createElement("canvas"), ctx = cv.getContext("2d"), g = bred(genome(c.seed), c.mods);
   cv.width = W * s; cv.height = H * s;
   draw(ctx, cells(g, c.stage, { hat: c.hat.shape, legs: c.day >= 6 }), W, H, colours(g, c.hat), 0, 0, s);
-  if (thing) drawIcon(ctx, thing, W * s - 8 * s, H * s - 8 * s, s);
+  const k = Math.max(1, Math.round(s * 2 / 3));
+  if (thing) drawIcon(ctx, thing, W * s - 12 * k, H * s - 12 * k, k);
   return cv;
 }
 

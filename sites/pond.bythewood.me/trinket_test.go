@@ -123,15 +123,23 @@ func TestMothBuysADaysWorth(t *testing.T) {
 	}
 }
 
-// The card draws trinkets from its own copy of the page's icons.
+// The card draws trinkets from its own copy of the page's icons, with each
+// letter's colour looked up in the icon's own colours and then in P.
 func TestTrinketIconsMatchThePage(t *testing.T) {
 	raw, err := os.ReadFile("frontend/src/icons.js")
 	if err != nil {
 		t.Fatal(err)
 	}
-	line := regexp.MustCompile(`(?m)^\s+(t_\w+): \[\[(.*?)\], \{(.*?)\}\],$`)
+	src := string(raw)
+	pairs := regexp.MustCompile(`(\w): "(#\w+)"`)
+	shared := map[string]string{}
+	pal := src[strings.Index(src, "const P = {"):]
+	for _, c := range pairs.FindAllStringSubmatch(pal[:strings.Index(pal, "};")], -1) {
+		shared[c[1]] = c[2]
+	}
+	line := regexp.MustCompile(`(?m)^\s+(t_\w+): \[\[(.*?)\](?:, \{(.*?)\})?\],$`)
 	seen := 0
-	for _, m := range line.FindAllStringSubmatch(string(raw), -1) {
+	for _, m := range line.FindAllStringSubmatch(src, -1) {
 		seen++
 		ic, ok := trinketIcons[m[1]]
 		if !ok {
@@ -141,9 +149,22 @@ func TestTrinketIconsMatchThePage(t *testing.T) {
 		if got := `"` + strings.Join(ic.rows[:], `", "`) + `"`; got != m[2] {
 			t.Errorf("%s rows differ", m[1])
 		}
-		for _, c := range regexp.MustCompile(`(\w): "(#\w+)"`).FindAllStringSubmatch(m[3], -1) {
-			if ic.col[c[1][0]] != c[2] {
-				t.Errorf("%s colour %s differs", m[1], c[1])
+		own := map[string]string{}
+		for _, c := range pairs.FindAllStringSubmatch(m[3], -1) {
+			own[c[1]] = c[2]
+		}
+		for ch, hex := range ic.col {
+			want := own[string(ch)]
+			if want == "" {
+				want = shared[string(ch)]
+			}
+			if hex != want {
+				t.Errorf("%s colour %c is %s on the card and %s on the page", m[1], ch, hex, want)
+			}
+		}
+		for _, ch := range strings.ReplaceAll(strings.Join(ic.rows[:], ""), ".", "") {
+			if _, ok := ic.col[byte(ch)]; !ok {
+				t.Errorf("%s has no colour for %c on the card", m[1], ch)
 			}
 		}
 	}

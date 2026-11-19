@@ -56,7 +56,7 @@ function shelf(shop, sv, pebbles) {
       what.append(was);
     }
     li.className = left > 0 ? "" : "sold";
-    li.append(l.hat ? hatTile(l.hat, true) : l.kind.startsWith("f_") ? furnCanvas(l.kind) : iconCanvas(l.kind, 3), what);
+    li.append(l.hat ? hatTile(l.hat, true) : l.kind.startsWith("f_") ? furnCanvas(l.kind) : iconCanvas(l.kind, 2), what);
     if (left > 0) {
       buy.type = "button";
       buy.textContent = l.price.toLocaleString("en-US");
@@ -104,7 +104,7 @@ function tools(shop, p) {
     sub.className = "sub";
     sub.textContent = d.name + ", level " + t.level + ". " + cutWords(t) + ".";
     what.append(name, sub);
-    li.append(iconCanvas("tool_" + d.key + "_" + t.tier, 3), what);
+    li.append(iconCanvas("tool_" + d.key + "_" + t.tier, 2), what);
     const have = owned >= t.tier, short = bestAt(p, d.key) < t.level;
     li.className = have ? "sold" : "";
     if (have || short) {

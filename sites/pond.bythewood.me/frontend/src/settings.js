@@ -85,7 +85,7 @@ function render(p) {
   $("frog-favs-none").hidden = !!f.fav;
   if (f.fav) {
     const full = f.fed && f.fed.fav ? "Full of it now" : "Full half as long again";
-    favs.append(slot(dishCanvas(f.fav.dish, 4), { tier: f.fav.dish.tier, name: f.fav.dish.name, sub: full }),
+    favs.append(slot(dishCanvas(f.fav.dish, 3), { tier: f.fav.dish.tier, name: f.fav.dish.name, sub: full }),
       slot(hatTile(f.fav.hat, true), { tier: f.fav.hat_tier, name: f.fav.hat_name, sub: f.hat.shape === f.fav.hat.shape && f.hat.colour === f.fav.hat.colour ? "Wearing it now" : "" }));
   }
 

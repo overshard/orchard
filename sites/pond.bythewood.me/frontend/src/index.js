@@ -483,7 +483,7 @@ function drawScene(now) {
   drawFurnBack(has, day, t);
   drawScenery(sx, p.sets, day, t);
   const out = (p.trinkets && p.trinkets.spots) || [];
-  if (out[2]) drawIcon(sx, out[2], 160, 12 + Math.round(Math.sin(t * 0.9 + 2)) * 4, 4);
+  if (out[2]) drawIcon(sx, out[2], 152, 4 + Math.round(Math.sin(t * 0.9 + 2)) * 4, 4);
   if (grown(f.stage) && !day.shelter) { drawPad(day); drawFurnPad(has, day, t); }
   const o = { t: moving ? k * 6 : t, hat: f.hat.shape, legs: f.day >= 6 };
   let hop = 0, wig = 0;
@@ -521,8 +521,8 @@ function drawScene(now) {
   if (grown(f.stage) && !day.shelter) {
     if (day.hobby) drawHobby(day.hobby, t);
     if (p.visitor) footprint(sx, 88, 252);
-    if (out[0]) drawIcon(sx, out[0], 40, 236, 4);
-    if (out[1]) drawIcon(sx, out[1], 280, 236, 4);
+    if (out[0]) drawIcon(sx, out[0], 32, 220, 4);
+    if (out[1]) drawIcon(sx, out[1], 272, 220, 4);
   }
   const dozing = grown(f.stage) && day.cold && !moving && now >= croakUntil;
   if (dozing) drawZs(t, 1);
@@ -882,7 +882,7 @@ $("logs").addEventListener("click", (e) => {
     $("log-out").textContent = d.finds.map((f, i) => (i === d.pick ? "You: " : "") + f.pebbles).join(" · ");
     setPond(d.pond);
     drawPlay();
-    reveal({ kick: "Under the log", art: iconCanvas("peb", 8), name: d.finds[d.pick].pebbles + " pebbles", line: d.finds[d.pick].text });
+    reveal({ kick: "Under the log", art: iconCanvas("peb", 5), name: d.finds[d.pick].pebbles + " pebbles", line: d.finds[d.pick].text });
   }, (err) => { $("log-out").textContent = err.message; setPondAgain(); });
 });
 

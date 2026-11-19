@@ -6,7 +6,7 @@
         <canvas id="scene" width="352" height="272"></canvas>
       </button>
       <canvas class="bond" id="bond" width="39" height="6" role="img" aria-label="0 of 5 hearts"></canvas>
-      <button type="button" class="snap" id="snap" aria-label="Make a postcard of your frog"><canvas width="16" height="16" aria-hidden="true"></canvas></button>
+      <button type="button" class="snap" id="snap" aria-label="Make a postcard of your frog"><canvas width="24" height="24" aria-hidden="true"></canvas></button>
       <div class="gauge">
         <p class="powerline" id="power-line" aria-live="polite" hidden></p>
         <button type="button" class="powerplate" id="power-plate" aria-label="Frog power"><span id="power-at"></span><b id="power-now">0</b><i aria-hidden="true"><i id="power-step"></i></i></button>
@@ -96,8 +96,8 @@
 
   <section class="view" id="v-bag" hidden>
     <div class="places pair" role="group" aria-label="In the bag">
-      <button type="button" data-go="bag" aria-pressed="true"><canvas data-icon="i_bag" width="40" height="40"></canvas>Holding</button>
-      <button type="button" data-go="collect" aria-pressed="false"><canvas data-icon="i_star" width="40" height="40"></canvas>Collection</button>
+      <button type="button" data-go="bag" aria-pressed="true"><canvas data-icon="i_bag" width="24" height="24"></canvas>Holding</button>
+      <button type="button" data-go="collect" aria-pressed="false"><canvas data-icon="i_star" width="24" height="24"></canvas>Collection</button>
     </div>
     <div class="chiprow" id="bag-sorts" role="group" aria-label="Show"></div>
     <div class="slots" id="bag-grid"></div>
@@ -106,8 +106,8 @@
 
   <section class="view" id="v-collect" hidden>
     <div class="places pair" role="group" aria-label="In the bag">
-      <button type="button" data-go="bag" aria-pressed="false"><canvas data-icon="i_bag" width="40" height="40"></canvas>Holding</button>
-      <button type="button" data-go="collect" aria-pressed="true"><canvas data-icon="i_star" width="40" height="40"></canvas>Collection</button>
+      <button type="button" data-go="bag" aria-pressed="false"><canvas data-icon="i_bag" width="24" height="24"></canvas>Holding</button>
+      <button type="button" data-go="collect" aria-pressed="true"><canvas data-icon="i_star" width="24" height="24"></canvas>Collection</button>
     </div>
     <div class="total">
       <b id="col-pct">0%</b>
@@ -124,9 +124,9 @@
 
   <div class="makehead" id="make-head" hidden>
     <div class="places three" id="make-tabs" role="group" aria-label="Make">
-      <button type="button" data-go="garden" aria-pressed="false"><canvas data-icon="watercress" width="40" height="40"></canvas>Garden</button>
-      <button type="button" data-go="bank" aria-pressed="false"><canvas data-icon="i_bank" width="40" height="40"></canvas>Bank</button>
-      <button type="button" data-go="wizard" aria-pressed="false"><canvas data-icon="i_wizard" width="40" height="40"></canvas>Wizard</button>
+      <button type="button" data-go="garden" aria-pressed="false"><canvas data-icon="sprout" width="24" height="24"></canvas>Garden</button>
+      <button type="button" data-go="bank" aria-pressed="false"><canvas data-icon="i_bank" width="24" height="24"></canvas>Bank</button>
+      <button type="button" data-go="wizard" aria-pressed="false"><canvas data-icon="i_wizard" width="24" height="24"></canvas>Wizard</button>
     </div>
     <div class="screen" id="make-pic"><canvas id="works-art" width="552" height="180" aria-label="Your frogs' lodge, the garden and the bank along the water. A lit window has something ready."></canvas></div>
   </div>
@@ -289,10 +289,10 @@
 
   <section class="view" id="v-town" hidden>
     <div class="places four" id="town-tabs" role="group" aria-label="In town">
-      <button type="button" data-town="neighbours" aria-pressed="true"><canvas data-icon="i_folk" width="40" height="40"></canvas>Neighbours</button>
-      <button type="button" data-town="shops" aria-pressed="false"><canvas data-icon="i_shops" width="40" height="40"></canvas>Shops</button>
-      <button type="button" data-town="stall" aria-pressed="false"><canvas data-icon="i_stall" width="40" height="40"></canvas>Sell</button>
-      <button type="button" data-town="market" aria-pressed="false" hidden><canvas data-icon="i_market" width="40" height="40"></canvas>Market</button>
+      <button type="button" data-town="neighbours" aria-pressed="true"><canvas data-icon="i_folk" width="24" height="24"></canvas>Neighbours</button>
+      <button type="button" data-town="shops" aria-pressed="false"><canvas data-icon="i_shops" width="24" height="24"></canvas>Shops</button>
+      <button type="button" data-town="stall" aria-pressed="false"><canvas data-icon="i_stall" width="24" height="24"></canvas>Sell</button>
+      <button type="button" data-town="market" aria-pressed="false" hidden><canvas data-icon="i_market" width="24" height="24"></canvas>Market</button>
     </div>
 
     <div id="town-shops" hidden>
@@ -475,9 +475,9 @@
 
 <nav class="dock" id="tabs" aria-label="Places in the pond">
   <button type="button" data-view="pond" aria-pressed="true"><canvas data-icon="i_pond" width="24" height="24"></canvas>Pond</button>
-  <button type="button" data-view="frogs" aria-pressed="false" hidden><canvas data-icon="f_reeds" width="24" height="24"></canvas>Frogs</button>
+  <button type="button" data-view="frogs" aria-pressed="false" hidden><canvas data-icon="i_frogs" width="24" height="24"></canvas>Frogs</button>
   <button type="button" data-view="play" aria-pressed="false"><canvas data-icon="i_play" width="24" height="24"></canvas>Play</button>
-  <button type="button" data-view="make" aria-pressed="false"><canvas data-icon="i_works" width="24" height="24"></canvas>Make</button>
+  <button type="button" data-view="make" aria-pressed="false"><canvas data-icon="i_make" width="24" height="24"></canvas>Make</button>
   <button type="button" data-view="town" aria-pressed="false"><canvas data-icon="i_town" width="24" height="24"></canvas>Town</button>
 </nav>
 {{ end }}

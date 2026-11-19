@@ -5,15 +5,18 @@ import { hatTile } from "./hats.js";
 const TIER_GLOW = ["#bcaf99", "#5ddc82", "#6cb8ff", "#cf9bff", "#ffb000"];
 export { TIER_GLOW };
 
-// Anything in the bag as a picture, a hat drawn off the frog's own cells.
+// Anything in the bag as a picture, a hat drawn off the frog's own cells. An
+// icon takes the whole scale nearest two thirds of s, which keeps it about the
+// size of a hat at s.
 export function thingArt(t, s) {
   if (t.hat) {
     const cv = hatTile(t.hat, true);
     if (s) cv.style.width = Math.round(76 * s / 4) + "px";
     return cv;
   }
-  if (t.a) return dishCanvas(t, s || 4);
-  return iconCanvas(t.kind, s || 4);
+  const k = Math.max(1, Math.round((s || 4) * 2 / 3));
+  if (t.a) return dishCanvas(t, k);
+  return iconCanvas(t.kind, k);
 }
 
 export function tierTag(t) {
@@ -96,7 +99,7 @@ export function sheetSay(msg) { $("sheet-out").textContent = msg; }
 
 // The dim outline of what goes in an empty spot.
 export function ghost(key) {
-  const c = iconCanvas(key, 5);
+  const c = iconCanvas(key, 3);
   c.className = "ghost";
   c.setAttribute("aria-hidden", "true");
   return c;
@@ -178,5 +181,5 @@ export function initUI() {
     h.append(q);
   });
   document.querySelectorAll("canvas.boxart").forEach((cv) => drawBox(cv.getContext("2d"), cv.dataset.tint, 6));
-  document.querySelectorAll("canvas[data-icon]").forEach((cv) => drawIcon(cv.getContext("2d"), cv.dataset.icon, 0, 0, cv.width / 8));
+  document.querySelectorAll("canvas[data-icon]").forEach((cv) => drawIcon(cv.getContext("2d"), cv.dataset.icon, 0, 0, cv.width / 12));
 }
