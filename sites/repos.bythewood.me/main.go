@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"repos.bythewood.me/suite"
 	"repos.bythewood.me/web"
 )
 
@@ -43,7 +44,7 @@ func csp() string {
 // Shared with the tests, which parse them for real, since a page listed here
 // with no file behind it fails at boot and not at build.
 var (
-	layoutTemplates = []string{"base.html", "partials.html", "pushhelp.html"}
+	layoutTemplates = []string{"base.html", "partials.html", "pushhelp.html", "suite.html"}
 	pageTemplates   = []string{
 		"index.html", "repo.html", "tree.html", "blob.html",
 		"log.html", "commit.html", "branches.html", "tags.html",
@@ -107,7 +108,7 @@ func realMain() error {
 		return err
 	}
 
-	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
+	renderer, err := web.NewRenderer(suite.With(templates), suite.FuncsWith(templateFuncs), layoutTemplates, pageTemplates)
 	if err != nil {
 		return err
 	}
@@ -250,9 +251,14 @@ func privateWhenSignedIn(next http.Handler) http.Handler {
 // staticRouter claims /static/ before the browse mux can see it.
 func staticRouter(dist fs.FS, assets *web.Assets, next http.Handler) http.Handler {
 	static := web.Static(dist, assets)
+	shared := suite.Handler()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/static/") {
 			static.ServeHTTP(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/suite/") && r.Method == http.MethodGet {
+			shared.ServeHTTP(w, r)
 			return
 		}
 		next.ServeHTTP(w, r)

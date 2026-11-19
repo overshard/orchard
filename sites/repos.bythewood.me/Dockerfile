@@ -13,6 +13,7 @@ WORKDIR /src
 
 COPY go.mod go.su[m] ./
 COPY web/ ./web/
+COPY suite/ ./suite/
 COPY *.go ./
 COPY templates/ ./templates/
 COPY --from=frontend /build/dist ./build/dist

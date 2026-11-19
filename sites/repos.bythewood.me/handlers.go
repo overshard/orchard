@@ -1,6 +1,8 @@
 package main
 
 import (
+	"repos.bythewood.me/suite"
+
 	"context"
 	"fmt"
 	"html/template"
@@ -48,6 +50,8 @@ type page struct {
 	RepoName string
 	RepoRev  string
 	Data     any
+
+	Suite suite.Page
 }
 
 func (s *site) page(r *http.Request, title, description string, data any) page {
@@ -71,6 +75,7 @@ func (s *site) pageAs(r *http.Request, loggedIn bool, title, description string,
 		Canonical:   baseURL + r.URL.Path,
 		AuthorName:  authorName,
 		Data:        data,
+		Suite:       chrome(r, loggedIn, ""),
 	}
 }
 
@@ -80,6 +85,10 @@ func (s *site) pageForRepo(r *http.Request, rc *repoContext, title, description 
 	p.RepoName = rc.Repo.Name
 	if !rc.Empty {
 		p.RepoRev = rc.Rev
+	}
+	p.Suite = chrome(r, rc.SignedIn, rc.Repo.Name)
+	if p.RepoRev != "" {
+		p.Suite.Meta = rc.Repo.Name + " @ " + p.RepoRev
 	}
 	return p
 }

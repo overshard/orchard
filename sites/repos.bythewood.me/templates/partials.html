@@ -20,8 +20,9 @@
 {{define "icon-up"}}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 12.5V4M4.5 7.5 8 4l3.5 3.5"/></svg>{{end}}
 
 {{define "repohead"}}
-{{$c := .Ctx}}{{$tab := .Tab}}
+{{$c := .Ctx}}
 <div class="repohead">
+  <span class="o-lab">repos &middot; {{if $c.Meta.Mirror}}mirror{{else}}repository{{end}}</span>
   <div class="titlerow">
     <h1><a href="/{{$c.Repo.Name}}">{{$c.Repo.Name}}</a></h1>
     {{if $c.Meta.Mirror}}<span class="badge mirror" title="Pulled from {{$c.Meta.Upstream}}, read only">mirror</span>{{end}}
@@ -35,17 +36,11 @@
     <p class="topics">{{range $c.Meta.Topics}}<span class="topic">{{.}}</span>{{end}}</p>
   {{end}}
 
-  {{/*
-    aria-current marks the active tab for assistive tech and is also what the
-    stylesheet hangs the underline on, so the two cannot drift apart.
-  */}}
-  <nav class="repotabs">
-    <a href="/{{$c.Repo.Name}}"{{if eq $tab "files"}} aria-current="page"{{end}}>Files</a>
-    {{if $c.SignedIn}}<a href="/{{$c.Repo.Name}}/log/{{$c.Rev}}"{{if eq $tab "log"}} aria-current="page"{{end}}>Commits</a>{{end}}
-    <a href="/{{$c.Repo.Name}}/branches"{{if eq $tab "branches"}} aria-current="page"{{end}}>Branches{{if $c.Branches}} <span class="count">{{len $c.Branches}}</span>{{end}}</a>
-    <a href="/{{$c.Repo.Name}}/tags"{{if eq $tab "tags"}} aria-current="page"{{end}}>Tags{{if $c.Tags}} <span class="count">{{len $c.Tags}}</span>{{end}}</a>
-    <a href="/{{$c.Repo.Name}}/atom.xml">Feed</a>
-  </nav>
+  <p class="repometa o-mono">
+    <span>{{len $c.Branches}} {{pluralize (len $c.Branches) "branch" "branches"}}</span>
+    <span>{{len $c.Tags}} {{pluralize (len $c.Tags) "tag" "tags"}}</span>
+    <a href="/{{$c.Repo.Name}}/atom.xml">atom feed</a>
+  </p>
 </div>
 {{end}}
 

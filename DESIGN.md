@@ -14,7 +14,7 @@ haven't moved to the suite yet, and they go as each one does.
 
 ## The suite
 
-This is where the tool sites are headed, and cron, llm, auth, status, logging and analytics are on it.
+This is where the tool sites are headed, and every tool site is on it.
 
 - **Dark only, on cool charcoal.** Ground `#111315`, top bar `#0c0e10`, sunken
   `#090a0c`, panels `#171a1d` and `#1f2327`, lines `#262a2f`, `#1c1f23` and
@@ -1161,7 +1161,7 @@ below live as tokens at the top of `frontend/src/index.css`.
 | `status` | suite | On the suite, no Bootstrap. Properties down first, a property page that doubles as the public status page |
 | `logging` | suite | On the suite, no Bootstrap. The overview, a page per source and search share one set of panels |
 | `auth` | suite | On the suite, with no Bootstrap left. The home page signs you in from the hero, and the starfield is gone |
-| `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
+| `repos` | suite | On the suite. Its own stylesheet keeps the tree, diff and README styles and maps its colour names onto the suite's. No serif any more |
 | `llm` | suite | On the suite. Overview, calls and keys, and the home page says whether Claude or the card is answering |
 | `cron` | suite | On the suite. Jobs, runs, a job form and keys, with `app.css` holding only what is cron's own |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `BRIEFS` rerun beside it that only appears signed in |

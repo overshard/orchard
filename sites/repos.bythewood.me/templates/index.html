@@ -1,53 +1,49 @@
 {{define "hero"}}
-{{$d := .Data}}
 {{if not $.LoggedIn}}
-{{/*
-  The signed out view of this page is an advert for running the thing yourself,
-  so it opens the way the other sites here open. Signed in it is a working repo
-  list and the hero would be in the way every single visit.
-*/}}
-<section class="hero">
-  <div class="wrap">
-  <span class="hero-eyebrow">
-    <span class="eyebrow-dot" aria-hidden="true"></span>
-    {{len $d.Repos}} repositories &middot; self-hosted
-  </span>
-  <h1 class="hero-title">
-    A git remote for operators who host their <span class="accent">own code</span>.
-  </h1>
-  <p class="hero-sub">
-    Push over HTTPS with a token and a repository is created on arrival. Browse
-    branches, tags, files, history, diffs, and an Atom feed, with history and
-    diffs signed in only to keep bots out. Your data never leaves your
-    infrastructure.
-  </p>
-  <div class="hero-ctas">
-    <a href="#repositories" class="btn btn-primary">Browse repositories</a>
-    <a href="{{$.SourceURL}}" target="_blank" rel="noopener" class="btn btn-ghost">View source</a>
+{{/* Signed out this page is an advert for running it yourself, so it opens the
+     way the other sites do. Signed in it's a working list and a hero would be
+     in the way every visit. */}}
+<div class="o-cw">
+  <section class="o-wrap o-hero">
+    <div>
+      <span class="o-lab">repos &middot; self-hosted</span>
+      <h1>Your own git remote, <em>with a browser</em> on top.</h1>
+      <p class="o-lede">Push over HTTPS with a token and the repository exists, or mirror one from GitHub. Files, READMEs, branches, tags and an Atom feed for each, with history and diffs kept for the owner.</p>
+      <div class="o-ctas">
+        <a href="#repositories" class="o-btn o-btn-p">Browse repositories &darr;</a>
+        <a href="{{$.SourceURL}}" target="_blank" rel="noopener" class="o-btn">Source</a>
+      </div>
+    </div>
+    <div class="o-win" aria-label="A staged picture of a repository page">
+      <div class="o-win-bar"><i></i><i></i><i></i><span class="u">repos.bythewood.me/notes</span><span class="o-staged">STAGED</span></div>
+      <div class="o-win-body">
+        <span class="o-lab">repos &middot; repository</span>
+        <div class="t" data-co>notes</div>
+        <div class="o-rw" data-co><span class="o-chip">mirror</span><span class="n o-muted">Plain text notes, kept in git</span></div>
+        <div data-co>
+          <div class="o-rw"><span class="n o-mono">docs/</span><span class="m">Add the setup steps &middot; 2d</span></div>
+          <div class="o-rw"><span class="n o-mono">scripts/</span><span class="m">Fix the backup path &middot; 5d</span></div>
+          <div class="o-rw"><span class="n o-mono">README.md</span><span class="m">Update run steps &middot; 2w</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="o-wrap o-legend">
+    <div><span class="o-pin">1</span><span>The name and what it's for, nothing else above the files.</span></div>
+    <div><span class="o-pin">2</span><span>A chip says whether it was pushed here or mirrored from GitHub.</span></div>
+    <div><span class="o-pin">3</span><span>Files first, then the README under them.</span></div>
   </div>
-  </div>
-</section>
+  <div class="o-ov"></div>
+</div>
+{{end}}
+{{end}}
 
-<section class="stat-strip">
-  <div class="wrap stat-row">
-  <div class="stat">
-    <div class="stat-label">repositories</div>
-    <div class="stat-value">{{len $d.Repos}}</div>
-  </div>
-  <div class="stat">
-    <div class="stat-label">mirrored</div>
-    <div class="stat-value">{{$d.Mirrors}}</div>
-  </div>
-  <div class="stat">
-    <div class="stat-label">total size</div>
-    <div class="stat-value">{{humanBytes $d.TotalSize}}</div>
-  </div>
-  <div class="stat">
-    <div class="stat-label">last push</div>
-    <div class="stat-value stat-value-sm">{{humanTime $d.LastPush}}</div>
-  </div>
-  </div>
-</section>
+{{define "footer"}}
+{{if not $.LoggedIn}}
+{{template "suite-footer" (footerFor .)}}
+{{template "suite-status" .Suite}}
+{{else}}
+{{template "suite-foot" .Suite}}
 {{end}}
 {{end}}
 
@@ -55,14 +51,17 @@
 {{$d := .Data}}
 
 {{if and $.LoggedIn (not $d.HasTokens)}}
-<div class="notice">
+<div class="o-note brass">
   <strong>No push token yet.</strong>
-  Mint one in <a href="/settings">Settings</a> before your first push.
+  Make one in <a href="/settings">Settings</a> before your first push.
 </div>
 {{end}}
 
-<div class="pagehead" id="repositories">
-  <h1 class="pagetitle">Repositories <span class="count">{{len $d.Active}}</span></h1>
+<div class="o-ph" id="repositories">
+  <div>
+    <span class="o-lab">repos &middot; repositories</span>
+    <h1>{{len $d.Active}} {{pluralize (len $d.Active) "repository" "repositories"}}{{if $d.Archived}}, <em>{{len $d.Archived}} archived</em>{{end}}.</h1>
+  </div>
   {{if $.LoggedIn}}{{template "firstpush" (dict "CloneURL" $d.CloneURL "Bridge" $d.Bridge "Name" "<name>")}}{{end}}
 </div>
 

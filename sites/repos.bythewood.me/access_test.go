@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"repos.bythewood.me/suite"
 	"repos.bythewood.me/web"
 )
 
@@ -24,7 +25,7 @@ func accessFixture(t *testing.T, signedIn bool) (*site, http.Handler, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.renderer, err = web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates); err != nil {
+	if s.renderer, err = web.NewRenderer(suite.With(templates), suite.FuncsWith(templateFuncs), layoutTemplates, pageTemplates); err != nil {
 		t.Fatal(err)
 	}
 	if signedIn {

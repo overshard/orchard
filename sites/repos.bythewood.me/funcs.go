@@ -10,6 +10,7 @@ import (
 
 var templateFuncs = template.FuncMap{
 	"dict":       dict,
+	"footerFor":  footerFor,
 	"humanBytes": humanBytes,
 	"humanTime":  humanTime,
 	"shortSHA":   shortSHA,
