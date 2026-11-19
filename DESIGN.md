@@ -497,7 +497,9 @@ below live as tokens at the top of `frontend/src/index.css`.
   them still. The pond is the night pond with the frog on its pad, the moon
   and its path on the water and a lantern with its pool of light. Frogs is
   every frog on a pad in two staggered rows with a lamp over the one out
-  front and the empty pads bare. A job is the frog at work under a lamp. Make
+  front and the empty pads bare. A frog's page is that frog close up at twice
+  the size on its pad by the lantern, and laying an egg is the parent on a pad
+  with its frogspawn glowing on the water beside it. A job is the frog at work under a lamp. Make
   is the shore with the reed lodge on stilts, the garden beds and the cloche,
   the gravel bar's sluice and wheel, three dye vats that steam their colours
   while a batch boils and the burrow mound with a lit door each, everything
@@ -517,7 +519,7 @@ below live as tokens at the top of `frontend/src/index.css`.
   empty spot you can fill, like a stall spot, is a key with a dashed edge and a
   plus.
 - **What's coming.** The frogs in the scenes get a warm rim on the side the
-  nearest lantern is on. After that come a page a frog, laying an egg as its own screen, selling, a stamp book, the
+  nearest lantern is on. After that come selling, a stamp book, the
   games as jars on a shelf in place of the disks, and the market as a night
   market board.
 - **Colour lives in the pictures, the icons and rarity.** The frog, the water,
@@ -530,7 +532,7 @@ below live as tokens at the top of `frontend/src/index.css`.
   draw at whole scales only, 24px in the dock, the pills, the tabs and the
   Next strip, 36 in a slot and 48 or 60 on a reveal, and a scene draws them
   at its own pixel size. A dye keeps its colour per kind, a pattern is a
-  stamp with its face cut in the pattern, and each game has its own icon for
+  little block with its face cut in the pattern it prints, and each game has its own icon for
   its Next row.
 - **Every game is a floppy disk** on Play, a 3.5 inch disk in its own colour
   with a metal shutter, a write protect tab and the game's picture on a cream
@@ -880,11 +882,19 @@ below live as tokens at the top of `frontend/src/index.css`.
 - **The pond fits a phone with no scroll.** The frog's picture with its power
   pill, its name with the rarity beside it, the bubble and the Next strip all
   sit above the dock at 412 by 915. The pond is drawn 352 by 272 in its own
-  units with the frog 8 to a cell, at a whole number of device pixels to the
-  unit and about 8 CSS pixels a cell on a phone, on the bottom of a
-  372px scene with the sky above. Under 780 tall the scene is 340px with less
-  sky and the rows drop from 40px to 34px. A desktop gets 480px. The folded
-  gazette, Today at the pond and anything longer go below.
+  units with the frog 8 to a cell, a cell a whole even number of device
+  pixels and about 5 CSS pixels on a phone, 6 on a desktop. The frog sits on
+  its lily pad, which comes forward of its feet onto the water under it, with
+  a stretch of water behind it up to the far trees, the reeds and cattails at
+  both sides and the lantern standing in the water on the right. All of that
+  sits on the bottom of a 372px scene with the sky above. Under 780 tall the
+  scene is 340px with less sky and the rows drop from 40px to 34px. A desktop
+  gets 480px. The folded gazette, Today at the pond and anything longer go below.
+- **Today is a row of four tiles** under the Next strip, each an icon, a
+  number and a word, for the game runs that still pay in full, what the stall can
+  still sell at the full rate, the neighbours who haven't had a dish, and the
+  free spins or the time to the next one. The section label says when the new
+  day comes. A tile with nothing left dims. Every number comes from the server.
 - **Dive is the whole window, on a phone and a desktop.** It covers the bar and
   the dock, the pond takes its depth and length from the window, and a strip
   under the water holds three number boxes and Eject. Ten ghost frogs swim
@@ -970,11 +980,37 @@ below live as tokens at the top of `frontend/src/index.css`.
   line. It shows as a Memento box on its sheet and in a Mementos shelf in
   the collection, where one not given yet is a dark shape that only says
   who it comes from.
-- **Frogs is the reeds**, every frog as a card, the one out front first with
-  a lamp edge and a green OUT FRONT, the rest with a key to swap. The egg bench
-  and the pads sit under them. The register of looks is in the bag's
-  collection.
-- **A job is its own screen**, opened off a frog's card in the reeds. The frog
+- **Frogs is a roster**, a card a frog in two columns, the one out front first
+  and outlined in lamp. A card is the frog on its own little pad scene with
+  its tool beside it at work, then its name, its rarity box and one line with
+  an LED, basket full or ready to lay lit green, a job with its level and
+  basket count on a lamp LED, and hatches in, full for or lays again in on a
+  dark one. A pad nobody's on is a dashed card, and the next pad to buy is a
+  dashed card with a lamp plus and its price. A tap on a card opens that
+  frog's page. A row over the cards takes every basket at once. The register
+  of looks is in the bag's collection.
+- **A frog has a page of its own** at `#frog-<id>`, under the Frogs key, with
+  a back key to the roster. The frog is close up over the page, then its
+  name, its rarity box and its 1 in N, and a line of stage, day, colour,
+  nature and back. Four tiles say its job level, its basket, how long it's
+  full for and when it can next lay. Under them are the keys, Lay an egg in
+  lamp only when it can, Feed, which opens the dishes in the bag, and Out front.
+  Then its work, the job and level over a bar to the next, the basket as a row
+  with a Take key, and keys to the job screen and to change the job. The frog
+  out front also has its hearts for today as five tiles, each with the trick
+  it learns there, since bond belongs to whoever is out front. Then its
+  favourite dish and hat as slots and the last line of its diary.
+- **Laying an egg is its own screen** at `#lay-<id>`, from any grown frog.
+  Under the parent and its frogspawn are three slots, Colour, Pattern and
+  Eyes, dashed with a lamp plus while empty and lit with the thing once one
+  is picked from a sheet of what's in the bag. A line says what the frog is
+  full of and how often each takes. What could hatch is a card an outcome,
+  the frog drawn lit in that colour and back over its odds, with a green NEW
+  tag on a colour or back the register hasn't got, then anything else, and a
+  dashed card for odd eyes or what eye drops would give. The odds come from
+  the server off the bench's own rules. Lay the egg is the lamp key along the
+  bottom, and the egg pops up as a reveal on the roster.
+- **A job is its own screen**, opened off a frog's page. The frog
   works in a picture drawn for the job, a net and bugs, a sickle in the reeds,
   a spade in the mud, a watering can in the beds, a dive for pebbles, a
   hammer at the craft bench, and it squashes as each action lands while the
