@@ -420,6 +420,11 @@ func (s *site) search(w http.ResponseWriter, r *http.Request) {
 		Retained:    int(rawRetention / (24 * time.Hour)),
 	}
 
+	if q.Get("report") == "md" {
+		writeSearchMarkdown(w, view)
+		return
+	}
+
 	data := s.page(r, "Search", "Search every raw log line inside the retention window.")
 	data.PageScript = s.dashScript
 	data.PageStyles = s.dashStyles

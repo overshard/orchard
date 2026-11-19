@@ -115,3 +115,34 @@ func asciiFilename(name string) string {
 	}
 	return out
 }
+
+// writeSearchMarkdown is a search as plain lines, one record each, for an
+// agent reading it through mcp.bythewood.me.
+func writeSearchMarkdown(w http.ResponseWriter, v *SearchView) {
+	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	w.Header().Set("Cache-Control", "private, no-store")
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Log search, %s, page %d\n\n", strings.ToLower(v.RangeName), v.Page)
+	if len(v.Results) == 0 {
+		b.WriteString("Nothing matched.\n")
+	}
+	for _, r := range v.Results {
+		fmt.Fprintf(&b, "- %s %s %s", r.Time, r.Level, r.Source)
+		if r.Msg == "request" {
+			fmt.Fprintf(&b, " %d %s %s %.1fms", r.Status, r.Method, r.Path, r.DurationMS)
+		} else {
+			if r.Component != "" {
+				fmt.Fprintf(&b, " [%s]", r.Component)
+			}
+			b.WriteString(" " + r.Msg)
+		}
+		if r.Attrs != "" && r.Attrs != "{}" {
+			b.WriteString(" " + r.Attrs)
+		}
+		b.WriteString("\n")
+	}
+	if v.HasMore {
+		fmt.Fprintf(&b, "\nMore on page %d.\n", v.Page+1)
+	}
+	_, _ = w.Write([]byte(b.String()))
+}
