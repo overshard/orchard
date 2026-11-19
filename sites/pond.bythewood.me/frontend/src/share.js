@@ -88,7 +88,7 @@ function showStamps(st) {
 }
 
 keys.querySelectorAll("button").forEach((b) => {
-  b.querySelector("canvas").replaceWith(stampArt(b.dataset.stamp, 4));
+  b.querySelector("canvas").replaceWith(stampArt(b.dataset.stamp, 3));
   b.addEventListener("click", () => {
     keys.querySelectorAll("button").forEach((x) => { x.disabled = true; });
     fetch("/api/stamp", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ page: keys.dataset.page, stamp: b.dataset.stamp }) })

@@ -200,6 +200,14 @@ const STAMP_FACE = {
 };
 Object.entries(STAMP_FACE).forEach(([k, face]) => { ICONS["stamp_" + k] = [[...STAMP_TOP, ...face, "............", "............", "............"]]; });
 
+// The six stamps a frog's page can be pressed with, st_ and the stamp.
+ICONS.st_heart = ICONS.heart;
+ICONS.st_star = ICONS.i_star;
+ICONS.st_pebble = ICONS.peb;
+ICONS.st_fly = [["............", "..II....II..", ".IWII..IIWI.", ".IIIIeeIIII.", "..IIReeRII..", "....eeee....", "...eeeeee...", "....eeee....", "...e.ee.e...", "....e..e....", "............", "............"]];
+ICONS.st_wave = [["............", "............", "..TT....TT..", ".TWTT..TWTT.", "TT..TTTT..TT", "............", "..UU....UU..", ".UWUU..UWUU.", "UU..UUUU..UU", "............", "............", "............"]];
+ICONS.st_leaf = [["............", "..........z.", "......GGGz..", "....GGGGGz..", "...GGlGGzG..", "..GGlGGzGG..", "..GlGGzGGG..", "..GGGzGGG...", "...GzGGG....", "..z.GGG.....", ".z..........", "............"]];
+
 // A frame is a picture in a border, and each kind changes the border.
 const PIC = ["..OOOO.O..", "..OOOOOO..", "rrrOOOOO..", "rrrrrOOO..", "gggggggggg"];
 function framed(edge, inner) {
