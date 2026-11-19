@@ -61,6 +61,8 @@
 .o-warn { color: var(--o-warn); }
 .o-bad { color: var(--o-bad); }
 .o-sp { flex: 1 1 auto; min-width: 8px; }
+/* Working pages run as wide as dash, and a landing keeps the narrower measure. */
+.o-body:has(.o-main):not(:has(.o-hero)) { --o-wrap: 1760px; }
 .o-wrap { width: 100%; max-width: var(--o-wrap); margin: 0 auto; padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
 
 /* The caps label, a // and brass. Every band, tile and column starts on one. */
@@ -408,6 +410,7 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
   .o-tbl.stack td.act { margin-left: auto; }
   .o-tbl.stack td.hide { display: none; }
   .o-tbl.stack tr.hot { background: var(--o-bad-bg); }
+  .o-tbl.stack td[data-l]::before { content: attr(data-l) " "; font-family: var(--o-mono); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--o-muted); opacity: 0.8; }
 }
 
 /* iOS zooms a page when it focuses a field under 16px and leaves it zoomed. */
