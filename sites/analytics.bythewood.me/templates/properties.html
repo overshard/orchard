@@ -66,10 +66,10 @@
             {{ if not .IsActive }}<span class="o-chip">quiet</span>{{ end }}
           </td>
           <td class="o-cell-spark">{{ spark (or (and .IsActive "ok") "flat") .Views14 }}</td>
-          <td class="r n">{{ num .ViewsWeek }}</td>
-          <td class="r n o-muted">{{ num .TotalPageViews }}</td>
-          <td class="r n o-muted">{{ num .TotalSessionStarts }}</td>
-          <td class="r n o-muted">{{ num .TotalEvents }}</td>
+          <td class="r n" data-l="7d">{{ num .ViewsWeek }}</td>
+          <td class="r n o-muted" data-l="views">{{ num .TotalPageViews }}</td>
+          <td class="r n o-muted" data-l="sessions">{{ num .TotalSessionStarts }}</td>
+          <td class="r n o-muted" data-l="events">{{ num .TotalEvents }}</td>
           <td class="act">
             {{ if not .IsProtected }}
             <form method="post" action="/properties/{{ .ID }}/delete" data-confirm="Delete {{ .Name }} and every event collected for it?">

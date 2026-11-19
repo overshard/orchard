@@ -42,11 +42,15 @@
 {{ if .items }}
 <section class="o-panel">
   <div class="o-ph2"><h2>{{ .title }}</h2><span class="o-lab">{{ .col }}</span></div>
-  {{ $pid := .filterFor }}
-  {{ $top := topCount .items }}
-  {{ range .items }}
-  <div class="o-hbar"><span class="k" title="{{ .Label }}">{{ if $pid }}<a href="/{{ $pid }}?filter_url={{ .Label }}">{{ .Label }}</a>{{ else }}{{ .Label }}{{ end }}</span><span class="bar"><i style="width: {{ pct .Count $top }}%"></i></span><span class="v">{{ num .Count }}</span></div>
-  {{ end }}
+  {{ template "hbars" . }}
 </section>
+{{ end }}
+{{ end }}
+
+{{ define "hbars" }}
+{{ $pid := .filterFor }}
+{{ $top := topCount .items }}
+{{ range .items }}
+<div class="o-hbar"><span class="k" title="{{ .Label }}">{{ if $pid }}<a href="/{{ $pid }}?filter_url={{ .Label }}">{{ .Label }}</a>{{ else }}{{ .Label }}{{ end }}</span><span class="bar"><i style="width: {{ pct .Count $top }}%"></i></span><span class="v">{{ num .Count }}</span></div>
 {{ end }}
 {{ end }}

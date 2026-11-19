@@ -43,10 +43,12 @@ type GraphPoint struct {
 // EventCard is one metric tile. Value is a string because two tiles carry their
 // units in it.
 type EventCard struct {
-	Name          string `json:"name"`
-	Value         string `json:"value"`
-	PercentChange int64  `json:"percent_change"`
-	HelpText      string `json:"help_text,omitempty"`
+	Name          string    `json:"name"`
+	Value         string    `json:"value"`
+	PercentChange int64     `json:"percent_change"`
+	HelpText      string    `json:"help_text,omitempty"`
+	Event         string    `json:"-"`
+	Series        []float64 `json:"-"`
 }
 
 // CustomEventDescriptor is one row of the "which custom events exist, and
@@ -186,31 +188,36 @@ func standardEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, s
 	cards := []EventCard{
 		{
 			Name:          "Total session starts",
-			Value:         fmt.Sprintf("%d", cur.SessionStart),
+			Event:         "session_start",
+			Value:         formatNum(cur.SessionStart),
 			PercentChange: pctChange(float64(cur.SessionStart), float64(prev.SessionStart)),
 			HelpText:      "Unique users visiting your site for your selected date range.",
 		},
 		{
 			Name:          "Total page views",
-			Value:         fmt.Sprintf("%d", cur.PageView),
+			Event:         "page_view",
+			Value:         formatNum(cur.PageView),
 			PercentChange: pctChange(float64(cur.PageView), float64(prev.PageView)),
 			HelpText:      "Total pages viewed for your selected date range.",
 		},
 		{
 			Name:          "Total clicks",
-			Value:         fmt.Sprintf("%d", cur.Click),
+			Event:         "click",
+			Value:         formatNum(cur.Click),
 			PercentChange: pctChange(float64(cur.Click), float64(prev.Click)),
 			HelpText:      "Total clicks users made on all your pages for your selected date range.",
 		},
 		{
 			Name:          "Total scrolls",
-			Value:         fmt.Sprintf("%d", cur.Scroll),
+			Event:         "scroll",
+			Value:         formatNum(cur.Scroll),
 			PercentChange: pctChange(float64(cur.Scroll), float64(prev.Scroll)),
 			HelpText:      "Total scrolls users made on all your pages for your selected date range.",
 		},
 		{
 			Name:          "Total events",
-			Value:         fmt.Sprintf("%d", cur.Total),
+			Event:         "*",
+			Value:         formatNum(cur.Total),
 			PercentChange: pctChange(float64(cur.Total), float64(prev.Total)),
 			HelpText:      "All events for your selected date range, including custom events.",
 		},
@@ -336,11 +343,23 @@ func customEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, car
 		p := prevMap[name]
 		out = append(out, EventCard{
 			Name:          name,
-			Value:         fmt.Sprintf("%d", v),
+			Event:         name,
+			Value:         formatNum(v),
 			PercentChange: pctChange(float64(v), float64(p)),
 		})
 	}
 	return out, descriptors
+}
+
+// graphStep names the bucket eventsGraph picks for a window.
+func graphStep(rangeDays int64) string {
+	switch {
+	case rangeDays <= 28:
+		return "daily"
+	case rangeDays <= 6*28:
+		return "weekly"
+	}
+	return "every 4 weeks"
 }
 
 // eventsGraph is the time series, bucketed by day, week or month and stepping
@@ -370,6 +389,23 @@ func eventsGraph(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS,
 		rows.Close()
 	}
 
+	points := bucketDays(byDay, endDate, rangeDays)
+
+	out := make([]GraphPoint, 0, len(points))
+	for _, p := range points {
+		out = append(out, GraphPoint{Label: formatGraphLabel(p.date), Count: p.count})
+	}
+	return out
+}
+
+type dayPoint struct {
+	date  time.Time
+	count int64
+}
+
+// bucketDays folds counts keyed by Eastern day into the buckets graphStep
+// names, oldest first.
+func bucketDays(byDay map[string]int64, endDate time.Time, rangeDays int64) []dayPoint {
 	key := func(t time.Time) string { return t.Format("2006-01-02") }
 	// A bucket is labelled by its last day and counts back from it, so the
 	// newest one ends on endDate instead of running past it into days to come.
@@ -381,37 +417,72 @@ func eventsGraph(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS,
 		return sum
 	}
 
-	type point struct {
-		date  time.Time
-		count int64
-	}
-	var points []point
+	var points []dayPoint
 
 	switch {
 	case rangeDays <= 28:
 		for i := range rangeDays {
 			d := endDate.AddDate(0, 0, -int(i))
-			points = append(points, point{d, byDay[key(d)]})
+			points = append(points, dayPoint{d, byDay[key(d)]})
 		}
 	case rangeDays <= 6*28:
 		weeks := rangeDays / 7
 		for w := range weeks {
 			d := endDate.AddDate(0, 0, -int(7*w))
-			points = append(points, point{d, bucketSum(d, 7)})
+			points = append(points, dayPoint{d, bucketSum(d, 7)})
 		}
 	default:
 		months := rangeDays / 28
 		for m := range months {
 			d := endDate.AddDate(0, 0, -int(28*m))
-			points = append(points, point{d, bucketSum(d, 28)})
+			points = append(points, dayPoint{d, bucketSum(d, 28)})
 		}
 	}
 
 	sort.Slice(points, func(i, j int) bool { return points[i].date.Before(points[j].date) })
 
-	out := make([]GraphPoint, 0, len(points))
-	for _, p := range points {
-		out = append(out, GraphPoint{Label: formatGraphLabel(p.date), Count: p.count})
+	return points
+}
+
+// eventSeries is each event's count per bucket over the window, for the tile
+// sparks. The key * holds every event together.
+func eventSeries(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS, endMS int64, filterURL string, endDate time.Time, rangeDays int64) map[string][]float64 {
+	extraSQL, extraArgs := filterClause(filterURL)
+	query := `SELECT event, created_at / 3600000 AS hour, COUNT(*)
+	  FROM events
+	  WHERE property_id = ? AND created_at >= ? AND created_at <= ?` + extraSQL + `
+	  GROUP BY event, hour`
+	args := append([]any{propertyID[:], startMS, endMS}, extraArgs...)
+
+	byEvent := map[string]map[string]int64{"*": {}}
+	rows, err := db.QueryContext(ctx, query, args...)
+	logQuery("event_series", err)
+	if err == nil {
+		for rows.Next() {
+			var event string
+			var hour, c int64
+			if rows.Scan(&event, &hour, &c) != nil {
+				continue
+			}
+			day := time.UnixMilli(hour * 3600000).In(eastern).Format("2006-01-02")
+			if byEvent[event] == nil {
+				byEvent[event] = map[string]int64{}
+			}
+			byEvent[event][day] += c
+			byEvent["*"][day] += c
+		}
+		logQuery("event_series", rows.Err())
+		rows.Close()
+	}
+
+	out := make(map[string][]float64, len(byEvent))
+	for event, byDay := range byEvent {
+		points := bucketDays(byDay, endDate, rangeDays)
+		vals := make([]float64, len(points))
+		for i, p := range points {
+			vals[i] = float64(p.count)
+		}
+		out[event] = vals
 	}
 	return out
 }

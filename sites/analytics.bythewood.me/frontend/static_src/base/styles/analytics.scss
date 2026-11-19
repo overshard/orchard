@@ -53,20 +53,24 @@
   pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 }
 
-.o-tiles.cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr)); }
+.o-tiles.cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr)); }
+@media (min-width: 1100px) { .o-tiles.cards { grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr)); } }
 
 .colstack { display: grid; gap: 14px; min-width: 0; align-content: start; }
 .donuts { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; }
 @media (max-width: 560px) { .donuts { grid-template-columns: minmax(0, 1fr); } }
 
-.chartbox { position: relative; height: 170px; }
+.chartbox { position: relative; min-height: 170px; }
 .chartbox.tall { height: 320px; }
 
 #map { position: relative; min-height: 340px; }
 #map svg path { transition: fill 80ms ease, stroke 80ms ease; }
 
-.lists { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); align-items: start; }
-.bots .lists { margin-top: 4px; }
+// Columns instead of a grid, so lists of different lengths pack without the
+// holes a short row leaves.
+.lists { columns: 4 20rem; column-gap: 14px; }
+.lists > * { break-inside: avoid; margin-bottom: 14px; }
+.lists > .o-panel { display: block; }
 
 // Public or private, one control. The checkbox drives which half is lit.
 .visibility { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
@@ -86,3 +90,10 @@
 .notfound { justify-items: start; padding-top: 48px; padding-bottom: 64px; }
 .notfound h1 { font-size: 2rem; }
 .pond-lost { width: 216px; height: 180px; image-rendering: pixelated; }
+
+@media (max-width: 560px) {
+  .o-tiles.cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .o-tiles.cards .long { display: none; }
+}
+@media (max-width: 700px) { .o-acts:has(.filter) { width: 100%; } }
+.bots .sub { display: block; margin: 12px 0 4px; }

@@ -59,13 +59,14 @@ func weekDelta(week, prev int64) string {
 	return fmt.Sprintf("%+.0f%% on the week before", 100*float64(week-prev)/float64(prev))
 }
 
-// graphSeries is the events chart's points as a plain series for a spark.
-func graphSeries(g []GraphPoint) []float64 {
-	out := make([]float64, len(g))
-	for i, p := range g {
-		out[i] = float64(p.Count)
+// tileCols spreads n tiles over as few rows of at most eight as it can, so a
+// wide screen never leaves a short last row.
+func tileCols(n int) int {
+	if n < 1 {
+		return 1
 	}
-	return out
+	rows := (n + 7) / 8
+	return (n + rows - 1) / rows
 }
 
 // cardHeadline is a property page's title, page views against the period

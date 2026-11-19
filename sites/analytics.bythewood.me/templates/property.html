@@ -94,13 +94,13 @@
     {{ end }}
   </div>
 
-  <div class="o-tiles cards">
-    {{ range $i, $c := .EventCards }}
+  <div class="o-tiles cards" style="--cols: {{ tileCols (len .EventCards) }}">
+    {{ range .EventCards }}
     <div class="o-tile" {{ if .HelpText }}title="{{ .HelpText }}"{{ end }}>
       <small>{{ cardName .Name }}</small>
       <b>{{ .Value }}</b>
-      <span class="o-delta {{ if gt .PercentChange 0 }}o-ok{{ else if lt .PercentChange 0 }}o-bad{{ end }}">{{ if eq .PercentChange 0 }}no change{{ else if gt .PercentChange 0 }}+{{ .PercentChange }}%{{ else }}{{ .PercentChange }}%{{ end }} on the period before</span>
-      {{ if eq $i 0 }}{{ spark "ok" (graphSeries $.Dash.Graph) }}{{ else }}<span class="o-nospark"></span>{{ end }}
+      <span class="o-delta {{ if gt .PercentChange 0 }}o-ok{{ else if lt .PercentChange 0 }}o-bad{{ end }}">{{ if eq .PercentChange 0 }}no change{{ else if gt .PercentChange 0 }}+{{ .PercentChange }}%{{ else }}{{ .PercentChange }}%{{ end }}<span class="long"> on the period before</span></span>
+      {{ if .Series }}{{ spark (or (and (lt .PercentChange 0) "bad") "ok") .Series }}{{ else }}<span class="o-nospark"></span>{{ end }}
     </div>
     {{ end }}
   </div>
@@ -108,7 +108,7 @@
   <div class="o-cols">
     <div class="colstack">
       <section class="o-panel">
-        <div class="o-ph2"><h2>Events over time</h2><span class="o-lab">daily</span></div>
+        <div class="o-ph2"><h2>Events over time</h2><span class="o-lab">{{ .GraphStep }}</span></div>
         <div class="chartbox tall"><canvas id="chart-total-events"></canvas></div>
       </section>
       <section class="o-panel">
@@ -132,20 +132,16 @@
     {{ template "rankList" dict "title" "utm medium" "col" "views" "items" .PageViewsByUTMMedium "filterFor" "" }}
     {{ template "rankList" dict "title" "utm source" "col" "views" "items" .PageViewsByUTMSource "filterFor" "" }}
     {{ template "rankList" dict "title" "utm campaign" "col" "views" "items" .PageViewsByUTMCampaig "filterFor" "" }}
+    <section class="o-panel bots" title="Crawlers and other bots, counted apart so they never inflate the numbers above.">
+      <div class="o-ph2"><h2>Bots</h2><span class="o-lab">{{ num .Bots.Total }} events &middot; kept apart</span></div>
+      {{ if .Bots.Total }}
+      {{ template "hbars" dict "items" .Bots.TopBots "filterFor" "" }}
+      {{ if .Bots.TopPages }}<span class="o-lab sub">pages they hit</span>{{ template "hbars" dict "items" .Bots.TopPages "filterFor" "" }}{{ end }}
+      {{ else }}
+      <p class="o-empty">No bot events in this window.</p>
+      {{ end }}
+    </section>
   </div>
-
-  <section class="o-panel bots">
-    <div class="o-ph2"><h2>Bots</h2><span class="o-lab">kept apart from everything above</span></div>
-    {{ if .Bots.Total }}
-    <div class="lists">
-      <div class="o-tile"><small>bot events</small><b>{{ num .Bots.Total }}</b><span class="o-delta">in this window</span><span class="o-nospark"></span></div>
-      {{ template "rankList" dict "title" "Top bots" "col" "events" "items" .Bots.TopBots "filterFor" "" }}
-      {{ template "rankList" dict "title" "Pages bots hit" "col" "events" "items" .Bots.TopPages "filterFor" "" }}
-    </div>
-    {{ else }}
-    <p class="o-empty">No bot events in this window.</p>
-    {{ end }}
-  </section>
 </main>
 {{ end }}
 {{ end }}

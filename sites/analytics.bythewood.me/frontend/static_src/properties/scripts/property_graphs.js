@@ -14,42 +14,20 @@ const paletteBorders = palette;
 
 applyDefaults(Chart);
 
-// Labels are padded to a common width so the four doughnut legends line up in
-// the sidebar, which only works because the legend font is monospace.
-let maxLabelLength = 0;
-if (document.getElementById("chart-total-events-by-browser-data")) {
-  const browserData = JSON.parse(document.getElementById("chart-total-events-by-browser-data").innerHTML);
-  const deviceData = JSON.parse(document.getElementById("chart-total-events-by-device-data").innerHTML);
-  const screenSizeData = JSON.parse(document.getElementById("chart-total-events-by-screen-size-data").innerHTML);
-  const platformData = JSON.parse(document.getElementById("chart-total-events-by-platform-data").innerHTML);
-  const allData = [...browserData, ...deviceData, ...screenSizeData, ...platformData];
-  for (let i = 0; i < allData.length; i++) {
-    if (allData[i].label.length > maxLabelLength) {
-      maxLabelLength = allData[i].label.length;
-    }
-  }
-}
-
-function padLabels(data) {
-  for (let i = 0; i < data.length; i++) {
-    data[i].label = data[i].label + " ".repeat(Math.max(0, maxLabelLength - data[i].label.length));
-  }
-  return data;
-}
-
 const doughnutOptions = {
   responsive: true,
-  aspectRatio: 1.8,
+  aspectRatio: 1.25,
   animation: { animateRotate: false },
   cutout: "60%",
   plugins: {
     tooltip: tooltipStyle,
     legend: {
-      position: "right",
+      position: "bottom",
+      align: "start",
       labels: {
         boxWidth: 8,
         boxHeight: 8,
-        padding: 8,
+        padding: 6,
         color: ink.legend,
         font: { family: fontStack, size: 11 },
       },
@@ -91,7 +69,7 @@ function renderDoughnut(canvasId, dataId) {
       renderEmpty(canvas);
       return;
     }
-    const data = padLabels(foldToPalette(raw));
+    const data = foldToPalette(raw);
     new Chart(canvas.getContext("2d"), {
       type: "doughnut",
       data: {

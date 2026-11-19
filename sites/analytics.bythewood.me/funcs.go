@@ -16,7 +16,7 @@ var templateFuncs = template.FuncMap{
 	"hasPrefix":    strings.HasPrefix,
 	"listHeadline": listHeadline,
 	"weekDelta":    weekDelta,
-	"graphSeries":  graphSeries,
+	"tileCols":     tileCols,
 	"cardHeadline": cardHeadline,
 	"cardName":     cardName,
 	"seq":          func(n int) []struct{} { return make([]struct{}, n) },
