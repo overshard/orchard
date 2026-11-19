@@ -8,11 +8,10 @@
 #   make ntfy-passwd   change the reading account's password
 #
 # ntfy is deny-all and there are three accounts: isaac reads every topic from
-# the phone, orchard writes the alert topics from status, logging, llm and cron, and
+# the phone, orchard writes the alerts and reminders topics from the sites, and
 # orchard-auth writes the auth topic and nothing else. That third one is
-# separate because the token in status' and logging' .env files can publish to
-# their topics, and sharing it would let a copy of either mint its own login
-# codes. ntfy cannot restrict an account by source address, so Caddy also
+# separate because the publishers' token sits in several .env files, and sharing
+# it would let a copy of any of them mint its own login codes. ntfy cannot restrict an account by source address, so Caddy also
 # refuses the publish routes on the public hostname.
 #
 # All ntfy state lives in the orchard-ntfy-data volume, never a bind mount. The
@@ -43,7 +42,7 @@ CONTAINER=orchard-ntfy
 READER=isaac
 WRITER=orchard
 AUTH_WRITER=orchard-auth
-ALERT_TOPICS="status logging reminders"
+ALERT_TOPICS="alerts reminders"
 AUTH_TOPIC="auth"
 TOPICS="$ALERT_TOPICS $AUTH_TOPIC"
 
@@ -170,6 +169,7 @@ token)
 	write_var ../sites/logging.bythewood.me NTFY_TOKEN "$token"
 	write_var ../sites/llm.bythewood.me NTFY_TOKEN "$token"
 	write_var ../sites/cron.bythewood.me NTFY_TOKEN "$token"
+	write_var ../sites/analytics.bythewood.me NTFY_TOKEN "$token"
 	write_var ../sites/auth.bythewood.me AUTH_NTFY_TOKEN "$auth_token"
 
 	echo

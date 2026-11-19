@@ -20,7 +20,7 @@ tunnel with no public ports.
 |---|---|
 | `sites/isaacbythewood.com/` | Portfolio. Animation heavy, framework free, no third party Go dependency |
 | `sites/blog.bythewood.me/` | Markdown blog. A PDF and a social card per post, and an Atom feed |
-| `sites/analytics.bythewood.me/` | Self hosted analytics. SQLite, GeoIP, Typst PDF reports |
+| `sites/analytics.bythewood.me/` | Self hosted analytics. SQLite, GeoIP, Typst PDF reports, and an ntfy alert when real people arrive in unusual numbers |
 | `sites/status.bythewood.me/` | Self hosted uptime monitoring. SQLite, Lighthouse audits, crawler |
 | `sites/logging.bythewood.me/` | Self hosted log aggregation. Every other site ships its slog records here. SQLite, retention and rollups, Typst PDF reports |
 | `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token, and it mirrors the GitHub account as a backup. Everything git is a subprocess |
@@ -64,8 +64,8 @@ and repos' own), and `README.md`, which is written for its site.
 Two smaller packages are shared the same way. `guard/`, in chat and dash, paces
 the calls to somebody else's server, keeps a budget per window and opens a
 breaker when the far end says no, with each site's numbers in a `Policy` and its
-state behind a `Store`. `ntfy/`, in status, logging, auth, llm and cron, publishes
-an alert. Both are byte identical wherever they are, with no exceptions, and `make
+state behind a `Store`. `ntfy/`, in status, logging, auth, analytics, llm and cron,
+publishes an alert. Both are byte identical wherever they are, with no exceptions, and `make
 check` holds them to it the same way it holds `web/`, so a fix to either is made
 in every site that carries it. Most Dockerfiles copy the build stage by name, so
 a site taking one up needs its `COPY` line or the image fails to build.
@@ -141,7 +141,7 @@ not just editing a compose file. No SQLite database refers to a container name.
 only one a dev run can point somewhere else without a rebuild.
 
 **Alerts leave through ntfy in the edge, and reading them is authenticated.**
-status publishes to the `status` topic, logging to `logging`, cron to
+status, logging, analytics and llm publish to the `alerts` topic, cron to
 `reminders` and auth to `auth`,
 all to `http://orchard-ntfy:8000` on the bridge with a write-only token from
 each site's `.env`, and reading is over the tunnel at `ntfy.bythewood.me` with a

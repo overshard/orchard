@@ -8,7 +8,8 @@ flipped public so its dashboard reads without signing in.
 
 ## Requirements
 
-Go and bun, and typst on the PATH for PDF reports. No `.env`.
+Go and bun, and typst on the PATH for PDF reports. A `.env` from `.env.example`
+carries the ntfy token, and without it nothing is pushed.
 
 ## Running it
 
@@ -25,7 +26,8 @@ make clean    delete build/ and node_modules
 `collector.go` takes the events, `queries.go` and `dashboard.go` read them back,
 `report.go` with `reports/` and `typst.go` writes the reports, `geoip.go` and
 `ua.go` turn an address and a user agent into a place and a browser, and
-`retention.go` deletes anything past a year. The database and the GeoIP file
+`retention.go` deletes anything past a year, and `surge.go` pushes to the
+`alerts` ntfy topic when real people arrive in unusual numbers. The database and the GeoIP file
 live in `data/`, or the `orchard-analytics-data` volume in production.
 
 ## Things that will bite you
@@ -36,3 +38,7 @@ live in `data/`, or the `orchard-analytics-data` volume in production.
 - Sessions are checked against `orchard-auth` by container name, so a dev run
   off the Docker network only sees public pages. The seeded property is
   private, so set `is_public` on its row in `data/db.sqlite3` to look at it.
+- A surge needs at least 10 people and 20 views in an hour and five times the
+  property's average hour over two weeks, and one outside site sending 5 people
+  in an hour is a link alert. Each pushes once per 6 or 24 hours, kept in memory,
+  so a deploy mid surge can push it again.

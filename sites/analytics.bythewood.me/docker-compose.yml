@@ -15,6 +15,8 @@ services:
     # queue and commits what the writer holds. Without it a slow drain means
     # SIGKILL and a skipped db.Close().
     stop_grace_period: 30s
+    environment:
+      NTFY_TOKEN: ${NTFY_TOKEN:-}
     volumes:
       - data:/data
     # A ceiling to fail against rather than a target, since this machine is also

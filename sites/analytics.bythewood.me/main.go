@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"analytics.bythewood.me/ntfy"
 	"analytics.bythewood.me/web"
 	"github.com/google/uuid"
 )
@@ -187,6 +188,11 @@ func realMain() error {
 	defer sweeping.Wait()
 	defer stopSweeping()
 	sweeping.Go(func() { NewSweeper(db).Run(sweepCtx) })
+	if push := ntfy.New(surgeTopic, os.Getenv("NTFY_TOKEN")); push.Configured() {
+		sweeping.Go(func() { NewSurgeWatcher(db, push).Run(sweepCtx) })
+	} else {
+		slog.Warn("no NTFY_TOKEN, traffic surges won't be pushed")
+	}
 
 	mux := http.NewServeMux()
 
