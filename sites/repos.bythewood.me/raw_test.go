@@ -13,7 +13,7 @@ import (
 // A path that isn't a file has to be a 404, since cat-file failing inside the
 // stream writes nothing and Go answers 200 with an empty body, cached for a year at a SHA.
 func TestRawMissesAreNotFound(t *testing.T) {
-	s := searchFixture(t)
+	s := repoFixture(t)
 	db, err := OpenDB(t.TempDir())
 	if err != nil {
 		t.Fatal(err)

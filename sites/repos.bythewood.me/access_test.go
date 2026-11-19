@@ -13,7 +13,7 @@ import (
 
 func accessFixture(t *testing.T, signedIn bool) (*site, http.Handler, string) {
 	t.Helper()
-	s := searchFixture(t)
+	s := repoFixture(t)
 	db, err := OpenDB(t.TempDir())
 	if err != nil {
 		t.Fatal(err)

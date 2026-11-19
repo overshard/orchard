@@ -240,10 +240,6 @@ func realMain() error {
 	// Counts per source for the dash health strip, fenced the same way, and
 	// since dash is public it never returns a message, a path or an address.
 	mux.HandleFunc("GET /aggregate", s.aggregate)
-	// The read only view chat.bythewood.me's tools call, behind the session
-	// since it carries messages.
-	mux.HandleFunc("GET /api/summary", noStore(s.auth.RequireAuthJSON(s.apiSummary)))
-
 	// The mux only answers 405 itself when nothing else matches, and the
 	// "GET /" catch-all below matches every GET path there is.
 	for path, allow := range map[string]string{
