@@ -153,7 +153,11 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 
 	dateStart := q.Get("date_start")
 	if dateStart == "" {
-		dateStart = today.AddDate(0, 0, -defaultRangeDays).Format("2006-01-02")
+		days := defaultRangeDays
+		if n, err := strconv.Atoi(q.Get("date_range")); err == nil && n >= 1 && n <= maxRangeDays {
+			days = n
+		}
+		dateStart = today.AddDate(0, 0, -days).Format("2006-01-02")
 	}
 	dateEnd := q.Get("date_end")
 	if dateEnd == "" {
