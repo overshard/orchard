@@ -204,3 +204,39 @@ func TestPages(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckArgsHoldsCallsToTheSchema(t *testing.T) {
+	schema := func(name string) map[string]any {
+		tl, ok := toolNamed(name)
+		if !ok {
+			t.Fatalf("no tool %s", name)
+		}
+		return tl.Schema
+	}
+	cases := []struct {
+		tool, args string
+		ok         bool
+	}{
+		{"logs_overview", `{"range":"7d","source":"blog"}`, true},
+		{"logs_overview", `{"range":"5y"}`, false},
+		{"logs_overview", `{}`, true},
+		{"logs_overview", ``, true},
+		{"repo_readme", `{}`, false},
+		{"repo_readme", `{"repo":""}`, false},
+		{"repo_readme", `{"repo":"orchard","extra":1}`, false},
+		{"cron_runs", `{"limit":200}`, true},
+		{"cron_runs", `{"limit":500}`, false},
+		{"cron_runs", `{"limit":1.5}`, false},
+		{"cron_runs", `{"job_id":"7"}`, false},
+		{"logs_search", `{"page":0}`, false},
+		{"orchard_brief", `{"x":1}`, false},
+		{"analytics_report", `{"property":"blog","days":"3"}`, false},
+		{"analytics_report", `[1]`, false},
+	}
+	for _, c := range cases {
+		err := checkArgs(schema(c.tool), json.RawMessage(c.args))
+		if (err == nil) != c.ok {
+			t.Errorf("%s %s: got %v, want ok=%v", c.tool, c.args, err, c.ok)
+		}
+	}
+}

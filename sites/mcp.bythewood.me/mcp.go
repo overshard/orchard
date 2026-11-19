@@ -173,7 +173,11 @@ func (s *site) serveMCP(w http.ResponseWriter, r *http.Request) {
 			reply(w, 200, req.ID, nil, &rpcError{Code: -32602, Message: "no tool named " + p.Name})
 			return
 		}
-		text, err := t.run(r.Context(), s.reader(g), p.Arguments)
+		var text string
+		err := checkArgs(t.Schema, p.Arguments)
+		if err == nil {
+			text, err = t.run(r.Context(), s.reader(g), p.Arguments)
+		}
 		if errors.Is(err, errSessionGone) {
 			// The session was revoked on auth's sessions page, so this grant is over.
 			s.store.Revoke(g.ID)

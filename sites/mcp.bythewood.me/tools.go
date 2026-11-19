@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -156,6 +157,52 @@ func str(desc string) map[string]any { return map[string]any{"type": "string", "
 
 func enum(desc string, vals ...string) map[string]any {
 	return map[string]any{"type": "string", "description": desc, "enum": vals}
+}
+
+// checkArgs holds a call to its tool's schema, so a wrong value comes back as
+// an error the agent can correct and not as a quiet fallback to a default.
+func checkArgs(schema map[string]any, raw json.RawMessage) error {
+	args := map[string]any{}
+	if len(raw) > 0 && string(raw) != "null" {
+		if err := json.Unmarshal(raw, &args); err != nil {
+			return fmt.Errorf("arguments must be a JSON object")
+		}
+	}
+	props, _ := schema["properties"].(map[string]any)
+	req, _ := schema["required"].([]string)
+	for _, k := range req {
+		if v, ok := args[k]; !ok || v == nil || v == "" {
+			return fmt.Errorf("%s is required", k)
+		}
+	}
+	for k, v := range args {
+		p, ok := props[k].(map[string]any)
+		if !ok {
+			return fmt.Errorf("%s isn't an argument this tool takes", k)
+		}
+		switch p["type"] {
+		case "string":
+			s, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("%s must be a string", k)
+			}
+			if vals, ok := p["enum"].([]string); ok && !slices.Contains(vals, s) {
+				return fmt.Errorf("%s must be one of %s", k, strings.Join(vals, ", "))
+			}
+		case "integer":
+			n, ok := v.(float64)
+			if !ok || n != float64(int64(n)) {
+				return fmt.Errorf("%s must be a whole number", k)
+			}
+			if lo, ok := p["minimum"].(int); ok && n < float64(lo) {
+				return fmt.Errorf("%s must be at least %d", k, lo)
+			}
+			if hi, ok := p["maximum"].(int); ok && n > float64(hi) {
+				return fmt.Errorf("%s must be at most %d", k, hi)
+			}
+		}
+	}
+	return nil
 }
 
 func argsOf(raw json.RawMessage) map[string]any {
