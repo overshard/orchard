@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // todo is one thing worth doing now, shown as a chip on the pond and as a
@@ -186,3 +187,40 @@ func hasDish(bag []bagThing) bool {
 	}
 	return false
 }
+
+// leftView is what today still has room for, the readout under the Next
+// strip. NewIn is seconds to the pond's midnight and SpinIn to the next free
+// spin, 0 while one is waiting.
+type leftView struct {
+	Runs   int   `json:"runs"`
+	Sell   int   `json:"sell"`
+	Dishes int   `json:"dishes"`
+	Spins  int   `json:"spins"`
+	SpinIn int64 `json:"spin_in"`
+	NewIn  int64 `json:"new_in"`
+}
+
+func leftOf(v *view, now time.Time) leftView {
+	l := leftView{Sell: v.Stall.Room, Spins: v.Wheel.Free}
+	if l.Spins == 0 {
+		l.SpinIn = max(0, v.Wheel.NextIn)
+	}
+	if v.Dive.Paid < v.Dive.Cap {
+		l.Runs += max(0, v.Dive.Full-v.Dive.Runs)
+	}
+	for _, a := range v.Arcade {
+		if a.Cap > 0 && a.Paid < a.Cap {
+			l.Runs += max(0, a.Full-a.Runs)
+		}
+	}
+	for _, n := range v.Neighbours.All {
+		if !n.Gave {
+			l.Dishes++
+		}
+	}
+	local := now.In(pondZone)
+	midnight := time.Date(local.Year(), local.Month(), local.Day()+1, 0, 0, 0, 0, pondZone)
+	l.NewIn = int64(midnight.Sub(now) / time.Second)
+	return l
+}
+

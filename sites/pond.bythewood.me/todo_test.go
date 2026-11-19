@@ -44,3 +44,16 @@ func TestTodoDropsAGameOnceItsPaid(t *testing.T) {
 		t.Errorf("with nothing to do and 100 pebbles: %+v", v.Todo)
 	}
 }
+
+func TestWhatTodayHasLeft(t *testing.T) {
+	s, _ := testStore(t)
+	_, id := newPond(t, s)
+	v, _ := s.view(id)
+	l := v.Left
+	if l.Dishes != len(v.Neighbours.All) || l.Sell != sellRoom || l.Runs < diveFullRuns || l.NewIn <= 0 || l.NewIn > 25*3600 {
+		t.Errorf("a new pond's day: %+v", l)
+	}
+	if (l.Spins == 0) == (l.SpinIn == 0) {
+		t.Errorf("a spin waiting and a time to the next: %+v", l)
+	}
+}

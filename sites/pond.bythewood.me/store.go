@@ -1024,6 +1024,7 @@ type view struct {
 	// Home keeps the frog off every other pond.
 	Home    bool         `json:"home"`
 	Todo    []todo       `json:"todo"`
+	Left    leftView     `json:"left"`
 	Goals   []goal       `json:"goals"`
 	Starter *starterView `json:"starter,omitempty"`
 
@@ -1405,6 +1406,7 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		return err
 	}
 	v.Todo = todoOf(v)
+	v.Left = leftOf(v, now)
 	if v.Starter, err = starterOf(q, p); err != nil {
 		return err
 	}
