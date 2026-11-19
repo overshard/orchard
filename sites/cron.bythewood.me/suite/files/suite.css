@@ -514,6 +514,58 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 :where(.o-body:has(.o-main):not(:has(.o-hero))) .o-chip { font-size: 0.6rem; padding: 0 5px; }
 :where(.o-body:has(.o-main):not(:has(.o-hero))) .o-cell-spark .o-spark { width: 80px; height: 16px; }
 
+/* ------------------------------------------------------------------ touch */
+
+/* The crosshair suite.js draws over every spark in a strip at once. */
+.o-tile .o-xl { position: absolute; top: 0; width: 1px; background: var(--o-text); opacity: 0.55; pointer-events: none; }
+.o-tile .o-xd { position: absolute; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: var(--o-text); pointer-events: none; }
+.o-xs .o-tile:has(.o-spark[data-v]) { cursor: crosshair; }
+[data-xs-when] b { color: var(--o-brass); font-weight: 500; }
+
+.o-tip {
+  position: fixed; z-index: 60; max-width: 280px; padding: 6px 8px; pointer-events: none;
+  background: var(--o-panel2); border: 1px solid var(--o-line-strong); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.9);
+  font: 0.68rem/1.5 var(--o-mono); color: var(--o-text); white-space: pre-line;
+}
+
+.o-toasts { position: fixed; right: max(12px, env(safe-area-inset-right, 0px)); bottom: 40px; z-index: 55; display: grid; gap: 6px; justify-items: end; }
+.o-toast {
+  position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; min-width: 260px; max-width: min(420px, calc(100vw - 24px));
+  padding: 8px 10px; background: var(--o-panel2); border: 1px solid var(--o-line-strong); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.9); font-size: 0.8rem;
+}
+.o-toast.bad { border-color: rgba(240, 107, 91, 0.5); }
+.o-toast > span { flex: 1; min-width: 0; }
+.o-toast button { padding: 0; background: none; border: 0; color: var(--o-brass); font: 600 0.78rem var(--o-sans); cursor: pointer; }
+.o-toast .cd { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--o-brass); transform-origin: left; }
+@media (prefers-reduced-motion: no-preference) { .o-toast .cd { animation: o-cd var(--ms, 5s) linear forwards; } }
+@keyframes o-cd { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.o-tbl tr.o-gone td { color: var(--o-muted); text-decoration: line-through; opacity: 0.55; }
+.o-tbl tr.o-gone td.act { text-decoration: none; opacity: 1; }
+.o-gone :is(button, .o-btn) { pointer-events: none; opacity: 0.45; }
+
+/* Keyboard rows. The current row gets a brass edge and a picked one a tint. */
+.o-tbl tr.o-cur td { background: var(--o-panel2); }
+.o-tbl tr.o-cur td:first-child { box-shadow: inset 2px 0 0 var(--o-brass); }
+.o-tbl tr.o-sel td { background: rgba(217, 180, 90, 0.07); }
+.o-tbl input[type="checkbox"] { accent-color: var(--o-brass); }
+.o-tbl tr.o-drawer td { background: var(--o-sunk); padding: 10px 12px; }
+.o-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px; background: var(--o-panel2); border: 1px solid rgba(217, 180, 90, 0.5); font-size: 0.8rem; }
+.o-bulk .o-bulk-n { font-weight: 600; margin-right: auto; }
+.o-hint { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; font: 0.68rem var(--o-mono); color: var(--o-muted); }
+.o-body :is(.o-hint, .o-keys) kbd { font: 0.66rem var(--o-mono); padding: 1px 5px; margin-right: 6px; border: 1px solid var(--o-line-strong); color: var(--o-text); }
+.o-keys {
+  width: min(520px, calc(100vw - 24px)); margin: 14vh auto auto; padding: 16px; background: var(--o-panel); color: var(--o-text);
+  border: 1px solid var(--o-line-strong); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.9); font-size: 0.82rem;
+}
+.o-keys[open] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; }
+.o-keys::backdrop { background: rgba(5, 6, 7, 0.6); }
+.o-keys .o-lab { grid-column: 1 / -1; }
+
+/* The palette's groups and the letters a query matched. */
+.o-jr .o-jg { display: block; padding: 8px 14px 2px; font: 500 0.58rem var(--o-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--o-muted); cursor: default; }
+.o-jr li mark { background: none; color: var(--o-brass); }
+.o-jr li .n .gt { color: var(--o-brass); }
+
 /* A table marked stack turns into a list on a phone, its lead cell on a line
    of its own and the rest wrapping under it. */
 @media (max-width: 700px) {
