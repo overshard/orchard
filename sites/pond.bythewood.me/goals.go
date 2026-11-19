@@ -92,13 +92,13 @@ func goalsOf(v *view, p *pond) []goal {
 		}
 	}
 	if next.Key != "" {
-		add("disk", "i_play", "Try "+next.Name, next.Key, fmt.Sprintf("%d/%d", played, len(v.Arcade)+1))
+		add("disk", "g_"+next.Key, "Try "+next.Name, next.Key, fmt.Sprintf("%d/%d", played, len(v.Arcade)+1))
 	}
 	if b.Gravel.Level > 0 && b.Garden.Level == 0 {
-		add("plots", "watercress", "Build the garden", "garden", saved(b.Garden.Cost))
+		add("plots", "sprout", "Build the garden", "garden", saved(b.Garden.Cost))
 	}
 	if len(v.Frogs) == 1 && v.Frogs[0].LayIn >= 0 {
-		add("egg", "f_reeds", "Lay an egg on the bench", "reeds", "")
+		add("egg", "egg", "Lay an egg on the bench", "reeds", "")
 	}
 	if p.Tried&triedShare == 0 && v.Market.In == 0 {
 		add("share", "i_market", "Buy a share on the market", "market", "")

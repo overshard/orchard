@@ -42,10 +42,10 @@ func starterOf(q querier, p *pond) (*starterView, error) {
 		return nil, nil
 	}
 	v := &starterView{Prize: starterPrize, Steps: []starterStep{
-		{"wheel", "i_play", "Spin the wheel", "wheel", bits&starterSpin != 0},
-		{"log", "wood", "Turn the old log", "play", bits&starterLog != 0},
-		{"dive", "i_pond", "Race in Dive", "dive", bits&starterDive != 0},
-		{"key", "i_gear", "Save your pond key", "key", p.KeySavedAt.Valid},
+		{"wheel", "spin", "Spin the wheel", "wheel", bits&starterSpin != 0},
+		{"log", "log", "Turn the old log", "play", bits&starterLog != 0},
+		{"dive", "g_dive", "Race in Dive", "dive", bits&starterDive != 0},
+		{"key", "key", "Save your pond key", "key", p.KeySavedAt.Valid},
 	}}
 	v.Ready = true
 	for _, st := range v.Steps {

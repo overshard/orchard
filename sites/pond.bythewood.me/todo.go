@@ -26,20 +26,20 @@ func todoOf(v *view) []todo {
 	}
 	b := v.Bank
 	if v.Wheel.Free > 0 {
-		add("wheel", "i_play", plural(v.Wheel.Free, "free spin"), "wheel")
+		add("wheel", "spin", plural(v.Wheel.Free, "free spin"), "wheel")
 	}
 	if v.Log.Ready {
-		add("log", "wood", "Turn the old log", "play")
+		add("log", "log", "Turn the old log", "play")
 	}
 	if b.Gravel.Held >= 1 {
 		add("gravel", "peb", fmt.Sprintf("%d on the gravel bar", b.Gravel.Held), "bank")
 	}
 	if b.Burrows.Held >= 1 {
-		add("rent", "peb", fmt.Sprintf("%d in rent", b.Burrows.Held), "bank")
+		add("rent", "burrow", fmt.Sprintf("%d in rent", b.Burrows.Held), "bank")
 	}
 	for _, pl := range b.Garden.Plots {
 		if pl.ReadyIn == 0 {
-			add("garden", "watercress", "Garden's ready", "garden")
+			add("garden", "sprout", "Garden's ready", "garden")
 			break
 		}
 	}
@@ -62,9 +62,9 @@ func todoOf(v *view) []todo {
 	}
 	switch {
 	case len(full) == 1:
-		add("shift", "sticks", "Basket full, collect to keep "+full[0], "job")
+		add("shift", "basket", "Basket full, collect to keep "+full[0], "job")
 	case len(full) > 1:
-		add("shift", "sticks", fmt.Sprintf("%d baskets full, collect to keep them working", len(full)), "job")
+		add("shift", "basket", fmt.Sprintf("%d baskets full, collect to keep them working", len(full)), "job")
 	}
 	for _, f := range short {
 		add("short", f.Work.Short, titled(f.Name)+" ran out of "+f.Work.Short, "job")
@@ -73,7 +73,7 @@ func todoOf(v *view) []todo {
 		add("dividend", "peb", fmt.Sprintf("%d in dividends", v.Market.Due), "market")
 	}
 	if v.Stall.Takings > 0 {
-		add("stall", "i_town", fmt.Sprintf("Stall sold %d", v.Stall.Takings), "town")
+		add("stall", "i_stall", fmt.Sprintf("Stall sold %d", v.Stall.Takings), "town")
 	}
 
 	if w := v.Want; w.Ready && v.Pebbles >= w.Price {
@@ -96,7 +96,7 @@ func todoOf(v *view) []todo {
 		add("rested", "i_rest", "Well rested, next game pays +25%", "play")
 	}
 	if n := left(v.Dive.Paid, v.Dive.Cap, v.Dive.Runs, v.Dive.Full); n > 0 {
-		add("dive", "i_pond", "Dive, "+plural(n, "full pay run")+" left", "dive")
+		add("dive", "g_dive", "Dive, "+plural(n, "full pay run")+" left", "dive")
 	}
 	// One chip for the side games, since one each would push everything else off.
 	open, only := 0, arcadeView{}
@@ -107,17 +107,17 @@ func todoOf(v *view) []todo {
 		}
 	}
 	if open == 1 {
-		add("arcade", "i_play", only.Name+", "+plural(left(only.Paid, only.Cap, only.Runs, only.Full), "full pay run")+" left", only.Key)
+		add("arcade", "g_"+only.Key, only.Name+", "+plural(left(only.Paid, only.Cap, only.Runs, only.Full), "full pay run")+" left", only.Key)
 	} else if open > 1 {
 		add("arcade", "i_play", plural(open, "side game")+" still pay in full", "play")
 	}
 	if f := v.Neighbours.Favour; !f.Done && v.held[f.Kind] >= f.N {
-		add("favour", "i_town", fmt.Sprintf("%s needs %d %s", f.Name, f.N, strings.ToLower(f.What)), "town")
+		add("favour", "i_folk", fmt.Sprintf("%s needs %d %s", f.Name, f.N, strings.ToLower(f.What)), "town")
 	}
 	if hasDish(v.Bag) {
 		for _, n := range v.Neighbours.All {
 			if !n.Gave {
-				add("gift", "i_town", "Bring a neighbour a dish", "town")
+				add("gift", "i_folk", "Bring a neighbour a dish", "town")
 				break
 			}
 		}
