@@ -122,13 +122,13 @@
      numbers worth an alert rule. An ERROR record is a program complaining and
      a 5xx is a visitor being told no, so they stay apart. */}}
 <div class="o-tiles six">
-  {{ template "tile" dict "label" "records" "value" (num .Totals.Records) "sub" (printf "%s requests" (num .Totals.Requests)) "kind" "flat" "spark" (volume .Graph) }}
-  {{ template "tile" dict "label" "error records" "bad" (gt .Totals.Errors 0) "value" (num .Totals.Errors) "sub" (printf "%s warnings" (num .Totals.Warnings)) "kind" (or (and (gt .Totals.Errors 0) "bad") "flat") "spark" (errorSeries .Graph) }}
-  {{ template "tile" dict "label" "5xx rate" "bad" (gt .Totals.Server5xx 0) "value" (printf "%.2f%%" .Totals.ErrorRate) "sub" (printf "%s of %s requests" (num .Totals.Server5xx) (num .Totals.Requests)) }}
-  {{ template "tile" dict "label" "p95 latency" "value" (ms .Latency.P95) "sub" (printf "p50 %s · p99 %s" (ms .Latency.P50) (ms .Latency.P99)) }}
-  {{ template "tile" dict "label" "4xx" "warn" (gt .Totals.Client4xx 0) "value" (num .Totals.Client4xx) "sub" "not found, refused, limited" }}
+  {{ template "tile" dict "label" "records" "value" (num .Totals.Records) "sub" (printf "%s requests" (num .Totals.Requests)) "kind" "flat" "spark" (series "count" .Graph) }}
+  {{ template "tile" dict "label" "error records" "bad" (gt .Totals.Errors 0) "value" (num .Totals.Errors) "sub" (printf "%s warnings" (num .Totals.Warnings)) "kind" (or (and (gt .Totals.Errors 0) "bad") "flat") "spark" (series "errors" .Graph) }}
+  {{ template "tile" dict "label" "5xx rate" "bad" (gt .Totals.Server5xx 0) "value" (printf "%.2f%%" .Totals.ErrorRate) "sub" (printf "%s of %s requests" (num .Totals.Server5xx) (num .Totals.Requests)) "kind" (or (and (gt .Totals.Server5xx 0) "bad") "flat") "spark" (series "rate" .Graph) }}
+  {{ template "tile" dict "label" "p95 latency" "value" (ms .Latency.P95) "sub" (printf "p50 %s · p99 %s" (ms .Latency.P50) (ms .Latency.P99)) "kind" "ok" "spark" (series "latency" .Graph) }}
+  {{ template "tile" dict "label" "4xx" "warn" (gt .Totals.Client4xx 0) "value" (num .Totals.Client4xx) "sub" "not found, refused, limited" "kind" (or (and (gt .Totals.Client4xx 0) "warn") "flat") "spark" (series "4xx" .Graph) }}
   {{/* cf_ray is absent exactly when a request did not cross the tunnel. */}}
-  {{ template "tile" dict "label" "direct hits" "warn" (gt .Totals.DirectHits 0) "value" (num .Totals.DirectHits) "sub" "external, no CF-Ray" }}
+  {{ template "tile" dict "label" "direct hits" "warn" (gt .Totals.DirectHits 0) "value" (num .Totals.DirectHits) "sub" "external, no CF-Ray" "kind" (or (and (gt .Totals.DirectHits 0) "warn") "flat") "spark" (series "direct" .Graph) }}
 </div>
 
 <div class="o-cols charts">

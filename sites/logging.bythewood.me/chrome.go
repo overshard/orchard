@@ -70,20 +70,28 @@ func headline(d *Dashboard) string {
 	return who + `, <em>nothing wrong</em>.`
 }
 
-// volumeSeries and errorSeries are the volume chart's buckets as plain series
-// for the tile sparks.
-func volumeSeries(g []GraphPoint) []float64 {
+// series pulls one measure out of the volume chart's buckets for a tile spark.
+func series(field string, g []GraphPoint) []float64 {
 	out := make([]float64, len(g))
 	for i, p := range g {
-		out[i] = float64(p.Count)
-	}
-	return out
-}
-
-func errorSeries(g []GraphPoint) []float64 {
-	out := make([]float64, len(g))
-	for i, p := range g {
-		out[i] = float64(p.Errors)
+		switch field {
+		case "count":
+			out[i] = float64(p.Count)
+		case "errors":
+			out[i] = float64(p.Errors)
+		case "4xx":
+			out[i] = float64(p.Client4xx)
+		case "direct":
+			out[i] = float64(p.DirectHits)
+		case "rate":
+			if p.Requests > 0 {
+				out[i] = float64(p.Server5xx) / float64(p.Requests)
+			}
+		case "latency":
+			if p.DurCount > 0 {
+				out[i] = p.DurSum / float64(p.DurCount)
+			}
+		}
 	}
 	return out
 }

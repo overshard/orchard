@@ -22,8 +22,7 @@ var templateFuncs = template.FuncMap{
 	"topCount":    topCount,
 	"isLoopback":  isLoopback,
 	"headline":    func(d *Dashboard) template.HTML { return template.HTML(headline(d)) },
-	"volume":      volumeSeries,
-	"errorSeries": errorSeries,
+	"series":      series,
 	"seq":         func(n int) []struct{} { return make([]struct{}, n) },
 	"stagedBar":   func(i int) int { return 40 + (i*37)%45 },
 	"stagedErr": func(i int) int {

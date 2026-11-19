@@ -24,6 +24,14 @@ type GraphPoint struct {
 	Label  string `json:"label"`
 	Count  int64  `json:"count"`
 	Errors int64  `json:"errors"`
+
+	// Only the tile sparks read these, so they stay out of the chart's JSON.
+	Requests   int64   `json:"-"`
+	Server5xx  int64   `json:"-"`
+	Client4xx  int64   `json:"-"`
+	DurSum     float64 `json:"-"`
+	DurCount   int64   `json:"-"`
+	DirectHits int64   `json:"-"`
 }
 
 // Latency is the request duration distribution. Percentiles come from raw rows,
@@ -226,7 +234,12 @@ func volumeGraph(ctx context.Context, db *sql.DB, f filter) []GraphPoint {
 	rows, err := db.QueryContext(ctx, `
 		SELECT hour / ? * ? AS bucket,
 		       SUM(count),
-		       SUM(CASE WHEN level = 'ERROR' OR status >= 500 THEN count ELSE 0 END)
+		       SUM(CASE WHEN level = 'ERROR' OR status >= 500 THEN count ELSE 0 END),
+		       SUM(CASE WHEN status > 0 AND component != 'healthz' THEN count ELSE 0 END),
+		       SUM(CASE WHEN status >= 500 AND component != 'healthz' THEN count ELSE 0 END),
+		       SUM(CASE WHEN status >= 400 AND status < 500 AND component != 'healthz' THEN count ELSE 0 END),
+		       SUM(CASE WHEN component != 'healthz' THEN dur_sum ELSE 0 END),
+		       SUM(CASE WHEN component != 'healthz' THEN dur_count ELSE 0 END)
 		FROM rollups WHERE `+w+`
 		GROUP BY bucket ORDER BY bucket`, args...)
 	if err != nil {
@@ -239,14 +252,35 @@ func volumeGraph(ctx context.Context, db *sql.DB, f filter) []GraphPoint {
 	// as a straight line between its neighbours, so the series is filled.
 	seen := make(map[int64]GraphPoint)
 	for rows.Next() {
-		var at, count, errs int64
-		if err := rows.Scan(&at, &count, &errs); err != nil {
+		var p GraphPoint
+		var at int64
+		if err := rows.Scan(&at, &p.Count, &p.Errors, &p.Requests, &p.Server5xx, &p.Client4xx, &p.DurSum, &p.DurCount); err != nil {
 			queryFailed("volume graph scan", err)
 			return nil
 		}
-		seen[at] = GraphPoint{Count: count, Errors: errs}
+		seen[at] = p
 	}
 	queryFailed("volume graph rows", rows.Err())
+
+	rw, rargs := f.where("ts")
+	direct, err := db.QueryContext(ctx, `
+		SELECT ts / ? * ? AS bucket, COUNT(*) FROM records
+		WHERE `+rw+` AND msg = 'request' AND cf_ray = ''
+		  AND ip NOT IN ('127.0.0.1', '::1')
+		GROUP BY bucket`, append([]any{bucket, bucket}, rargs...)...)
+	queryFailed("direct hits graph", err)
+	if err == nil {
+		for direct.Next() {
+			var at, n int64
+			if direct.Scan(&at, &n) == nil {
+				p := seen[at]
+				p.DirectHits = n
+				seen[at] = p
+			}
+		}
+		queryFailed("direct hits graph rows", direct.Err())
+		direct.Close()
+	}
 
 	start := f.StartMS / bucket * bucket
 	out := make([]GraphPoint, 0, span/bucket+1)

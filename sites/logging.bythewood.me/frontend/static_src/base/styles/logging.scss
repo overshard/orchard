@@ -11,6 +11,10 @@
 .lower { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
 @media (max-width: 1000px) { .charts, .lower { grid-template-columns: minmax(0, 1fr); } }
 .charts-side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+@media (min-width: 1400px) {
+  .lower { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .lower .charts-side { display: contents; }
+}
 
 .chartbox { position: relative; height: 150px; }
 .chartbox.tall { height: 336px; }
@@ -116,3 +120,9 @@
 .notfound { justify-items: start; padding-top: 48px; padding-bottom: 64px; }
 .notfound h1 { font-size: 2rem; }
 .pond-lost { width: 216px; height: 180px; image-rendering: pixelated; }
+
+// A wide screen has room for the attributes beside the message.
+@media (min-width: 1100px) {
+  .log-row { grid-template-columns: auto 3.2rem 6.5rem minmax(0, 1.3fr) minmax(0, 1fr); }
+  .log-row .log-attrs { grid-column: 5; }
+}
