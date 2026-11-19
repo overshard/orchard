@@ -47,10 +47,10 @@ function geneOf(seed, mods) {
 
 // A pond frog or a resident, lit, with its hat. A resident has no stage and
 // is always a grown frog.
-function frogAt(g, f, x, y, shadow) {
+function frogAt(g, f, x, y, shadow, s = 1) {
   const ge = geneOf(f.seed, f.mods), hat = f.hat || { shape: 0, colour: 0 };
-  if (shadow) { g.fillStyle = "rgba(0,0,0,0.35)"; g.beginPath(); g.ellipse(x + W / 2, y + H - 1.5, W * 0.36, 2.2, 0, 0, 7); g.fill(); }
-  draw(g, cells(ge, f.stage || "frog", { hat: hat.shape, legs: f.stage ? f.day >= 6 : true }), W, H, colours(ge, hat), x, y, 1);
+  if (shadow) { g.fillStyle = "rgba(0,0,0,0.35)"; g.beginPath(); g.ellipse(x + W * s / 2, y + (H - 1.5) * s, W * 0.36 * s, 2.2 * s, 0, 0, 7); g.fill(); }
+  draw(g, cells(ge, f.stage || "frog", { hat: hat.shape, legs: f.stage ? f.day >= 6 : true }), W, H, colours(ge, hat), x, y, s);
 }
 
 function residents(p) { return (p.neighbours && p.neighbours.all) || []; }
@@ -97,6 +97,22 @@ export function drawReeds(cv, p) {
     });
     cattail(g, 4, h, h - 60, 1); cattail(g, 191, h, h - 54, -1);
     return moving(day, o, [6, 10, 185, h - 80, h - 50], 11, lamps);
+  });
+}
+
+// One frog on its pad for its card in the roster, the water carried to the
+// card's edges. A tool sits by it at work and a lamp hangs over the one out front.
+export function drawCard(cv, p, f) {
+  vista(cv).draw((g, w, h) => {
+    const L = look(p.day), r = rng(f.seed % 997 + 3);
+    water(g, w, 0, h, L.water[0], L.water[1], r, L.line, L.line2);
+    const x = Math.round(w / 2);
+    pad(g, x, h - 8, 28, 5, f.seed % 3 === 0);
+    frogAt(g, f, x - W / 2, h - 8 - H + 2, true);
+    cattail(g, 4, h, h - 30, 1);
+    if (f.work && f.work.job) tool(g, f.work.job, x + 18, h - 22, 1);
+    if (f.front) { px(g, "#2a2018", w - 14, 0, 1, 6); hanging(g, w - 14, 6); }
+    return moving(p.day, 0, null, 5, f.front ? [[w - 14, 9, 10]] : []);
   });
 }
 

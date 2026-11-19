@@ -138,27 +138,10 @@
 
   <section class="view" id="v-reeds" hidden>
     <canvas class="vista top" id="reeds-art" aria-label="Every frog on its lily pad"></canvas>
-    <p class="line" id="reeds-line"></p>
-    <div class="reeds" id="reeds"></div>
+    <h2>Your frogs <span id="reeds-count"></span></h2>
+    <div class="nrow ready" id="reeds-take" hidden><span class="nrow-what"></span><button type="button" class="primary" id="jobs-collect">Take</button></div>
+    <div class="roster" id="reeds"></div>
     <p class="dim" id="reeds-out" role="status"></p>
-
-    <h2>Jobs</h2>
-    <p class="help" hidden>Every frog past the egg can work one job, at one target the job opens by level. A job is a run of actions, and each one that finishes puts its thing in the frog's basket and pays xp for it, or a fifth of that when it misses. The basket holds 12 hours of actions and then the frog stops until you take it. Levels go to 99 and only go up, a better frog works faster, and a frog works a quarter faster at the job its nature suits. Finds turn up at higher levels. Crafting makes one thing an action out of sticks, reeds and clay, and a frog that's full from a dish sometimes brings in two. Each target has its own mastery, and Tansy, Moth and Big Bean each sell a tool or two that makes a job quicker for every frog good enough to use it. A gardener also makes the plots grow faster. A 99 earns the pond that job's hood, and once in a long while a frog brings home a pet.</p>
-    <p id="jobs-line"></p>
-    <div class="row" id="jobs-row" hidden><button type="button" class="primary" id="jobs-collect">Take the basket</button></div>
-
-    <h2>Egg bench</h2>
-    <p class="help" hidden>An egg is its parent with the numbers nudged, and about one in sixteen throws back to something else. A dye, a pattern or eye drops take about two times in three and are used up either way. A frog fed a dish first does better, the rarer the dish the more often they take, and a rare one or better can give odd eyes on its own. Drops make a frog ten times rarer. Moth in town sells all three.</p>
-    <p id="bench-line"></p>
-    <div class="row seg" id="bench-dyes" aria-label="Dye"></div>
-    <div class="row seg" id="bench-stamps" aria-label="Pattern"></div>
-    <div class="row seg" id="bench-drops" aria-label="Eye drops"></div>
-    <div class="row"><button type="button" class="primary" id="lay">Lay an egg</button></div>
-    <p class="line" id="bench-out" role="status"></p>
-
-    <h2>Pads</h2>
-    <p id="pads-line"></p>
-    <div class="row"><button type="button" id="pad-buy">Another pad</button></div>
   </section>
 
   <section class="view" id="v-job" hidden>

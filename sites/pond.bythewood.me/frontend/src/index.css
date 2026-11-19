@@ -1491,77 +1491,138 @@ body:has(.dock) main {
   opacity: 1;
 }
 
-/* The reeds, every frog in the pond with the one out front first. */
-.reeds {
+/* The roster, a card a frog on its own pad, the one out front lit. */
+.roster {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
   gap: 10px;
-  margin: 12px 0;
+  margin: 10px 0;
 }
 
-.reed {
+.fcard {
   display: grid;
-  gap: 6px;
   align-content: start;
-  padding: 8px;
-  border-radius: 10px;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 12px;
   background: var(--card);
   box-shadow: var(--edge);
+  color: var(--text);
+  text-decoration: none;
 }
 
-.reed.front {
-  box-shadow: var(--edge);
+.fcard.front {
+  box-shadow: 0 0 0 2px var(--lamp-dark), 0 0 18px var(--lamp-glow);
 }
 
-.reed canvas {
+.fcard .vista {
   width: 100%;
-  height: auto;
-  border-radius: 4px;
-  background: #0e2c30;
-  box-shadow: 0 0 0 3px var(--ink);
-  image-rendering: pixelated;
+  height: 112px;
+  margin: 0;
 }
 
-.reed b {
-  font-family: var(--ui);
+.fcard-n {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px 10px;
+}
+
+.fcard-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.fcard-top b {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fcard-top .tier {
+  flex: none;
+  padding: 2px 6px 1px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.fcard-st {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 14px;
   font-variant-numeric: tabular-nums;
+}
+
+/* An LED is lit green for something waiting, lamp for a frog at work. */
+.led {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line-2);
+}
+
+.led.ok {
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
+}
+
+.led.on {
+  background: var(--lamp);
+}
+
+.fcard.add {
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  min-height: 170px;
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed var(--line-2);
+  background: transparent;
+  box-shadow: none;
+  color: var(--dim);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.fcard.add b {
+  color: var(--muted);
   font-size: 15px;
+}
+
+.fcard.buy b {
+  color: var(--lamp);
+  font-size: 32px;
+  line-height: 1;
+}
+
+.fcard.buy span {
+  color: var(--text);
   font-weight: 700;
 }
 
-.reed span {
-  color: var(--muted);
-  font-size: 14px;
+.fcard.buy:disabled b,
+.fcard.buy:disabled span {
+  color: var(--dim);
 }
 
-.reed .tier {
-  justify-self: start;
-  font-size: 11px;
+.nrow.ready {
+  box-shadow: var(--edge), inset 3px 0 0 var(--ok);
 }
 
-.reed .ate {
-  color: var(--ok);
-}
-
-.reed .on {
-  color: var(--ok);
-  font-family: var(--ui);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: var(--track);
-}
-
-.reed .on::before {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: var(--ok);
-  box-shadow: 0 0 8px var(--ok);
-  vertical-align: 1px;
+.nrow > button {
+  flex: none;
+  min-height: 36px;
+  margin: 2px 0 5px;
+  padding: 6px 14px;
 }
 
 /* The readout of what today has left, and the hearts on a frog's page. */

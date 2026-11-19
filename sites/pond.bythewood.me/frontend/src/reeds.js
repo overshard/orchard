@@ -1,211 +1,112 @@
-import { drawReeds } from "./scenes.js";
+import { drawReeds, drawCard } from "./scenes.js";
 import { $, post, state, setPond, watch, titled, workNow, TIERS } from "./api.js";
-import { genome, bred, cells, colours, W, H } from "./frog.js";
-import { draw } from "./lit.js";
-import { openJob, jobSheet, collect } from "./work.js";
+import { iconCanvas } from "./icons.js";
+import { collect } from "./work.js";
 
-let dye = "", stamp = "", drop = "", frontID = 0;
+// A card a frog, each on its own pad, and a dashed card for every pad
+// nobody's on and for the next one to buy.
+const cards = new Map();
 
-function days(sec) {
-  const d = Math.ceil(sec / 86400);
-  return d === 1 ? "tomorrow" : "in " + d + " days";
+export function span(sec) {
+  if (sec < 3600) return Math.max(1, Math.round(sec / 60)) + "m";
+  if (sec < 86400 * 2) return Math.round(sec / 3600) + "h";
+  return Math.round(sec / 86400) + "d";
 }
 
-function say(id, msg) { $(id).textContent = msg; }
-
-function plural(n) { return n === 1 ? "One frog" : n + " frogs"; }
-
-function hours(h) {
-  if (h < 1) return Math.max(1, Math.round(h * 60)) + "m";
-  return (Math.round(h * 10) / 10) + "h";
-}
-
-function frogArt(f, s) {
-  const cv = document.createElement("canvas"), g = bred(genome(f.seed), f.mods);
-  cv.width = W * s; cv.height = H * s;
-  draw(cv.getContext("2d"), cells(g, f.stage, { hat: f.hat.shape, legs: f.day >= 6 }), W, H, colours(g, f.hat), 0, 0, s);
-  return cv;
-}
-
-function levelOf(f, key) { return f.work.levels.find((l) => l.job === key); }
-
-function jobName(key) {
-  const d = state.pond.jobs.defs.find((x) => x.key === key);
+export function jobName(p, key) {
+  const d = p.jobs.defs.find((x) => x.key === key);
   return d ? d.name : "";
 }
 
-function card(f) {
-  const div = document.createElement("div"), cv = document.createElement("canvas"), g = bred(genome(f.seed), f.mods);
-  div.className = "reed" + (f.front ? " front" : "");
-  cv.width = W * 3; cv.height = H * 3;
-  cv.setAttribute("role", "img"); cv.setAttribute("aria-label", titled(f.name));
-  draw(cv.getContext("2d"), cells(g, f.stage, { hat: f.hat.shape, legs: f.day >= 6 }), W, H, colours(g, f.hat), 0, 0, 3);
-  const name = document.createElement("b"), what = document.createElement("span"), tier = document.createElement("span");
+// The one line a card says, and whether its LED is lit. A full basket and
+// an egg ready to lay come first, since they're waiting on the player.
+export function statusOf(p, f) {
+  const n = f.work && f.work.act ? workNow(f.work) : null;
+  if (n && n.stop === "full") return ["Basket full", "ok"];
+  if (f.lay_in === 0) return [p.frogs.length < p.pads ? "Ready to lay" : "Ready to lay, pads full", p.frogs.length < p.pads ? "ok" : ""];
+  if (f.stage === "egg") return ["Hatches in " + span(f.grows_in), ""];
+  if (f.work && f.work.job) {
+    const l = f.work.levels.find((x) => x.job === f.work.job);
+    return [jobName(p, f.work.job) + " " + l.level + (n ? " · " + n.n + "/" + f.work.cap : ""), "on"];
+  }
+  if (f.fed) return ["Full for " + span(f.fed.left), ""];
+  if (f.lay_in > 0) return ["Lays again in " + span(f.lay_in), ""];
+  if (f.grows_in > 0 && f.stage !== "frog") return ["Grows in " + span(f.grows_in), ""];
+  return ["No job yet", ""];
+}
+
+function card(p, f) {
+  let c = cards.get(f.id);
+  if (!c) {
+    const a = document.createElement("a"), cv = document.createElement("canvas"), n = document.createElement("span");
+    a.className = "fcard";
+    cv.className = "vista";
+    n.className = "fcard-n";
+    a.append(cv, n);
+    c = { a, cv, n, key: "" };
+    cards.set(f.id, c);
+  }
+  c.a.href = "#frog-" + f.id;
+  c.a.classList.toggle("front", f.front);
+  const key = [f.stage, f.day, f.hat.shape, f.hat.colour, f.front, f.work && f.work.job, JSON.stringify(f.mods), p.day && p.day.night].join();
+  if (key !== c.key) { c.key = key; drawCard(c.cv, p, f); }
+  const [line, led] = statusOf(p, f), name = document.createElement("b"), tier = document.createElement("span"), st = document.createElement("span"), dot = document.createElement("i");
   name.textContent = titled(f.name);
-  what.textContent = f.stage.charAt(0).toUpperCase() + f.stage.slice(1) + ", day " + f.day + (f.stage === "egg" ? "" : ", " + f.nature.toLowerCase());
   tier.className = "tier t" + f.rarity.tier; tier.textContent = TIERS[f.rarity.tier];
-  div.append(cv, name, what, tier);
-  if (f.fed) {
-    const ate = document.createElement("span");
-    ate.className = "ate"; ate.textContent = "Full for " + hours(f.fed.left / 3600) + (f.fed.fav ? ", its favourite" : "");
-    div.append(ate);
-  }
-  if (f.work) {
-    const job = document.createElement("button");
-    job.type = "button"; job.className = "job";
-    if (f.work.job) {
-      const l = levelOf(f, f.work.job), n = f.work.act ? workNow(f.work) : null;
-      job.textContent = jobName(f.work.job) + " " + l.level + (n ? " · " + (n.stop === "full" ? "full" : n.n + "/" + f.work.cap) : "");
-      job.classList.toggle("full", !!(n && n.stop));
-      job.addEventListener("click", () => openJob(f));
-    } else {
-      job.textContent = "Give it a job";
-      job.addEventListener("click", () => jobSheet(f));
-    }
-    div.append(job);
-  }
-  if (f.front) {
-    const on = document.createElement("span");
-    on.className = "on"; on.textContent = "OUT FRONT";
-    div.append(on);
-  } else {
-    const b = document.createElement("button");
-    b.type = "button"; b.textContent = "Out front";
-    b.addEventListener("click", () => {
-      b.disabled = true;
-      post("/api/frogs/front", { frog: f.id }).then((p) => {
-        setPond(p);
-        say("reeds-out", titled(f.name) + " is out front now. It greets you, wears its own hat and dives.");
-      }, (e) => { say("reeds-out", e.message); b.disabled = false; });
-    });
-    div.append(b);
-  }
-  return div;
+  dot.className = "led" + (led ? " " + led : "");
+  st.className = "fcard-st";
+  st.append(dot, line);
+  const top = document.createElement("span");
+  top.className = "fcard-top";
+  top.append(name, tier);
+  c.n.replaceChildren(top, st);
+  c.cv.setAttribute("aria-hidden", "true");
+  c.a.setAttribute("aria-label", titled(f.name) + ", " + TIERS[f.rarity.tier] + ", " + line);
+  return c.a;
 }
 
 function render(p) {
-  const front = p.frogs.find((f) => f.front), name = titled(front.name);
-  frontID = front.id;
   drawReeds($("reeds-art"), p);
+  const front = p.frogs.find((f) => f.front);
+  $("reeds-count").textContent = p.frogs.length + " of " + p.pads + " pads";
   const box = $("reeds");
-  box.textContent = "";
-  [front].concat(p.frogs.filter((f) => !f.front)).forEach((f) => box.append(card(f)));
-  say("reeds-line", p.frogs.length === 1
-    ? name + " has the whole pond to itself for now. Once it's grown it can lay an egg, and the egg grows up here beside it."
-    : p.frogs.length + " frogs live here. One is out front and the rest are in the reeds, and swim past now and then. Any of them can swap.");
-
-  const working = p.frogs.filter((f) => f.work && f.work.job).length;
-  say("jobs-line", working ? plural(working) + " working. Pond total level " + p.jobs.total + "." : "Nobody's working. Tap a frog's job button to give it one. Pond total level " + p.jobs.total + ".");
-  const baskets = p.frogs.filter((f) => f.work && f.work.act && workNow(f.work).n > 0).length;
-  $("jobs-row").hidden = baskets === 0;
-  $("jobs-collect").textContent = baskets === 1 ? "Take the basket" : "Take " + baskets + " baskets";
-
-  // The bench lays from whoever is out front.
-  const full = p.frogs.length >= p.pads, lay = $("lay");
-  let line;
-  if (front.lay_in < 0) line = name + " is too young to lay. It can once it's a frog, on day 13.";
-  else if (front.lay_in > 0) line = name + " laid not long ago and can lay again " + days(front.lay_in) + ".";
-  else if (full) line = name + " is ready to lay, but every pad has a frog on it.";
-  else line = name + " is ready to lay an egg.";
-  if (front.lay_in >= 0) {
-    const m = front.fed;
-    if (!m) line += " Feed it a dish from your bag first and the egg comes out better.";
-    else {
-      line += " It's full of " + m.name.toLowerCase() + " for " + hours(m.left / 3600) + ", so dyes, patterns and drops take " + (m.takes >= 1 ? "every time" : Math.round(m.takes * 100) + "% of the time");
-      line += m.eyes ? " and about 1 egg in " + Math.round(1 / m.eyes) + " gets odd eyes." : ".";
-    }
+  const all = [front].concat(p.frogs.filter((f) => !f.front)).map((f) => card(p, f));
+  for (let i = p.frogs.length; i < p.pads; i++) {
+    const d = document.createElement("div");
+    d.className = "fcard add";
+    d.append(Object.assign(document.createElement("b"), { textContent: "Empty pad" }), Object.assign(document.createElement("span"), { textContent: "An egg can go here" }));
+    all.push(d);
   }
-  say("bench-line", line);
-  lay.disabled = front.lay_in !== 0 || full;
-
-  const dyes = p.items.filter((it) => it.kind.startsWith("dye_"));
-  if (dye && !dyes.some((d) => d.kind === dye)) dye = "";
-  const seg = $("bench-dyes");
-  seg.textContent = "";
-  [{ kind: "", name: "No dye", count: 0 }].concat(dyes).forEach((d) => {
+  if (p.pad_cost) {
     const b = document.createElement("button");
-    b.type = "button"; b.dataset.dye = d.kind;
-    b.textContent = d.name + (d.count > 1 ? " x" + d.count : "");
-    b.setAttribute("aria-pressed", d.kind === dye ? "true" : "false");
-    seg.append(b);
-  });
-  seg.hidden = dyes.length === 0;
+    b.type = "button"; b.className = "fcard add buy";
+    b.disabled = p.pebbles < p.pad_cost;
+    const plus = document.createElement("b"), what = document.createElement("span");
+    plus.textContent = "+"; what.textContent = "Another pad, " + p.pad_cost.toLocaleString("en-US");
+    b.append(plus, what);
+    b.addEventListener("click", () => {
+      b.disabled = true;
+      post("/api/pads/buy").then(setPond, (e) => { $("reeds-out").textContent = e.message; b.disabled = false; });
+    });
+    all.push(b);
+  }
+  box.replaceChildren(...all);
 
-  const stamps = p.items.filter((it) => it.kind.startsWith("stamp_"));
-  if (stamp && !stamps.some((d) => d.kind === stamp)) stamp = "";
-  const sseg = $("bench-stamps");
-  sseg.textContent = "";
-  [{ kind: "", name: "No pattern", count: 0 }].concat(stamps).forEach((d) => {
-    const b = document.createElement("button");
-    b.type = "button"; b.dataset.stamp = d.kind;
-    b.textContent = d.name + (d.count > 1 ? " x" + d.count : "");
-    b.setAttribute("aria-pressed", d.kind === stamp ? "true" : "false");
-    sseg.append(b);
-  });
-  sseg.hidden = stamps.length === 0;
-
-  const drops = p.items.filter((it) => it.kind.startsWith("drops_"));
-  if (drop && !drops.some((d) => d.kind === drop)) drop = "";
-  const dseg = $("bench-drops");
-  dseg.textContent = "";
-  [{ kind: "", name: "No drops", count: 0 }].concat(drops).forEach((d) => {
-    const b = document.createElement("button");
-    b.type = "button"; b.dataset.drop = d.kind;
-    b.textContent = d.name + (d.count > 1 ? " x" + d.count : "");
-    b.setAttribute("aria-pressed", d.kind === drop ? "true" : "false");
-    dseg.append(b);
-  });
-  dseg.hidden = drops.length === 0;
-
-  say("pads-line", p.frogs.length + " of " + p.pads + " pads have a frog on them." + (p.pad_cost ? "" : " That's as many pads as the pond holds."));
-  const buy = $("pad-buy");
-  buy.hidden = !p.pad_cost;
-  buy.textContent = "Another pad, " + (p.pad_cost || 0).toLocaleString("en-US");
-  buy.disabled = p.pebbles < p.pad_cost;
+  const baskets = p.frogs.filter((f) => f.work && f.work.act && workNow(f.work).n > 0);
+  const row = $("reeds-take");
+  row.hidden = baskets.length === 0;
+  if (baskets.length) {
+    const full = baskets.filter((f) => workNow(f.work).stop === "full").length;
+    row.querySelector(".nrow-what").textContent = (baskets.length === 1 ? "A basket" : baskets.length + " baskets") + " to take" + (full ? ", " + full + " full" : "");
+  }
 }
 
 export function initReeds() {
   watch(render);
-  $("bench-dyes").addEventListener("click", (e) => {
-    const b = e.target.closest("button");
-    if (!b) return;
-    dye = b.dataset.dye;
-    document.querySelectorAll("#bench-dyes button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
-  });
-  $("bench-stamps").addEventListener("click", (e) => {
-    const b = e.target.closest("button");
-    if (!b) return;
-    stamp = b.dataset.stamp;
-    document.querySelectorAll("#bench-stamps button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
-  });
-  $("bench-drops").addEventListener("click", (e) => {
-    const b = e.target.closest("button");
-    if (!b) return;
-    drop = b.dataset.drop;
-    document.querySelectorAll("#bench-drops button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
-  });
-  $("lay").addEventListener("click", () => {
-    const lay = $("lay");
-    lay.disabled = true;
-    post("/api/frogs/lay", { frog: frontID, dye, stamp, drops: drop }).then((d) => {
-      const took = d.frog.mods && d.frog.mods.took ? d.frog.mods.took : [];
-      let msg = "An egg, and it's on a pad in the reeds. It'll be " + titled(d.frog.name) + ".";
-      if (took.includes("dye")) msg += " The dye took.";
-      else if (dye) msg += " The dye didn't take this time.";
-      if (took.includes("stamp")) msg += " The pattern took.";
-      else if (stamp) msg += " The pattern didn't take this time.";
-      if (took.includes("drops")) msg += " The drops took.";
-      else if (drop) msg += " The drops didn't take this time.";
-      if (took.includes("meal")) msg += " It has odd eyes from the meal.";
-      if (took.includes("throwback")) msg += " Something about it looks like nobody in the family.";
-      say("bench-out", msg);
-      setPond(d.pond);
-    }, (e) => { say("bench-out", e.message); lay.disabled = false; });
-  });
+  const row = $("reeds-take");
+  row.prepend(iconCanvas("basket", 2));
   $("jobs-collect").addEventListener("click", function () {
     collect(this).then(() => { this.disabled = false; });
   });
-  $("pad-buy").addEventListener("click", () => {
-    post("/api/pads/buy").then(setPond, (e) => say("pads-line", e.message));
-  });
+  setInterval(() => { if (state.pond && !$("v-reeds").hidden) render(state.pond); }, 20000);
 }
