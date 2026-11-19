@@ -116,3 +116,111 @@ func TestAPageHoldsSoManyStampsAndTheSweepClearsThem(t *testing.T) {
 		t.Errorf("%d stamps after a month unseen", n)
 	}
 }
+
+func TestTheStampBookKeepsTheLatestFromEachPond(t *testing.T) {
+	s, clock := testStore(t)
+	_, me := newPond(t, s)
+	page := publicOf(t, s, me)
+	_, a := newPond(t, s)
+	_, b := newPond(t, s)
+	if _, err := s.stamp(me, publicOf(t, s, a), "fly"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.stamp(a, page, "heart"); err != nil {
+		t.Fatal(err)
+	}
+	if bk, _ := s.book(me); len(bk.Stamps) != 0 || bk.Left != stampsADay-1 {
+		t.Fatalf("before the greeting the book has %+v", bk)
+	}
+	*clock = clock.Add(24 * time.Hour)
+	if _, err := s.stamp(a, page, "star"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.stamp(b, page, "wave"); err != nil {
+		t.Fatal(err)
+	}
+	g, err := s.greet(me, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !missed(g, "Stamps", "3 stamps on your frog's page, and each brought a piece of the painting") {
+		t.Errorf("the away list says %v", g.Missed)
+	}
+	bk, err := s.book(me)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bk.Ponds != 2 || len(bk.Stamps) != 2 || bk.Left != stampsADay || bk.Paint != g.Pond.Bank.Burrows.Paint {
+		t.Fatalf("the book: %+v", bk)
+	}
+	if bk.Stamps[0].Times != 2 && bk.Stamps[1].Times != 2 {
+		t.Errorf("neither pond counts twice: %+v", bk.Stamps)
+	}
+	for _, st := range bk.Stamps {
+		if st.Day != dayOf(*clock) || st.From == nil || (st.Stamp != "star" && st.Stamp != "wave") {
+			t.Errorf("a stamp in the book: %+v", st)
+		}
+	}
+
+	// A fortnight on the stamps are still in the book, and a month on they're
+	// gone. A saved key keeps the sweep off the ponds themselves.
+	exec(t, s, `UPDATE ponds SET key_saved_at = 1`)
+	*clock = clock.Add(14 * 24 * time.Hour)
+	if _, err := s.sweep(); err != nil {
+		t.Fatal(err)
+	}
+	if bk, _ := s.book(me); len(bk.Stamps) != 2 {
+		t.Errorf("a fortnight on the book has %d", len(bk.Stamps))
+	}
+	*clock = clock.Add(20 * 24 * time.Hour)
+	if _, err := s.sweep(); err != nil {
+		t.Fatal(err)
+	}
+	if bk, _ := s.book(me); len(bk.Stamps) != 0 {
+		t.Errorf("a month on the book has %d", len(bk.Stamps))
+	}
+}
+
+func TestStampsStopBringingPiecesOnceThePaintingsAreDone(t *testing.T) {
+	s, clock := testStore(t)
+	_, me := newPond(t, s)
+	_, a := newPond(t, s)
+	exec(t, s, `UPDATE ponds SET paint = ? WHERE id = ?`, paintPieces*paintings, me)
+	if _, err := s.stamp(a, publicOf(t, s, me), "leaf"); err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(time.Hour)
+	g, err := s.greet(me, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !missed(g, "Stamps", "1 stamp on your frog's page") {
+		t.Errorf("the away list says %v", g.Missed)
+	}
+}
+
+func TestPiecesSaid(t *testing.T) {
+	for _, c := range []struct {
+		n, pieces int
+		want      string
+	}{
+		{1, 0, ""},
+		{1, 1, ", and it brought a piece of the painting"},
+		{4, 4, ", and each brought a piece of the painting"},
+		{4, 1, ", and 1 piece of the painting came with them"},
+		{4, 3, ", and 3 pieces of the painting came with them"},
+	} {
+		if got := piecesSaid(c.n, c.pieces); got != c.want {
+			t.Errorf("piecesSaid(%d, %d) = %q", c.n, c.pieces, got)
+		}
+	}
+}
+
+func missed(g *greeting, label, line string) bool {
+	for _, m := range g.Missed {
+		if m[0] == label && m[1] == line {
+			return true
+		}
+	}
+	return false
+}

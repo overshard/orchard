@@ -17,6 +17,10 @@ const (
 	// Stamps a page holds until its pond opens, so a crowd can't pile up
 	// rows for a pond nobody comes back to.
 	stampsHeld = 60
+	// Days a stamp stays in the book.
+	stampsKept = 30
+	// Frogs the stamp book shows, the latest stamp from each.
+	bookSize = 12
 )
 
 var (
@@ -163,4 +167,69 @@ func stampsIn(tx *sql.Tx, p *pond, now time.Time) ([]stampView, error) {
 	}
 	_, err = tx.Exec(`UPDATE stamps SET seen = 1 WHERE page_id = ? AND seen = 0`, p.ID)
 	return out, err
+}
+
+type bookStamp struct {
+	Stamp string `json:"stamp"`
+	Day   string `json:"day"`
+	// Times is how many days this frog's pond stamped the page this month.
+	Times int `json:"times"`
+	// From is nil for a pond that keeps its frog home.
+	From *caller `json:"from"`
+}
+
+type bookView struct {
+	// Stamps is the latest from each pond that stamped this page, newest
+	// first, once the greeting has shown them.
+	Stamps []bookStamp `json:"stamps"`
+	Ponds  int         `json:"ponds"`
+	// Left is the pages this pond can still stamp today.
+	Left  int `json:"left"`
+	Paint int `json:"paint"`
+}
+
+func (s *store) book(id int64) (bookView, error) {
+	v := bookView{Stamps: []bookStamp{}}
+	now := s.now()
+	rows, err := s.r.Query(`SELECT from_id, stamp, MAX(day), COUNT(*) FROM stamps
+		WHERE page_id = ? AND seen = 1 GROUP BY from_id ORDER BY MAX(day) DESC, from_id LIMIT ?`, id, bookSize)
+	if err != nil {
+		return v, err
+	}
+	type row struct {
+		from    int64
+		kind, n int
+		day     string
+	}
+	var got []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.from, &r.kind, &r.day, &r.n); err != nil {
+			rows.Close()
+			return v, err
+		}
+		got = append(got, r)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return v, err
+	}
+	for _, r := range got {
+		if r.kind < 0 || r.kind >= len(stampKinds) {
+			continue
+		}
+		c, err := frontOf(s.r, r.from, now)
+		if err != nil {
+			return v, err
+		}
+		v.Stamps = append(v.Stamps, bookStamp{Stamp: stampKinds[r.kind], Day: r.day, Times: r.n, From: c})
+	}
+	var sent int
+	err = s.r.QueryRow(`SELECT (SELECT COUNT(DISTINCT from_id) FROM stamps WHERE page_id = ? AND seen = 1),
+		(SELECT COUNT(*) FROM stamps WHERE from_id = ? AND day = ?), paint FROM ponds WHERE id = ?`,
+		id, id, dayOf(now), id).Scan(&v.Ponds, &sent, &v.Paint)
+	if errors.Is(err, sql.ErrNoRows) {
+		return v, errNoPond
+	}
+	v.Left = max(0, stampsADay-sent)
+	return v, err
 }

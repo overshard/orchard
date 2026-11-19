@@ -259,6 +259,7 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /api/home", s.played(s.apiHome))
 	mux.HandleFunc("POST /api/far", s.played(s.apiFar))
 	mux.HandleFunc("GET /api/stamps", s.apiStamps)
+	mux.HandleFunc("GET /api/book", s.apiBook)
 	mux.HandleFunc("POST /api/stamp", s.played(s.apiStamp))
 	if devBuild {
 		mux.HandleFunc("POST /api/dev/clock", post(s.apiDevClock))

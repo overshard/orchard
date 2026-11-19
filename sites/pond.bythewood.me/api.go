@@ -752,6 +752,21 @@ func (s *site) apiHome(id int64, r *http.Request, w http.ResponseWriter) (any, e
 	return s.store.keepHome(id, in.Home)
 }
 
+// apiBook is the pond's own stamp book.
+func (s *site) apiBook(w http.ResponseWriter, r *http.Request) {
+	id, _, err := s.pondOf(r)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	b, err := s.store.book(id)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, b)
+}
+
 // apiStamps says what this visitor can do on a frog's page. The page is the
 // same cached copy for everybody, so this is asked for once it's open.
 func (s *site) apiStamps(w http.ResponseWriter, r *http.Request) {

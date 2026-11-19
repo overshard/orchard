@@ -832,10 +832,8 @@ func (s *store) sweep() (int64, error) {
 			return err
 		}
 		gone, _ = res.RowsAffected()
-		// A stamp is kept through the day after it's seen, for once a day a
-		// page, and one never seen goes after a month.
-		if _, err = tx.Exec(`DELETE FROM stamps WHERE (seen = 1 AND day < ?) OR day < ?`,
-			dayOf(s.now().AddDate(0, 0, -2)), dayOf(s.now().AddDate(0, 0, -30))); err != nil {
+		// The stamp book shows a month of stamps, seen or not.
+		if _, err = tx.Exec(`DELETE FROM stamps WHERE day < ?`, dayOf(s.now().AddDate(0, 0, -stampsKept))); err != nil {
 			return err
 		}
 		// What was bought only counts against today's stock.
