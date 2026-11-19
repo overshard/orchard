@@ -47,6 +47,10 @@ func Handler() http.Handler {
 	files := http.StripPrefix("/suite/", http.FileServerFS(sub))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name := strings.TrimPrefix(r.URL.Path, "/suite/")
+		if name == "index.json" {
+			serveIndex(w, r)
+			return
+		}
 		sum, ok := sums[name]
 		if !ok {
 			// Without this the edge stamps its own TTL on the 404 and holds it.

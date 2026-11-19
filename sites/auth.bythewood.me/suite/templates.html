@@ -17,11 +17,12 @@
     <a class="o-brand" href="{{if .SignedIn}}https://auth.bythewood.me/{{else}}/{{end}}">{{template "suite-glyph"}}<span>orchard</span></a>
     <nav class="o-tools" aria-label="Tools">
       {{- $tool := .Tool}}{{range tools}}
-      <a href="{{.URL}}"{{if eq .Name $tool}} class="on" aria-current="page"{{end}}>{{.Name}}</a>
+      <a href="{{.URL}}" data-tool="{{.Name}}"{{if eq .Name $tool}} class="on" aria-current="page"{{end}}>{{.Name}}</a>
       {{- end}}
     </nav>
     <span class="o-sp"></span>
-    {{if .SignedIn}}<a class="o-account" href="https://auth.bythewood.me/" aria-label="Your account"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14c.6-2.8 2.8-4.3 5.5-4.3s4.9 1.5 5.5 4.3"/></svg></a>
+    {{if .SignedIn}}<button type="button" class="o-jump" data-jump aria-label="Jump to anything" aria-keyshortcuts="Control+K Meta+K"><span class="p">$</span><span class="h">jump or ask&hellip;</span><kbd>&#8984;K</kbd></button>
+    <a class="o-account" href="https://auth.bythewood.me/" aria-label="Your account"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14c.6-2.8 2.8-4.3 5.5-4.3s4.9 1.5 5.5 4.3"/></svg></a>
     {{else}}<a class="o-btn o-btn-p o-btn-sm" href="/login">Sign in</a>{{end}}
   </div>
   {{if .Tabs}}<div class="o-sub"><div class="o-sub-in">
