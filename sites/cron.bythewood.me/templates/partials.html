@@ -46,3 +46,6 @@
 <p class="o-empty"><b>Nothing has run yet.</b>Runs show here as jobs fire, with what went out and how long it took.</p>
 {{end}}
 {{end}}
+
+{{/* The next 24 hours, one tick an hour, as tall as its busiest hour allows. */}}
+{{define "ahead"}}<span class="o-ticks" aria-hidden="true">{{range .}}{{if .N}}<i style="height: {{.Pct}}%" title="{{.N}} from {{.Label}}"></i>{{else}}<i class="none" style="height: 6%" title="nothing from {{.Label}}"></i>{{end}}{{end}}</span>{{end}}

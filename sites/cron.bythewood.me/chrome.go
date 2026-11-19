@@ -241,3 +241,63 @@ func ordinal(n int) string {
 	}
 	return strconv.Itoa(n) + suffix
 }
+
+// hourTick is one hour of the next to fire tile.
+type hourTick struct {
+	N, Pct int
+	Label  string
+}
+
+// ahead counts the fires in each of the next 24 hours, for the next to fire
+// tile. A minutely cron line is capped so it can't run away.
+func (s *site) ahead(jobs []Job, now time.Time) []hourTick {
+	hours := make([]int, 24)
+	end := now.Add(24 * time.Hour)
+	for _, j := range jobs {
+		if !j.Enabled || j.NextRun.IsZero() {
+			continue
+		}
+		t := j.NextRun
+		for range 24 * 60 {
+			if !t.Before(end) {
+				break
+			}
+			if !t.Before(now) {
+				hours[int(t.Sub(now)/time.Hour)]++
+			}
+			if j.Once() {
+				break
+			}
+			next, err := s.sched.NextRun(j, t)
+			if err != nil || !next.After(t) {
+				break
+			}
+			t = next
+		}
+	}
+	top := 1
+	for _, n := range hours {
+		top = max(top, n)
+	}
+	out := make([]hourTick, 24)
+	for i, n := range hours {
+		out[i] = hourTick{N: n, Pct: 20 + 80*n/top, Label: s.clock(now.Add(time.Duration(i) * time.Hour))}
+	}
+	return out
+}
+
+// upcoming is a saved job's next n fires.
+func (s *site) upcoming(j Job, n int) []time.Time {
+	if j.ID == 0 || !j.Enabled || j.NextRun.IsZero() {
+		return nil
+	}
+	out := []time.Time{j.NextRun}
+	for !j.Once() && len(out) < n {
+		next, err := s.sched.NextRun(j, out[len(out)-1])
+		if err != nil || !next.After(out[len(out)-1]) {
+			break
+		}
+		out = append(out, next)
+	}
+	return out
+}

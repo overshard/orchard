@@ -29,10 +29,10 @@
     <small>next to fire</small>
     <b>{{clock .NextRun}}</b>
     <span class="o-delta">{{until .NextRun}} &middot; {{.Name}}</span>
-    <span class="o-nospark"></span>
+    {{template "ahead" $.Ahead}}
   </a>
   {{else}}
-  <div class="o-tile"><small>next to fire</small><b>none</b><span class="o-delta">nothing scheduled</span><span class="o-nospark"></span></div>
+  <div class="o-tile"><small>next to fire</small><b>none</b><span class="o-delta">nothing scheduled</span>{{template "ahead" $.Ahead}}</div>
   {{end}}
   <div class="o-tile">
     <small>runs &middot; 14d</small>

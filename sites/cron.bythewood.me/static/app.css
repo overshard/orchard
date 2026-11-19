@@ -5,4 +5,10 @@
 .jobs td:first-child { min-width: 14rem; }
 .runs td.clip { max-width: 28rem; }
 .one-job .runs th:nth-child(2), .one-job .runs td:nth-child(2) { display: none; }
-.job.o-narrow { max-width: 58rem; }
+.jobcols { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+.side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.when code { font-size: 0.78rem; }
+.small { font-size: 0.8rem; }
+.when .k { width: auto; }
+.when .v { width: auto; white-space: nowrap; }
+@media (max-width: 700px) { .o-tbl.stack.runs td.full { order: 2; } }

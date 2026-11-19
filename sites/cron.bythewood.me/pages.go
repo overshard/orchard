@@ -225,7 +225,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		head += "."
 	}
 	s.render(w, 200, "home.html", map[string]any{"Title": "Jobs", "Jobs": jobs, "Runs": runs, "Headline": head,
-		"Sum": sum, "Act": s.activity(recent), "Suite": s.chrome("jobs", jobs)})
+		"Sum": sum, "Act": s.activity(recent), "Ahead": s.ahead(jobs, time.Now()), "Suite": s.chrome("jobs", jobs)})
 }
 
 // sortForAttention puts a failing job first and a paused one last, and keeps
@@ -304,7 +304,7 @@ func (s *site) jobForm(w http.ResponseWriter, code int, j Job, errText string) {
 		on = "new"
 	}
 	s.render(w, code, "job.html", map[string]any{
-		"Title": title, "Job": j, "Runs": runs, "Error": errText, "Priorities": priorities,
+		"Title": title, "Job": j, "Runs": runs, "Error": errText, "Priorities": priorities, "Upcoming": s.upcoming(j, 8),
 		"Repeat": j.Cron != "", "Kind": j.Kind, "Suite": s.chrome(on, jobs),
 	})
 }

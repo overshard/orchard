@@ -17,7 +17,8 @@
 {{if .Job.LastErr}}<div class="o-note bad"><span class="o-lab plain o-bad">last run failed</span>{{.Job.LastErr}}</div>{{end}}
 {{if .Error}}<div class="o-note bad" role="alert"><span class="o-lab plain o-bad">not saved</span>{{.Error}}</div>{{end}}
 
-<form class="o-panel job o-narrow" method="post" action="{{if .Job.ID}}/jobs/{{.Job.ID}}{{else}}/jobs{{end}}">
+<div class="o-cols jobcols">
+<form class="o-panel job" method="post" action="{{if .Job.ID}}/jobs/{{.Job.ID}}{{else}}/jobs{{end}}">
   <div class="o-form">
     <fieldset class="o-field full">
       <legend>Kind</legend>
@@ -87,18 +88,41 @@
   </div>
 </form>
 
+<div class="side">
 {{if .Job.ID}}
+<section class="o-panel">
+  <div class="o-ph2"><h2>Coming up</h2><span class="o-lab">{{if .Job.Enabled}}{{if .Job.Once}}once{{else}}next {{len .Upcoming}}{{end}}{{else}}paused{{end}}</span></div>
+  {{range $i, $t := .Upcoming}}
+  <div class="o-hbar when"><span class="k o-mono">{{eastern $t}}</span><span class="o-sp"></span><span class="v o-muted">{{until $t}}</span></div>
+  {{else}}
+  <p class="o-empty"><b>Nothing coming up.</b>{{if .Job.Enabled}}It won't fire again.{{else}}Resume it to put it back on the schedule.{{end}}</p>
+  {{end}}
+</section>
 <section class="o-panel flush one-job">
   <div class="o-ph2"><h2>Runs</h2><span class="o-lab">this job &middot; newest first</span></div>
   {{template "runs" .Runs}}
 </section>
-
 <div class="o-note">
   <span class="o-lab plain o-bad">delete</span>
   <div class="o-formbar"><span class="o-muted">Removes the job and its schedule. Its runs stay in the history.</span><span class="o-sp"></span>
     <form method="post" action="/jobs/{{.Job.ID}}/delete" data-confirm="Delete {{.Job.Name}}?"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete job</button></form>
   </div>
 </div>
+{{else}}
+<section class="o-panel">
+  <div class="o-ph2"><h2>Cron lines</h2><span class="o-lab">Eastern</span></div>
+  <div class="o-hbar when"><code>0 9 * * *</code><span class="o-sp"></span><span class="v">9am every day</span></div>
+  <div class="o-hbar when"><code>30 7 * * 1-5</code><span class="o-sp"></span><span class="v">7:30am on weekdays</span></div>
+  <div class="o-hbar when"><code>0 19 * * 2</code><span class="o-sp"></span><span class="v">7pm every Tuesday</span></div>
+  <div class="o-hbar when"><code>0 */4 * * *</code><span class="o-sp"></span><span class="v">every four hours</span></div>
+  <div class="o-hbar when"><code>0 9 1 * *</code><span class="o-sp"></span><span class="v">9am on the 1st</span></div>
+  <div class="o-hbar when"><code>0 9 3 3 *</code><span class="o-sp"></span><span class="v">9am every March 3rd</span></div>
+</section>
+<section class="o-panel">
+  <div class="o-ph2"><h2>Reminder or check</h2></div>
+  <p class="o-muted small">A reminder pushes the message as written. A check hands the message to the model, which looks it up with web search and pushes only when the answer is worth it, so a check that finds nothing stays quiet.</p>
+</section>
 {{end}}
-
+</div>
+</div>
 {{template "foot" .}}
