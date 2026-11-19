@@ -1,6 +1,6 @@
-// The BRIEFS readout reruns every desk now. Like the quick chat it is in the
-// page for everybody, since the page can come out of Cloudflare's cache, and
-// is only shown once /api/rebuild says the visitor is signed in.
+// The BRIEFS readout reruns every desk now. It is in the page for everybody,
+// since the page can come out of Cloudflare's cache, and is only shown once
+// /api/rebuild says the visitor is signed in.
 
 const box = document.querySelector("[data-rebuild]");
 const button = box?.querySelector("[data-rebuild-button]");

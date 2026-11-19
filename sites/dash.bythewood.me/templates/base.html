@@ -78,13 +78,7 @@
           <p>WHILE THIS TAB IS OPEN</p>
         </div>
       </div>
-      <div class="readout quick-open" data-quick-open hidden>
-        <button type="button" class="readout-btn" data-quick-button aria-haspopup="dialog" aria-controls="quick">
-          <span class="readout-key">CHAT</span>
-          <span class="readout-val" data-quick-key>CTRL K</span>
-        </button>
-      </div>
-      {{/* Shown only once /api/rebuild says the visitor is signed in, the same as CHAT. */}}
+      {{/* Shown only once /api/rebuild says the visitor is signed in. */}}
       <div class="readout rebuild" data-rebuild data-state="ready" hidden>
         <button type="button" class="readout-btn" data-rebuild-button>
           <span class="readout-key">BRIEFS</span>
@@ -123,36 +117,6 @@
 {{template "content" .}}
 </main>
 </div>
-
-{{/*
-  Quick chat. Everybody gets this markup, since the page can come out of the
-  edge's cache, and quick.js only opens it once /api/quick says the visitor is
-  signed in.
-*/}}
-<dialog class="quick" id="quick" data-quick aria-labelledby="quick-title">
-  <div class="quick-box">
-    <div class="bracket tl"></div><div class="bracket tr"></div>
-    <div class="bracket bl"></div><div class="bracket br"></div>
-    <header class="panel-head">
-      <h2 id="quick-title">CHAT</h2>
-      <span class="rule"></span>
-      <span class="quick-status" data-quick-status aria-live="polite"></span>
-      <button type="button" class="quick-close" data-quick-close>CLOSE</button>
-    </header>
-    <div class="quick-log" data-quick-log></div>
-    <form class="quick-form" data-quick-form>
-      <label class="quick-prompt" for="quick-input">&gt;</label>
-      <textarea id="quick-input" name="message" rows="1" autocomplete="off" placeholder="ASK CHAT" data-quick-input></textarea>
-      <button type="submit" class="quick-send" data-quick-send>SEND</button>
-    </form>
-    <footer class="quick-foot">
-      <a data-quick-link href="https://chat.bythewood.me/" target="_blank" rel="noopener noreferrer" hidden>OPEN IN CHAT</a>
-      <button type="button" data-quick-new hidden>NEW</button>
-      <span class="grow"></span>
-      <span class="hint">ENTER SENDS &middot; ESC CLOSES</span>
-    </footer>
-  </div>
-</dialog>
 
 {{if .Script}}<script type="module" src="{{.Script}}"></script>{{end}}
 </body>

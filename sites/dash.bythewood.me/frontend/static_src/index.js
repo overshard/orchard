@@ -10,7 +10,6 @@ import "./styles/dash.scss";
 
 import "./scripts/clock.js";
 import "./scripts/live.js";
-import "./scripts/quick.js";
 import "./scripts/rebuild.js";
 import "./scripts/tip.js";
 import "./scripts/pond.js";

@@ -74,10 +74,9 @@ type site struct {
 	hub      *Hub
 	guard    *Guard
 
-	// Only the quick chat and the briefs rerun read these. Nothing else on the
+	// Only the briefs rerun and the host check read these. Nothing else on the
 	// page knows or cares who is looking at it.
 	auth    *web.Authenticator
-	chat    string
 	briefer *Briefer
 
 	script string
@@ -149,7 +148,6 @@ func realMain() error {
 		hub:      hub,
 		guard:    guard,
 		auth:     web.NewAuthenticator(),
-		chat:     chatSendURL,
 		script:   assets.Script("index.js"),
 		styles:   assets.Styles("index.js"),
 	}
@@ -184,9 +182,7 @@ func realMain() error {
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("GET /events", s.events)
 	mux.HandleFunc("GET /api/state", s.state)
-	mux.HandleFunc("GET /api/quick", s.quick)
 	mux.HandleFunc("GET /api/host", s.hostCheck)
-	mux.HandleFunc("POST /api/quick/send", s.quickSend)
 	mux.HandleFunc("GET /api/rebuild", s.rebuildState)
 	mux.HandleFunc("POST /api/rebuild", s.rebuildStart)
 

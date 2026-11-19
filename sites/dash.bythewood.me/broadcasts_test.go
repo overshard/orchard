@@ -298,7 +298,7 @@ func TestBroadcastsFailureShowsOnItsOwnRow(t *testing.T) {
 	}
 }
 
-// chat reads dash by the state's own keys, so this is the name it asks for.
+// A reader of /api/state finds ON AIR by the state's own keys, so this is the name.
 func TestOnAirIsOneSection(t *testing.T) {
 	st := State{OnAir: OnAir{Live: true, Name: streamerName}}
 	st.OnAir.Broadcasts = buildBroadcasts(pastFixture(t), st.OnAir, at(t, "2026-09-29 19:01"))

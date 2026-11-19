@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +12,22 @@ import (
 
 	"dash.bythewood.me/web"
 )
+
+// verifier stands in for auth.bythewood.me, where only the cookie "good" is a
+// live session.
+func verifier(t *testing.T) *web.Authenticator {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if c, err := r.Cookie(web.SessionCookie); err == nil && c.Value == "good" {
+			fmt.Fprint(w, `{"ok":true,"username":"isaac"}`)
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, `{"ok":false}`)
+	}))
+	t.Cleanup(srv.Close)
+	return web.NewAuthenticatorAt(srv.URL)
+}
 
 func rebuildSite(t *testing.T, b *Briefer) http.Handler {
 	s := &site{auth: verifier(t), briefer: b}

@@ -26,24 +26,24 @@ func (s *site) rebuildState(w http.ResponseWriter, r *http.Request) {
 	writeRebuild(w, http.StatusOK, out)
 }
 
-// rebuildStart reruns every desk now. The fences are the quick chat's, since
-// the cookie that proves who's asking rides along on any bythewood.me page.
+// rebuildStart reruns every desk now. It is same origin only, since the cookie
+// that proves who's asking rides along on any bythewood.me page.
 func (s *site) rebuildStart(w http.ResponseWriter, r *http.Request) {
 	if site := r.Header.Get("Sec-Fetch-Site"); site != "" && site != "same-origin" {
-		quickError(w, http.StatusForbidden, "cross origin")
+		jsonError(w, http.StatusForbidden, "cross origin")
 		return
 	}
 	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		quickError(w, http.StatusUnsupportedMediaType, "json only")
+		jsonError(w, http.StatusUnsupportedMediaType, "json only")
 		return
 	}
 	if !s.auth.Authenticated(r) {
-		quickError(w, http.StatusUnauthorized, "not signed in")
+		jsonError(w, http.StatusUnauthorized, "not signed in")
 		return
 	}
 	var in struct{}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&in); err != nil {
-		quickError(w, http.StatusBadRequest, "bad request")
+		jsonError(w, http.StatusBadRequest, "bad request")
 		return
 	}
 

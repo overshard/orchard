@@ -59,17 +59,16 @@ comment frame every 25 seconds instead, which is inside Cloudflare's 100 second
 idle drop.
 
 **Caddy's `encode` takes a matcher in this site's block** rather than the
-blanket one in `(site)`, because a compressed `text/event-stream` buffers. Both
-streams are in it, `/events` and `/api/quick/send`.
+blanket one in `(site)`, because a compressed `text/event-stream` buffers, and
+`/events` is in it.
 
-**The quick chat and the BRIEFS rerun are the only things on dash that know who
+**The BRIEFS rerun and the host check are the only things on dash that know who
 is looking.** The home page can come out of Cloudflare's cache, so it is the
-same for everybody and `GET /api/quick` and `GET /api/rebuild` answer `no-store`
-whether the `bw_session` cookie is live. `POST /api/quick/send` and `POST
-/api/rebuild` check the session themselves, refuse anything but JSON, and refuse
-a `Sec-Fetch-Site` other than `same-origin` because another bythewood.me host is
-same site and carries the cookie. The quick chat relays to chat over the bridge
-with that cookie and nothing else of the caller's, so chat needs no CORS.
+same for everybody and `GET /api/rebuild` and `GET /api/host` answer `no-store`
+whether the `bw_session` cookie is live. `POST /api/rebuild` checks the session
+itself, refuses anything but JSON, and refuses a `Sec-Fetch-Site` other than
+`same-origin` because another bythewood.me host is same site and carries the
+cookie.
 
 **Every card on the strip is drawn against one New York trading day.** It runs
 9:30 to 16:00 and rolls at the open rather than at midnight, weekends included,

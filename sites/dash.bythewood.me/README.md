@@ -27,7 +27,7 @@ each poll one thing into the store in `state.go`, which broadcasts it on
 one entry there. `brief.go` runs the briefs on the model, and each desk writes
 its own in `briefmarkets.go`, `briefnews.go` and `feeds.go`, with
 `briefstories.go` grouping the outlets' stories into events for the first two.
-`quick.go` relays the quick chat to chat.bythewood.me, and `guard.go` fences
+`session.go` answers the signed in only host check, and `guard.go` fences
 every upstream with a budget and a breaker. There's no database, just JSON files
 in `build/data`, or the `orchard-dash-data` volume in production. `CLAUDE.md`
 has the rest.
