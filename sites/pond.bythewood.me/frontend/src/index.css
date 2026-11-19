@@ -1472,8 +1472,8 @@ body:has(.dock) main {
 }
 
 .stampkeys canvas {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   image-rendering: pixelated;
 }
 
@@ -6259,4 +6259,111 @@ button#mkt-tiles:active {
   left: 30px;
   border: 5px solid transparent;
   border-bottom-color: var(--cream);
+}
+
+/* A row that only goes somewhere, with no green edge since nothing waits. */
+a.nrow.link {
+  box-shadow: var(--edge);
+  margin: 10px 0;
+}
+
+.nrow .chev {
+  flex: none;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 20px;
+}
+
+/* The stamp book. The painting under way with its gaps, then the frogs who
+   stamped the page as stamps in an album, a little crooked. */
+#stamps-art { height: 240px; }
+
+.paintcard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin: 4px 0 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--edge);
+}
+
+.paintcard-t {
+  display: grid;
+  gap: 2px;
+}
+
+.paintcard-t b {
+  font-size: 18px;
+}
+
+.paintcard-t span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.paintcard .button {
+  margin: 0 0 3px;
+}
+
+.paintcard canvas {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: 100%;
+  max-width: 17rem;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.album {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 12px;
+  margin: 10px 0 8px;
+  padding: 4px 2px;
+}
+
+.album figure {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  margin: 0;
+  text-align: center;
+}
+
+.album figure:nth-child(3n + 1) { transform: rotate(-2deg); }
+.album figure:nth-child(3n + 2) { transform: rotate(1.5deg); }
+.album figure:nth-child(3n) { transform: rotate(-1deg); }
+
+.album canvas {
+  width: 100%;
+  max-width: 7.5rem;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.album b {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.album figcaption {
+  display: grid;
+  gap: 1px;
+  line-height: 1.25;
+}
+
+.album figcaption span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.album figure.miss canvas {
+  opacity: 0.6;
+}
+
+.album figure.miss b {
+  color: var(--dim);
 }

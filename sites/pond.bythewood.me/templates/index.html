@@ -142,6 +142,21 @@
     <div class="nrow ready" id="reeds-take" hidden><span class="nrow-what"></span><button type="button" class="primary" id="jobs-collect">Take</button></div>
     <div class="roster" id="reeds"></div>
     <p class="dim" id="reeds-out" role="status"></p>
+    <a class="nrow link" id="reeds-book" href="#stamps"><span class="nrow-what"><b>Stamp book</b> <span class="dim" id="reeds-book-line"></span></span><span class="chev" aria-hidden="true">&rsaquo;</span></a>
+  </section>
+
+  <section class="view" id="v-stamps" hidden>
+    <canvas class="vista top" id="stamps-art" aria-label="The stamp book open on a desk under a lamp"></canvas>
+    <a class="back" href="#frogs">&larr; Frogs</a>
+    <div class="paintcard">
+      <span class="paintcard-t"><b id="book-paint-name">&nbsp;</b><span id="book-paint-line"></span></span>
+      <a class="button primary" id="book-share" href="/">Share page</a>
+      <canvas id="book-paint" aria-hidden="true"></canvas>
+    </div>
+    <h2><span id="book-head">Frogs who stamped your page</span> <span id="book-n"></span></h2>
+    <div class="album" id="book-album"></div>
+    <p class="dim" id="book-note"></p>
+    <a class="nrow link" href="/hop"><span class="nrow-what"><b>Visit a pond</b> <span class="dim" id="book-left"></span></span><span class="chev" aria-hidden="true">&rsaquo;</span></a>
   </section>
 
   <section class="view" id="v-frog" hidden>
@@ -301,6 +316,7 @@
     <p class="dim" id="burrow-note"></p>
     <div class="paintings" id="paintings"></div>
     <p class="dim" id="paint-note"></p>
+    <p class="dim"><a href="#stamps">See who stamped your page in the stamp book</a></p>
     <div class="row">
       <button type="button" class="primary" id="burrow-collect">Collect</button>
       <button type="button" id="burrow-build">Build</button>

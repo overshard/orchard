@@ -21,6 +21,7 @@ const AT = {
   shops: "out shopping",
   stall: "minding the stall",
   wizard: "at the wizard's",
+  stamps: "looking through the stamp book",
 };
 const POND = { egg: "is still an egg", tadpole: "swimming laps", froglet: "on the pad", frog: "on the pad", elder: "dozing on the pad" };
 const CALL = { tadpole: "Blub?", froglet: "Ribbit?", frog: "Ribbit?", elder: "Ribbit?" };
