@@ -90,28 +90,52 @@ func (rd reader) find(ctx context.Context, tool, kind, name string) (string, str
 		return "", "", err
 	}
 	name = strings.ToLower(strings.TrimSpace(name))
-	var names []string
+	plural := kind + "s"
+	if strings.HasSuffix(kind, "y") {
+		plural = strings.TrimSuffix(kind, "y") + "ies"
+	}
+	type named struct{ Name, Href string }
+	var items []named
 	for _, st := range states {
 		if st.Tool != tool {
 			continue
 		}
-		for pass := 0; pass < 3; pass++ {
-			for _, it := range st.Items {
-				if it.Kind != kind {
-					continue
-				}
-				n := strings.ToLower(it.Name)
-				if pass == 0 {
-					names = append(names, it.Name)
-				}
-				if (pass == 0 && n == name) || (pass == 1 && strings.HasPrefix(n, name)) || (pass == 2 && strings.Contains(n, name)) {
-					u, _ := url.Parse(it.Href)
-					return it.Name, u.Path, nil
-				}
+		for _, it := range st.Items {
+			if it.Kind == kind {
+				items = append(items, named{it.Name, it.Href})
 			}
 		}
 	}
-	return "", "", fmt.Errorf("no %s matches %q. The %ss are: %s", kind, name, kind, strings.Join(names, ", "))
+	var names []string
+	for _, it := range items {
+		names = append(names, it.Name)
+	}
+	// Exact, then prefix, then anywhere in the name, and a looser pass only runs
+	// when the tighter one found nothing.
+	for _, match := range []func(n string) bool{
+		func(n string) bool { return n == name },
+		func(n string) bool { return strings.HasPrefix(n, name) },
+		func(n string) bool { return strings.Contains(n, name) },
+	} {
+		var hits []named
+		for _, it := range items {
+			if match(strings.ToLower(it.Name)) {
+				hits = append(hits, it)
+			}
+		}
+		if len(hits) == 1 {
+			u, _ := url.Parse(hits[0].Href)
+			return hits[0].Name, u.Path, nil
+		}
+		if len(hits) > 1 {
+			var hn []string
+			for _, h := range hits {
+				hn = append(hn, h.Name)
+			}
+			return "", "", fmt.Errorf("%q matches more than one %s, pick one of: %s", name, kind, strings.Join(hn, ", "))
+		}
+	}
+	return "", "", fmt.Errorf("no %s matches %q. The %s are: %s", kind, name, plural, strings.Join(names, ", "))
 }
 
 type tool struct {
