@@ -1564,6 +1564,58 @@ body:has(.dock) main {
   vertical-align: 1px;
 }
 
+/* The readout of what today has left, and the hearts on a frog's page. */
+.dayboard {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.dayboard.five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.tile {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 4px 8px;
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
+  text-align: center;
+}
+
+.tile canvas {
+  width: 24px;
+  height: 24px;
+}
+
+.tile b {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.tile span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.tile.dim b,
+.tile.dim canvas {
+  opacity: 0.45;
+}
+
+h2 .m {
+  color: var(--muted);
+}
+
 .favour canvas {
   width: 64px;
   height: 64px;

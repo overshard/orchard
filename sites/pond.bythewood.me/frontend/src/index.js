@@ -679,6 +679,7 @@ function renderPond(p) {
   $("today-head").hidden = today.hidden = lines.length === 0;
   renderPaper(p.gazette);
   renderNext(p);
+  renderLeft(p);
   renderMake(p);
   renderPlay(p);
   drawPlayArt($("play-art"), p);
@@ -885,9 +886,32 @@ function renderNext(p) {
   }
   if (!rows.length && !ready) box.append(el("p", "dim", "That's everything for today. The pond keeps going while you're away."));
 }
+
+function hm(sec) { return sec >= 3600 ? Math.round(sec / 3600) + "h" : Math.max(1, Math.round(sec / 60)) + "m"; }
+
+// What today still has room for, as the server counts it, so the page never
+// works a cap out on its own.
+function renderLeft(p) {
+  const l = p.left, at = (performance.now() - state.at) / 1000;
+  const tile = (icon, n, what, dim) => {
+    const d = el("div", "tile" + (dim ? " dim" : ""));
+    d.append(iconCanvas(icon, 2), el("b", "", String(n)), el("span", "", what));
+    return d;
+  };
+  const spin = l.spins > 0 ? tile("spin", l.spins, l.spins === 1 ? "free spin" : "free spins") : tile("spin", hm(Math.max(60, l.spin_in - at)), "to a free spin", true);
+  $("left").replaceChildren(
+    tile("i_play", l.runs, "full pay runs", !l.runs),
+    tile("i_stall", l.sell, "selling at full", !l.sell),
+    tile("bowl", l.dishes, "dishes to give", !l.dishes),
+    spin,
+  );
+  $("left-new").textContent = "New day in " + hm(Math.max(60, l.new_in - at));
+}
+
 setInterval(() => {
   if (!state.pond || document.hidden) return;
   renderNext(state.pond);
+  renderLeft(state.pond);
   renderMake(state.pond);
 }, 20000);
 
