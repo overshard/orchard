@@ -30,7 +30,7 @@ function perforate(x) {
   x.fillStyle = "#3a3228";
   for (let i = 0; i <= 800; i += 24) { x.beginPath(); x.arc(i, 0, 8, 0, Math.PI * 2); x.arc(i, 760, 8, 0, Math.PI * 2); x.fill(); }
   for (let i = 0; i <= 760; i += 24) { x.beginPath(); x.arc(0, i, 8, 0, Math.PI * 2); x.arc(800, i, 8, 0, Math.PI * 2); x.fill(); }
-  x.fillStyle = "#c94a4a"; x.font = "700 20px 'JetBrains Mono', monospace"; x.textAlign = "right";
+  x.fillStyle = "#c94a4a"; x.font = "700 20px 'Pixelify Sans', monospace"; x.textAlign = "right";
   x.fillText("POND POST", 752, 34); x.textAlign = "left";
 }
 
@@ -64,14 +64,14 @@ function card(scene, frame) {
   x.imageSmoothingEnabled = false;
   x.drawImage(scene, 48, 48, 704, 544);
   x.fillStyle = f.ink; x.textBaseline = "alphabetic";
-  x.font = "700 52px 'Space Grotesk', sans-serif";
+  x.font = "700 52px 'Pixelify Sans', monospace";
   x.fillText(titled(p.frog.name), 46, 668, 520);
   const [y, m, d] = p.today.split("-").map(Number), sky = p.gazette && p.gazette.sky;
   x.fillStyle = f.dim;
-  x.font = "22px 'JetBrains Mono', monospace";
+  x.font = "22px Inter, sans-serif";
   x.fillText(d + " " + MONTHS[m - 1] + " " + y + (sky ? " · " + sky : ""), 48, 712);
   x.textAlign = "right";
-  x.font = "18px 'JetBrains Mono', monospace";
+  x.font = "18px Inter, sans-serif";
   x.fillText("pond.bythewood.me", 752, 712);
   // A postmark in the corner, the pebble off the purse in a ring.
   x.strokeStyle = f.ring; x.lineWidth = 3;

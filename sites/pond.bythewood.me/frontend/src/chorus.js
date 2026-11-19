@@ -9,7 +9,7 @@ import { SONGS, ROUNDS, HOOK, CHOP, PERFECT, GOOD, LATE, HOLD, lay, points, grad
 const W = 200, H = 300, AHEAD = 0.12;
 const LOG = 150, SEATS = [6, 54, 102, 150], ME = HOOK, HY = 174, LB = 296;
 const SEEDS = [5021, 77, 31337];
-const FONT = "700 13px 'Space Grotesk', sans-serif", SMALL = "700 9px 'Space Grotesk', sans-serif";
+const FONT = "700 13px 'Pixelify Sans', monospace", SMALL = "700 9px 'Pixelify Sans', monospace";
 
 let G = null, ac = null, useAudio = false, frogs = [], singer = false, upNext = null;
 const F = feel();

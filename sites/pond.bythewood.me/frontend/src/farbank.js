@@ -79,12 +79,12 @@ export function drawFarBank(ctx, n) {
 function sign(ctx, more) {
   ctx.fillStyle = WOOD; ctx.fillRect(294, 14, 2, 14);
   ctx.fillStyle = "#c9974f"; ctx.fillRect(284, 4, 22, 12);
-  ctx.fillStyle = "#1a120b"; ctx.font = "bold 12px 'JetBrains Mono', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#1a120b"; ctx.font = "bold 12px 'Pixelify Sans', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillText("+" + more, 295, 10.5, 20);
   ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
 }
 
-// The middle of the bank in Works, where the pieces stand, with the water
+// The middle of the far bank under Make, where the pieces stand, with the water
 // under it. With no patches yet it's bare mud waiting.
 export function drawFarBankOn(cv, n) {
   const ctx = cv.getContext("2d");

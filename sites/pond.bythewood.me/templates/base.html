@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{{ .Title }} · {{ .SiteName }}</title>
   <meta name="description" content="{{ .Description }}">
-  <meta name="theme-color" content="#0a1b1f">
+  <meta name="theme-color" content="#0b1222">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'><path fill='%230e2c30' d='M0 0h8v8H0z'/><path fill='%2356b45f' d='M1 2h2v1H1zM5 2h2v1H5zM1 3h6v3H1zM0 6h2v1H0zM6 6h2v1H6z'/><path fill='%23fff6dc' d='M1 2h1v1H1zM6 2h1v1H6z'/><path fill='%230a0908' d='M2 2h1v1H2zM5 2h1v1H5zM2 5h4v1H2z'/></svg>">
@@ -20,10 +20,10 @@
 
 <body>
   <header class="bar">
-    <a class="mark" href="/">POND</a>
-    <span class="plate" aria-hidden="true">MODEL FR-01<br>SERIES ORCHARD</span>
+    <a class="mark" href="/">pond</a>
     <span class="bar-right">
-      <span class="readout" id="purse" hidden><span class="k">Pebbles</span><span class="v"><canvas id="purse-icon" width="16" height="16" aria-hidden="true"></canvas><b id="purse-n">0</b></span></span>
+      <a class="pill" id="bagpill" href="/#bag" aria-label="Bag" hidden><canvas id="bag-icon" width="16" height="16" aria-hidden="true"></canvas><b id="bag-n">0</b></a>
+      <span class="pill" id="purse" aria-label="Pebbles" hidden><canvas id="purse-icon" width="16" height="16" aria-hidden="true"></canvas><b id="purse-n">0</b></span>
       <a class="gearkey" id="gear" href="/#settings" aria-label="Settings" title="Settings"><svg viewBox="0 0 12 12" width="24" height="24" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M5 0h2v1h-2zM1 1h2v1h-2zM5 1h2v1h-2zM9 1h2v1h-2zM1 2h10v1h-10zM2 3h8v1h-8zM2 4h3v1h-3zM7 4h3v1h-3zM0 5h4v1h-4zM8 5h4v1h-4zM0 6h4v1h-4zM8 6h4v1h-4zM2 7h3v1h-3zM7 7h3v1h-3zM2 8h8v1h-8zM1 9h10v1h-10zM1 10h2v1h-2zM5 10h2v1h-2zM9 10h2v1h-2zM5 11h2v1h-2z"/></svg></a>
     </span>
   </header>

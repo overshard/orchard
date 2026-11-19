@@ -8,7 +8,7 @@ import { sfx } from "./sound.js";
 // reels it in, and everything on it is one gulp, worth more the more it held.
 const W = 200, H = 300, ROUND = 75, LIVES = 3, LAUNCH = H - 50;
 const REACH = 380, HOLD = 1.1, REEL = 0.16, NEAR = 8, STUNG = 0.5, REGROW = 10;
-const FONT = "700 13px 'Space Grotesk', sans-serif", SMALL = "500 8px 'JetBrains Mono', monospace";
+const FONT = "700 13px 'Pixelify Sans', monospace", SMALL = "500 8px 'Pixelify Sans', monospace";
 const KINDS = {
   fly: { pts: 1, g: 150, r: 10, top: [50, 150] },
   gnat: { pts: 1, g: 120, r: 8, top: [60, 150] },

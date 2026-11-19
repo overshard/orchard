@@ -172,7 +172,7 @@ export const raft = {
       });
     }
     F.draw(x);
-    x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.font = "700 13px 'Space Grotesk', sans-serif"; x.fillText(String(raft.score()), 6, 16);
+    x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.font = "700 13px 'Pixelify Sans', monospace"; x.fillText(String(raft.score()), 6, 16);
     x.fillStyle = "#e2567a"; for (let i = 0; i < G.lives; i++) x.fillRect(W - 12 - i * 9, 6, 6, 6);
   },
 };

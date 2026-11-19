@@ -162,7 +162,7 @@ export const sweep = {
       if (open) {
         x.fillStyle = (i + Math.floor(i / G.cols)) % 2 ? "#123a48" : "#143f4e"; x.fillRect(l, t, CELL, CELL);
         if (G.n[i] > 0) {
-          x.font = "700 14px 'Space Grotesk', sans-serif"; x.textAlign = "center";
+          x.font = "700 14px 'Pixelify Sans', monospace"; x.textAlign = "center";
           x.fillStyle = INK[G.n[i]]; x.fillText(String(G.n[i]), cx, cy + 5);
         } else { x.fillStyle = "#1d5163"; x.fillRect(cx - 3, cy, 6, 1); }
         continue;
@@ -182,10 +182,10 @@ export const sweep = {
     }
     F.draw(x);
     wasp(x, 14, 20);
-    x.font = "700 14px 'Space Grotesk', sans-serif"; x.textAlign = "left"; x.fillStyle = "#ece5d8";
+    x.font = "700 14px 'Pixelify Sans', monospace"; x.textAlign = "left"; x.fillStyle = "#ece5d8";
     x.fillText(String(G.res ? 0 : Math.max(0, G.left - G.marked.filter(Boolean).length)), 26, 25);
     x.textAlign = "right"; x.fillText(clock(Math.floor(G.res ? G.res.secs : G.secs)), W - 8, 25);
-    x.font = "500 8px 'JetBrains Mono', monospace"; x.textAlign = "center"; x.fillStyle = "#bcaf99";
+    x.font = "500 8px 'Pixelify Sans', monospace"; x.textAlign = "center"; x.fillStyle = "#bcaf99";
     x.fillText(G.st === "wait" ? "" : G.daily ? "TODAY'S GRID" : "FREE GO", W / 2, 23);
     modeKey(x);
   },
@@ -212,10 +212,10 @@ function sweepCard(n) {
   cv.width = 800; cv.height = 440;
   x.fillStyle = "#f1e4c8"; x.fillRect(0, 0, 800, 440);
   x.fillStyle = "#2a241d"; x.textBaseline = "alphabetic";
-  x.font = "700 52px 'Space Grotesk', sans-serif";
+  x.font = "700 52px 'Pixelify Sans', monospace";
   x.fillText("Bug sweep", 46, 96);
   const [y, m, d] = p.today.split("-").map(Number);
-  x.fillStyle = "#6b5d48"; x.font = "22px 'JetBrains Mono', monospace";
+  x.fillStyle = "#6b5d48"; x.font = "22px 'Pixelify Sans', monospace";
   x.fillText(d + " " + MONTHS[m - 1] + " " + y + " · " + titled(p.frog.name), 48, 136);
   x.fillStyle = "#2a241d"; x.fillRect(44, 168, 712, 124);
   x.fillStyle = "#17475a"; x.fillRect(48, 172, 704, 116);
@@ -229,11 +229,11 @@ function sweepCard(n) {
     else { x.fillStyle = "#123a48"; x.fillRect(cx - 9, 3, 18, 18); }
   }
   x.restore();
-  x.fillStyle = "#2a241d"; x.font = "700 40px 'Space Grotesk', sans-serif";
+  x.fillStyle = "#2a241d"; x.font = "700 40px 'Pixelify Sans', monospace";
   x.fillText(said(n), 46, 352);
-  x.fillStyle = "#6b5d48"; x.font = "22px 'JetBrains Mono', monospace";
+  x.fillStyle = "#6b5d48"; x.font = "22px 'Pixelify Sans', monospace";
   x.fillText(n.taps + (n.taps === 1 ? " tap" : " taps"), 48, 392);
-  x.textAlign = "right"; x.font = "18px 'JetBrains Mono', monospace";
+  x.textAlign = "right"; x.font = "18px 'Pixelify Sans', monospace";
   x.fillText("pond.bythewood.me", 752, 392);
   x.strokeStyle = "#b3a583"; x.lineWidth = 3;
   x.beginPath(); x.arc(706, 86, 34, 0, Math.PI * 2); x.stroke();
@@ -250,7 +250,7 @@ export function sweepArt(x) {
     if (!(i in open)) { pad(x, cx, cy, false); if (i === 12 || i === 26) bud(x, cx, cy); continue; }
     x.fillStyle = "#123a48"; x.fillRect(cx - 12, cy - 12, 24, 24);
     if (!open[i]) continue;
-    x.font = "700 14px 'Space Grotesk', sans-serif"; x.textAlign = "center";
+    x.font = "700 14px 'Pixelify Sans', monospace"; x.textAlign = "center";
     x.fillStyle = INK[open[i]]; x.fillText(String(open[i]), cx, cy + 5);
   }
   wasp(x, 132, 84);
@@ -293,7 +293,7 @@ function modeKey(x) {
   [["LOOK", !G.mode], ["MARK", G.mode]].forEach(([word, on], i) => {
     x.fillStyle = on ? "#ffb000" : "#2a241d"; x.fillRect(m.x + i * half, m.y, half - (i ? 0 : 1), m.h);
     x.fillStyle = on ? "#ffd27a" : "#3a322a"; x.fillRect(m.x + i * half, m.y, half - (i ? 0 : 1), 1);
-    x.font = "700 8px 'JetBrains Mono', monospace"; x.textAlign = "center";
+    x.font = "700 8px 'Pixelify Sans', monospace"; x.textAlign = "center";
     x.fillStyle = on ? "#14110c" : "#bcaf99"; x.fillText(word, m.x + i * half + half / 2, m.y + 14);
   });
 }

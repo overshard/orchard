@@ -4,7 +4,7 @@ import { sfx } from "./sound.js";
 // How a game feels under the thumb, one of these a game. A game calls got on
 // a catch and crash on a bonk, and the frame round it runs tick, shakes the
 // field by offset and stops the game's step while a freeze lasts.
-const SHAKE = 5, DECAY = 1.7, BUFFER = 90, FONT = "700 13px 'Space Grotesk', sans-serif";
+const SHAKE = 5, DECAY = 1.7, BUFFER = 90, FONT = "700 13px 'Pixelify Sans', monospace";
 
 export function feel() {
   let trauma = 0, frozen = 0, sq = 0, sqT = 0, t = 0, closeAt = -9, held = null, bits = [], pops = [];

@@ -1,38 +1,34 @@
-/* pond as a piece of 80s kit, the Deck direction in DESIGN.md, which is the
-   authority on these values. Three surfaces only: moulded plastic for panels,
-   sunken glass for screens and readouts, and keycaps that stand proud. Colour
-   lives on the screens, the icons and rarity. */
+/* pond at night, the Lantern direction in DESIGN.md, which is the authority
+   on these values. Lamp yellow is for what to press and the lit tab, and the
+   rest of the colour is in the pictures, the icons and rarity. */
 :root {
-  --void: #0a0908;
-  --bg: #14120f;
-  --panel: #1b1814;
-  --panel-2: #211d18;
-  --well: #0f0d0a;
-  --lip: #050404;
-  --line: #2f2820;
-  --line-hot: #47392a;
-  --text: #ece5d8;
-  --muted: #bcaf99;
-  --dim: #9c8f79;
-  --print: #d4c7ad;
-  --amber: #ffb000;
-  --amber-dim: #b37b00;
-  --amber-glow: rgba(255, 176, 0, 0.16);
-  --pink: #e2567a;
-  --glass: #0b1006;
-  --glass-k: #7d8d62;
-  --digit: #ffc23d;
-  --cap: linear-gradient(#2c2721, #1f1b16);
-  --cap-amber: linear-gradient(#ffc23d, #e59a00);
-  --raised: 0 3px 0 var(--lip), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --pressed: 0 0 0 var(--lip), inset 0 2px 3px rgba(0, 0, 0, 0.55);
-  --sunk: inset 0 2px 4px rgba(0, 0, 0, 0.8);
-  --moulded: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 2px 0 var(--lip);
-  --glow: 0 0 6px rgba(255, 176, 0, 0.55);
-  --hazard: repeating-linear-gradient(-45deg, #15120e 0 6px, #201a12 6px 12px);
-  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --grotesk: "Space Grotesk", var(--mono);
-  --track: 0.14em;
+  --ink: #05070e;
+  --bg: #0b1222;
+  --card: #121c33;
+  --card-2: #18243f;
+  --well: #0a1020;
+  --line: #22304f;
+  --line-2: #2c3b60;
+  --text: #eef0e6;
+  --muted: #9aa6c2;
+  --dim: #8590ae;
+  --cream: #f4ecd0;
+  --lamp: #ffcf6a;
+  --lamp-dark: #c98a2a;
+  --lamp-ink: #2a1a05;
+  --lamp-glow: rgba(255, 207, 106, 0.15);
+  --on: #2a2410;
+  --ok: #6fd08c;
+  --pink: #f29bb8;
+  --bad: #ff8a7a;
+  --ghost: inset 0 0 0 1px var(--line-2);
+  --pushed: inset 0 0 0 1px var(--lamp-dark);
+  --sunk: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+  --edge: 0 0 0 1px var(--line);
+  --glow: 0 0 8px rgba(255, 207, 106, 0.55);
+  --ui: Inter, system-ui, sans-serif;
+  --px: "Pixelify Sans", var(--ui);
+  --track: 0.12em;
 }
 
 * {
@@ -43,18 +39,16 @@ html {
   background: var(--bg);
 }
 
-/* The panel's brushed grain, faint enough to only read up close. */
 body {
   margin: 0;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background-color: var(--bg);
-  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 1px, transparent 1px 3px);
+  background: var(--bg);
   color: var(--text);
-  font-family: var(--mono);
-  font-size: 14px;
-  line-height: 1.6;
+  font-family: var(--ui);
+  font-size: 15px;
+  line-height: 1.45;
   overflow-wrap: anywhere;
   -webkit-tap-highlight-color: transparent;
 }
@@ -66,7 +60,7 @@ main {
   width: 100%;
   max-width: 34rem;
   margin: 0 auto;
-  padding: 0 12px 24px;
+  padding: 0 14px 24px;
   overflow-x: clip;
 }
 
@@ -76,42 +70,29 @@ main {
 
 h1 {
   margin: 0;
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: 2rem;
   font-weight: 700;
-  letter-spacing: -0.01em;
   line-height: 1.1;
-  text-transform: uppercase;
 }
 
-/* A section head is an index chip, a caps title and a rule out to the edge. */
+/* A section label is small letterspaced caps, with a count on the right. */
 h2 {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  margin: 28px 0 10px;
-  color: var(--amber);
-  font-size: 12px;
+  margin: 26px 0 10px;
+  color: var(--muted);
+  font-family: var(--px);
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: var(--track);
   text-transform: uppercase;
 }
 
 h2[data-idx]::before {
-  content: attr(data-idx);
-  padding: 2px 5px;
-  background: var(--amber-dim);
-  color: var(--void);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  line-height: 1;
-}
-
-h2::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--line-hot);
+  content: none;
 }
 
 p {
@@ -119,7 +100,7 @@ p {
 }
 
 a {
-  color: var(--amber);
+  color: var(--lamp);
 }
 
 canvas {
@@ -134,7 +115,8 @@ canvas {
 
 .label {
   margin: 0 0 4px;
-  color: var(--amber);
+  color: var(--muted);
+  font-family: var(--px);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: var(--track);
@@ -146,73 +128,89 @@ canvas {
   font-size: 15px;
 }
 
-/* Panel 00, the faceplate: the name, a model plate and the readouts. */
+/* The top bar, the wordmark and the pills, over every page. */
 .bar {
   position: sticky;
   top: 0;
   z-index: 2;
   display: flex;
-  align-items: stretch;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   max-width: 34rem;
+  height: 56px;
   margin: 0 auto;
-  padding: 8px 12px;
-  background: var(--panel);
-  border-bottom: 2px solid var(--lip);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  padding: 0 14px;
+  background: rgba(11, 18, 34, 0.94);
+  border-bottom: 1px solid var(--line);
 }
 
 .mark {
-  align-self: center;
-  color: var(--text);
-  font-family: var(--grotesk);
-  font-size: 1.7rem;
+  color: var(--cream);
+  font-family: var(--px);
+  font-size: 26px;
   font-weight: 700;
-  letter-spacing: -0.02em;
   line-height: 1;
   text-decoration: none;
-}
-
-.plate {
-  align-self: center;
-  padding: 3px 6px;
-  border-radius: 3px;
-  background: var(--well);
-  box-shadow: var(--sunk);
-  color: var(--dim);
-  font-size: 8px;
-  letter-spacing: var(--track);
-  line-height: 1.5;
-  white-space: nowrap;
+  text-shadow: 0 2px 0 var(--ink);
 }
 
 .bar-right {
   display: flex;
+  align-items: center;
   gap: 6px;
   margin-left: auto;
   flex-shrink: 0;
 }
 
-/* A number lives in readout glass, dark green with amber digits that glow. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px 0 8px;
+  border-radius: 17px;
+  background: var(--card);
+  box-shadow: var(--ghost);
+  color: var(--text);
+  font-family: var(--px);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.pill canvas {
+  width: 16px;
+  height: 16px;
+}
+
+a.pill.lit {
+  box-shadow: var(--pushed);
+  color: var(--lamp);
+}
+
+/* A number with its name over it, in a box of its own. */
 .readout {
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-width: 64px;
-  padding: 4px 10px;
-  border: 1px solid #000;
-  border-radius: 3px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--well);
+  box-shadow: var(--edge);
   color: var(--text);
   text-decoration: none;
   white-space: nowrap;
 }
 
 .readout .k {
-  color: var(--glass-k);
-  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--px);
+  font-size: 11px;
+  font-weight: 500;
   letter-spacing: var(--track);
   text-transform: uppercase;
 }
@@ -221,12 +219,11 @@ canvas {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: var(--digit);
-  font-family: var(--mono);
-  font-size: 16px;
+  color: var(--text);
+  font-family: var(--px);
+  font-size: 17px;
   font-weight: 700;
   line-height: 1.25;
-  text-shadow: var(--glow);
   font-variant-numeric: tabular-nums;
 }
 
@@ -235,39 +232,31 @@ canvas {
   height: 14px;
 }
 
-/* Settings is a square key with a gear on it, lit while it's open. */
+/* Settings is a small round key with a gear on it, lit while it's open. */
 .gearkey {
   display: grid;
   place-items: center;
-  width: 44px;
-  margin-bottom: 3px;
-  border-radius: 3px;
-  background: var(--cap);
-  box-shadow: var(--raised);
-  color: var(--print);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: var(--ghost);
+  color: var(--muted);
 }
 
 .gearkey svg {
   display: block;
-}
-
-.gearkey:active,
-.gearkey.lit {
-  transform: translateY(3px);
-  box-shadow: var(--pressed);
+  width: 18px;
+  height: 18px;
 }
 
 .gearkey.lit {
-  color: var(--amber);
+  box-shadow: var(--pushed);
+  color: var(--lamp);
 }
 
-@media (max-width: 26rem) {
-  .plate {
-    display: none;
-  }
-}
-
-/* A key is a cap with a highlight and a dark lip, and it travels 3px. */
+/* A key is a ghost with a line round it, and the main one on a screen is
+   lamp yellow on a darker lip that it travels 3px down onto. */
 button,
 .button {
   display: inline-block;
@@ -275,58 +264,64 @@ button,
   margin-bottom: 3px;
   padding: 8px 14px;
   border: 0;
-  border-radius: 3px;
-  background: var(--cap);
-  box-shadow: var(--raised);
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: var(--ghost);
   color: var(--text);
-  font-family: var(--mono);
-  font-size: 12px;
+  font-family: var(--px);
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
   text-decoration: none;
-  text-transform: uppercase;
   cursor: pointer;
   transition: transform 0.06s, box-shadow 0.06s;
 }
 
 button:hover:not(:disabled),
 .button:hover {
-  color: #fff6dc;
+  background-color: var(--card-2);
 }
 
 button:active:not(:disabled),
 .button:active {
-  transform: translateY(3px);
-  box-shadow: var(--pressed);
+  background-color: var(--card-2);
 }
 
 button.primary,
 .button.primary {
-  background: var(--cap-amber);
-  box-shadow: 0 3px 0 #7a5200, inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  color: #1a1000;
+  background: var(--lamp);
+  box-shadow: 0 3px 0 var(--lamp-dark);
+  color: var(--lamp-ink);
 }
 
 button.primary:hover:not(:disabled),
 .button.primary:hover {
-  color: #1a1000;
+  background: var(--lamp);
+  color: var(--lamp-ink);
 }
 
-/* A key that can't be pressed sinks into the panel. */
-button:disabled {
-  background: var(--well);
-  box-shadow: var(--sunk);
+button.primary:active:not(:disabled),
+.button.primary:active {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--lamp-dark);
+}
+
+button:disabled,
+button.primary:disabled {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
   color: var(--dim);
   cursor: default;
 }
 
 :focus-visible {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--lamp);
   outline-offset: 2px;
 }
 
 ::selection {
-  background: rgba(255, 176, 0, 0.3);
+  background: rgba(255, 207, 106, 0.3);
 }
 
 .row {
@@ -343,17 +338,16 @@ button:disabled {
 .card {
   margin: 16px 0;
   padding: 12px 14px;
-  border-radius: 3px;
-  background: var(--panel);
-  box-shadow: var(--moulded);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--edge);
 }
 
 .view {
-  padding-top: 12px;
+  padding-top: 14px;
 }
 
-/* A screen window: a bezel with a screw at each top corner, and scanlines
-   over the picture only. Neither takes a tap. */
+/* A picture in a dark frame, which never takes a tap of its own. */
 .screen {
   position: relative;
   display: block;
@@ -362,42 +356,25 @@ button:disabled {
   margin-bottom: 0;
   padding: 10px;
   border: 0;
-  border-radius: 4px;
-  background: var(--lip);
-  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #24201a, 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  background: #070c18;
+  box-shadow: var(--edge);
 }
 
-button.screen:active {
+button.screen:hover:not(:disabled),
+button.screen:active:not(:disabled) {
   transform: none;
-  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #24201a, 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.screen::before,
-.screen::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-}
-
-.screen::before {
-  inset: 0;
-  background:
-    radial-gradient(circle at 5px 5px, #4a4136 0 1.5px, #2a241d 2px, transparent 2.6px),
-    radial-gradient(circle at calc(100% - 5px) 5px, #4a4136 0 1.5px, #2a241d 2px, transparent 2.6px);
-}
-
-.screen::after {
-  inset: 10px;
-  background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.13) 0 1px, transparent 1px 3px);
+  background: #070c18;
+  box-shadow: var(--edge);
 }
 
 .screen canvas {
   width: 100%;
   height: auto;
-  border-radius: 2px;
+  border-radius: 6px;
 }
 
-/* Days at the pond in settings, the count in glass and a line beside it. */
+/* Days at the pond in settings, the count in a box and a line beside it. */
 .daysat {
   display: flex;
   align-items: center;
@@ -405,7 +382,7 @@ button.screen:active {
   font-size: 14px;
 }
 
-/* The hearts sit over a top corner of the glass, where nothing on the
+/* The hearts sit over a top corner of the picture, where nothing on the
    water is drawn. A drag that starts off the frog scrolls the page. */
 .frogscreen {
   position: relative;
@@ -418,7 +395,7 @@ button.screen:active {
   touch-action: pan-y;
 }
 
-/* The camera key is a small cap in the other top corner of the glass. */
+/* The camera key is a small key in the other top corner of the picture. */
 .frogscreen .snap {
   position: absolute;
   top: 14px;
@@ -431,6 +408,8 @@ button.screen:active {
   min-height: 0;
   margin: 0;
   padding: 0;
+  border-radius: 8px;
+  background: rgba(10, 16, 32, 0.82);
 }
 
 .frogscreen .snap canvas {
@@ -449,8 +428,8 @@ button.screen:active {
   pointer-events: none;
 }
 
-/* Frog power is a glass plate on the screen's bottom bezel, half over the
-   glass, so it takes no height of its own. */
+/* Frog power is a pill on the picture's bottom edge, half over it, so it
+   takes no height of its own. */
 .gauge {
   position: absolute;
   left: 50%;
@@ -470,12 +449,12 @@ button.screen:active {
   gap: 8px;
   min-height: 0;
   margin: 0;
-  padding: 4px 10px 6px;
-  border: 1px solid #000;
-  border-radius: 3px;
-  background: var(--glass);
-  box-shadow: var(--sunk), 0 2px 0 var(--lip);
-  color: var(--glass-k);
+  padding: 4px 12px 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: 0 2px 0 var(--ink);
+  color: var(--muted);
   letter-spacing: 0;
   white-space: nowrap;
   pointer-events: auto;
@@ -483,51 +462,52 @@ button.screen:active {
 
 button.powerplate:active:not(:disabled) {
   transform: none;
-  box-shadow: var(--sunk), 0 2px 0 var(--lip);
+  box-shadow: 0 2px 0 var(--ink);
 }
 
 .powerplate span {
-  font-size: 10px;
+  font-family: var(--px);
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: var(--track);
 }
 
 .powerplate b {
-  color: var(--digit);
-  font-size: 14px;
-  text-shadow: var(--glow);
+  color: var(--text);
+  font-family: var(--px);
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 
-/* How far to the next rung, a hairline of lit glass along the bottom. */
+/* How far to the next rung, a green hairline along the bottom. */
 .powerplate > i {
   position: absolute;
-  left: 6px;
-  right: 6px;
+  left: 12px;
+  right: 12px;
   bottom: 2px;
   height: 2px;
-  background: rgba(255, 194, 61, 0.14);
+  border-radius: 1px;
+  background: rgba(111, 208, 140, 0.16);
 }
 
 .powerplate > i i {
   display: block;
   height: 100%;
-  background: var(--digit);
-  box-shadow: var(--glow);
+  background: var(--ok);
   transform-origin: left;
 }
 
 /* What a rise came from, over the plate for a moment. */
 .powerline {
   margin: 0 0 6px;
-  padding: 3px 8px;
-  border: 1px solid #000;
-  border-radius: 3px;
-  background: var(--glass);
-  color: var(--digit);
-  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--ok);
+  font-family: var(--px);
+  font-size: 13px;
   font-weight: 700;
-  text-shadow: var(--glow);
   white-space: nowrap;
   animation: lineup 2.8s ease-out both;
 }
@@ -551,8 +531,10 @@ button.powerplate:active:not(:disabled) {
 
 .parts h3 {
   margin: 14px 0 6px;
-  color: var(--amber);
+  color: var(--muted);
+  font-family: var(--px);
   font-size: 12px;
+  font-weight: 500;
   letter-spacing: var(--track);
   text-transform: uppercase;
 }
@@ -592,9 +574,9 @@ button.powerplate:active:not(:disabled) {
 #v-pond .who {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 12px;
-  margin: 16px 0 4px;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 18px 0 4px;
 }
 
 #v-pond .who .chips {
@@ -620,38 +602,45 @@ button.powerplate:active:not(:disabled) {
 }
 
 .chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 6px 0 4px;
   color: var(--muted);
-  font-size: 14px;
+  font-family: var(--px);
+  font-size: 13px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .tier {
   display: inline-block;
-  padding: 1px 6px;
-  border: 1px solid currentColor;
-  font-size: 10px;
+  padding: 3px 8px 2px;
+  border-radius: 12px;
+  background: color-mix(in srgb, currentColor 15%, var(--bg));
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+  font-family: var(--px);
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: var(--track);
-  line-height: 1.5;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
   text-transform: uppercase;
 }
 
-.t0 { color: #bcaf99; }
-.t1 { color: #5ddc82; }
-.t2 { color: #6cb8ff; }
-.t3 { color: #cf9bff; }
-.t4 { color: var(--amber); }
+.t0 { color: #aab3c8; }
+.t1 { color: var(--ok); }
+.t2 { color: #9fd0ff; }
+.t3 { color: #c8b0ff; }
+.t4 { color: var(--lamp); }
 
 .missed {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 1px;
   margin: 12px 0;
-  border-radius: 3px;
-  background: var(--lip);
-  box-shadow: var(--moulded);
+  border-radius: 10px;
+  background: var(--line);
+  box-shadow: var(--edge);
   overflow: hidden;
   font-size: 14px;
 }
@@ -660,11 +649,13 @@ button.powerplate:active:not(:disabled) {
 .missed dd {
   margin: 0;
   padding: 5px 10px;
-  background: var(--panel);
+  background: var(--card);
 }
 
 .missed dt {
-  color: var(--print);
+  color: var(--muted);
+  font-family: var(--px);
+  font-size: 12px;
   letter-spacing: var(--track);
   text-transform: uppercase;
 }
@@ -683,7 +674,7 @@ button.powerplate:active:not(:disabled) {
 }
 
 .gift {
-  box-shadow: var(--moulded), inset 3px 0 0 var(--pink);
+  box-shadow: var(--edge), inset 3px 0 0 var(--pink);
 }
 
 .logs {
@@ -693,9 +684,8 @@ button.powerplate:active:not(:disabled) {
 }
 
 .logs button[aria-pressed="true"] {
-  transform: translateY(3px);
-  box-shadow: var(--pressed);
-  color: var(--amber);
+  box-shadow: var(--pushed);
+  color: var(--lamp);
 }
 
 .things {
@@ -712,9 +702,9 @@ button.powerplate:active:not(:disabled) {
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 3px;
-  background: var(--panel);
-  box-shadow: var(--moulded);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
   font-size: 14px;
 }
 
@@ -760,9 +750,9 @@ button.powerplate:active:not(:disabled) {
 .tiles {
   display: flex;
   gap: 1px;
-  border: 1px solid #000;
-  border-radius: 3px;
-  background: #050803;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--line);
   box-shadow: var(--sunk);
   overflow: hidden;
 }
@@ -793,7 +783,7 @@ button.powerplate:active:not(:disabled) {
   display: flex;
   flex-direction: column;
   padding: 0;
-  background: var(--void);
+  background: var(--line);
 }
 
 #v-dive.full .screen,
@@ -823,7 +813,7 @@ button.powerplate:active:not(:disabled) {
   flex: none;
   align-items: flex-start;
   padding-bottom: calc(12px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line-hot);
+  border-top: 1px solid var(--line-2);
 }
 
 #v-dive.full .dive-hud > *,
@@ -851,9 +841,9 @@ body:has(.arcade.full) {
   gap: 1px;
   margin: 0;
   padding: 0;
-  border-radius: 3px;
-  background: var(--lip);
-  box-shadow: var(--moulded);
+  border-radius: 8px;
+  background: var(--line);
+  box-shadow: var(--edge);
   overflow: hidden;
   list-style: none;
   font-size: 14px;
@@ -864,7 +854,7 @@ body:has(.arcade.full) {
   align-items: center;
   gap: 8px;
   padding: 5px 8px;
-  background: var(--panel);
+  background: var(--card);
 }
 
 .legend .o {
@@ -909,20 +899,21 @@ body:has(.arcade.full) {
 }
 
 div.hattile {
-  border-radius: 3px;
-  background: var(--panel);
-  box-shadow: var(--moulded);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
   color: var(--text);
 }
 
 .hattile:disabled {
-  background: var(--hazard);
+  background: transparent;
+  outline: 1px dashed var(--line-2);
+  outline-offset: -1px;
 }
 
 .hattile[aria-pressed="true"] {
-  transform: translateY(3px);
-  box-shadow: var(--pressed);
-  color: var(--amber);
+  box-shadow: var(--pushed);
+  color: var(--lamp);
 }
 
 .spare {
@@ -931,9 +922,9 @@ div.hattile {
   gap: 10px;
   margin: 8px 0;
   padding: 6px 8px;
-  border-radius: 3px;
-  background: var(--panel);
-  box-shadow: var(--moulded);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
   font-size: 14px;
 }
 
@@ -941,8 +932,8 @@ div.hattile {
   margin-left: auto;
 }
 
-/* The transport keys along the bottom, where a thumb is. */
-.tabs {
+/* The dock, five places by verb along the bottom where a thumb is. */
+.dock {
   position: fixed;
   left: 0;
   right: 0;
@@ -954,65 +945,79 @@ div.hattile {
   width: 100%;
   max-width: 34rem;
   margin: 0 auto;
-  gap: 3px;
-  padding: 5px 4px calc(4px + env(safe-area-inset-bottom));
-  background: var(--panel);
-  border-top: 2px solid var(--lip);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  gap: 4px;
+  padding: 6px 6px calc(8px + env(safe-area-inset-bottom));
+  background: #070c18;
+  border-top: 1px solid var(--line);
 }
 
-.tabs button {
+.dock button {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
+  gap: 3px;
   min-width: 0;
-  min-height: 52px;
-  padding: 5px 0 4px;
-  font-size: 10px;
+  min-height: 56px;
+  margin: 0;
+  padding: 6px 0 5px;
+  border-radius: 10px;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0;
-  color: var(--print);
+  letter-spacing: 0.02em;
 }
 
-/* An LED pip on a key with something new behind it since it was opened. */
-.tabs button.wait::after,
-.places button.wait::after {
+.dock button:hover:not(:disabled) {
+  background: transparent;
+  color: var(--text);
+}
+
+.dock canvas {
+  width: 28px;
+  height: 28px;
+}
+
+.dock button[aria-pressed="true"],
+.dock button[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--card);
+  color: var(--lamp);
+}
+
+/* A glowing LED on a key with something new behind it since it was opened. */
+.dock button.wait::after,
+.places button.wait::after,
+.pill.wait::after {
   content: "";
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 5px;
-  height: 5px;
+  top: 5px;
+  right: calc(50% - 22px);
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--amber);
-  box-shadow: 0 0 5px var(--amber);
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
 }
 
-
-
-.tabs canvas {
-  width: 24px;
-  height: 24px;
-  opacity: 0.6;
+.places button.wait::after {
+  top: 5px;
+  right: 6px;
 }
 
-.tabs button[aria-pressed="true"] canvas {
-  opacity: 1;
+.pill.wait {
+  position: relative;
 }
 
-/* The lit place stays pushed in, like a tape deck's PLAY. */
-.tabs button[aria-pressed="true"] {
-  transform: translateY(3px);
-  background: linear-gradient(#1f1b16, #24201a);
-  box-shadow: var(--pressed);
-  color: var(--amber);
+.pill.wait::after {
+  top: -1px;
+  right: -1px;
 }
 
-/* The rating plate, the sticker on the back of old gear. */
+/* The footer on the key pages. */
 footer {
+  font-family: var(--px);
   display: flex;
   justify-content: space-between;
   gap: 16px;
@@ -1027,8 +1032,8 @@ footer {
   text-transform: uppercase;
 }
 
-body:has(.tabs) main {
-  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+body:has(.dock) main {
+  padding-bottom: calc(90px + env(safe-area-inset-bottom));
 }
 
 /* The key pages */
@@ -1047,9 +1052,9 @@ body:has(.tabs) main {
   gap: 1px;
   margin: 16px 0;
   padding: 0;
-  border: 1px solid #000;
-  border-radius: 4px;
-  background: #050803;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--line);
   box-shadow: var(--sunk);
   overflow: hidden;
   list-style: none;
@@ -1059,19 +1064,18 @@ body:has(.tabs) main {
 .keywords li {
   counter-increment: word;
   padding: 10px 12px;
-  background: var(--glass);
-  color: var(--digit);
-  font-family: var(--grotesk);
+  background: var(--well);
+  color: var(--text);
+  font-family: var(--px);
   font-size: 1.25rem;
   font-weight: 500;
-  text-shadow: var(--glow);
 }
 
 .keywords li::before {
   content: "0" counter(word) " ";
   margin-right: 6px;
-  color: var(--glass-k);
-  font-family: var(--mono);
+  color: var(--muted);
+  font-family: var(--ui);
   font-size: 10px;
   letter-spacing: 0.08em;
   text-shadow: none;
@@ -1086,9 +1090,9 @@ body:has(.tabs) main {
 .keyline code {
   flex: 1;
   padding: 10px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--well);
-  box-shadow: var(--sunk);
+  box-shadow: var(--edge);
   font-family: inherit;
   font-size: 14px;
   overflow-wrap: anywhere;
@@ -1126,7 +1130,8 @@ body:has(.tabs) main {
 }
 
 .restore label {
-  color: var(--print);
+  font-family: var(--px);
+  color: var(--muted);
   font-size: 12px;
   letter-spacing: var(--track);
   text-transform: uppercase;
@@ -1136,10 +1141,10 @@ body:has(.tabs) main {
   width: 100%;
   min-height: 44px;
   padding: 8px 10px;
-  border: 1px solid #000;
-  border-radius: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   background: var(--well);
-  box-shadow: var(--sunk);
+  box-shadow: var(--edge);
   color: var(--text);
   font: inherit;
 }
@@ -1161,16 +1166,15 @@ body:has(.tabs) main {
 
 .power b {
   padding: 4px 12px;
-  border: 1px solid #000;
-  border-radius: 4px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  color: var(--digit);
-  font-family: var(--grotesk);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--well);
+  box-shadow: var(--edge);
+  color: var(--text);
+  font-family: var(--px);
   font-size: clamp(2.6rem, 11vw, 3.6rem);
   font-weight: 700;
   line-height: 1;
-  text-shadow: var(--glow);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1187,17 +1191,17 @@ body:has(.tabs) main {
 
 .ladder .rail {
   height: 10px;
-  border: 1px solid #000;
-  border-radius: 2px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--well);
+  box-shadow: var(--edge);
   overflow: hidden;
 }
 
 .ladder .rail i {
   display: block;
   height: 100%;
-  background: repeating-linear-gradient(90deg, var(--digit) 0 4px, transparent 4px 5px);
+  background: var(--ok);
   box-shadow: var(--glow);
 }
 
@@ -1214,7 +1218,7 @@ body:has(.tabs) main {
   justify-content: space-between;
   gap: 10px;
   padding: 3px 0 3px 8px;
-  border-left: 2px solid var(--lip);
+  border-left: 2px solid var(--ink);
   color: var(--muted);
   font-size: 14px;
   line-height: 1.3;
@@ -1226,12 +1230,13 @@ body:has(.tabs) main {
 }
 
 .ladder li span {
+  font-family: var(--px);
   font-variant-numeric: tabular-nums;
 }
 
 .ladder li.got {
-  border-left-color: var(--amber);
-  color: var(--amber);
+  border-left-color: var(--ok);
+  color: var(--ok);
 }
 
 /* Where a frog's power comes from, a bar behind each row for how much of
@@ -1252,14 +1257,15 @@ body:has(.tabs) main {
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
-  border-radius: 3px;
-  background: var(--panel);
-  box-shadow: var(--moulded);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
   overflow: hidden;
 }
 
 .tally b {
-  color: var(--print);
+  font-family: var(--px);
+  color: var(--muted);
   font-weight: 500;
   letter-spacing: var(--track);
   text-transform: uppercase;
@@ -1270,10 +1276,9 @@ body:has(.tabs) main {
 }
 
 .tally em {
-  color: var(--digit);
+  color: var(--text);
   font-style: normal;
   font-weight: 700;
-  text-shadow: var(--glow);
 }
 
 .tally i {
@@ -1281,7 +1286,7 @@ body:has(.tabs) main {
   left: 0;
   bottom: 0;
   height: 2px;
-  background: var(--amber);
+  background: var(--ok);
 }
 
 .sharelink {
@@ -1306,9 +1311,9 @@ body:has(.tabs) main {
 
 .sharelink code {
   padding: 10px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--well);
-  box-shadow: var(--sunk);
+  box-shadow: var(--edge);
   font-family: inherit;
   font-size: 14px;
   overflow-wrap: anywhere;
@@ -1339,6 +1344,7 @@ body:has(.tabs) main {
 }
 
 .paintings figcaption {
+  font-family: var(--px);
   color: var(--muted);
   font-size: 12px;
   letter-spacing: var(--track);
@@ -1370,9 +1376,9 @@ body:has(.tabs) main {
 }
 
 .stampkeys button[aria-pressed="true"] {
-  transform: translateY(3px);
-  box-shadow: var(--pressed), inset 0 2px 0 var(--amber);
+  box-shadow: var(--pushed);
   opacity: 1;
+  background: var(--on);
 }
 
 .stampkeys button[aria-pressed="true"] canvas {
@@ -1392,26 +1398,26 @@ body:has(.tabs) main {
   gap: 6px;
   align-content: start;
   padding: 8px;
-  border-radius: 3px;
-  background: var(--panel);
-  box-shadow: var(--moulded);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
 }
 
 .reed.front {
-  box-shadow: var(--moulded), inset 0 0 0 1px var(--amber-dim);
+  box-shadow: var(--edge);
 }
 
 .reed canvas {
   width: 100%;
   height: auto;
-  border-radius: 2px;
+  border-radius: 4px;
   background: #0e2c30;
-  box-shadow: 0 0 0 3px var(--lip);
+  box-shadow: 0 0 0 3px var(--ink);
   image-rendering: pixelated;
 }
 
 .reed b {
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: 15px;
   font-weight: 700;
 }
@@ -1422,15 +1428,17 @@ body:has(.tabs) main {
 }
 
 .reed .tier {
-  font-size: 10px;
+  justify-self: start;
+  font-size: 11px;
 }
 
 .reed .ate {
-  color: #5ddc82;
+  color: var(--ok);
 }
 
 .reed .on {
-  color: var(--amber);
+  color: var(--ok);
+  font-family: var(--px);
   font-size: 12px;
   letter-spacing: var(--track);
 }
@@ -1442,17 +1450,17 @@ body:has(.tabs) main {
   height: 6px;
   margin-right: 6px;
   border-radius: 50%;
-  background: var(--amber);
-  box-shadow: 0 0 6px var(--amber);
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
   vertical-align: 1px;
 }
 
 .favour canvas {
   width: 64px;
   height: 64px;
-  border-radius: 2px;
+  border-radius: 4px;
   background: #0e2c30;
-  box-shadow: 0 0 0 3px var(--lip);
+  box-shadow: 0 0 0 3px var(--ink);
   image-rendering: pixelated;
 }
 
@@ -1465,25 +1473,26 @@ body:has(.tabs) main {
 
 .register span {
   padding: 3px 7px;
-  border-radius: 3px;
-  background: var(--hazard);
-  box-shadow: var(--sunk);
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  outline: 1px dashed var(--line-2);
+  outline-offset: -1px;
   color: var(--dim);
   font-size: 12px;
   letter-spacing: var(--track);
 }
 
 .register .on {
-  background: var(--glass);
-  color: var(--digit);
-  text-shadow: var(--glow);
+  background: var(--well);
+  color: var(--lamp);
 }
 
 /* A picked key latches down and lights. */
 .seg button[aria-pressed="true"] {
-  transform: translateY(3px);
-  box-shadow: var(--pressed), inset 0 2px 0 var(--amber);
-  color: var(--amber);
+  box-shadow: var(--pushed);
+  color: var(--lamp);
+  background: var(--on);
 }
 
 /* The race over Dive's water. Only transform and opacity ever animate, and
@@ -1499,7 +1508,7 @@ body:has(.tabs) main {
   overflow: hidden;
   line-height: 1.2;
   pointer-events: none;
-  font-family: var(--mono);
+  font-family: var(--ui);
   text-transform: uppercase;
 }
 
@@ -1550,12 +1559,12 @@ body:has(.tabs) main {
 
 .standings li.you {
   z-index: 1;
-  background: var(--amber);
-  color: var(--void);
+  background: var(--lamp);
+  color: var(--ink);
 }
 
 .standings li.you b {
-  color: var(--void);
+  color: var(--ink);
 }
 
 .standings li.out {
@@ -1583,7 +1592,7 @@ body:has(.tabs) main {
   bottom: 12px;
   margin: 0;
   color: #fff6dc;
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-style: italic;
   font-weight: 700;
   line-height: 0.8;
@@ -1603,7 +1612,7 @@ body:has(.tabs) main {
   display: block;
   margin-top: 6px;
   color: #fff6dc;
-  font-family: var(--mono);
+  font-family: var(--ui);
   font-size: 14px;
   font-style: normal;
   font-weight: 500;
@@ -1652,7 +1661,7 @@ body:has(.tabs) main {
 }
 
 .callout.out { border-color: var(--pink); }
-.callout.up { border-color: var(--amber); color: var(--amber); }
+.callout.up { border-color: var(--ok); color: var(--ok); }
 
 @keyframes slide {
   0% { opacity: 0; transform: translateY(-10px) scale(1.3); }
@@ -1675,7 +1684,7 @@ body:has(.tabs) main {
   gap: 10px;
   padding: 8px 12px;
   background: #0a0908;
-  border: 2px solid var(--line-hot);
+  border: 2px solid var(--line-2);
 }
 
 .countdown .lights i {
@@ -1697,7 +1706,7 @@ body:has(.tabs) main {
 
 .countdown b {
   color: #fff6dc;
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: clamp(3rem, 12vw, 5rem);
   font-style: italic;
   line-height: 1;
@@ -1705,7 +1714,7 @@ body:has(.tabs) main {
 }
 
 .countdown.started b {
-  color: #5ddc82;
+  color: var(--ok);
   animation: pop 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.5);
 }
 
@@ -1739,7 +1748,7 @@ body:has(.tabs) main {
 
 .bigplace {
   margin: 0;
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-style: italic;
   font-weight: 700;
   line-height: 0.9;
@@ -1751,7 +1760,7 @@ body:has(.tabs) main {
 .bigplace span {
   display: block;
   color: var(--dim);
-  font-family: var(--mono);
+  font-family: var(--ui);
   font-size: 12px;
   font-style: normal;
   letter-spacing: var(--track);
@@ -1794,14 +1803,14 @@ body:has(.tabs) main {
 }
 
 .podium .you span {
-  color: var(--amber);
+  color: var(--lamp);
 }
 
 .podium b {
   display: grid;
   place-items: center;
   width: 100%;
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: 1.4rem;
   color: #0a0908;
 }
@@ -1826,7 +1835,7 @@ body:has(.tabs) main {
   align-items: center;
   gap: 6px;
   padding: 2px 6px;
-  background: var(--panel);
+  background: var(--card);
   text-align: left;
   animation: rise 0.3s ease-out backwards;
 }
@@ -1845,12 +1854,12 @@ body:has(.tabs) main {
 }
 
 .final li.you {
-  background: var(--amber);
-  color: var(--void);
+  background: var(--lamp);
+  color: var(--ink);
 }
 
 .final li.you em {
-  color: var(--void);
+  color: var(--ink);
 }
 
 .winnings {
@@ -1880,12 +1889,12 @@ body:has(.tabs) main {
 }
 
 .winnings dd.gold {
-  color: var(--amber);
+  color: var(--lamp);
 }
 
 .results .again {
   margin: 4px 0 0;
-  color: var(--amber);
+  color: var(--text);
   font-size: 12px;
   letter-spacing: var(--track);
   animation: blink 1.2s steps(2) infinite;
@@ -1940,7 +1949,10 @@ body:has(.tabs) main {
   gap: 8px;
   min-height: 40px;
   padding: 4px 8px;
-  font-size: 12px;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
   text-align: left;
 }
 
@@ -1958,7 +1970,8 @@ body:has(.tabs) main {
 
 .larder .off {
   color: var(--dim);
-  font-size: 10px;
+  font-family: var(--px);
+  font-size: 11px;
   letter-spacing: var(--track);
 }
 
@@ -1974,9 +1987,9 @@ h2 .count {
   margin: 8px 0;
   padding: 0;
   list-style: none;
-  border-radius: 3px;
-  background: var(--lip);
-  box-shadow: var(--moulded);
+  border-radius: 8px;
+  background: var(--line);
+  box-shadow: var(--edge);
   overflow: hidden;
   font-size: 14px;
 }
@@ -1986,7 +1999,7 @@ h2 .count {
   align-items: center;
   gap: 8px;
   padding: 5px 10px;
-  background: var(--panel);
+  background: var(--card);
 }
 
 .cookbook canvas {
@@ -2010,14 +2023,10 @@ h2 .count {
 /* A shop's shelf, one line a thing with its price on the button. */
 .shelf {
   display: grid;
-  gap: 1px;
+  gap: 8px;
   margin: 8px 0;
   padding: 0;
   list-style: none;
-  border-radius: 3px;
-  background: var(--lip);
-  box-shadow: var(--moulded);
-  overflow: hidden;
 }
 
 .shelf li {
@@ -2025,9 +2034,10 @@ h2 .count {
   align-items: center;
   gap: 10px;
   min-height: 56px;
-  padding: 6px 10px;
-  background: var(--panel);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 8px 10px 8px 12px;
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
   font-size: 14px;
 }
 
@@ -2048,21 +2058,21 @@ h2 .count {
 }
 
 .shelf .what b {
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .shelf s {
   color: var(--dim);
 }
 
-/* A price is a key, amber lettered when it can be paid. */
+/* A price is a key, lamp lettered when it can be paid. */
 .shelf button {
   min-width: 64px;
-  min-height: 36px;
+  min-height: 38px;
   margin-left: auto;
-  padding: 2px 10px;
-  color: var(--amber);
-  font-size: 12px;
+  padding: 2px 12px;
+  color: var(--lamp);
+  font-size: 14px;
 }
 
 .shelf .sold {
@@ -2082,7 +2092,8 @@ h2 .count {
   margin-left: auto;
   white-space: nowrap;
   color: var(--dim);
-  font-size: 10px;
+  font-family: var(--px);
+  font-size: 12px;
   letter-spacing: var(--track);
 }
 
@@ -2100,7 +2111,7 @@ h2 .count {
   display: block;
   width: 18px;
   height: 18px;
-  color: var(--amber);
+  color: var(--lamp);
 }
 
 .stats {
@@ -2112,32 +2123,29 @@ h2 .count {
 /* What the frog says sits in a speech bubble pointing up at it. */
 .bubble {
   position: relative;
-  margin: 14px 0 10px;
+  margin: 16px 0 12px;
   padding: 10px 14px;
-  border-radius: 4px;
-  background: var(--panel-2);
-  box-shadow: var(--moulded);
-  color: var(--text);
-  font-size: 14px;
+  border-radius: 12px;
+  background: var(--cream);
+  box-shadow: 0 0 0 3px #1d1a14, 0 4px 0 3px var(--ink);
+  color: #1d1a14;
+  font-size: 14.5px;
 }
 
 .bubble::before {
   content: "";
   position: absolute;
-  top: -6px;
+  top: -15px;
   left: 28px;
-  width: 12px;
-  height: 12px;
-  background: var(--panel-2);
-  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.05);
-  transform: rotate(45deg);
+  border: 7px solid transparent;
+  border-bottom-color: #1d1a14;
 }
 
 .gift {
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: var(--moulded), inset 3px 0 0 var(--pink);
+  box-shadow: var(--edge), inset 3px 0 0 var(--pink);
 }
 
 .gift p {
@@ -2166,8 +2174,7 @@ h2 .count {
   margin: 12px 0;
 }
 
-/* The Next strip, a key a row. An amber LED blinks on a thing that's
-   waiting and a green one sits on a goal, lit once it's done. */
+/* The Next strip, a card a row. */
 .nextup {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -2178,65 +2185,59 @@ h2 .count {
 .nrow {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   width: 100%;
   /* Firefox won't shrink a row under its whole label without this. */
   min-width: 0;
   min-height: 40px;
-  margin: 0 0 3px;
-  padding: 3px 8px 3px 11px;
-  border-radius: 3px;
-  background: var(--cap);
-  box-shadow: var(--raised);
+  margin: 0;
+  padding: 4px 8px 4px 12px;
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
   color: var(--text);
-  font-family: var(--mono);
+  font-family: var(--ui);
   font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
   line-height: 1.2;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.06s, box-shadow 0.06s;
 }
 
-/* The LED keeps blinking under reduced motion, since it's a signal. */
-a.nrow::before {
-  content: "";
-  flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--amber);
-  box-shadow: 0 0 6px var(--amber);
-  animation: led 1.6s steps(2) infinite;
+/* A row with something ready has a green edge, and a goal has an LED, a
+   ring until it's done and lit after. */
+a.nrow:not(.goal) {
+  box-shadow: var(--edge), inset 3px 0 0 var(--ok);
 }
 
 .nrow.goal::before {
+  content: "";
+  flex: none;
   width: 8px;
   height: 8px;
-  background: #1d3a26;
-  box-shadow: inset 0 0 0 1px #5ddc82;
-  animation: none;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--ok);
 }
 
 .nrow.done {
-  background: linear-gradient(#1f1b16, #24201a);
-  box-shadow: var(--pressed);
+  background: transparent;
 }
 
 .nrow.done::before {
-  background: #5ddc82;
-  box-shadow: 0 0 6px #5ddc82;
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
 }
 
 .nrow:active {
-  transform: translateY(3px);
-  box-shadow: var(--pressed);
+  background: var(--card-2);
 }
 
 .nrow canvas {
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
 .nrow-what {
@@ -2254,21 +2255,25 @@ a.nrow::before {
 
 .nrow-n {
   flex: none;
-  padding: 2px 7px;
-  border: 1px solid #000;
-  border-radius: 3px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  color: var(--digit);
-  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--well);
+  box-shadow: var(--edge);
+  color: var(--text);
+  font-family: var(--px);
+  font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  text-shadow: var(--glow);
 }
 
 button.nrow.primary {
   justify-content: center;
-  font-size: 12px;
+  background: var(--lamp);
+  box-shadow: 0 3px 0 var(--lamp-dark);
+  color: var(--lamp-ink);
+  font-family: var(--px);
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .nrow-last {
@@ -2282,8 +2287,9 @@ button.nrow.primary {
   width: auto;
   min-width: 48px;
   padding: 3px 10px;
-  color: var(--print);
-  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--px);
+  font-size: 14px;
 }
 
 @media (max-height: 780px) and (max-width: 34rem) {
@@ -2301,42 +2307,33 @@ button.nrow.primary {
   50% { opacity: 0.3; }
 }
 
-/* A filter is a small key that stays pushed in and lit while it's on, since
-   a sunken one reads as disabled. */
+/* A filter is a pill, lit while it's on. */
 .chiprow button {
   position: relative;
   min-height: 36px;
-  margin: 0 0 3px;
+  margin: 0;
   padding: 4px 14px;
-  color: var(--print);
-  font-size: 12px;
-  letter-spacing: 0.1em;
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--edge);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .chiprow button[aria-pressed="true"] {
-  transform: translateY(3px);
-  background: linear-gradient(#1f1b16, #24201a);
-  box-shadow: var(--pressed);
-  color: var(--amber);
+  background: var(--on);
+  box-shadow: var(--pushed);
+  color: var(--lamp);
 }
 
-.chiprow button[aria-pressed="true"]::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 50%;
-  width: 14px;
-  height: 2px;
-  margin-left: -7px;
-  background: var(--amber);
-  box-shadow: 0 0 6px var(--amber);
-}
-
-/* Places in town, a row of keys like the tab bar so they never wrap. */
+/* The places inside a tab, a row of keys with a picture over the word so
+   they never wrap. */
 .places {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
+  gap: 6px;
   margin: 0 0 14px;
 }
 
@@ -2352,14 +2349,15 @@ button.nrow.primary {
 
 .recipe.known {
   padding: 8px 10px;
-  border: 1px solid #000;
-  border-radius: 3px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  color: var(--glass-k);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--well);
+  box-shadow: var(--edge);
+  color: var(--muted);
 }
 
 .recipe span {
+  font-family: var(--px);
   display: flex;
   flex-direction: column;
   font-size: 12px;
@@ -2368,11 +2366,10 @@ button.nrow.primary {
 }
 
 .recipe b {
-  color: var(--digit);
-  font-family: var(--mono);
+  color: var(--text);
+  font-family: var(--ui);
   font-size: 14px;
   letter-spacing: 0;
-  text-shadow: var(--glow);
   text-transform: none;
 }
 
@@ -2388,16 +2385,20 @@ button.nrow.primary {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.workshead {
-  padding-top: 12px;
+.makehead {
+  padding-top: 14px;
 }
 
-.workshead .screen {
+.makehead .places {
   margin-bottom: 12px;
+}
+
+.makehead .screen {
+  margin-bottom: 4px;
   cursor: pointer;
 }
 
-.view.inworks {
+.view.inmake {
   padding-top: 0;
 }
 
@@ -2408,35 +2409,32 @@ button.nrow.primary {
   align-items: center;
   gap: 3px;
   min-width: 0;
-  min-height: 58px;
-  margin: 0 0 3px;
-  padding: 7px 0 5px;
-  color: var(--print);
-  font-size: 10px;
+  min-height: 60px;
+  margin: 0;
+  padding: 7px 0 6px;
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
+  color: var(--muted);
+  font-size: 13px;
   font-weight: 500;
-  letter-spacing: 0;
+  letter-spacing: 0.02em;
 }
 
 .places canvas {
   width: 24px;
   height: 24px;
-  opacity: 0.7;
 }
 
 .places button[aria-pressed="true"] {
-  transform: translateY(3px);
-  background: linear-gradient(#1f1b16, #24201a);
-  box-shadow: var(--pressed);
-  color: var(--amber);
-}
-
-.places button[aria-pressed="true"] canvas {
-  opacity: 1;
+  background: var(--on);
+  box-shadow: var(--pushed);
+  color: var(--lamp);
 }
 
 @media (max-width: 360px) {
   .places button {
-    font-size: 9px;
+    font-size: 12px;
   }
 }
 
@@ -2449,34 +2447,33 @@ button.nrow.primary {
 }
 
 .today li {
-  padding: 4px 0;
-  border-bottom: 1px solid var(--lip);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
 }
 
 .today b {
-  color: var(--amber);
-  font-weight: 500;
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* The gazette is the one thing on the pond printed on paper, so it gets
    newsprint and a serif the system already has. Folded it's a strip with the
    masthead and the lead, a turned corner and the other pages under it. */
 .paperfold {
-  --ink: #2b241a;
+  --news: #2b241a;
   display: flex;
   flex-direction: column;
   gap: 1px;
   width: calc(100% - 8px);
   margin: 12px 4px 16px;
   padding: 6px 18px 8px 12px;
-  border-radius: 2px;
+  border-radius: 4px;
   background:
     linear-gradient(315deg, var(--bg) 0 7px, #b9ad8c 7px 13px, transparent 13px),
     repeating-linear-gradient(0deg, rgba(43, 36, 26, 0.035) 0 1px, transparent 1px 3px),
     #efe4c6;
   box-shadow: 0 2px 0 #cfc3a2, 0 4px 0 #a89c7c, 0 8px 12px rgba(0, 0, 0, 0.5);
-  color: var(--ink);
+  color: var(--news);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 14px;
   font-weight: 400;
@@ -2488,7 +2485,8 @@ button.nrow.primary {
 }
 
 .paperfold:hover:not(:disabled) {
-  color: var(--ink);
+  background-color: #efe4c6;
+  color: var(--news);
 }
 
 .paperfold:active:not(:disabled) {
@@ -2501,7 +2499,7 @@ button.nrow.primary {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  border-bottom: 1px solid var(--ink);
+  border-bottom: 1px solid var(--news);
   font-size: 12px;
   font-style: italic;
 }
@@ -2529,7 +2527,7 @@ button.nrow.primary {
 }
 
 .paper {
-  --ink: #2b241a;
+  --news: #2b241a;
   align-self: stretch;
   min-width: 0;
   margin: 0 4px 8px;
@@ -2538,9 +2536,9 @@ button.nrow.primary {
     repeating-linear-gradient(0deg, rgba(43, 36, 26, 0.035) 0 1px, transparent 1px 3px),
     linear-gradient(90deg, transparent 49.6%, rgba(43, 36, 26, 0.07) 50%, transparent 50.4%),
     #efe4c6;
-  color: var(--ink);
+  color: var(--news);
   font-family: Georgia, "Times New Roman", serif;
-  border-radius: 2px;
+  border-radius: 4px;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.4) inset;
   transform: rotate(-0.6deg);
 }
@@ -2558,7 +2556,7 @@ button.nrow.primary {
 .paper-head {
   margin: 4px 0 2px;
   padding: 4px 0 2px;
-  border-top: 3px double var(--ink);
+  border-top: 3px double var(--news);
   font-size: clamp(26px, 8.5vw, 36px);
   font-weight: 700;
   font-style: italic;
@@ -2569,8 +2567,8 @@ button.nrow.primary {
 
 .paper-date {
   padding: 3px 0;
-  border-top: 1px solid var(--ink);
-  border-bottom: 3px double var(--ink);
+  border-top: 1px solid var(--news);
+  border-bottom: 3px double var(--news);
   font-style: italic;
 }
 
@@ -2609,7 +2607,7 @@ button.nrow.primary {
   height: auto;
   padding: 2px;
   background: #d9cfb3;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--news);
   image-rendering: pixelated;
   filter: grayscale(1) sepia(0.35) contrast(1.15);
 }
@@ -2617,7 +2615,7 @@ button.nrow.primary {
 .paper-cols {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  border-top: 1px solid var(--ink);
+  border-top: 1px solid var(--news);
 }
 
 .paper-story {
@@ -2630,13 +2628,13 @@ button.nrow.primary {
 
 .paper-story + .paper-story {
   padding: 7px 0 0 8px;
-  border-left: 1px solid var(--ink);
+  border-left: 1px solid var(--news);
 }
 
 .paper-biz {
   margin: 10px 0 0;
   padding-top: 6px;
-  border-top: 1px solid var(--ink);
+  border-top: 1px solid var(--news);
   font-size: 14px;
   font-style: italic;
   line-height: 1.3;
@@ -2646,7 +2644,7 @@ button.nrow.primary {
   margin: 8px 0 10px;
   padding: 0 0 6px;
   border-top: 0;
-  border-bottom: 1px solid var(--ink);
+  border-bottom: 1px solid var(--news);
 }
 
 .paper-biz b {
@@ -2659,7 +2657,7 @@ button.nrow.primary {
 
 .paper-sec {
   margin: 12px 0 0;
-  border-top: 3px double var(--ink);
+  border-top: 3px double var(--news);
 }
 
 .paper-kicker {
@@ -2691,7 +2689,7 @@ button.nrow.primary {
 
 .paper-movers > div + div {
   padding-left: 12px;
-  border-left: 1px solid var(--ink);
+  border-left: 1px solid var(--news);
 }
 
 /* A row is the name, a dotted leader and the figure, like a price list. */
@@ -2720,7 +2718,7 @@ button.nrow.primary {
 .paper-ledger i {
   flex: 1;
   min-width: 8px;
-  border-bottom: 1px dotted var(--ink);
+  border-bottom: 1px dotted var(--news);
   opacity: 0.6;
 }
 
@@ -2758,8 +2756,8 @@ button.nrow.primary {
   gap: 8px;
   margin: 10px 0 0;
   padding: 6px;
-  border: 1px solid var(--ink);
-  outline: 1px solid var(--ink);
+  border: 1px solid var(--news);
+  outline: 1px solid var(--news);
   outline-offset: 2px;
 }
 
@@ -2768,7 +2766,7 @@ button.nrow.primary {
   margin: 0;
   background: none;
   box-shadow: none;
-  color: var(--ink);
+  color: var(--news);
   font-family: inherit;
   letter-spacing: 0;
   text-transform: none;
@@ -2792,7 +2790,7 @@ button.nrow.primary {
   grid-row: 1 / 3;
   width: 72px;
   height: auto;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--news);
   image-rendering: pixelated;
   filter: grayscale(1) sepia(0.35) contrast(1.15);
 }
@@ -2812,7 +2810,7 @@ button.nrow.primary {
 .paper-puzzle .sharekey {
   flex: none;
   padding: 6px 8px;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--news);
   border-radius: 0;
   font-size: 12px;
   font-weight: 700;
@@ -2836,29 +2834,29 @@ button.nrow.primary {
 h2 .q {
   flex: none;
   order: 3;
-  width: 22px;
-  min-height: 22px;
-  height: 22px;
-  margin-bottom: 2px;
+  width: 24px;
+  min-height: 24px;
+  height: 24px;
+  margin: 0;
   padding: 0;
   border-radius: 50%;
-  box-shadow: 0 2px 0 var(--lip), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: var(--ghost);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1;
 }
 
 h2 .q[aria-expanded="true"] {
-  transform: translateY(2px);
-  box-shadow: var(--pressed);
-  color: var(--amber);
+  background: var(--on);
+  box-shadow: var(--pushed);
+  color: var(--lamp);
 }
 
 .help {
-  padding: 8px 10px;
-  border-radius: 3px;
-  background: var(--well);
-  box-shadow: var(--sunk);
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
   color: var(--muted);
   font-size: 14px;
 }
@@ -2866,23 +2864,22 @@ h2 .q[aria-expanded="true"] {
 .back {
   display: inline-block;
   margin-bottom: 8px;
-  font-size: 14px;
+  color: var(--muted);
+  font-family: var(--px);
+  font-size: 15px;
   text-decoration: none;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
-/* An empty spot is a hazard striped tray with a dim outline of the thing. */
+/* An empty spot has a dashed edge and a dim outline of the thing. */
 .empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
   padding: 20px 12px;
-  border: 1px solid #000;
-  border-radius: 3px;
-  background: var(--hazard);
-  box-shadow: var(--sunk);
+  border: 1px dashed var(--line-2);
+  border-radius: 10px;
+  background: transparent;
   color: var(--dim);
   text-align: center;
 }
@@ -2902,34 +2899,32 @@ h2 .q[aria-expanded="true"] {
   gap: 12px;
   margin: 0 0 14px;
   padding: 10px;
-  border-radius: 4px;
-  background: var(--panel);
-  box-shadow: var(--moulded);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--edge);
   color: var(--text);
   text-decoration: none;
-  transition: transform 0.06s, box-shadow 0.06s;
 }
 
 a.game {
-  box-shadow: var(--raised);
+  box-shadow: var(--edge);
 }
 
 a.game:active {
-  transform: translateY(3px);
-  box-shadow: var(--pressed);
+  background: var(--card-2);
 }
 
 a.game:hover .gtext b {
-  color: #fff6dc;
+  color: var(--cream);
 }
 
 a.game.pays {
-  box-shadow: var(--raised), inset 0 0 0 1px var(--amber-dim);
+  box-shadow: var(--edge), inset 3px 0 0 var(--ok);
 }
 
 a.game:not(.pays) .cta {
-  background: var(--cap);
-  box-shadow: var(--raised);
+  background: transparent;
+  box-shadow: var(--ghost);
   color: var(--muted);
 }
 
@@ -2938,38 +2933,37 @@ a.game:not(.pays) .cta {
   width: fit-content;
   max-width: 100%;
   margin-bottom: 2px;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 12px;
+  font-family: var(--px);
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .pay.full {
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  color: var(--digit);
-  text-shadow: var(--glow);
+  background: rgba(111, 208, 140, 0.12);
+  color: var(--ok);
 }
 
 .pay.less {
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  color: var(--glass-k);
+  background: var(--well);
+  color: var(--muted);
 }
 
 .pay.done {
-  background: var(--hazard);
-  box-shadow: var(--sunk);
+  background: transparent;
+  box-shadow: none;
+  outline: 1px dashed var(--line-2);
+  outline-offset: -1px;
   color: var(--dim);
 }
 
 .game canvas {
   width: 120px;
   height: 69px;
-  border-radius: 2px;
-  box-shadow: 0 0 0 3px var(--lip), 0 0 0 4px #24201a;
+  border-radius: 6px;
 }
 
 @media (max-width: 380px) {
@@ -2998,21 +2992,19 @@ a.game:not(.pays) .cta {
 
 .gtext b {
   color: var(--text);
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: 20px;
-  text-transform: uppercase;
 }
 
 .cta {
   padding: 8px 14px;
-  border-radius: 3px;
-  background: var(--cap-amber);
-  box-shadow: 0 3px 0 #7a5200, inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  color: #1a1000;
-  font-size: 12px;
+  border-radius: 8px;
+  background: var(--lamp);
+  box-shadow: 0 3px 0 var(--lamp-dark);
+  color: var(--lamp-ink);
+  font-family: var(--px);
+  font-size: 15px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .game.log {
@@ -3057,11 +3049,11 @@ a.game:not(.pays) .cta {
   min-height: 92px;
   margin: 0;
   padding: 8px 4px 6px;
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  background: radial-gradient(circle at 50% 38%, rgba(255, 246, 220, 0.06), transparent 65%), var(--well);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), inset 0 -3px 0 currentColor;
-  font-family: var(--mono);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: inset 0 -3px 0 currentColor;
+  font-family: var(--ui);
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0;
@@ -3069,8 +3061,8 @@ a.game:not(.pays) .cta {
 }
 
 button.slot:active:not(:disabled) {
-  transform: translateY(2px);
-  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.9), inset 0 -3px 0 currentColor;
+  background: var(--card-2);
+  box-shadow: inset 0 -3px 0 currentColor;
 }
 
 div.slot {
@@ -3098,24 +3090,22 @@ div.slot {
 }
 
 .slot .sub {
-  font-size: 10px;
+  font-family: var(--px);
+  font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .slot i {
   position: absolute;
-  top: 3px;
-  right: 3px;
-  padding: 0 3px;
-  border-radius: 2px;
-  background: var(--glass);
-  color: var(--digit);
-  font-size: 10px;
+  top: 4px;
+  right: 6px;
+  color: var(--text);
+  font-family: var(--px);
+  font-size: 12px;
   font-style: normal;
   font-weight: 700;
-  line-height: 1.4;
-  text-shadow: var(--glow);
+  line-height: 1.2;
 }
 
 /* The tier again as pips, one for common up to five for legendary. */
@@ -3136,7 +3126,8 @@ div.slot {
 
 /* A word under a slot for news about it, a new fish or a pond record. */
 .slot em {
-  color: var(--amber);
+  color: var(--ok);
+  font-family: var(--px);
   font-size: 12px;
   font-style: normal;
   font-weight: 700;
@@ -3152,16 +3143,16 @@ div.slot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--amber);
-  box-shadow: 0 0 6px var(--amber);
+  background: var(--lamp);
+  box-shadow: 0 0 6px var(--lamp);
 }
 
 .slot.wanted::after {
   content: "";
   position: absolute;
   inset: -1px;
-  border-radius: 3px;
-  box-shadow: 0 0 0 1px var(--amber), 0 0 10px var(--amber-glow), inset 0 0 12px var(--amber-glow);
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--lamp), 0 0 10px var(--lamp-glow), inset 0 0 12px var(--lamp-glow);
   opacity: 0;
   pointer-events: none;
 }
@@ -3197,18 +3188,19 @@ div.slot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--amber);
-  box-shadow: 0 0 6px var(--amber);
+  background: var(--lamp);
+  box-shadow: 0 0 6px var(--lamp);
 }
 
 .slot.on {
-  box-shadow: 0 0 0 2px var(--void), 0 0 0 4px currentColor;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor;
 }
 
 .slot.unfound {
   border-style: dashed;
-  background: var(--well);
-  box-shadow: var(--sunk);
+  border-color: var(--line-2);
+  background: transparent;
+  box-shadow: none;
   opacity: 0.85;
 }
 
@@ -3233,16 +3225,14 @@ div.slot {
 
 .total b {
   grid-row: span 2;
-  padding: 4px 10px;
-  border: 1px solid #000;
-  border-radius: 4px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  color: var(--digit);
-  font-family: var(--mono);
+  padding: 4px 12px;
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
+  color: var(--text);
+  font-family: var(--px);
   font-size: 34px;
   line-height: 1.1;
-  text-shadow: var(--glow);
 }
 
 /* The hat Little Tully is looking out for, over the hats. */
@@ -3253,9 +3243,9 @@ div.slot {
   gap: 12px;
   margin: 8px 0 12px;
   padding: 10px;
-  border-radius: 4px;
-  background: var(--panel);
-  box-shadow: var(--moulded), inset 0 0 0 1px var(--amber-dim);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--edge);
 }
 
 .wantbox canvas {
@@ -3276,7 +3266,8 @@ div.slot {
 }
 
 .shelf .wantedtag {
-  color: var(--amber);
+  color: var(--lamp);
+  font-family: var(--px);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -3285,18 +3276,17 @@ div.slot {
 .meter {
   display: block;
   height: 10px;
-  border: 1px solid #000;
-  border-radius: 2px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
+  border-radius: 5px;
+  background: var(--well);
+  box-shadow: var(--edge);
   overflow: hidden;
 }
 
 .meter i {
   display: block;
   height: 100%;
-  background: repeating-linear-gradient(90deg, var(--digit) 0 4px, transparent 4px 5px);
-  box-shadow: var(--glow);
+  border-radius: 5px;
+  background: var(--ok);
   transform-origin: left;
   transform: scaleX(0);
   transition: transform 0.6s;
@@ -3314,10 +3304,15 @@ div.slot {
   align-items: center;
   gap: 4px 8px;
   padding: 8px 10px;
-  text-align: left;
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
+  font-family: var(--px);
+  font-size: 14px;
   font-weight: 500;
-  text-transform: none;
   letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
 }
 
 .cat canvas {
@@ -3332,6 +3327,7 @@ div.slot {
 
 .cat span:not(.meter) {
   color: var(--dim);
+  font-family: var(--ui);
   font-size: 12px;
 }
 
@@ -3341,12 +3337,12 @@ div.slot {
 }
 
 .cat[aria-pressed="true"] {
-  transform: translateY(3px);
-  box-shadow: var(--pressed), inset 0 2px 0 var(--amber);
+  box-shadow: var(--pushed);
+  background: var(--on);
 }
 
 .cat.done .meter i {
-  background: repeating-linear-gradient(90deg, #5ddc82 0 4px, transparent 4px 5px);
+  background: var(--ok);
 }
 
 /* A set is a panel like the wanted hat's, what it gives on the head and its
@@ -3354,13 +3350,13 @@ div.slot {
 .setbox {
   margin: 8px 0 12px;
   padding: 10px 10px 2px;
-  border-radius: 4px;
-  background: var(--panel);
-  box-shadow: var(--moulded), inset 0 0 0 1px var(--line-hot);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--edge);
 }
 
 .setbox.done {
-  box-shadow: var(--moulded), inset 0 0 0 1px var(--amber-dim);
+  box-shadow: var(--edge), inset 3px 0 0 var(--ok);
 }
 
 .setbox-head {
@@ -3384,14 +3380,14 @@ div.slot {
 }
 
 .setbox-n {
-  padding: 2px 6px;
-  border-radius: 2px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  color: var(--digit);
-  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--well);
+  box-shadow: var(--edge);
+  color: var(--text);
+  font-family: var(--px);
+  font-size: 13px;
   font-weight: 700;
-  text-shadow: var(--glow);
 }
 
 .setbox .slots {
@@ -3405,10 +3401,9 @@ div.slot {
   gap: 10px 6px;
   margin: 10px 0;
   padding: 12px 8px;
-  border: 1px solid #000;
-  border-radius: 4px;
-  background: var(--well);
-  box-shadow: var(--sunk);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--edge);
 }
 
 .pinboard[hidden] {
@@ -3428,7 +3423,7 @@ div.slot {
   background: none;
   box-shadow: none;
   color: var(--dim);
-  font-family: var(--mono);
+  font-family: var(--ui);
   font-size: 12px;
   font-weight: 500;
   line-height: 1.25;
@@ -3449,11 +3444,11 @@ div.slot {
 }
 
 .pin.got canvas {
-  filter: drop-shadow(0 2px 0 var(--lip));
+  filter: drop-shadow(0 2px 0 var(--ink));
 }
 
 .pin:active:not(:disabled) {
-  transform: translateY(2px);
+  background: none;
   box-shadow: none;
 }
 
@@ -3495,7 +3490,7 @@ div.slot {
   bottom: -4px;
 }
 
-/* A level up, the jump in glass over a slot for each thing it opened. */
+/* A level up, the jump over a slot for each thing it opened. */
 .lvup {
   display: flex;
   flex-direction: column;
@@ -3534,7 +3529,7 @@ div.slot {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgba(5, 4, 3, 0.72);
+  background: rgba(5, 7, 14, 0.75);
 }
 
 .sheet-card {
@@ -3549,11 +3544,9 @@ div.slot {
   overflow-x: clip;
   overflow-y: auto;
   padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
-  border-top: 2px solid var(--lip);
-  border-radius: 4px 4px 0 0;
-  background-color: var(--panel);
-  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 1px, transparent 1px 3px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--line-2);
+  border-radius: 16px 16px 0 0;
+  background: var(--card);
   animation: rise 0.2s ease-out;
 }
 
@@ -3563,26 +3556,29 @@ div.slot {
 
 .sheet-card > b,
 .reveal-card > b {
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: 22px;
   text-align: center;
 }
 
 .sheet-card .x {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 10px;
+  right: 10px;
   width: 40px;
   min-height: 40px;
   padding: 0;
+  border-radius: 50%;
+  font-family: var(--ui);
   font-size: 20px;
+  font-weight: 400;
 }
 
 .sheet-art {
   padding: 10px;
-  border-radius: 4px;
-  background: var(--lip);
-  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #24201a;
+  border-radius: 12px;
+  background: #070c18;
+  box-shadow: var(--edge);
 }
 
 .sheet-art canvas {
@@ -3610,19 +3606,17 @@ div.slot {
 .pricer b {
   justify-self: center;
   padding: 2px 14px;
-  border: 1px solid #000;
-  border-radius: 4px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  color: var(--digit);
-  font-family: var(--mono);
+  border-radius: 10px;
+  background: var(--well);
+  box-shadow: var(--edge);
+  color: var(--text);
+  font-family: var(--px);
   font-size: 28px;
-  text-shadow: var(--glow);
 }
 
 .pricer input {
   width: 100%;
-  accent-color: var(--amber);
+  accent-color: var(--lamp);
 }
 
 .pricer > span {
@@ -3653,9 +3647,9 @@ div.slot {
   max-width: 22rem;
   padding: 22px 18px 18px;
   border: 2px solid currentColor;
-  border-radius: 4px;
-  background: var(--panel);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 0 var(--lip);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: 0 4px 0 var(--ink);
   overflow: hidden;
   text-align: center;
 }
@@ -3693,8 +3687,9 @@ div.slot {
 }
 
 .reveal-kick {
+  font-family: var(--px);
   margin: 0;
-  color: var(--amber);
+  color: var(--text);
   font-size: 14px;
   letter-spacing: var(--track);
   text-transform: uppercase;
@@ -3725,9 +3720,9 @@ div.slot {
   gap: 12px;
   margin: 8px 0;
   padding: 10px;
-  border-radius: 4px;
-  background: var(--panel);
-  box-shadow: var(--moulded), inset 0 0 0 1px var(--amber-dim);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--edge);
 }
 
 .boxbuy canvas {
@@ -3761,9 +3756,9 @@ div.slot {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 3px;
-  background: var(--panel);
-  box-shadow: var(--moulded);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
 }
 
 .stallrow canvas {
@@ -3779,16 +3774,16 @@ div.slot {
 
 .stallrow .price {
   padding: 2px 8px;
-  border-radius: 3px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  color: var(--digit);
+  border-radius: 8px;
+  background: var(--well);
+  box-shadow: var(--edge);
+  color: var(--text);
+  font-family: var(--px);
   font-weight: 700;
-  text-shadow: var(--glow);
 }
 
 .stallrow.sold {
-  box-shadow: var(--moulded), inset 0 0 0 1px #5ddc82;
+  box-shadow: var(--edge), inset 3px 0 0 var(--ok);
 }
 
 .stallrow.empty {
@@ -3804,8 +3799,8 @@ div.slot {
   justify-content: center;
   gap: 10px;
   margin: 0 0 3px;
-  border: 1px dashed var(--line-hot);
-  color: var(--print);
+  border: 1px dashed var(--line-2);
+  color: var(--muted);
 }
 
 .stallrow.empty button .ghost {
@@ -3824,28 +3819,27 @@ div.slot {
   flex-direction: column;
   align-items: center;
   padding: 6px;
-  border: 1px solid #000;
-  border-radius: 3px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  font-size: 14px;
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
+  font-family: var(--px);
+  font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .odd b {
-  font-family: var(--mono);
+  font-family: var(--px);
   font-size: 20px;
-  text-shadow: 0 0 6px currentColor;
 }
 
-.odd.up { color: #5ddc82; }
-.odd.same { color: #6cb8ff; }
+.odd.up { color: var(--ok); }
+.odd.same { color: #9fd0ff; }
 .odd.down { color: var(--pink); }
 
 button.big {
-  min-height: 56px;
-  font-size: 14px;
+  min-height: 52px;
+  font-size: 17px;
 }
 
 /* Settings */
@@ -3862,12 +3856,12 @@ button.big {
 }
 
 .namebox b {
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: 26px;
 }
 
 .names button {
-  border-color: var(--amber-dim);
+  border-color: var(--lamp-dark);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3912,19 +3906,18 @@ button.big {
 }
 
 .jobrow b {
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: 14px;
 }
 
 .jobrow .lv {
   padding: 0 6px;
-  border-radius: 3px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  color: var(--digit);
+  border-radius: 8px;
+  background: var(--well);
+  box-shadow: var(--edge);
+  color: var(--text);
   font-size: 15px;
   font-weight: 700;
-  text-shadow: var(--glow);
 }
 
 .jobrow .meter,
@@ -3942,8 +3935,8 @@ button.big {
 }
 
 .jobrow.on {
-  transform: translateY(3px);
-  box-shadow: var(--pressed), inset 0 2px 0 var(--amber);
+  box-shadow: var(--pushed);
+  background: var(--on);
 }
 
 /* The job screen: the frog at it, the action bar and readouts in a row. */
@@ -3956,7 +3949,7 @@ button.big {
 }
 
 .wk-top b {
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: 20px;
 }
 
@@ -3990,7 +3983,7 @@ button.big {
 }
 
 #job-line.stop {
-  color: var(--amber);
+  color: var(--ok);
 }
 
 /* A target is a key: its thing, its name and numbers, and its level. */
@@ -4018,27 +4011,28 @@ button.big {
 }
 
 .wk-what b {
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: 14px;
 }
 
 .wk-what span {
   color: var(--muted);
+  font-family: var(--ui);
   font-size: 12px;
+  font-weight: 400;
 }
 
 .wk-lv {
   padding: 0 6px;
-  border-radius: 3px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  color: var(--digit);
+  border-radius: 8px;
+  background: var(--well);
+  box-shadow: var(--edge);
+  color: var(--text);
   font-size: 14px;
   font-weight: 700;
-  text-shadow: var(--glow);
 }
 
-/* A target's mastery, a thin bar and its level in glass, the bar dim while
+/* A target's mastery, a thin bar and its level beside it, the bar dim while
    the frog's level holds it at the cap. */
 .wk-m {
   display: flex;
@@ -4054,13 +4048,12 @@ button.big {
 
 .wk-what .wk-mlv {
   padding: 0 4px;
-  border-radius: 3px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
-  color: var(--digit);
+  border-radius: 8px;
+  background: var(--well);
+  box-shadow: var(--edge);
+  color: var(--text);
   font-size: 12px;
   font-weight: 700;
-  text-shadow: var(--glow);
 }
 
 .wk-m.top .meter i {
@@ -4068,13 +4061,15 @@ button.big {
 }
 
 .wk-tgt.on {
-  transform: translateY(3px);
-  box-shadow: var(--pressed), inset 0 2px 0 var(--amber);
+  box-shadow: var(--pushed);
+  background: var(--on);
 }
 
 .wk-tgt:disabled {
-  background: var(--hazard);
-  box-shadow: var(--sunk);
+  background: transparent;
+  box-shadow: none;
+  outline: 1px dashed var(--line-2);
+  outline-offset: -1px;
 }
 
 .wk-tgt:disabled .wk-lv {
@@ -4102,14 +4097,16 @@ button.big {
 }
 
 .wk-tool button {
+  flex: none;
   margin-left: auto;
+  white-space: nowrap;
 }
 
 /* The away card, a block a frog in the bare sheet. */
 .wk-head {
   margin: 0 0 8px;
-  color: var(--amber);
-  font-family: var(--grotesk);
+  color: var(--text);
+  font-family: var(--px);
   font-size: 18px;
 }
 
@@ -4143,7 +4140,7 @@ button.big {
 
 .wk-who b {
   color: var(--text);
-  font-family: var(--grotesk);
+  font-family: var(--px);
 }
 
 .slots.wk-slots {
@@ -4167,7 +4164,7 @@ button.big {
 
 .wk-lv-line .up,
 .wk-stop {
-  color: var(--amber);
+  color: var(--ok);
 }
 
 .reed .job {
@@ -4177,7 +4174,7 @@ button.big {
 }
 
 .reed .job.full {
-  color: var(--amber);
+  color: var(--ok);
 }
 
 .arcade.full .screen {
@@ -4207,8 +4204,8 @@ button.big {
   width: 100%;
   height: auto;
   image-rendering: pixelated;
-  border-radius: 2px;
-  box-shadow: 0 0 0 3px var(--lip);
+  border-radius: 4px;
+  box-shadow: 0 0 0 3px var(--ink);
 }
 
 .lodgers figcaption {
@@ -4229,10 +4226,9 @@ button.big {
   gap: 6px;
   width: min(86%, 19rem);
   padding: 14px 14px 12px;
-  border-radius: 4px;
-  background-color: var(--panel);
-  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 1px, transparent 1px 3px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 0 var(--lip), 0 10px 30px rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--edge), 0 4px 0 var(--ink), 0 10px 30px rgba(0, 0, 0, 0.6);
   color: var(--text);
   text-align: center;
   pointer-events: none;
@@ -4241,6 +4237,7 @@ button.big {
 }
 
 .arcade-card p {
+  font-family: var(--px);
   margin: 0;
   font-size: 14px;
   letter-spacing: 0.08em;
@@ -4249,32 +4246,32 @@ button.big {
 }
 
 .arcade-card > b {
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: 22px;
   line-height: 1.1;
   text-transform: uppercase;
 }
 
 .arcade-card .why {
-  color: var(--amber);
+  color: var(--text);
   font-size: 14px;
   letter-spacing: var(--track);
 }
 
 .arcade-card .won {
-  color: var(--amber);
+  color: var(--ok);
   font-size: 14px;
   font-weight: 700;
 }
 
 .arcade-card .again {
   margin-top: 4px;
-  color: var(--amber);
+  color: var(--text);
   animation: blink 1.2s steps(2) infinite;
 }
 
-/* A run that beat nothing ends on a short card, the score in glass over an
-   amber key, so one tap is the next run. */
+/* A run that beat nothing ends on a short card, the score over a lamp
+   key, so one tap is the next run. */
 .arcade-card.quick {
   top: 30%;
   width: auto;
@@ -4285,14 +4282,13 @@ button.big {
 .arcade-card .key {
   width: 100%;
   padding: 9px 18px;
-  border-radius: 3px;
-  background: var(--cap-amber);
-  box-shadow: var(--raised);
-  color: var(--void);
-  font-family: var(--mono);
-  font-size: 14px;
+  border-radius: 8px;
+  background: var(--lamp);
+  box-shadow: 0 3px 0 var(--lamp-dark);
+  color: var(--lamp-ink);
+  font-family: var(--px);
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: var(--track);
 }
 
 /* A round of fishing's catch, a slot a kind with the biggest one's size. */
@@ -4341,7 +4337,7 @@ button.big {
 }
 
 .arcade-card .sedge b {
-  color: var(--amber);
+  color: var(--lamp);
 }
 
 /* Whirlpool's collection is its own picture, so the window above it goes. */
@@ -4405,9 +4401,9 @@ button.big {
   width: 100%;
   margin-bottom: 4px;
   padding: 8px;
-  border-radius: 4px;
-  background: var(--lip);
-  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #24201a;
+  border-radius: 12px;
+  background: var(--line);
+  box-shadow: var(--edge);
 }
 
 .arcade-win canvas {
@@ -4425,12 +4421,11 @@ button.big {
   font-size: 28px;
 }
 
-/* The strip under a full window game is readout glass and an EJECT key. */
+/* The strip under a full window game is its numbers and an Eject key. */
 #v-dive.full .dive-hud,
 .arcade.full .dive-hud {
-  background: var(--panel);
-  border-top: 2px solid var(--lip);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: #070c18;
+  border-top: 1px solid var(--line);
 }
 
 .dive-hud .tiles {
@@ -4452,7 +4447,7 @@ button.big {
 
 .eject {
   min-width: 72px;
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .screen.pot {
@@ -4464,9 +4459,9 @@ button.big {
 .namebox canvas {
   box-sizing: content-box;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: 12px;
   background: #0e2c30;
-  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #24201a;
+  box-shadow: var(--edge);
 }
 
 /* Each game is a 3.5 inch floppy in its own colour, with a metal shutter,
@@ -4506,7 +4501,7 @@ button.big {
     linear-gradient(160deg, rgba(255, 255, 255, 0.16), transparent 40%, rgba(0, 0, 0, 0.3)),
     var(--disk);
   clip-path: polygon(0 0, calc(100% - 9%) 0, 100% 9%, 100% 100%, 0 100%);
-  border-radius: 3px;
+  border-radius: 8px;
   transition: transform 0.06s, filter 0.06s;
 }
 
@@ -4534,8 +4529,8 @@ button.big {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--amber);
-  box-shadow: 0 0 6px var(--amber);
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
   animation: led 1.6s steps(2) infinite;
 }
 
@@ -4544,7 +4539,7 @@ button.big {
   flex-direction: column;
   gap: 3px;
   padding: 5px 5px 4px;
-  border-radius: 2px;
+  border-radius: 4px;
   background: linear-gradient(#f3ead4, #e3d8bd);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
   color: #2a2016;
@@ -4558,7 +4553,7 @@ button.big {
 
 .sticker b {
   overflow: hidden;
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: 15px;
   line-height: 1.05;
   text-overflow: ellipsis;
@@ -4566,7 +4561,7 @@ button.big {
   white-space: nowrap;
 }
 
-/* A disk's two goals for the day, green LEDs on the plastic ringed until
+/* A disk's two goals for the day, green LEDs on the disk ringed until
    they're met. */
 .aimticks {
   position: absolute;
@@ -4583,14 +4578,14 @@ button.big {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #1d3a26;
-  box-shadow: inset 0 0 0 1px #5ddc82;
+  background: rgba(111, 208, 140, 0.14);
+  box-shadow: inset 0 0 0 1px var(--ok);
 }
 
 .aimticks i.done,
 .aims li.done::before {
-  background: #5ddc82;
-  box-shadow: 0 0 6px #5ddc82;
+  background: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
 }
 
 /* The same goals on a game's title card and results, a line each. */
@@ -4600,10 +4595,10 @@ button.big {
   width: 100%;
   margin: 2px 0 0;
   padding: 7px 9px;
-  border: 1px solid #000;
-  border-radius: 3px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--well);
+  box-shadow: var(--edge);
   list-style: none;
   text-align: left;
 }
@@ -4624,21 +4619,22 @@ button.big {
 }
 
 .aims li.new {
-  color: #5ddc82;
+  color: var(--ok);
 }
 
 /* The disk of the day's sticker, stuck on a little crooked over the corner
    of the label. */
 .daytag {
+  font-family: var(--px);
   position: absolute;
   top: 27%;
   right: 4%;
   width: 6.2em;
   padding: 3px 4px;
-  border-radius: 3px;
-  background: var(--amber);
+  border-radius: 8px;
+  background: var(--lamp);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
-  color: #1a1408;
+  color: var(--lamp-ink);
   font-size: 10px;
   font-weight: 700;
   line-height: 1.15;
@@ -4702,8 +4698,8 @@ button.big {
 }
 
 .dhead {
-  color: var(--amber);
-  font-family: var(--grotesk);
+  color: var(--text);
+  font-family: var(--px);
   font-size: 24px;
   line-height: 1;
   text-transform: uppercase;
@@ -4731,12 +4727,12 @@ button.big {
   height: 6px;
   margin-left: auto;
   border-radius: 50%;
-  background: #2e2a24;
+  background: var(--line-2);
 }
 
 .larder .season.on {
-  background: #5ddc82;
-  box-shadow: 0 0 5px #5ddc82;
+  background: var(--ok);
+  box-shadow: 0 0 5px var(--ok);
 }
 
 .larder .held {
@@ -4744,12 +4740,11 @@ button.big {
   top: 2px;
   right: 3px;
   padding: 0 3px;
-  border-radius: 2px;
-  background: var(--glass);
-  color: var(--digit);
+  border-radius: 4px;
+  background: var(--well);
+  color: var(--text);
   font-size: 10px;
   line-height: 1.4;
-  text-shadow: var(--glow);
 }
 
 #larder .held ~ .season,
@@ -4765,7 +4760,7 @@ button.big {
 .legend canvas {
   box-sizing: content-box;
   padding: 2px;
-  border-radius: 2px;
+  border-radius: 4px;
   background: radial-gradient(circle, rgba(255, 246, 220, 0.2), rgba(255, 246, 220, 0.06));
 }
 
@@ -4784,34 +4779,33 @@ button.big {
   z-index: 1;
 }
 
-/* The market's ticker runs along the top in readout glass. */
+/* The market's ticker runs along the top. */
 .ticker {
   margin: 4px 0 10px;
   padding: 6px 0;
-  border: 1px solid #000;
-  border-radius: 3px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--well);
+  box-shadow: var(--edge);
   overflow: hidden;
 }
 
 .ticker .tape {
   width: max-content;
-  color: var(--digit);
-  font-family: var(--mono);
+  color: var(--text);
+  font-family: var(--ui);
   font-size: 12px;
   font-weight: 500;
   white-space: pre;
-  text-shadow: var(--glow);
   animation: tape 60s linear infinite;
 }
 
 .ticker .tape .up {
-  color: #5ddc82;
+  color: var(--ok);
 }
 
 .ticker .tape .down {
-  color: #ff8a8a;
+  color: var(--bad);
 }
 
 .ticker .tape.still {
@@ -4837,9 +4831,9 @@ button.big {
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   padding: 10px;
-  border-radius: 3px;
-  background: var(--panel);
-  box-shadow: var(--raised);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--ghost);
   cursor: pointer;
 }
 
@@ -4869,15 +4863,15 @@ button.big {
 
 .readout.down .v,
 .market .readout.down .k {
-  color: #ff8a8a;
+  color: var(--bad);
 }
 
 .market canvas.chart {
   display: block;
   width: 100%;
   height: auto;
-  border: 1px solid #000;
-  border-radius: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   box-shadow: var(--sunk);
   image-rendering: pixelated;
 }
@@ -4885,11 +4879,11 @@ button.big {
 .market .own {
   margin: 0;
   font-size: 14px;
-  color: #5ddc82;
+  color: var(--ok);
 }
 
 .market .own.down {
-  color: #ff8a8a;
+  color: var(--bad);
 }
 
 /* Dividends waiting are a row like the Next strip's, collected in place. */
@@ -4899,9 +4893,9 @@ button.big {
   gap: 10px;
   margin: 0 0 10px;
   padding: 8px 10px;
-  border-radius: 3px;
-  background: var(--panel);
-  box-shadow: var(--raised);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--ghost);
   font-size: 14px;
 }
 
@@ -4930,8 +4924,8 @@ button#mkt-tiles:active {
   min-height: 0;
   margin: 0;
   padding: 0;
-  border: 1px solid #000;
-  background: #050803;
+  border: 1px solid var(--line);
+  background: var(--line);
   box-shadow: var(--sunk);
   transform: none;
   text-align: left;
@@ -4940,11 +4934,11 @@ button#mkt-tiles:active {
 .newstag {
   font-size: 12px;
   letter-spacing: var(--track);
-  color: #5ddc82;
+  color: var(--ok);
 }
 
 .newstag.down {
-  color: #ff8a8a;
+  color: var(--bad);
 }
 
 .shelf .readout {
@@ -5035,12 +5029,12 @@ button#mkt-tiles:active {
 }
 
 .shelf.bm .great .soldtag {
-  color: #5ddc82;
+  color: var(--ok);
 }
 
 .shelf.bm .scam .soldtag,
 .shelf.bm .fake .soldtag {
-  color: #ff8a8a;
+  color: var(--bad);
 }
 
 /* Four trade keys in a square, far enough apart for a thumb. */
@@ -5059,8 +5053,8 @@ button#mkt-tiles:active {
   display: block;
   width: 100%;
   margin: 0 auto 10px;
-  border: 1px solid #000;
-  border-radius: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   box-shadow: var(--sunk);
   image-rendering: pixelated;
 }
@@ -5080,7 +5074,7 @@ button#mkt-tiles:active {
 }
 
 .friend b.hearts {
-  color: #e2567a;
+  color: var(--pink);
   font-size: 20px;
   letter-spacing: 0.1em;
 }
@@ -5092,17 +5086,17 @@ button#mkt-tiles:active {
 
 .friend .rail {
   height: 8px;
-  border: 1px solid #000;
-  border-radius: 2px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--well);
+  box-shadow: var(--edge);
   overflow: hidden;
 }
 
 .friend .rail i {
   display: block;
   height: 100%;
-  background: #e2567a;
+  background: var(--pink);
   transform-origin: left;
 }
 
@@ -5117,9 +5111,9 @@ button#mkt-tiles:active {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 3px;
-  background: var(--panel-2);
-  box-shadow: var(--moulded);
+  border-radius: 10px;
+  background: var(--card-2);
+  box-shadow: var(--edge);
 }
 
 .fact canvas {
@@ -5127,7 +5121,8 @@ button#mkt-tiles:active {
 }
 
 .fact .k {
-  color: var(--amber);
+  font-family: var(--px);
+  color: var(--muted);
   font-size: 10px;
   letter-spacing: var(--track);
   text-transform: uppercase;
@@ -5148,8 +5143,8 @@ button#mkt-tiles:active {
   margin-bottom: 8px;
   padding: 6px 9px;
   border-radius: 12px;
-  background: var(--panel-2);
-  box-shadow: var(--moulded);
+  background: var(--card-2);
+  box-shadow: var(--edge);
   color: var(--text);
   font-size: 14px;
   font-style: italic;
@@ -5160,7 +5155,7 @@ button#mkt-tiles:active {
   content: "";
   position: absolute;
   border-radius: 50%;
-  background: var(--panel-2);
+  background: var(--card-2);
 }
 
 .sheet-body > .thought::before {
@@ -5180,7 +5175,7 @@ button#mkt-tiles:active {
 .sheet-body > .press {
   display: inline-block;
   padding: 1px 6px;
-  border-radius: 2px;
+  border-radius: 4px;
   background: #efe4c6;
   color: #2a2418;
   font-family: Georgia, "Times New Roman", serif;
@@ -5201,9 +5196,9 @@ button#mkt-tiles:active {
   align-items: center;
   gap: 8px;
   padding: 4px 8px 4px 4px;
-  border-radius: 3px;
-  background: var(--panel);
-  box-shadow: var(--moulded);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--edge);
 }
 
 .nb.fed {
@@ -5241,9 +5236,9 @@ button#mkt-tiles:active {
 .nb-who canvas {
   width: 44px;
   height: 34px;
-  border-radius: 2px;
+  border-radius: 4px;
   background: #0e2c30;
-  box-shadow: 0 0 0 2px var(--lip);
+  box-shadow: 0 0 0 2px var(--ink);
   image-rendering: pixelated;
 }
 
@@ -5264,12 +5259,13 @@ button#mkt-tiles:active {
 
 .nb-top b {
   flex: none;
-  font-family: var(--grotesk);
+  font-family: var(--px);
   font-size: 15px;
   font-weight: 700;
 }
 
 .nb-title {
+  font-family: var(--px);
   min-width: 0;
   overflow: hidden;
   color: var(--dim);
@@ -5302,10 +5298,10 @@ button#mkt-tiles:active {
   flex: 1 1 0;
   max-width: 70px;
   height: 6px;
-  border: 1px solid #000;
-  border-radius: 2px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--well);
+  box-shadow: var(--edge);
   overflow: hidden;
 }
 
@@ -5326,7 +5322,7 @@ button#mkt-tiles:active {
 
 .nb-fav .pts {
   flex: none;
-  color: var(--digit);
+  color: var(--text);
 }
 
 .nb-fav .nm {
@@ -5338,10 +5334,11 @@ button#mkt-tiles:active {
 }
 
 .nb-tag {
+  font-family: var(--px);
   flex: none;
   padding: 0 5px;
-  border-radius: 2px;
-  background: var(--panel-2);
+  border-radius: 4px;
+  background: var(--card-2);
   box-shadow: var(--sunk);
   color: var(--dim);
   font-size: 10px;
@@ -5351,25 +5348,26 @@ button#mkt-tiles:active {
 }
 
 .nb-tag.bag {
-  background: #3a2a08;
-  color: var(--amber);
+  background: var(--on);
+  color: var(--lamp);
 }
 
 .nb-tag.cook {
-  background: #1d3a26;
-  color: #5ddc82;
+  background: rgba(111, 208, 140, 0.14);
+  color: var(--ok);
 }
 
 .nb .nb-key {
   min-height: 40px;
-  padding: 6px 9px;
-  font-size: 11px;
+  padding: 6px 10px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
 .nb-fed {
+  font-family: var(--px);
   padding: 0 6px;
-  color: #5ddc82;
+  color: var(--ok);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -5377,16 +5375,16 @@ button#mkt-tiles:active {
   white-space: nowrap;
 }
 
-/* The reply after a gift is readout glass, with the points and the rail
+/* The reply after a gift is a box of its own, with the points and the rail
    moving from where it was. */
 .nb-reply {
   display: grid;
   gap: 6px;
   margin: 10px 0;
   padding: 10px 12px;
-  border-radius: 4px;
-  background: var(--glass);
-  box-shadow: var(--sunk);
+  border-radius: 12px;
+  background: var(--well);
+  box-shadow: var(--edge);
 }
 
 .nb-reply p {
@@ -5407,15 +5405,14 @@ button#mkt-tiles:active {
 }
 
 .nb-reply .rail .now {
-  background: #ff9ab8;
+  background: #ffc2d6;
   transition: transform 0.7s ease-out;
 }
 
 .nb-plus {
-  color: var(--digit);
-  font-family: var(--grotesk);
+  color: var(--ok);
+  font-family: var(--px);
   font-size: 18px;
-  text-shadow: var(--glow);
   white-space: nowrap;
 }
 
@@ -5425,8 +5422,9 @@ button#mkt-tiles:active {
 }
 
 .nb-k {
+  font-family: var(--px);
   margin: 14px 0 6px;
-  color: var(--amber);
+  color: var(--lamp);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: var(--track);
@@ -5448,7 +5446,7 @@ button#mkt-tiles:active {
   align-items: center;
   gap: 8px;
   padding: 5px 8px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--well);
   font-size: 12px;
 }
@@ -5464,15 +5462,16 @@ button#mkt-tiles:active {
 
 .hladder .got .brings::after {
   content: " ✓";
-  color: #5ddc82;
+  color: var(--ok);
 }
 
 .hladder .next {
-  box-shadow: inset 0 0 0 1px var(--amber-dim);
+  box-shadow: inset 0 0 0 1px var(--lamp-dark);
 }
 
 .hladder .pts {
-  color: var(--digit);
+  font-family: var(--px);
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -5483,9 +5482,9 @@ button#mkt-tiles:active {
   gap: 10px;
   margin: 6px 0;
   padding: 6px 8px;
-  border-radius: 3px;
-  background: var(--panel-2);
-  box-shadow: var(--moulded);
+  border-radius: 10px;
+  background: var(--card-2);
+  box-shadow: var(--edge);
 }
 
 .nb-dish .what {
@@ -5510,6 +5509,15 @@ button#mkt-tiles:active {
 }
 
 #neigh-sorts button {
-  padding: 4px 9px;
-  font-size: 11px;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.bubble::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 30px;
+  border: 5px solid transparent;
+  border-bottom-color: var(--cream);
 }

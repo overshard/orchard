@@ -252,9 +252,9 @@ export const drop = {
       for (let y = TOP + 2; y < ROW0 - 8; y += 5) x.fillRect(fx, y, 1, 2);
     }
     F.draw(x);
-    x.font = "700 13px 'Space Grotesk', sans-serif";
+    x.font = "700 13px 'Pixelify Sans', monospace";
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 14);
-    x.font = "700 9px 'Space Grotesk', sans-serif";
+    x.font = "700 9px 'Pixelify Sans', monospace";
     x.fillStyle = G.all ? "#ffe27a" : "#bcaf99"; x.fillText(G.lit + "/" + G.pegs.length + " LIT", 6, 26);
     for (let i = 0; i < G.left - 1; i++) pebble(x, W - 8 - (i % 5) * 9, 9 + Math.floor(i / 5) * 8);
   },
@@ -344,7 +344,7 @@ function pots(x, held, wobble) {
     for (let n = 0; n < held[i]; n++) pebble(x, l + 11 + (n % 3) * 9, FLOOR - 4 - Math.floor(n / 3) * 7);
     x.fillStyle = mid ? "#8a5a2b" : "#5a4630"; x.fillRect(l + 1, FLOOR, POT - 2, H - FLOOR);
     x.fillStyle = mid ? "#e3b23a" : "#8a9099"; x.fillRect(l, RIM - 2, 3, FLOOR - RIM + 2); x.fillRect(l + POT - 3, RIM - 2, 3, FLOOR - RIM + 2);
-    x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
+    x.font = "700 13px 'Pixelify Sans', monospace"; x.textAlign = "center";
     x.fillStyle = mid ? "#ffe27a" : "#bcaf99"; x.globalAlpha = held[i] ? 0.35 : 1;
     x.fillText(String(PAYS[i]), l + POT / 2, RIM + 30);
     x.globalAlpha = 1;

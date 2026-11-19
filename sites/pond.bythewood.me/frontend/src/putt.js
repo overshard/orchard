@@ -8,7 +8,7 @@ import { R, CUP, CAP, PULL, DT, deal, newBall, hit, roll, putBack, cupAt, driftA
 // fresh each round. Drag back from anywhere and let go, and the frog flicks
 // the ball with its tongue the other way.
 const W = 200, H = 320, LEAST = 5, TRAIL = 9;
-const FONT = "700 13px 'Space Grotesk', sans-serif";
+const FONT = "700 13px 'Pixelify Sans', monospace";
 
 let G = null, col = null;
 const F = feel();
@@ -183,9 +183,9 @@ export const putt = {
     G.holes.forEach((h, i) => {
       const n = G.card[i], l = 2 + i * cw;
       x.fillStyle = "#0b1f17"; x.fillRect(l, 0, cw - 4, 84);
-      x.fillStyle = "#7d9a90"; x.font = "700 24px 'JetBrains Mono', monospace"; x.fillText(String(h.par), l + cw / 2 - 2, 28);
+      x.fillStyle = "#7d9a90"; x.font = "700 24px 'Pixelify Sans', monospace"; x.fillText(String(h.par), l + cw / 2 - 2, 28);
       x.fillStyle = !n ? "#5b6470" : n < h.par ? "#ffb000" : n === h.par ? "#fff6dc" : "#bcaf99";
-      x.font = "700 32px 'JetBrains Mono', monospace"; x.fillText(n === null ? "" : n ? String(n) : "-", l + cw / 2 - 2, 70);
+      x.font = "700 32px 'Pixelify Sans', monospace"; x.fillText(n === null ? "" : n ? String(n) : "-", l + cw / 2 - 2, 70);
     });
     return c;
   },

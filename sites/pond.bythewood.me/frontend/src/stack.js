@@ -114,7 +114,7 @@ export const stack = {
     }
     F.draw(x, 0, cam);
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 18);
-    x.textAlign = "right"; x.font = "500 8px 'JetBrains Mono', monospace"; x.fillStyle = "#bcaf99";
+    x.textAlign = "right"; x.font = "500 8px 'Pixelify Sans', monospace"; x.fillStyle = "#bcaf99";
     if (G.perf > 1) x.fillText(G.perf + " PERFECT", W - 6, 16);
   },
 };

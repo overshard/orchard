@@ -139,7 +139,7 @@ export const shell = {
     }
     F.draw(x);
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 18);
-    x.textAlign = "right"; x.font = "500 8px 'JetBrains Mono', monospace"; x.fillStyle = "#bcaf99"; x.fillText("ROUND " + G.r, W - 6, 16);
+    x.textAlign = "right"; x.font = "500 8px 'Pixelify Sans', monospace"; x.fillStyle = "#bcaf99"; x.fillText("ROUND " + G.r, W - 6, 16);
     const s = G.st === "show" ? "WATCH THE TADPOLE" : G.st === "pick" ? "WHICH SHELL?" : "";
     if (s) {
       x.textAlign = "center"; x.strokeText(s, W / 2, 250); x.fillStyle = "#ece5d8"; x.fillText(s, W / 2, 250);
