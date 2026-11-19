@@ -98,7 +98,7 @@ function chart(f, h) {
       for (let yy = Math.min(yp, y0); yy <= Math.max(yp, y0); yy += 4) x.fillRect(x0, yy, 4, 4);
     }
   }
-  x.fillStyle = "#7d8d62"; x.font = "10px 'Pixelify Sans', monospace";
+  x.fillStyle = "#7d8d62"; x.font = "700 10px Inter, sans-serif";
   x.fillText(String(hi), 4, 10); x.fillText(String(lo), 4, h - 2);
   return cv;
 }

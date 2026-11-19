@@ -6,7 +6,7 @@ import { iconCells, SLICE_ICON, SLICE_NAME, drawIcon } from "./icons.js";
 // The wheel is a lily pad the frog points at with its tongue. The server
 // picks the slice and this only turns the pad round to it.
 const OS = 140, OR = 68, CX = 260, CY = 338, SC = 3.3;
-const PX = "'Pixelify Sans', monospace";
+const UI = "Inter, sans-serif";
 let wc, wx, woff = null, slices = [], NS = 16, DA = Math.PI / 8;
 let wrot = -Math.PI / 2 - Math.PI / 20, spinning = false, tongue = 0, lastSlice = -1, wob = 0, freeAt = 0;
 
@@ -79,7 +79,7 @@ function drawWheel(now) {
   wx.strokeStyle = "rgba(127,214,194,0.16)"; wx.lineWidth = 3;
   for (let rr = 0; rr < 3; rr++) { wx.beginPath(); wx.arc(CX, CY, OR * SC + 14 + rr * 16 + ((now || 0) / 260) % 16, 0, 6.3); wx.stroke(); }
   wx.save(); wx.translate(CX, CY); wx.rotate(wrot); wx.drawImage(woff, -OS / 2 * SC, -OS / 2 * SC, OS * SC, OS * SC);
-  wx.textAlign = "center"; wx.textBaseline = "middle"; wx.font = "700 30px " + PX;
+  wx.textAlign = "center"; wx.textBaseline = "middle"; wx.font = "700 30px " + UI;
   for (let si = 0; si < NS; si++) {
     const k = slices[si]; if (k !== "P25" && k !== "P40") continue;
     wx.save(); wx.rotate((si + 0.5) * DA); wx.translate(31 * SC, 0); wx.rotate(-wrot - (si + 0.5) * DA);
@@ -88,9 +88,9 @@ function drawWheel(now) {
   wx.restore();
   // Name what the tongue is on, so nobody has to read the rim.
   const on = slices[under()];
-  wx.textBaseline = "alphabetic"; wx.textAlign = "left"; wx.font = "500 13px " + PX;
+  wx.textBaseline = "alphabetic"; wx.textAlign = "left"; wx.font = "700 13px " + UI;
   wx.fillStyle = "#7fd6c2"; wx.fillText("TONGUE'S ON", 16, 24);
-  wx.fillStyle = "#fff6dc"; wx.font = "700 18px " + PX; wx.fillText(nameOf(on).toUpperCase(), 16, 47);
+  wx.fillStyle = "#fff6dc"; wx.font = "700 18px " + UI; wx.fillText(nameOf(on).toUpperCase(), 16, 47);
   slotIcon(wx, on, 456, 6, 4);
   const g = state.g, f = state.pond.frog, grownUp = f.stage === "frog" || f.stage === "elder" || f.stage === "froglet";
   const c = cells(g, f.stage, { blink: tongue > 0, hat: f.hat.shape, legs: f.day >= 6, t: 0 });

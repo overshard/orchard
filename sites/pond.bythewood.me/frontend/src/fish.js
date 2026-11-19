@@ -380,8 +380,8 @@ export const fish = {
     // The top row is left as sky, since a tall phone stretches it into the gap above.
     x.fillStyle = "#0a0908"; x.fillRect(0, 1, W, 4);
     x.fillStyle = G.t > ROUND ? "#e2412d" : "#ffb000"; x.fillRect(0, 1, Math.round(W * Math.max(0, 1 - G.t / ROUND)), 3);
-    x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.font = "700 13px 'Pixelify Sans', monospace"; x.fillText(String(G.score), 6, 20);
-    x.textAlign = "right"; x.font = "500 8px 'Pixelify Sans', monospace"; x.fillStyle = "#bcaf99";
+    x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.font = "700 13px Inter, sans-serif"; x.fillText(String(G.score), 6, 20);
+    x.textAlign = "right"; x.font = "700 8px Inter, sans-serif"; x.fillStyle = "#bcaf99";
     if (G.t > ROUND && G.st === "fight") x.fillText("LAST FISH", W - 6, 18);
     else if (G.streak > 1) x.fillText(G.streak + " IN A ROW", W - 6, 18);
   },
@@ -416,7 +416,7 @@ function hint(x) {
   else if (G.st === "fight" && f && (f.ph === "tell" || f.ph === "run")) s = !tapReel ? "IT'S RUNNING, LET GO" : G.hold ? "IT'S RUNNING, TAP TO STOP" : "WAIT FOR IT TO TIRE";
   else if (G.st === "fight") s = !tapReel ? "HOLD TO REEL IT IN" : G.hold ? "REELING IT IN" : "TAP TO REEL IT IN";
   if (!s) return;
-  x.font = "500 8px 'Pixelify Sans', monospace"; x.textAlign = "center";
+  x.font = "700 8px Inter, sans-serif"; x.textAlign = "center";
   x.lineWidth = 3; x.strokeStyle = "#0a0908"; x.strokeText(s, W / 2, H - 22);
   x.fillStyle = "#ece5d8"; x.fillText(s, W / 2, H - 22);
 }
@@ -501,7 +501,7 @@ function meter(x) {
   if (G.slack > 0.3 && Math.floor(G.t * 10) % 2) { x.fillStyle = "#bcaf99"; x.fillRect(mx, top + h - 2, 4, 2); }
   if (!tapReel) return;
   // With no finger held down, the reel has to say whether it's turning.
-  x.font = "500 8px 'Pixelify Sans', monospace"; x.textAlign = "right";
+  x.font = "700 8px Inter, sans-serif"; x.textAlign = "right";
   x.lineWidth = 3; x.strokeStyle = "#0a0908"; x.strokeText(G.hold ? "REELING" : "STOPPED", W - 4, top + h + 12);
   x.fillStyle = G.hold ? "#ffb000" : "#bcaf99"; x.fillText(G.hold ? "REELING" : "STOPPED", W - 4, top + h + 12);
 }

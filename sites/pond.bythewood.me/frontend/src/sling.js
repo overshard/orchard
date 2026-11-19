@@ -7,8 +7,8 @@ import { W, H, WATER, SX, SY, PULL, SHORE, BANK, LEVELS, MATS, FROGS, ACORN, GOL
 // Cattail sling. A bent cattail flings the frog at acorns stacked on logs and
 // rafts out on the pond, and every acorn knocked open or into the water
 // clears. Five levels a round, a few frogs each, and a new frog most levels.
-const FONT = "700 13px 'Pixelify Sans', monospace", BIG = "700 18px 'Pixelify Sans', monospace";
-const SMALL = "500 8px 'Pixelify Sans', monospace";
+const FONT = "700 13px Inter, sans-serif", BIG = "700 18px Inter, sans-serif";
+const SMALL = "700 8px Inter, sans-serif";
 
 let G = null, w = null;
 const F = feel();
@@ -501,7 +501,7 @@ export const sling = {
     rows.forEach((r, i) => {
       const t = i * rh + 2;
       x.fillStyle = "#0b1f17"; x.fillRect(2, t, cw - 4, rh - 4);
-      x.font = "700 19px 'Pixelify Sans', monospace"; x.textAlign = "left"; x.textBaseline = "middle";
+      x.font = "700 19px Inter, sans-serif"; x.textAlign = "left"; x.textBaseline = "middle";
       x.fillStyle = r.clear ? "#ece5d8" : "#9c8f79"; x.fillText(r.name, 10, t + rh / 2 - 1);
       for (let s = 0; s < 3; s++) star(x, cw - 170 + s * 26, t + rh / 2 - 2, 10, s < r.stars);
       x.textAlign = "right"; x.fillStyle = "#ffe27a"; x.fillText(String(r.score), cw - 10, t + rh / 2 - 1);

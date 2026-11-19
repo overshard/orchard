@@ -122,7 +122,7 @@ export const jar = {
     }
     F.squashed(x, cx, 30, () => drawTop(x, col, cx - 6, 18, true));
     F.draw(x);
-    x.font = "700 13px 'Pixelify Sans', monospace";
+    x.font = "700 13px Inter, sans-serif";
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(w.score), 6, 15);
     x.textAlign = "right"; x.fillStyle = "#cfe3ea"; x.fillText("NEXT", W - 26, 15);
     spawn(x, W - 13, 12, w.next, Math.min(9, R[w.next]), 0);

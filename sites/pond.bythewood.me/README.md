@@ -487,9 +487,10 @@ they have none, for other sites to draw.
   class name in it before using one. `place` is already Dive's standings and
   `who` and `scene` are on the share page as well as the pond. The colours
   are tokens at its top, and the gazette sets its own `--news` ink.
-- A canvas names its font itself, `'Pixelify Sans'`, and only gets it once
-  the page has loaded the face, which the CSS does on every page. A new
-  weight needs its `@fontsource` import in `style.js` too.
+- A canvas names its font itself, Inter at 700, and only gets it once the
+  page has loaded the face, which the CSS does on every page. A new weight
+  needs its `@fontsource` import in `style.js` too, and Pixelify Sans is only
+  loaded at 700 for the wordmark.
 - A closed place is only hidden, every move behind it still works. Anything
   that links somewhere, a todo row or a line in the gazette, has to ask
   `Open.has` first, and only `create` sets `staged`, so an older pond is open.

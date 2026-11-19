@@ -30,7 +30,7 @@ function perforate(x) {
   x.fillStyle = "#3a3228";
   for (let i = 0; i <= 800; i += 24) { x.beginPath(); x.arc(i, 0, 8, 0, Math.PI * 2); x.arc(i, 760, 8, 0, Math.PI * 2); x.fill(); }
   for (let i = 0; i <= 760; i += 24) { x.beginPath(); x.arc(0, i, 8, 0, Math.PI * 2); x.arc(800, i, 8, 0, Math.PI * 2); x.fill(); }
-  x.fillStyle = "#c94a4a"; x.font = "700 20px 'Pixelify Sans', monospace"; x.textAlign = "right";
+  x.fillStyle = "#c94a4a"; x.font = "700 20px Inter, sans-serif"; x.textAlign = "right";
   x.fillText("POND POST", 752, 34); x.textAlign = "left";
 }
 
@@ -64,7 +64,7 @@ function card(scene, frame) {
   x.imageSmoothingEnabled = false;
   x.drawImage(scene, 48, 48, 704, 544);
   x.fillStyle = f.ink; x.textBaseline = "alphabetic";
-  x.font = "700 52px 'Pixelify Sans', monospace";
+  x.font = "700 52px Inter, sans-serif";
   x.fillText(titled(p.frog.name), 46, 668, 520);
   const [y, m, d] = p.today.split("-").map(Number), sky = p.gazette && p.gazette.sky;
   x.fillStyle = f.dim;

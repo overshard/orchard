@@ -221,9 +221,9 @@ export const cross = {
       F.squashed(x, fx + 6, fy + 12, () => drawTop(x, col, fx, fy, G.face === "down"));
     }
     F.draw(x);
-    x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.font = "700 10px 'Pixelify Sans', monospace"; x.fillText(String(G.score), 4, 9);
+    x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.font = "700 10px Inter, sans-serif"; x.fillText(String(G.score), 4, 9);
     x.fillStyle = "#e2567a"; for (let i = 0; i < G.lives; i++) x.fillRect(W - 10 - i * 8, 3, 5, 5);
-    x.textAlign = "center"; x.font = "500 8px 'Pixelify Sans', monospace"; x.fillStyle = "#bcaf99"; x.fillText("TRIP " + (G.trip + 1), W / 2, 9);
+    x.textAlign = "center"; x.font = "700 8px Inter, sans-serif"; x.fillStyle = "#bcaf99"; x.fillText("TRIP " + (G.trip + 1), W / 2, 9);
   },
 };
 

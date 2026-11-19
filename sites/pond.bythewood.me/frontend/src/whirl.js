@@ -7,8 +7,8 @@ import { W, H, ROUND, LAST, PW, PH, BANDS, BANKS, KIND, REACH, world, step, stee
 
 // Whirlpool. A little eddy goes round the pond swallowing anything smaller
 // than itself and grows, and the camera backs off as it does.
-const FONT = "700 13px 'Pixelify Sans', monospace", BIG = "700 16px 'Pixelify Sans', monospace";
-const SMALL = "500 8px 'Pixelify Sans', monospace", KEYS = 150;
+const FONT = "700 13px Inter, sans-serif", BIG = "700 16px Inter, sans-serif";
+const SMALL = "700 8px Inter, sans-serif", KEYS = 150;
 
 let G = null, w = null;
 const F = feel();
@@ -240,7 +240,7 @@ export const whirl = {
       if (kind.rare) { x.fillStyle = "#ffb000"; x.fillRect(l + 2, t + 2, cw - 4, 2); x.fillRect(l + 2, t + ch - 4, cw - 4, 2); x.fillRect(l + 2, t + 2, 2, ch - 4); x.fillRect(l + cw - 4, t + 2, 2, ch - 4); }
       const rs = ART[k], cell = Math.max(2, Math.floor(36 / Math.max(rs.length, rs[0].length)));
       sprite(x, k, l + cw / 2, t + 24, cell * Math.max(rs.length, rs[0].length) / 2, 1, 1);
-      x.font = "700 18px 'Pixelify Sans', monospace"; x.textAlign = "center";
+      x.font = "700 18px Inter, sans-serif"; x.textAlign = "center";
       x.fillStyle = kind.rare ? "#ffb000" : "#bcaf99";
       x.fillText(w.took[k] > 1 ? "x" + w.took[k] : kind.rare ? "RARE" : "", l + cw / 2, t + ch - 9);
     });

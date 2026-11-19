@@ -207,7 +207,7 @@ function drawStall() {
     const sx = 92 + r.slot * 64;
     if (r.sold) {
       drawIcon(x, "peb", sx + 4, 46, 2);
-      x.fillStyle = "#ffe27a"; x.font = "bold 10px 'Pixelify Sans', monospace"; x.fillText("SOLD", sx + 4, 44);
+      x.fillStyle = "#ffe27a"; x.font = "700 10px Inter, sans-serif"; x.fillText("SOLD", sx + 4, 44);
     } else {
       const a = thingArt(r, 3);
       x.drawImage(a, sx + 16 - a.width / 2, 74 - a.height);

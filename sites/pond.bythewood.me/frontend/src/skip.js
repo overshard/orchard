@@ -146,7 +146,7 @@ export const skip = {
     x.fillStyle = "#7fd6c2";
     for (let i = 0; i < 16; i++) { const wx = ((i * 97 - cam) % (W + 20) + W + 20) % (W + 20) - 10; x.fillRect(Math.round(wx), SURF + 4 + (i * 13) % 80, 6, 1); }
     for (let i = 0; i < W; i += 10) x.fillRect(((i - Math.round(cam) + Math.round(t * 6)) % W + W) % W, SURF, 6, 1);
-    x.font = "500 8px 'Pixelify Sans', monospace"; x.textAlign = "center";
+    x.font = "700 8px Inter, sans-serif"; x.textAlign = "center";
     for (let m = 10; m < 400; m += 10) {
       const sx = Math.round(L.x + m * M - cam);
       if (sx < -10 || sx > W + 10) continue;
@@ -188,7 +188,7 @@ export const skip = {
     }
     F.draw(x, -cam, 0);
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 18);
-    x.textAlign = "right"; x.font = "500 8px 'Pixelify Sans', monospace"; x.fillStyle = "#bcaf99";
+    x.textAlign = "right"; x.font = "700 8px Inter, sans-serif"; x.fillStyle = "#bcaf99";
     x.fillText("PEBBLE " + Math.min(THROWS, G.thrown + 1) + "/" + THROWS, W - 6, 16);
     if (p && G.st === "fly" && p.skips) x.fillText(p.skips + " SKIPS", W - 6, 28);
     if (G.thrown === 0 && !G.best) {

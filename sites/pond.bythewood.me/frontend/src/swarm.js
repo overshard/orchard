@@ -10,8 +10,8 @@ import { sfx } from "./sound.js";
 const W = 200, H = 300, ROUND = 90, LILIES = 3, TOP = 3, SLOTS = 5;
 const PAD = { x: 100, y: 158, r: 88 }, ROAM = 72, BODY = 10, STEER = 110;
 const OUT = 0.07, BACK = 0.1, SAFE = 1.4, SLOW = 0.7, CAP = 190, GRACE = 10;
-const FONT = "700 13px 'Pixelify Sans', monospace", NAME = "700 10px 'Pixelify Sans', monospace";
-const SMALL = "500 8px 'Pixelify Sans', monospace";
+const FONT = "700 13px Inter, sans-serif", NAME = "700 10px Inter, sans-serif";
+const SMALL = "700 8px Inter, sans-serif";
 const KINDS = {
   gnat: { hp: 1, pts: 1, dew: 0.4, v: 16, r: 4 },
   fly: { hp: 1, pts: 1, dew: 1, v: 26, r: 6 },

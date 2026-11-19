@@ -81,7 +81,7 @@ function paint(t) {
     // A card on a string, hung a little crooked.
     x.save(); x.translate(176, 60); x.rotate(reduced ? -0.05 : -0.05 + 0.02 * Math.sin(t));
     x.fillStyle = "#c9b48a"; x.fillRect(-40, 0, 80, 26);
-    x.fillStyle = "#2a241d"; x.font = "700 10px 'Pixelify Sans', monospace"; x.textAlign = "center";
+    x.fillStyle = "#2a241d"; x.font = "700 10px Inter, sans-serif"; x.textAlign = "center";
     x.fillText("BACK AT", 0, 11); x.fillText(sign, 0, 22);
     x.restore();
   }

@@ -12,7 +12,7 @@ const TOP = 20, OW = 16;
 // GH how deep, and FXP where the frog swims.
 let PW = 266, FXP = 70, GH = 200, BOT = 186;
 const BUOY = 330, RISE_MAX = 150, KICK = 138, GATE_EVERY = 118;
-const BIG = "700 22px 'Pixelify Sans', monospace";
+const BIG = "700 22px Inter, sans-serif";
 // The frog is hit well inside its sprite, this far ahead, behind, over and
 // under where it swims. NEAR is how close a gate can pass and get a CLOSE.
 const AHEAD = 5, BEHIND = 6, OVER = 3, UNDER = 4, NEAR = 4;
@@ -166,12 +166,12 @@ function drawOthers() {
     gx.drawImage(o.spr[o.kick > 0 ? 1 : 0], x - 15, y - 9);
     gx.globalAlpha = o.out ? Math.min(1, o.fade * 2) : RIVAL_ALPHA;
     if (o.out) {
-      gx.font = "700 9px 'Pixelify Sans', monospace";
+      gx.font = "700 9px Inter, sans-serif";
       gx.fillStyle = "#0a1b1f"; gx.fillText("OUT", x + 1, y - 11);
       gx.fillStyle = "#e2567a"; gx.fillText("OUT", x, y - 12);
     } else if (PW >= 400) {
       // On a phone they swim too close together for ten names to be read.
-      gx.font = "500 6px 'Pixelify Sans', monospace"; gx.fillStyle = "#ece5d8";
+      gx.font = "700 6px Inter, sans-serif"; gx.fillStyle = "#ece5d8";
       gx.fillText(o.name, x, y - 12);
     }
   });

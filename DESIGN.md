@@ -400,8 +400,8 @@ A reader only ever has the repo.
 ## pond
 
 pond is a game, and it's a night pond lit by lanterns, pixel art scenes over
-dark navy cards, with Pixelify Sans for anything shouted and Inter for anything
-read. The direction is called Lantern and was picked on 2026-11-19 over the
+dark navy cards, with Inter for everything and Pixelify Sans only on the `pond`
+wordmark. The direction is called Lantern and was picked on 2026-11-19 over the
 Deck look, a tape deck crossed with a field instrument, which had moulded
 plastic, keycaps, readout glass, screws and hazard stripes. It doesn't share
 dash's palette any more, so a change on dash isn't carried over. The values
@@ -416,11 +416,11 @@ below live as tokens at the top of `frontend/src/index.css`.
 - **Green means ready or new.** `#6fd08c` is the edge on a row that's ready,
   the LEDs, a pip on a tab, a meter's fill and anything that went up. Pink
   `#f29bb8` is hearts and bond, and `#ff8a7a` is a bad turn or a price down.
-- **Two faces.** Pixelify Sans is the wordmark, headings, section labels,
-  numbers, keys and anything on a canvas, and Inter is everything you read in a
-  sentence. Both are installed from `@fontsource` and served from the site.
-  Canvas text in Pixelify at the game's own pixel size reads like part of the
-  art.
+- **Inter for everything but the wordmark.** Headings, section labels, keys,
+  pills, tabs, numbers and readouts are Inter semibold or bold with tabular
+  figures, and a sentence is Inter regular. Pixelify Sans was on all of those
+  and was hard to read small, so it's only the `pond` wordmark now, in its 700
+  weight. Both come from `@fontsource` and are served from the site.
 - **A card is 10 to 12px round with a 1px line**, and a small tag or a rarity
   box is 4px. Round is for pills, LEDs, the gear and the `?` key.
 - **The main key is lamp yellow on a 3px darker lip** and travels down onto it
@@ -429,8 +429,8 @@ below live as tokens at the top of `frontend/src/index.css`.
   pressed loses its colour.
 - **A pill** is a fully round chip with an icon and a number, and a filter is a
   pill that's lit lamp yellow on a dark amber while it's on.
-- **A section label** is Pixelify caps, small, letterspaced and muted, with its
-  count or a `?` key on the right. There's no rule out to the edge.
+- **A section label** is Inter semibold caps, small, letterspaced and muted,
+  with its count or a `?` key on the right. There's no rule out to the edge.
 - **A row that's ready has a green left edge**, 3px inside its card. A goal
   has a green LED, a ring until it's done and lit after.
 - **LEDs glow.** A round dot with a soft glow of its own colour, green for new
@@ -438,7 +438,7 @@ below live as tokens at the top of `frontend/src/index.css`.
 - **What the frog says is a cream speech bubble** with a dark outline and a
   tail pointing up at it, `#f4ecd0` on `#1d1a14`, the one light thing on the
   pond page apart from the gazette.
-- **The top bar** is the `pond` wordmark in Pixelify on the left, and on the
+- **The top bar** is the `pond` wordmark in Pixelify Sans on the left, and on the
   right a Bag pill with how many things are in the bag, the pebbles pill and a
   small round gear key for settings (the name, the pond key, frog power, sound).
   The bag opens from its pill and the pill lights while it's open. On the
@@ -831,7 +831,7 @@ below live as tokens at the top of `frontend/src/index.css`.
 - **A camera key makes a postcard.** A small dark key with a pixel camera
   sits over the top right corner of the frog's picture. It draws the screen as
   it stands at twice the size on a cream card, with the frog's name in
-  Pixelify, the pond's date and the gazette's weather word in Inter and a
+  Inter bold, the pond's date and the gazette's weather word in Inter and a
   pebble postmark, and opens it as a picture in a new tab. The hearts and the
   key aren't on the card.
 - **The frog can be rubbed.** A drag back and forth over it shuts its eyes and
@@ -867,7 +867,7 @@ below live as tokens at the top of `frontend/src/index.css`.
 - **Dive is a race.** Three red lights and GO start it, a standings column
   down the left drops each frog to the bottom as it goes out, your place is a
   big italic number in the bottom right that pops as it climbs, with how
-  many are racing and how many are still in under it in Pixelify, and who just
+  many are racing and how many are still in under it in small caps, and who just
   went out is called at the top. The results are a podium in gold, silver and
   bronze, the whole finishing order with you in amber, and the winnings
   counting up, with confetti for a podium place. All of it is HTML over the
@@ -882,11 +882,11 @@ below live as tokens at the top of `frontend/src/index.css`.
   `frontend/src/lit.js`, so `frog.js` stays the plain drawing other sites copy.
   The side view sprites in Dive, pebble skip and lily stack are flat, and so
   is the share card PNG the server draws.
-- **Pixelify on a canvas.** Words a game draws are Pixelify Sans at the
-  canvas's own pixel size, so they sit in the art like the sprites do.
-- **Anything read is 14px or more.** 11 and 12px are for section labels, the
+- **Inter bold on a canvas.** Words a game draws are Inter bold at the
+  canvas's own pixel size, scores and readouts included.
+- **Anything read is 14px or more.** 10 to 12px are for section labels, the
   rarity box, a key's legend under an icon and the caption under a picture in
-  a slot or a disk, all in Pixelify caps, which would wrap at 14.
+  a slot or a disk, all in Inter semibold caps, which would wrap at 14.
 - Rarity is a word in a box as well as a colour: common grey, uncommon green,
   rare blue, epic purple, legendary amber.
 - **The real day is on the pond's screen.** Night darkens it with fireflies,
@@ -968,7 +968,7 @@ below live as tokens at the top of `frontend/src/index.css`.
   tool beside it, and in the Make picture the frog by the lodge holds its tool
   with the job's thing at its feet.
 - **Frog power is a pill on the pond's picture.** It sits on the bottom edge
-  of the frog's picture, half over it, with the rank in Pixelify caps, the
+  of the frog's picture, half over it, with the rank in small caps, the
   number, and a green hairline along its foot for how far to the next rung.
   It takes no height of its own. A tap opens the breakdown in the bare sheet,
   the number big in a box with the rank, a rail to the next rung, and every
@@ -982,7 +982,7 @@ below live as tokens at the top of `frontend/src/index.css`.
   is a reveal with amber rays, the rung's name and the number in a box, after
   the count. Reduced motion gets the new number and the line with no count.
 - **A frog's public page** is the frog in its picture, its power as one big
-  Pixelify number in a box with the rank beside it, the parts that make it up
+  number in a box with the rank beside it, the parts that make it up
   in the same three groups as the sheet, and a QR code for the link. The
   ranks are a ladder of nine under the number, the top rung first and green up
   to where the frog stands, the same in settings. It ends on getting a frog of
@@ -1016,6 +1016,6 @@ below live as tokens at the top of `frontend/src/index.css`.
 | `llm` | suite | On the suite. Overview, calls and keys, and the home page says whether Claude or the card is answering |
 | `cron` | suite | On the suite. Jobs, runs, a job form and keys, with `app.css` holding only what is cron's own |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `BRIEFS` rerun beside it that only appears signed in |
-| `pond` | none | Hand written CSS. A game in the Lantern direction, a night pond with lamp yellow keys, Pixelify Sans and Inter, and colour pixel art in its pictures. Dive is full screen on a phone |
+| `pond` | none | Hand written CSS. A game in the Lantern direction, a night pond with lamp yellow keys, Inter with a Pixelify Sans wordmark, and colour pixel art in its pictures. Dive is full screen on a phone |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 

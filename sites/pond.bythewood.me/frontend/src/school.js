@@ -146,6 +146,6 @@ export const school = {
       if (i) one(); else F.squashed(x, cx, cy + 4, one);
     }
     F.draw(x);
-    x.font = "700 12px 'Pixelify Sans', monospace"; x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 15);
+    x.font = "700 12px Inter, sans-serif"; x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 15);
   },
 };
