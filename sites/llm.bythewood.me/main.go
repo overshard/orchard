@@ -358,7 +358,7 @@ func (s *site) keysPage(w http.ResponseWriter, r *http.Request) {
 	}
 	month, _ := s.month(time.Now())
 	head := template.HTML(template.HTMLEscapeString(count(live, "live key", "live keys")) + ", <em>one per caller</em>.")
-	s.render(w, "keys.html", map[string]any{"Title": "Keys", "Keys": keys, "Fresh": fresh, "Headline": head,
+	s.render(w, "keys.html", map[string]any{"Title": "Keys", "Keys": keys, "Fresh": fresh, "Headline": head, "Use": s.keyUses(month, time.Now()),
 		"Suite": s.chrome("keys", s.dayStats(time.Now()), month)})
 }
 
@@ -443,8 +443,8 @@ func fmtWhen(t time.Time) string {
 	return t.Format("2 Jan")
 }
 
-// short renders the messages array as something readable in a table cell. The
-// whole of it is still in the database and on the call's own row.
+// short renders the messages array as something readable in a table cell,
+// the last user message alone since the system prompt repeats on every call.
 func short(s string, n int) string {
 	var msgs []struct {
 		Role    string `json:"role"`
@@ -452,17 +452,19 @@ func short(s string, n int) string {
 	}
 	text := s
 	if json.Unmarshal([]byte(s), &msgs) == nil && len(msgs) > 0 {
-		parts := make([]string, 0, len(msgs))
-		for _, m := range msgs {
-			parts = append(parts, m.Role+": "+m.Content)
+		text = msgs[len(msgs)-1].Content
+		for i := len(msgs) - 1; i >= 0; i-- {
+			if msgs[i].Role == "user" {
+				text = msgs[i].Content
+				break
+			}
 		}
-		text = strings.Join(parts, " | ")
 	}
 	text = strings.Join(strings.Fields(text), " ")
-	if len(text) <= n {
-		return text
+	if r := []rune(text); len(r) > n {
+		return string(r[:n]) + "..."
 	}
-	return text[:n] + "..."
+	return text
 }
 
 // num is comma for templates. It takes any because a template handing it the

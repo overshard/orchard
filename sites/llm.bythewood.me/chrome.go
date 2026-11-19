@@ -179,3 +179,42 @@ func secs(ms int64) string {
 	}
 	return fmt.Sprintf("%.1fs", float64(ms)/1000)
 }
+
+// keyUse is one key's last 14 days of calls, a day each and oldest first, and
+// what it's spent this month. It reads spend, which an incognito call still
+// writes to.
+type keyUse struct {
+	Days  []float64
+	Calls int
+	Spent float64
+}
+
+func (s *site) keyUses(m Month, now time.Time) map[int64]*keyUse {
+	out := map[int64]*keyUse{}
+	since := min(now.AddDate(0, 0, -14).Unix(), m.Start.Unix())
+	rows, err := s.store.db.Query(`SELECT key_id, micros, at FROM spend WHERE at >= ?`, since)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, micros, at int64
+		if rows.Scan(&id, &micros, &at) != nil {
+			continue
+		}
+		u := out[id]
+		if u == nil {
+			u = &keyUse{Days: make([]float64, 14)}
+			out[id] = u
+		}
+		t := time.Unix(at, 0)
+		if i := 13 - int(now.Sub(t).Hours()/24); i >= 0 && i < 14 {
+			u.Days[i]++
+			u.Calls++
+		}
+		if !t.Before(m.Start) {
+			u.Spent += float64(micros) / 1e6
+		}
+	}
+	return out
+}

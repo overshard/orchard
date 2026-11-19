@@ -4,7 +4,8 @@
 .o-filters .o-chip { font-size: 0.72rem; padding: 3px 9px; }
 .o-filters .o-sep { width: 1px; height: 16px; background: var(--o-line-strong); margin: 0 4px; }
 
-.calllist { display: grid; gap: 10px; }
+.calllist { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 40rem), 1fr)); align-items: start; }
+.calllist > *, .call > * { min-width: 0; }
 .call { display: grid; gap: 6px; scroll-margin-top: 16px; }
 .call:target { border-color: var(--o-brass); }
 .call.bad { border-color: rgba(240, 107, 91, 0.45); }

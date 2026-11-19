@@ -407,7 +407,7 @@ func TestShortRendersMessagesReadably(t *testing.T) {
 		{"role": "user", "content": "what is the time"},
 	})
 	got := short(string(msgs), 200)
-	if !strings.Contains(got, "system: be brief") || !strings.Contains(got, "user: what is the time") {
+	if got != "what is the time" {
 		t.Errorf("got %q", got)
 	}
 	if len(short(string(msgs), 10)) > 13 {
