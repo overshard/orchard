@@ -294,7 +294,7 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 .o-field .hint { font-size: 0.74rem; color: var(--o-muted); font-weight: 400; }
 .o-field .hint.mono { font-family: var(--o-mono); font-size: 0.7rem; }
 .o-in { display: block; }
-.o-in, .o-field input[type="text"], .o-field input[type="url"], .o-field input[type="datetime-local"], .o-field input[type="password"], .o-field textarea, .o-field select {
+.o-in, .o-field input:is([type="text"], [type="url"], [type="search"], [type="date"], [type="datetime-local"], [type="number"], [type="password"]), .o-field textarea, .o-field select {
   width: 100%; font: 400 0.86rem/1.4 var(--o-sans); color: var(--o-text);
   background: var(--o-sunk); border: 1px solid var(--o-line-strong); border-radius: 0;
   padding: 8px 10px; color-scheme: dark;
@@ -328,7 +328,7 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 .o-win-bar .u { flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .o-staged { font: 500 0.58rem var(--o-mono); letter-spacing: 0.1em; color: var(--o-muted); border: 1px solid var(--o-line-strong); padding: 0 5px; }
 .o-win-body { display: grid; gap: 10px; padding: 14px; }
-.o-cw .o-win-body { padding-right: 28px; }
+.o-cw .o-win-body { padding-right: 36px; }
 .o-win-body .t { font-size: 1.2rem; font-weight: 600; letter-spacing: -0.035em; }
 .o-rw { display: flex; align-items: center; gap: 8px; padding: 7px 2px; border-top: 1px solid var(--o-line-soft); font-size: 0.78rem; min-width: 0; }
 .o-rw .n { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

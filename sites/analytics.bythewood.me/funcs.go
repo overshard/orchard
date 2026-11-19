@@ -8,12 +8,25 @@ import (
 )
 
 var templateFuncs = template.FuncMap{
-	"dict":      dict,
-	"json":      jsonBlock,
-	"pct":       pct,
-	"num":       formatNum,
-	"add":       func(a, b int) int { return a + b },
-	"hasPrefix": strings.HasPrefix,
+	"dict":         dict,
+	"json":         jsonBlock,
+	"pct":          pct,
+	"num":          formatNum,
+	"add":          func(a, b int) int { return a + b },
+	"hasPrefix":    strings.HasPrefix,
+	"listHeadline": listHeadline,
+	"weekDelta":    weekDelta,
+	"graphSeries":  graphSeries,
+	"cardHeadline": cardHeadline,
+	"cardName":     cardName,
+	"seq":          func(n int) []struct{} { return make([]struct{}, n) },
+	"topCount": func(items []LabelCount) int64 {
+		var top int64 = 1
+		for _, i := range items {
+			top = max(top, i.Count)
+		}
+		return top
+	},
 }
 
 // dict lets a partial take more than one value, since a Go template has a

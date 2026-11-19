@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"analytics.bythewood.me/ntfy"
+	"analytics.bythewood.me/suite"
 	"analytics.bythewood.me/web"
 	"github.com/google/uuid"
 )
@@ -76,7 +77,7 @@ type site struct {
 // Shared with the tests, which parse them for real, since a page listed here
 // with no file behind it only fails at boot and never at build.
 var (
-	layoutTemplates = []string{"base.html", "partials.html"}
+	layoutTemplates = []string{"base.html", "partials.html", "suite.html"}
 	pageTemplates   = []string{
 		"home.html", "documentation.html",
 		"properties.html", "property.html", "notfound.html",
@@ -143,7 +144,7 @@ func realMain() error {
 		return err
 	}
 
-	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
+	renderer, err := web.NewRenderer(suite.With(templates), suite.FuncsWith(templateFuncs), layoutTemplates, pageTemplates)
 	if err != nil {
 		return err
 	}
@@ -236,6 +237,7 @@ func realMain() error {
 	mux.HandleFunc("GET /sitemap.xml", sitemap)
 
 	mux.Handle("GET /static/", web.Static(dist, assets))
+	mux.Handle("GET /suite/", suite.Handler())
 
 	// Per-country admin-1 topojson, generated at image build, so the filenames
 	// are stable and cacheable for a year.
@@ -315,6 +317,7 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		JSONLD:        pageGraph(title, description, baseURL+r.URL.Path),
 		Script:        s.baseScript,
 		Styles:        s.baseStyles,
+		Suite:         s.chrome(r),
 
 		// The collector posts to whatever origin served the page, so an empty
 		// server works in dev and in production alike.

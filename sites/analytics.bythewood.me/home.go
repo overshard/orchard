@@ -1,8 +1,8 @@
 package main
 
 import (
-	"database/sql"
-	"log/slog"
+	"analytics.bythewood.me/suite"
+
 	"net/http"
 	"time"
 )
@@ -14,28 +14,12 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var properties, events int64
-	var first sql.NullInt64
-	err := s.db.QueryRowContext(r.Context(), `SELECT
-	    (SELECT COUNT(*) FROM properties),
-	    (SELECT COUNT(*) FROM events),
-	    (SELECT MIN(created_at) FROM events)`).Scan(&properties, &events, &first)
-	if err != nil {
-		// Missing totals still render a usable page, so this is not fatal.
-		slog.Info("home totals", slog.Any("err", err))
-	}
-
 	data := s.page(r, "Self-hosted analytics",
 		"Self-hosted website analytics. Page views, clicks, scrolls, sessions, and custom events.")
 	data.PageScript = s.pagesScript
 	data.PageStyles = s.pagesStyles
-	data.TotalProperties = properties
-	data.TotalEvents = events
-	// There is no user table to count, this instance has one operator.
-	data.TotalUsers = 1
-	if first.Valid {
-		data.FirstEventAt = time.UnixMilli(first.Int64).Format("Jan 2, 2006")
-	}
+	data.Footer = suite.Footer{Tool: "analytics", About: "Counts the visitors to the sites I run, keeps a year of it and tells my phone when one gets busy.",
+		Source: sourceURL, Author: authorName, Year: data.Year, Pages: []suite.Tab{{Name: "Home", Href: "/"}, {Name: "Docs", Href: "/documentation"}}}
 
 	s.renderer.Render(w, http.StatusOK, "home.html", data)
 }

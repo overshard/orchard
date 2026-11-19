@@ -1,8 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {{ template "suite-head" }}
   <title>{{ .Title }} · {{ .SiteName }}</title>
   <meta name="description" content="{{ .Description }}">
   <link rel="canonical" href="{{ .Canonical }}">
@@ -21,14 +20,10 @@
   {{ template "collector" . }}
 </head>
 
-<body>
-  {{ template "nav" . }}
+<body class="o-body">
+  {{ template "suite-top" .Suite }}
 
-  {{ template "breadcrumb_bar" . }}
-
-  <main>
-    {{ template "main" . }}
-  </main>
+  {{ template "main" . }}
 
   {{ template "footer" . }}
 

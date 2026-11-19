@@ -1,141 +1,116 @@
 {{ define "extra_head" }}{{ template "social" . }}{{ end }}
 {{ define "extra_css" }}{{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}{{ end }}
-{{ define "breadcrumb_bar" }}{{ end }}
+
 {{ define "main" }}
-<section class="hero">
-  <div class="container">
-    <div class="row">
-      <div class="col-12 col-lg-7">
-        <span class="hero-eyebrow">
-          <span class="eyebrow-dot" aria-hidden="true"></span>
-          v0.1.0 · alpha · self-hosted
-        </span>
-        <h1 class="hero-title">
-          Website analytics for operators who host their <span class="accent">own pipeline</span>.
-        </h1>
-        <p class="hero-sub">
-          Page views, clicks, scrolls, sessions, and custom events. GeoIP maps,
-          UTM attribution, device and browser breakdowns, and PDF reports. One
-          POST endpoint you run. Your data never leaves your infrastructure.
-        </p>
-        <div class="hero-ctas">
-          <a href="/login" class="btn btn-primary">Access dashboard →</a>
-          <a href="/documentation" class="btn btn-outline-light">Docs</a>
-          <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="btn btn-outline-light">View source</a>
+<main>
+<div class="o-cw">
+  <section class="o-wrap o-hero">
+    <div>
+      <span class="o-lab">analytics &middot; self-hosted</span>
+      <h1>Who came and from where, <em>kept on your own box</em>.</h1>
+      <p class="o-lede">A small script on each site sends page views, clicks, scrolls and your own events to one endpoint you run, into SQLite, with bots kept apart. A push lands when a site suddenly gets busy.</p>
+      <div class="o-ctas">
+        <a href="/login" class="o-btn o-btn-p">Access dashboard &rarr;</a>
+        <a href="/documentation" class="o-btn">Docs</a>
+        <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="o-btn">Source</a>
+      </div>
+    </div>
+    <div class="o-win" aria-label="A staged picture of a property page">
+      <div class="o-win-bar"><i></i><i></i><i></i><span class="u">analytics.bythewood.me/shop.example.com</span><span class="o-staged">STAGED</span></div>
+      <div class="o-win-body">
+        <span class="o-lab">shop.example.com &middot; 28 days</span>
+        <div class="t" data-co>2,184 page views, <em>up 14%</em>.</div>
+        <div class="o-tiles three" data-co>
+          <div class="o-tile"><small>sessions</small><b>1,022</b><span class="o-delta o-ok">+11%</span></div>
+          <div class="o-tile"><small>time on page</small><b>2m 41s</b><span class="o-delta o-ok">+9s</span></div>
+          <div class="o-tile"><small>bot events</small><b>418</b><span class="o-delta">kept apart</span></div>
+        </div>
+        <div data-co>
+          <div class="o-hbar"><span class="k o-mono">/guides/getting-started</span><span class="bar"><i style="width:90%;background:var(--o-ok)"></i></span><span class="v">820</span></div>
+          <div class="o-hbar"><span class="k o-mono">/pricing</span><span class="bar"><i style="width:62%;background:var(--o-ok)"></i></span><span class="v">566</span></div>
+          <div class="o-hbar"><span class="k o-mono">/</span><span class="bar"><i style="width:40%;background:var(--o-ok)"></i></span><span class="v">361</span></div>
         </div>
       </div>
-      <div class="col-12 col-lg-5 mt-5 mt-lg-0 d-flex align-items-center">
-        <div class="terminal-block w-100">
-          <span class="t-line"><span class="t-comment"># collector push</span></span>
-          <span class="t-line"><span class="t-prompt">site$</span><span class="t-out">POST /collect/</span></span>
-          <span class="t-line"><span class="t-key">event</span>=<span class="t-val">page_view</span> <span class="t-key">url</span>=<span class="t-val">/pricing</span></span>
-          <span class="t-line"><span class="t-key">referrer</span>=<span class="t-val">bing.com</span></span>
-          <span class="t-line"><span class="t-key">geo</span>=<span class="t-val">US · CA</span> <span class="t-key">ua</span>=<span class="t-val">firefox · linux</span></span>
-          <span class="t-line"><span class="t-prompt">site$</span> <span class="t-cursor"></span></span>
+    </div>
+  </section>
+  <div class="o-wrap o-legend">
+    <div><span class="o-pin">1</span><span>The title compares with the window before, so the direction comes first.</span></div>
+    <div><span class="o-pin">2</span><span>Every card says how it moved, and bots are counted apart.</span></div>
+    <div><span class="o-pin">3</span><span>Click a page to filter the whole dashboard down to it.</span></div>
+  </div>
+  <div class="o-ov"></div>
+</div>
+
+<div class="o-wrap">
+<section class="o-hsec">
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">collect</span>
+      <h3>One tag and one endpoint</h3>
+      <p>Paste the tag and page views, clicks, scrolls and time on page arrive on their own. Anything else is one line in the page, or a POST from any language.</p>
+      <ul><li>UTM source, medium and campaign kept</li><li>Country and region from the address</li></ul>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <pre class="o-code">&lt;<span class="a">script</span> src="https://analytics.example.com/static/collector.js"
+        data-collector-id="<span class="g">7f3c…</span>" async&gt;&lt;/<span class="a">script</span>&gt;
+
+&lt;<span class="a">button</span> data-track="<span class="g">signup_click</span>"&gt;Sign up&lt;/<span class="a">button</span>&gt;</pre>
+    </div>
+  </div>
+  <div class="o-frow flip">
+    <div class="o-ftxt">
+      <span class="o-lab">surges</span>
+      <h3>A push when a site gets busy</h3>
+      <p>When real visitors arrive in numbers well past the usual, one push says which site and where they came from. Bots never set it off.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-phone">
+        <div class="clk">9:41</div>
+        <div class="dt">Thursday, November 19</div>
+        <div class="o-push"><div class="h"><span>ntfy &middot; alerts</span><span>now</span></div><b>shop.example.com is busy</b><span class="o-muted">412 views this hour, most from news.ycombinator.com</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">where</span>
+      <h3>Referrers, countries and devices</h3>
+      <p>Where visitors came from, where they are and what they're reading on, with a map that drills from the world into a country.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-cols even">
+        <div><span class="o-lab">referrers</span>
+          <div class="o-hbar"><span class="k">google.com</span><span class="bar"><i style="width:80%"></i></span><span class="v">612</span></div>
+          <div class="o-hbar"><span class="k">news.ycombinator.com</span><span class="bar"><i style="width:44%"></i></span><span class="v">331</span></div>
+          <div class="o-hbar"><span class="k">duckduckgo.com</span><span class="bar"><i style="width:20%"></i></span><span class="v">150</span></div>
+        </div>
+        <div><span class="o-lab">devices</span>
+          <div class="o-hbar"><span class="k">desktop</span><span class="bar"><i style="width:64%"></i></span><span class="v">64%</span></div>
+          <div class="o-hbar"><span class="k">phone</span><span class="bar"><i style="width:33%"></i></span><span class="v">33%</span></div>
+          <div class="o-hbar"><span class="k">tablet</span><span class="bar"><i style="width:3%"></i></span><span class="v">3%</span></div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="stat-strip">
-  <div class="container">
-    <div class="row g-4">
-      <div class="col-6 col-md-3">
-        <div class="stat">
-          <div class="stat-label">properties</div>
-          <div class="stat-value">{{ num .TotalProperties }}</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="stat">
-          <div class="stat-label">events logged</div>
-          <div class="stat-value">{{ num .TotalEvents }}</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="stat">
-          <div class="stat-label">operators</div>
-          <div class="stat-value">{{ num .TotalUsers }}</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="stat">
-          <div class="stat-label">collecting since</div>
-          <div class="stat-value" style="font-size: 1.05rem;">
-            {{ if .FirstEventAt }}{{ .FirstEventAt }}{{ else }}—{{ end }}
-          </div>
-        </div>
-      </div>
-    </div>
+<section class="o-hsec">
+  <div class="o-run">
+    <div class="o-hh"><span class="o-lab">run your own</span><h2 class="o-big">One Go binary and one SQLite file</h2><p>Part of orchard, BSD 2-Clause. Clone it, run make and paste the tag into each site.</p></div>
+    <pre class="o-code"><span class="a">git</span> clone https://github.com/overshard/orchard
+<span class="a">cd</span> orchard
+<span class="a">make</span> run SITE=analytics.bythewood.me
+<span class="c"># listening on :8000</span></pre>
   </div>
 </section>
+</div>
+</main>
+{{ end }}
 
-<section class="container my-5 py-4">
-  <div class="row g-4">
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="feature">
-        <div class="feature-label">collection</div>
-        <div class="feature-title">One-line site tag</div>
-        <p class="feature-desc">
-          Drop a small async script in your <code>&lt;head&gt;</code>. It posts
-          page views, clicks, scrolls, sessions, and custom events to one
-          endpoint.
-        </p>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="feature">
-        <div class="feature-label">attribution</div>
-        <div class="feature-title">UTM + referrer tracking</div>
-        <p class="feature-desc">
-          Slice traffic by source, medium, and campaign. Referrers, pages, and
-          custom events rank with period-over-period deltas.
-        </p>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="feature">
-        <div class="feature-label">geo + device</div>
-        <div class="feature-title">Maps, browsers, platforms</div>
-        <p class="feature-desc">
-          A Natural Earth world map with admin-1 drill-down, plus device,
-          browser, and platform breakdowns. GeoIP runs locally so addresses
-          stay on your host.
-        </p>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="feature">
-        <div class="feature-label">reports</div>
-        <div class="feature-title">Dashboard + PDF export</div>
-        <p class="feature-desc">
-          Flip any date range to PDF or markdown in one click, rendered in
-          process by Typst. Custom cards pin whatever metric you want.
-        </p>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="feature">
-        <div class="feature-label">schema</div>
-        <div class="feature-title">Typed schema, JSON extras</div>
-        <p class="feature-desc">
-          Hot fields live in typed columns for fast queries, and custom keys
-          land in an <code>extra</code> JSON column. Bot traffic routes to its
-          own table at write time.
-        </p>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="feature">
-        <div class="feature-label">stack</div>
-        <div class="feature-title">One Go binary and a file</div>
-        <p class="feature-desc">
-          Go and SQLite, shipped as one small Debian image behind your own
-          reverse proxy. Your domain, your retention policy.
-        </p>
-      </div>
-    </div>
-  </div>
-</section>
+{{ define "footer" }}
+{{ template "suite-footer" .Footer }}
+{{ template "suite-status" .Suite }}
 {{ end }}

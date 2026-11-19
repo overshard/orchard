@@ -1,6 +1,8 @@
 package main
 
 import (
+	"analytics.bythewood.me/suite"
+
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -54,11 +56,6 @@ type PageData struct {
 	Error string
 	Next  string
 
-	TotalProperties int64
-	TotalEvents     int64
-	TotalUsers      int
-	FirstEventAt    string
-
 	Properties []PropertyRow
 	Totals     PropertyTotals
 	Query      string
@@ -66,6 +63,9 @@ type PageData struct {
 	Property   *DashProperty
 	Dash       *Dashboard
 	ReportedAt string
+
+	Suite  suite.Page
+	Footer suite.Footer
 }
 
 // DashProperty is the property identity the dashboard chrome renders.

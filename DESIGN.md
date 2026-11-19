@@ -14,7 +14,7 @@ haven't moved to the suite yet, and they go as each one does.
 
 ## The suite
 
-This is where the tool sites are headed, and cron, llm, auth, status and logging are on it.
+This is where the tool sites are headed, and cron, llm, auth, status, logging and analytics are on it.
 
 - **Dark only, on cool charcoal.** Ground `#111315`, top bar `#0c0e10`, sunken
   `#090a0c`, panels `#171a1d` and `#1f2327`, lines `#262a2f`, `#1c1f23` and
@@ -70,10 +70,8 @@ grid drawn in CSS, and no bitmap textures anywhere.
 
 ## The palette
 
-`analytics` keeps this in
-`frontend/static_src/base/styles/_variables.scss`. `repos` has no Sass variables file, so it carries the same
-values as custom properties at the top of its `base.scss` and has to be edited
-alongside them.
+`repos` carries this palette as custom properties at the top of its
+`base.scss` until it moves to the suite.
 
 | Role | Value | Where it goes |
 |---|---|---|
@@ -1159,7 +1157,7 @@ below live as tokens at the top of `frontend/src/index.css`.
 
 | Site | Phosphor | Notes |
 |---|---|---|
-| `analytics` | green | Bootstrap. Home, docs, dashboards. Four stat tiles |
+| `analytics` | suite | On the suite, no Bootstrap. The list carries a fortnight of page views per property, and menus are details elements |
 | `status` | suite | On the suite, no Bootstrap. Properties down first, a property page that doubles as the public status page |
 | `logging` | suite | On the suite, no Bootstrap. The overview, a page per source and search share one set of panels |
 | `auth` | suite | On the suite, with no Bootstrap left. The home page signs you in from the hero, and the starfield is gone |

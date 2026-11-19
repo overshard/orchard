@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"analytics.bythewood.me/suite"
 	"analytics.bythewood.me/web"
 )
 
@@ -279,7 +280,7 @@ func TestEveryListedTemplateParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates); err != nil {
+	if _, err := web.NewRenderer(suite.With(templates), suite.FuncsWith(templateFuncs), layoutTemplates, pageTemplates); err != nil {
 		t.Fatalf("the template set does not parse: %v", err)
 	}
 }

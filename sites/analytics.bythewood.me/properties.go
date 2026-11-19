@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -20,6 +21,8 @@ type PropertyRow struct {
 	TotalEvents        int64
 	TotalPageViews     int64
 	TotalSessionStarts int64
+	Views14            []float64
+	ViewsWeek          int64
 }
 
 // PropertyTotals is the summary strip above the list.
@@ -28,6 +31,10 @@ type PropertyTotals struct {
 	Events     int64
 	PageViews  int64
 	Sessions   int64
+	Live       int
+	Views14    []float64
+	ViewsWeek  int64
+	ViewsPrev  int64
 }
 
 // activeWindow is how recently a property must have seen an event to show as
@@ -91,6 +98,23 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 		totals.Events += total
 		totals.PageViews += pv
 		totals.Sessions += ss
+		views := s.dailyViews(ctx, p.ID[:], 14)
+		var week int64
+		for i, v := range views {
+			if totals.Views14 == nil {
+				totals.Views14 = make([]float64, len(views))
+			}
+			totals.Views14[i] += v
+			if i >= 7 {
+				week += int64(v)
+			} else {
+				totals.ViewsPrev += int64(v)
+			}
+		}
+		totals.ViewsWeek += week
+		if active > 0 {
+			totals.Live++
+		}
 
 		listed = append(listed, PropertyRow{
 			ID:                 p.ID.String(),
@@ -101,6 +125,8 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 			TotalEvents:        total,
 			TotalPageViews:     pv,
 			TotalSessionStarts: ss,
+			Views14:            views,
+			ViewsWeek:          week,
 		})
 	}
 	totals.Properties = len(listed)
@@ -208,4 +234,25 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
 	_ = enc.Encode(v)
+}
+
+// dailyViews is a property's page views a day for the last n days, oldest
+// first, for the trend beside it in the list.
+func (s *site) dailyViews(ctx context.Context, id []byte, n int) []float64 {
+	out := make([]float64, n)
+	now := time.Now().UTC()
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -(n - 1))
+	rows, err := s.db.QueryContext(ctx, `SELECT (created_at - ?2) / 86400000, COUNT(*) FROM events
+		WHERE property_id = ?1 AND event = 'page_view' AND created_at >= ?2 GROUP BY 1`, id, start.UnixMilli())
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var day, count int64
+		if rows.Scan(&day, &count) == nil && day >= 0 && day < int64(n) {
+			out[day] = float64(count)
+		}
+	}
+	return out
 }
