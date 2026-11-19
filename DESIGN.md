@@ -442,7 +442,7 @@ below live as tokens at the top of `frontend/src/index.css`.
 - **A row that's ready has a green left edge**, 3px inside its card. A goal
   has a green LED, a ring until it's done and lit after.
 - **LEDs glow.** A round dot with a soft glow of its own colour, green for new
-  and ready. Only the new pip and a disk that still pays use one.
+  and ready. Only the new pip and a game's goals use one.
 - **What the frog says is a cream speech bubble** with a dark outline and a
   tail pointing up at it, `#f4ecd0` on `#1d1a14`, the one light thing on the
   pond page apart from the gazette.
@@ -519,9 +519,8 @@ below live as tokens at the top of `frontend/src/index.css`.
   empty spot you can fill, like a stall spot, is a key with a dashed edge and a
   plus.
 - **What's coming.** The frogs in the scenes get a warm rim on the side the
-  nearest lantern is on. After that come the
-  games as jars on a shelf in place of the disks, and the market as a night
-  market board.
+  nearest lantern is on. After that comes the market as a night market
+  board.
 - **Colour lives in the pictures, the icons and rarity.** The frog, the water,
   the wheel, Dive, the stall and the wizard are colour pixel art. Past that
   the colour is the 12 by 12 pixel icons, a thing's tier, lamp yellow on keys,
@@ -534,24 +533,28 @@ below live as tokens at the top of `frontend/src/index.css`.
   at its own pixel size. A dye keeps its colour per kind, a pattern is a
   little block with its face cut in the pattern it prints, and each game has its own icon for
   its Next row.
-- **Every game is a floppy disk** on Play, a 3.5 inch disk in its own colour
-  with a metal shutter, a write protect tab and the game's picture on a cream
-  label. A disk that still pays in full has a blinking green LED, the rest are
-  faded, and the pay tag and best score sit under it. One disk a day is the
-  disk of the day, with an amber sticker stuck on crooked. Fishing is the
-  flagship and its disk takes the whole first row, with a big title and
-  a line about it beside the disk.
-- **Play is shelves.** Under the flagship the disks sit on an Arcade shelf for
-  the quick games with the deepest first, a Puzzles shelf for the slower
-  thinking ones, and a Classics shelf for retired games that still play but pay
-  nothing, each under a section head. The wheel and the old log stay as panels under the shelves.
+- **Every game is a firefly jar** on Play, a small card with a glass jar,
+  the game's icon inside, its name and one short line. A jar that still pays
+  in full is lit, with a glow that flickers a little and the line in green
+  saying how many runs are left, and a spent one is dark with the line in
+  muted text, Quarter pay or Paid out. The day's game, one a day that pays a
+  run more, has a lamp yellow TODAY sticker stuck on crooked and a dark amber
+  edge. Fishing is the flagship and has a card of its own on top, its picture,
+  name, line and pay beside a lamp Cast key, which goes ghost once it's spent.
+- **Play is shelves.** Under fishing the jars sit four to a row, five on a
+  desktop, on an Arcade shelf for the quick games with the deepest first, a
+  Puzzles shelf for the slower thinking ones, and a Classics shelf for retired
+  games that still play but pay nothing, each under a section head. Under the
+  jars, Every day has the race, the wheel and the old log as rows like the
+  Next strip's, with a green edge and a lamp key while there's something to
+  do, and the three logs to pick from inside the log's row.
 - **A side game fills a tall phone.** The field sits in the middle and the
   room over and under it is a flat colour the game names, or its top and
   bottom rows stretched where that carries the scene on. Crossing takes more
   rows in place of either. A run pauses when the page is hidden, and the title
   panel says PAUSED until it's tapped.
-- **Every disk has two goals a day**, the same for every pond. They're two
-  small green LEDs on the disk's plastic by the shutter, ringed until met and
+- **Every game has two goals a day**, the same for every pond. They're two
+  small green LEDs in the top corner of its jar, ringed until met and
   lit after, and lines in a box on its title card with the same LED
   each. A run that meets one gets the whole results, with that line lit green.
 - **The side games end like Dive.** Their title and results sit on a card
@@ -902,7 +905,7 @@ below live as tokens at the top of `frontend/src/index.css`.
   the field is wide enough to read ten. A ghost goes out on the stems or
   the rock of the gate it was dealt, in a burst of bubbles under a pink
   OUT, and is carried back with that gate as it fades.
-- **The daily race is a card under the Arcade disks**, like the wheel's,
+- **The daily race is a row under the jars**, like the wheel's,
   with a chequered flag over the water, and it opens Dive on the day's
   course with the twelve residents as the ghosts and their names on the
   standings. Its title says whether this run goes on the board, and its
@@ -930,7 +933,7 @@ below live as tokens at the top of `frontend/src/index.css`.
   canvas's own pixel size, scores and readouts included.
 - **Anything read is 14px or more.** 10 to 12px are for section labels, the
   rarity box, a key's legend under an icon and the caption under a picture in
-  a slot or a disk, all in Inter semibold caps, which would wrap at 14.
+  a slot or a jar, all in Inter semibold caps, which would wrap at 14.
 - Rarity is a word in a box as well as a colour: common grey, uncommon green,
   rare blue, epic purple, legendary amber.
 - **The real day is on the pond's screen.** Night brings the stars and fireflies,
