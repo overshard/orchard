@@ -87,6 +87,9 @@ Rule 1, "Exploit scanner paths":
        )
      )
 
+The one dot path let through is mcp's OAuth metadata, which a connector has to
+read before it can sign in.
+
 Rule 2, "repos history signed out", bythewood.me only:
 
   (http.host eq "repos.bythewood.me"
@@ -99,9 +102,6 @@ repos already answers these with a 404 to anyone signed out, so this only stops
 the residential proxy crawl at the edge. Commits and history at a SHA under
 blob, raw and tree need regex to tell from a branch view, so they still reach
 repos.
-
-The one dot path let through is mcp's OAuth metadata, which a connector has to
-read before it can sign in.
 
 Rule 3, "auth login origins", bythewood.me only:
 
