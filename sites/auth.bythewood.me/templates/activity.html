@@ -1,32 +1,34 @@
 {{ define "main" }}
-<div class="container-fluid px-4 py-4">
-  <div class="page-head">
+<main class="o-wrap o-main">
+  <div class="o-ph">
     <div>
-      <div class="auth-eyebrow">activity</div>
-      <h1 class="page-title">{{ .Title }}</h1>
+      <span class="o-lab">auth &middot; activity</span>
+      <h1>Every sign in, <em>newest first</em>.</h1>
+      <p>The last 200 events. They ship to logging too, and this copy is here for when logging is what's down.</p>
     </div>
   </div>
 
-  <div class="panel">
-    <div class="feed">
+  <section class="o-panel flush">
+    {{ if .Events }}
+    <div class="o-scroll">
+    <table class="o-tbl stack">
+      <thead><tr><th>When</th><th>What</th><th>Where</th><th>Address</th><th>Browser</th></tr></thead>
+      <tbody>
       {{ range .Events }}
-      <div class="event {{ eventClass .Kind }}">
-        <div class="event-what">
-          {{ eventLabel .Kind }}{{ with .Detail }} <span class="text-muted">({{ . }})</span>{{ end }}
-          <div class="event-where">
-            {{ if .City }}{{ .City }}, {{ end }}{{ if .Country }}{{ .Country }}{{ else }}unknown{{ end }}
-            · {{ .IP }}{{ if .UA }} · {{ browser .UA }}{{ end }}
-          </div>
-        </div>
-        <div class="event-when">{{ when .TS }}</div>
-      </div>
-      {{ else }}
-      <p class="auth-hint mt-0 mb-0">Nothing yet.</p>
+        <tr class="{{ if eq (eventClass .Kind) "is-warn" }}hot{{ end }}">
+          <td class="n o-muted" title="{{ when .TS }}">{{ ago .TS }}</td>
+          <td class="lead"><span class="o-dot {{ if eq (eventClass .Kind) "is-warn" }}bad{{ else if eq (eventClass .Kind) "is-note" }}{{ else }}mute{{ end }}"></span>{{ eventLabel .Kind }}{{ with .Detail }} <span class="o-muted">{{ . }}</span>{{ end }}</td>
+          <td>{{ if .City }}{{ .City }}, {{ end }}{{ if .Country }}{{ .Country }}{{ else }}<span class="o-muted">unknown</span>{{ end }}</td>
+          <td class="n o-muted">{{ .IP }}</td>
+          <td class="o-muted">{{ if .UA }}{{ browser .UA }}{{ end }}</td>
+        </tr>
       {{ end }}
+      </tbody>
+    </table>
     </div>
-  </div>
-
-  <p class="auth-hint">The last 200 events. Everything here also ships to logging.bythewood.me, and
-    this copy exists so the page still answers when logging is what is down.</p>
-</div>
+    {{ else }}
+    <p class="o-empty"><b>Nothing yet.</b></p>
+    {{ end }}
+  </section>
+</main>
 {{ end }}

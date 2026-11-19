@@ -4,108 +4,30 @@
 
 {{ define "form" }}{{ end }}
 
-{{ define "logo" }}
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <g stroke="#6b9e78" stroke-width="1.6" opacity="0.55" stroke-linecap="round">
-    <path d="M46 15 L34 28"/>
-    <path d="M18 47 L29 36"/>
-    <path d="M46 15 L52 40"/>
-  </g>
-  <path d="M32 4 L36.4 26.2 L58 32 L36.4 37.8 L32 60 L27.6 37.8 L6 32 L27.6 26.2 Z"
-        fill="#6b9e78"/>
-  <circle cx="46" cy="15" r="3.4" fill="#c9d9cb"/>
-  <circle cx="18" cy="47" r="2.6" fill="#7eaab8"/>
-  <circle cx="52" cy="40" r="2.2" fill="#c9a84c"/>
-</svg>
-{{ end }}
-
-{{ define "nav" }}
-<nav class="navbar navbar-dark navbar-expand-md">
-  <div class="container-fluid px-4">
-    <a class="navbar-brand" href="{{ if .Authenticated }}/account{{ else }}/{{ end }}">
-      <span class="logo" aria-hidden="true">{{ template "logo" . }}</span>
-      <span class="brand-text">{{ .SiteName }}</span>
-      <span class="brand-dot" aria-hidden="true"></span>
-    </a>
-    {{ if .Authenticated }}
-    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMain" aria-controls="navMain" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navMain">
-      <ul class="navbar-nav ms-3">
-        <li class="nav-item"><a class="nav-link {{ if eq .Path "/account" }}active{{ end }}" href="/account">Account</a></li>
-        <li class="nav-item"><a class="nav-link {{ if eq .Path "/sessions" }}active{{ end }}" href="/sessions">Sessions</a></li>
-        <li class="nav-item"><a class="nav-link {{ if eq .Path "/security" }}active{{ end }}" href="/security">Security</a></li>
-        <li class="nav-item"><a class="nav-link {{ if eq .Path "/activity" }}active{{ end }}" href="/activity">Activity</a></li>
-      </ul>
-      <ul class="navbar-nav ms-auto">
-        <li class="nav-item d-flex align-items-center">
-          <form method="post" action="/logout" class="d-inline">
-            <button type="submit" class="btn btn-sm btn-outline-light">Sign out</button>
-          </form>
-        </li>
-      </ul>
-    </div>
-    {{ end }}
-  </div>
-</nav>
-{{ end }}
-
-{{/* One of the other sites. The whole card is the link, so the hit area is the
-     card rather than the word inside it. */}}
-{{ define "siteCard" }}
-<a class="site-card" href="https://{{ .host }}/">
-  <span class="site-card-name">
-    <span class="site-card-dot" aria-hidden="true"></span>
-    {{ .name }}
-    <span class="site-card-go" aria-hidden="true">→</span>
-  </span>
-  <span class="site-card-desc d-block">{{ .desc }}</span>
-  <span class="site-card-host d-block">{{ .host }}</span>
-</a>
-{{ end }}
+{{ define "footer" }}{{ template "suite-foot" .Suite }}{{ end }}
 
 {{ define "alerts" }}
-{{ if .Error }}<div class="auth-alert is-error" role="alert">{{ .Error }}</div>{{ end }}
-{{ if .Notice }}<div class="auth-alert is-notice" role="status">{{ .Notice }}</div>{{ end }}
+{{ if .Error }}<div class="o-note bad" role="alert">{{ .Error }}</div>{{ end }}
+{{ if .Notice }}<div class="o-note" role="status">{{ .Notice }}</div>{{ end }}
 {{ end }}
 
-{{/* The shell every signed-out page uses, so the four of them cannot drift.
-     Everything in the right hand half is decoration and carries aria-hidden:
-     it is a star field, and there is nothing in it to read. */}}
+{{/* The shell every signed out form uses, so they cannot drift. */}}
 {{ define "authShell" }}
-<div class="auth-stage">
-  <div class="auth-sky" aria-hidden="true">
-    <div class="auth-nebula"></div>
-    <canvas class="auth-stars" data-starfield></canvas>
-    <div class="auth-orbits"></div>
-    <div class="auth-vignette"></div>
+<main class="o-wrap signin">
+  <div class="signin-card">
+    {{ template "form" . }}
   </div>
+</main>
+{{ end }}
 
-  <div class="auth-panel">
-    <div class="auth-form">
-      <div class="auth-mark" aria-hidden="true">{{ template "logo" . }}</div>
-      {{ template "form" . }}
-    </div>
+{{ define "pagehead" }}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">auth &middot; {{ .lab }}</span>
+    <h1>{{ .title }}</h1>
+    {{ with .sub }}<p>{{ . }}</p>{{ end }}
   </div>
 </div>
 {{ end }}
 
-{{ define "footer" }}
-<div class="footer-bar">
-  <div class="container-fluid px-4">
-    <div class="row align-items-center">
-      <div class="col-sm-6 d-flex align-items-center justify-content-center justify-content-sm-start order-1 order-sm-0">
-        <small>&copy; {{ .Year }} {{ .AuthorName }} · All times UTC</small>
-      </div>
-      <div class="col-sm-6 d-flex align-items-center justify-content-center justify-content-sm-end py-3 py-sm-0">
-        <span class="pond-guest" data-pond-foot>
-          <small data-pond-line>A frog from the pond</small>
-          <a href="https://pond.bythewood.me/" aria-label="The pond"><canvas width="44" height="34" aria-hidden="true"></canvas></a>
-        </span>
-        <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="footer-bar-link">Source</a>
-      </div>
-    </div>
-  </div>
-</div>
-{{ end }}
+{{ define "pips" }}<span class="pips" aria-hidden="true">{{ range pips . }}<span class="pip {{ if . }}on{{ end }}"></span>{{ end }}</span>{{ end }}

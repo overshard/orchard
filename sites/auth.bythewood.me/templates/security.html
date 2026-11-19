@@ -1,48 +1,40 @@
 {{ define "main" }}
-<div class="container-fluid px-4 py-4">
-  <div class="page-head">
+<main class="o-wrap o-main">
+  <div class="o-ph">
     <div>
-      <div class="auth-eyebrow">security</div>
-      <h1 class="page-title">{{ .Title }}</h1>
+      <span class="o-lab">auth &middot; security</span>
+      <h1>{{ if lt .Remaining 3 }}<em class="bad">{{ .Remaining }} recovery codes</em> left.{{ else }}{{ .Remaining }} recovery codes left.{{ end }}</h1>
+      <p>Recovery codes, and how the phone gets its sign in codes.</p>
     </div>
   </div>
 
   {{ template "alerts" . }}
 
-  <div class="row g-3">
-    <div class="col-12 col-lg-6">
-      <div class="panel">
-        <div class="panel-title">recovery codes</div>
-        <div class="stat {{ if lt .Remaining 3 }}is-low{{ end }}">{{ .Remaining }}<span class="text-muted" style="font-size:1rem; font-weight:400;"> of 10 left</span></div>
-        <div class="pips" aria-hidden="true">
-          {{ range pips .Remaining }}<span class="pip {{ if . }}is-lit{{ end }}"></span>{{ end }}
-        </div>
-        <p class="auth-hint mt-0">Each works once. A new set invalidates every old code, and is shown
-          once and never again.</p>
-        {{ if .InSudo }}
-        <form method="POST" action="/security/recovery">
-          <button type="submit" class="btn btn-primary btn-sm">Generate a new set</button>
-        </form>
-        {{ else }}
-        <a href="/login?next=/security" class="btn btn-outline-light btn-sm">Sign in again to replace them</a>
-        {{ end }}
+  <div class="o-cols even">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Recovery codes</h2><span class="o-lab">break glass</span></div>
+      <div class="codecount {{ if lt .Remaining 3 }}low{{ end }}"><b class="o-mono">{{ .Remaining }}</b><span class="o-muted">of 10 left</span></div>
+      {{ template "pips" .Remaining }}
+      <p class="o-muted small">Each works once. A new set stops every old code working, and it's shown once and never again.</p>
+      <div class="o-formbar">
+      {{ if .InSudo }}
+        <form method="POST" action="/security/recovery" data-confirm="Every old recovery code stops working. Make a new set?"><button type="submit" class="o-btn o-btn-p o-btn-sm">Make a new set</button></form>
+      {{ else }}
+        <span class="o-muted small">Needs a sign in from the last few minutes.</span><span class="o-sp"></span>
+        <a href="/login?next=/security" class="o-btn o-btn-sm">Sign in again</a>
+      {{ end }}
       </div>
-    </div>
+    </section>
 
-    <div class="col-12 col-lg-6">
-      <div class="panel">
-        <div class="panel-title">the phone</div>
-        <dl class="field-list">
-          <div><dt>server</dt><dd>{{ .NtfyHost }}</dd></div>
-          <div><dt>account</dt><dd>{{ .NtfyUser }}</dd></div>
-          <div><dt>topic</dt><dd>{{ .NtfyTopic }}</dd></div>
-        </dl>
-        <p class="auth-hint">The ntfy password is not here and cannot be. ntfy stores it hashed and
-          will not hand one back, and the two ways around that are keeping a second reversible copy
-          on an internet facing box or giving this container the Docker socket. Change it with
-          <code>make ntfy-passwd</code> on the machine.</p>
-      </div>
-    </div>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>The phone</h2><span class="o-lab">ntfy</span></div>
+      <dl class="o-kv">
+        <dt>server</dt><dd class="o-mono">{{ .NtfyHost }}</dd>
+        <dt>account</dt><dd class="o-mono">{{ .NtfyUser }}</dd>
+        <dt>topic</dt><dd class="o-mono">{{ .NtfyTopic }}</dd>
+      </dl>
+      <p class="o-muted small">The ntfy password isn't here and can't be, since ntfy stores it hashed. Change it with <code>make ntfy-passwd</code> on the machine.</p>
+    </section>
   </div>
-</div>
+</main>
 {{ end }}

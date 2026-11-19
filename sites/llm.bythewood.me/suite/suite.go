@@ -77,6 +77,28 @@ func Parse(t *template.Template) (*template.Template, error) {
 	return t.ParseFS(embedded, "templates.html")
 }
 
+// With adds the shared templates to a site's own as suite.html, for a renderer
+// that parses one file system.
+func With(site fs.FS) fs.FS { return overlay{site} }
+
+type overlay struct{ fs.FS }
+
+func (o overlay) Open(name string) (fs.File, error) {
+	if name == "suite.html" {
+		return embedded.Open("templates.html")
+	}
+	return o.FS.Open(name)
+}
+
+// FuncsWith is a site's own template functions with the suite's added.
+func FuncsWith(own template.FuncMap) template.FuncMap {
+	out := Funcs()
+	for k, v := range own {
+		out[k] = v
+	}
+	return out
+}
+
 type Tool struct{ Name, URL string }
 
 // Tools is the order of the tabs along the top of every tool site.

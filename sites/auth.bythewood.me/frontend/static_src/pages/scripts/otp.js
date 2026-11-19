@@ -24,6 +24,7 @@ export function otp() {
   // nothing.
   fallback.type = "hidden";
   fallback.required = false;
+  fallback.closest("[data-otp-fallback-wrap]")?.setAttribute("hidden", "");
   wrap.hidden = false;
 
   const button = form.querySelector("[type=submit]");

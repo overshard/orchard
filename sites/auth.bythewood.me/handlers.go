@@ -2,11 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
+
+	"auth.bythewood.me/suite"
 )
 
 type PageData struct {
@@ -41,6 +44,10 @@ type PageData struct {
 	NtfyTopic string
 	NewCodes  []string
 	User      User
+
+	Suite  suite.Page
+	Ways   suite.Ways
+	Footer suite.Footer
 }
 
 func (s *site) page(r *http.Request, title, description string) PageData {
@@ -50,6 +57,7 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		name = u.Username
 	}
 	return PageData{
+		Suite:         s.chrome(r, err == nil),
 		Title:         title,
 		Description:   description,
 		Path:          r.URL.Path,
@@ -311,4 +319,42 @@ func (s *site) verify(w http.ResponseWriter, r *http.Request) {
 func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 	data := s.page(r, "404", "That page does not exist.")
 	s.renderer.Render(w, http.StatusNotFound, "notfound.html", data)
+}
+
+// chrome is the header and status line. Signed out it shows the tools with no
+// state, since nothing about them is for a stranger.
+func (s *site) chrome(r *http.Request, signedIn bool) suite.Page {
+	p := suite.Page{Tool: "auth", SignedIn: signedIn, Source: sourceURL, Author: authorName, Year: time.Now().Year()}
+	tabs := []suite.Tab{{Name: "home", Href: "/"}, {Name: "sign in", Href: "/login"}, {Name: "source", Href: sourceURL}}
+	if signedIn {
+		tabs = []suite.Tab{{Name: "account", Href: "/account"}, {Name: "sessions", Href: "/sessions"},
+			{Name: "security", Href: "/security"}, {Name: "activity", Href: "/activity"}}
+	}
+	for _, t := range tabs {
+		t.On = t.Href == r.URL.Path || (t.Href == "/login" && (r.URL.Path == "/code" || r.URL.Path == "/recovery"))
+		p.Tabs = append(p.Tabs, t)
+	}
+	p.Right = []suite.Seg{{Text: "times are UTC"}}
+	if !signedIn {
+		p.Meta = "one account for every tool"
+		return p
+	}
+	var sessions int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM sessions WHERE expires > ?`, time.Now().Unix()).Scan(&sessions)
+	codes, _ := countRecoveryCodes(s.db)
+	p.Status = []suite.Seg{{Text: "● signed in", Kind: "ok"}, {Text: count(sessions, "session", "sessions")}}
+	codeKind := ""
+	if codes < 3 {
+		codeKind = "warn"
+	}
+	p.Status = append(p.Status, suite.Seg{Text: fmt.Sprintf("%d of %d recovery codes left", codes, recoveryCount), Kind: codeKind})
+	p.Meta = fmt.Sprintf("%s · %d recovery codes left", count(sessions, "session", "sessions"), codes)
+	return p
+}
+
+func count(n int, one, many string) string {
+	if n == 1 {
+		return "1 " + one
+	}
+	return fmt.Sprintf("%d %s", n, many)
 }

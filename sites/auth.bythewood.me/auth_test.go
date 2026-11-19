@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"auth.bythewood.me/ntfy"
+	"auth.bythewood.me/suite"
 	"auth.bythewood.me/web"
 )
 
@@ -42,8 +43,8 @@ func newTestSite(t *testing.T) (*site, *stubNtfy) {
 	if err != nil {
 		t.Fatalf("templates: %v", err)
 	}
-	renderer, err := web.NewRenderer(templates, templateFuncs,
-		[]string{"base.html", "partials.html"}, allPages)
+	renderer, err := web.NewRenderer(suite.With(templates), suite.FuncsWith(templateFuncs),
+		[]string{"base.html", "partials.html", "suite.html"}, allPages)
 	if err != nil {
 		t.Fatalf("renderer: %v", err)
 	}

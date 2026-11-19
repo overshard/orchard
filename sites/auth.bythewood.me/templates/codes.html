@@ -1,20 +1,19 @@
 {{ define "main" }}
-<div class="container-fluid px-4 py-4">
-  <div class="page-head">
+<main class="o-wrap o-main">
+  <div class="o-ph">
     <div>
-      <div class="auth-eyebrow">write these down</div>
-      <h1 class="page-title">{{ .Title }}</h1>
+      <span class="o-lab">auth &middot; write these down</span>
+      <h1>Ten new <em>recovery codes</em>.</h1>
+      <p>These are the only copies, and leaving this page is the last time they exist anywhere readable. Every old code stopped working just now.</p>
     </div>
-    <button type="button" class="btn btn-outline-light btn-sm" data-copy="#code-set">Copy all</button>
+    <div class="o-acts"><button type="button" class="o-btn o-btn-sm" data-copy="#code-set">Copy all</button></div>
   </div>
 
-  <div class="panel" style="max-width: 46rem;">
-    <p class="auth-hint mt-0">These are the only copies, and leaving this page is the last time they
-      exist anywhere readable. Every previous code stopped working just now.</p>
+  <section class="o-panel codes-panel">
     <div class="codes" id="code-set">
-      {{ range .NewCodes }}<div class="code-chip">{{ . }}</div>{{ end }}
+      {{ range .NewCodes }}<div class="code-chip o-mono">{{ . }}</div>{{ end }}
     </div>
-    <a href="/security" class="btn btn-primary btn-sm">I have saved them →</a>
-  </div>
-</div>
+    <div class="o-formbar"><span class="o-sp"></span><a href="/security" class="o-btn o-btn-p o-btn-sm">I've saved them &rarr;</a></div>
+  </section>
+</main>
 {{ end }}

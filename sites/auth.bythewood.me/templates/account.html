@@ -1,73 +1,66 @@
 {{ define "main" }}
-<div class="container-fluid px-4 py-4">
-  <div class="page-head">
+<main class="o-wrap o-main">
+  <div class="o-ph">
     <div>
-      <div class="auth-eyebrow">account</div>
-      <h1 class="page-title">{{ .User.Username }}</h1>
+      <span class="o-lab">auth &middot; account</span>
+      <h1>Signed in as <em>{{ .User.Username }}</em>.</h1>
+      <p>One account and one session for every tool. Revoke it here and every tool stops honouring it on the next request.</p>
+    </div>
+    <div class="o-acts">
+      <form method="POST" action="/logout"><button type="submit" class="o-btn o-btn-sm">Sign out</button></form>
     </div>
   </div>
 
   {{ template "alerts" . }}
 
-  <div class="row g-3">
-    <div class="col-12 col-lg-5">
-      <div class="panel">
-        <div class="panel-title">identity</div>
-        <dl class="field-list">
-          <div><dt>username</dt><dd>{{ .User.Username }}</dd></div>
-          <div><dt>ntfy account</dt><dd>{{ .User.NtfyAccount }}</dd></div>
-          <div><dt>created</dt><dd>{{ when .User.Created }}</dd></div>
-        </dl>
-        <p class="auth-hint">The ntfy account is a separate namespace and ntfy cannot rename one,
-          so changing the username here leaves it alone.</p>
-      </div>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Tools</h2><span class="o-lab">behind this sign in</span></div>
+    <div class="tools">
+      {{ template "tool" dict "host" "status.bythewood.me" "name" "status" "desc" "Uptime checks, Lighthouse audits and the SEO crawl" }}
+      {{ template "tool" dict "host" "logging.bythewood.me" "name" "logging" "desc" "Every site's records, searchable" }}
+      {{ template "tool" dict "host" "analytics.bythewood.me" "name" "analytics" "desc" "Traffic, referrers and where visitors are" }}
+      {{ template "tool" dict "host" "cron.bythewood.me" "name" "cron" "desc" "Reminders and scheduled checks pushed to the phone" }}
+      {{ template "tool" dict "host" "llm.bythewood.me" "name" "llm" "desc" "The model gateway, its keys and every call" }}
+      {{ template "tool" dict "host" "repos.bythewood.me" "name" "repos" "desc" "The git remote, mirrors and push tokens" }}
     </div>
+  </section>
 
-    <div class="col-12 col-lg-4">
-      <div class="panel">
-        <div class="panel-title">recovery codes</div>
-        <div class="stat {{ if lt .Remaining 3 }}is-low{{ end }}">{{ .Remaining }}</div>
-        <div class="pips" aria-hidden="true">
-          {{ range pips .Remaining }}<span class="pip {{ if . }}is-lit{{ end }}"></span>{{ end }}
-        </div>
-        <a href="/security" class="btn btn-sm btn-outline-light">Manage →</a>
-      </div>
-    </div>
+  <div class="o-cols even">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Identity</h2></div>
+      <dl class="o-kv">
+        <dt>username</dt><dd class="o-mono">{{ .User.Username }}</dd>
+        <dt>ntfy account</dt><dd class="o-mono">{{ .User.NtfyAccount }}</dd>
+        <dt>created</dt><dd class="o-mono">{{ when .User.Created }}</dd>
+      </dl>
+      <p class="o-muted small">ntfy can't rename an account, so changing the username here leaves the ntfy one alone.</p>
+      {{ if .InSudo }}
+      <form method="POST" action="/account/username" class="o-formbar rename">
+        <label class="o-field">
+          <span>New username</span>
+          <input type="text" name="username" id="id_new_username" value="{{ .User.Username }}" required autocapitalize="none" spellcheck="false">
+        </label>
+        <button type="submit" class="o-btn o-btn-sm">Rename</button>
+      </form>
+      {{ else }}
+      <div class="o-formbar"><span class="o-muted small">Renaming needs a sign in from the last few minutes.</span><span class="o-sp"></span><a href="/login?next=/account" class="o-btn o-btn-sm">Sign in again</a></div>
+      {{ end }}
+    </section>
 
-    <div class="col-12 col-lg-3">
-      <div class="panel">
-        <div class="panel-title">rename</div>
-        {{ if .InSudo }}
-        <form method="POST" action="/account/username">
-          <div class="form-floating mb-3">
-            <input type="text" class="form-control" name="username" id="id_new_username"
-                   placeholder="username" value="{{ .User.Username }}" required
-                   autocapitalize="none" spellcheck="false">
-            <label for="id_new_username">Username</label>
-          </div>
-          <button type="submit" class="btn btn-primary btn-sm">Save</button>
-        </form>
-        {{ else }}
-        <p class="auth-hint mt-0">Needs a sign in from the last few minutes.</p>
-        <a href="/login?next=/account" class="btn btn-sm btn-outline-light">Sign in again</a>
-        {{ end }}
-      </div>
-    </div>
-
-    <div class="col-12">
-      <div class="panel">
-        <div class="panel-title">behind this login</div>
-        <div class="site-grid">
-          {{ template "siteCard" dict "host" "analytics.bythewood.me" "name" "Analytics" "desc" "Traffic, referrers and where visitors are" }}
-          {{ template "siteCard" dict "host" "status.bythewood.me" "name" "Status" "desc" "Uptime checks, Lighthouse audits and crawls" }}
-          {{ template "siteCard" dict "host" "logging.bythewood.me" "name" "Logging" "desc" "Every site's records, searchable" }}
-          {{ template "siteCard" dict "host" "repos.bythewood.me" "name" "Repos" "desc" "Git remote, mirrors and push tokens" }}
-          {{ template "siteCard" dict "host" "llm.bythewood.me" "name" "LLM" "desc" "The model gateway, its api keys and every prompt through it" }}
-        </div>
-        <p class="auth-hint">Push tokens for repos stay in repos, since they are its credentials and
-          not this site's. That page is behind this session now.</p>
-      </div>
-    </div>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Recovery codes</h2><a class="o-lab" href="/security">manage &rarr;</a></div>
+      <div class="codecount {{ if lt .Remaining 3 }}low{{ end }}"><b class="o-mono">{{ .Remaining }}</b><span class="o-muted">of 10 left</span></div>
+      {{ template "pips" .Remaining }}
+      <p class="o-muted small">They sign you in when the phone or ntfy isn't there, one use each.</p>
+    </section>
   </div>
-</div>
+</main>
+{{ end }}
+
+{{ define "tool" }}
+<a class="tool" href="https://{{ .host }}/">
+  <span class="tool-name">{{ .name }}<span aria-hidden="true">&rarr;</span></span>
+  <span class="tool-desc">{{ .desc }}</span>
+  <span class="tool-host o-mono">{{ .host }}</span>
+</a>
 {{ end }}

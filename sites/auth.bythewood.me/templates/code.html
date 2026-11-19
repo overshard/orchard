@@ -1,10 +1,11 @@
 {{ define "form" }}
-<div class="auth-eyebrow">bythewood.me</div>
-<h1 class="auth-title">{{ .Title }}</h1>
+<span class="o-lab">sign in &middot; step 2 of 2</span>
+<h1>Check your <em>phone</em>.</h1>
+<p class="o-muted">A six digit code went to the ntfy app. It works once, in this browser, for ten minutes.</p>
 
 {{ template "alerts" . }}
 
-<form method="POST" action="/code" data-otp-form>
+<form method="POST" action="/code" data-otp-form class="signin-form">
   <input type="hidden" name="next" value="{{ .Next }}">
 
   {{/* Hidden until the script swaps them in, so a browser with no JavaScript
@@ -19,21 +20,25 @@
     <input class="otp-box" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="Digit 6">
   </div>
 
-  <input type="text" class="form-control code-input" name="code" id="id_code"
-         data-otp-fallback placeholder="000000" required autofocus
-         aria-label="Six digit code"
-         inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
-         autocomplete="one-time-code" spellcheck="false">
+  <label class="o-field" data-otp-fallback-wrap>
+    <span>Code</span>
+    <input type="text" class="code-input" name="code" id="id_code"
+           data-otp-fallback placeholder="000000" required autofocus
+           inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+           autocomplete="one-time-code" spellcheck="false">
+  </label>
 
-  <div class="auth-actions">
-    <button type="submit" class="btn btn-primary">Sign in →</button>
-    <a href="/recovery?next={{ .Next | urlquery }}" class="small link-footer">Recovery code</a>
+  <div class="o-formbar">
+    <button type="submit" class="o-btn o-btn-p">Sign in &rarr;</button>
+    <span class="o-sp"></span>
+    <a href="/login?next={{ .Next | urlquery }}" class="o-muted small">Send a new code</a>
+    <a href="/recovery?next={{ .Next | urlquery }}" class="o-muted small">Recovery code</a>
   </div>
 </form>
 
 {{/* The notification carries where the request came from, and this is the line
      that makes somebody look at it before typing. */}}
-<p class="auth-hint">If it came from somewhere you are not, do not type it.</p>
+<p class="signin-warn">If the push says it came from somewhere you aren't, don't type it.</p>
 {{ end }}
 
 {{ define "main" }}{{ template "authShell" . }}{{ end }}

@@ -53,7 +53,8 @@
 .o-body code, .o-mono, .o-num { font-family: var(--o-mono); }
 .o-num { font-variant-numeric: tabular-nums; }
 .o-body code { font-size: 0.86em; background: var(--o-sunk); border: 1px solid var(--o-line); padding: 0.05em 0.35em; }
-.o-muted { color: var(--o-muted); }
+.o-muted, .o-body a.o-muted { color: var(--o-muted); }
+.o-body a.o-muted:hover { color: var(--o-text); }
 .o-ok { color: var(--o-ok); }
 .o-warn { color: var(--o-warn); }
 .o-bad { color: var(--o-bad); }
@@ -70,7 +71,8 @@
 .o-lab::before { content: "// "; }
 .o-lab.plain::before { content: none; }
 .o-lab.o-bad { color: var(--o-bad); }
-.o-lab.o-muted { color: var(--o-muted); }
+.o-lab.o-muted, .o-body a.o-muted { color: var(--o-muted); }
+.o-body a.o-muted:hover { color: var(--o-text); }
 
 /* ------------------------------------------------------------------ chrome */
 
@@ -360,7 +362,7 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 .o-ftxt p { margin: 0; color: var(--o-muted); font-size: 0.92rem; line-height: 1.65; max-width: 44ch; }
 .o-ftxt ul { margin: 2px 0 0; padding: 0; list-style: none; display: grid; gap: 3px; font-size: 0.84rem; color: var(--o-muted); }
 .o-ftxt li::before { content: "\203A  "; color: var(--o-brass); }
-.o-crop { position: relative; min-width: 0; padding: 16px; background: var(--o-panel); border: 1px solid var(--o-line); }
+.o-crop { position: relative; min-width: 0; padding: 36px 16px 16px; background: var(--o-panel); border: 1px solid var(--o-line); }
 .o-crop > .o-staged { position: absolute; top: 10px; right: 10px; }
 .o-phone { width: min(100%, 290px); margin: 0 auto; padding: 12px 10px 18px; border: 1px solid var(--o-line-strong); border-radius: 24px; background: var(--o-sunk); display: grid; gap: 8px; }
 .o-phone .clk { text-align: center; font: 600 2rem var(--o-mono); margin-top: 8px; }

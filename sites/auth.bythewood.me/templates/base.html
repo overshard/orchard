@@ -1,14 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {{ template "suite-head" }}
   <title>{{ .Title }} · {{ .SiteName }}</title>
   <meta name="description" content="{{ .Description }}">
   {{/* Nothing here is worth indexing and every page but the form is behind a
        session. */}}
   <meta name="robots" content="noindex, nofollow">
-  <meta name="theme-color" content="#0e0d0a">
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
 
   {{ range .Styles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
@@ -17,12 +15,10 @@
   <script src="https://analytics.bythewood.me/static/collector.js" data-collector-id="{{ .AnalyticsID }}" async></script>
 </head>
 
-<body>
-  {{ template "nav" . }}
+<body class="o-body">
+  {{ template "suite-top" .Suite }}
 
-  <main>
-    {{ template "main" . }}
-  </main>
+  {{ template "main" . }}
 
   {{ template "footer" . }}
 

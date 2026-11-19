@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"auth.bythewood.me/suite"
 	"auth.bythewood.me/web"
 )
 
@@ -141,8 +142,8 @@ func realMain() error {
 		return err
 	}
 
-	renderer, err := web.NewRenderer(templates, templateFuncs,
-		[]string{"base.html", "partials.html"}, allPages)
+	renderer, err := web.NewRenderer(suite.With(templates), suite.FuncsWith(templateFuncs),
+		[]string{"base.html", "partials.html", "suite.html"}, allPages)
 	if err != nil {
 		return err
 	}
@@ -271,6 +272,7 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("GET /robots.txt", robots)
 
 	mux.Handle("GET /static/", web.Static(s.dist, s.assets))
+	mux.Handle("GET /suite/", suite.Handler())
 
 	mux.HandleFunc("GET /healthz", healthz)
 

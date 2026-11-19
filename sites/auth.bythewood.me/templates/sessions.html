@@ -1,39 +1,45 @@
 {{ define "main" }}
-<div class="container-fluid px-4 py-4">
-  <div class="page-head">
+<main class="o-wrap o-main">
+  <div class="o-ph">
     <div>
-      <div class="auth-eyebrow">sessions</div>
-      <h1 class="page-title">Signed in on {{ len .Sessions }}</h1>
+      <span class="o-lab">auth &middot; sessions</span>
+      <h1>Signed in on <em>{{ len .Sessions }}</em>.</h1>
+      <p>Every tool checks this list on each request, so revoking one takes effect everywhere at once.</p>
     </div>
-    <form method="POST" action="/sessions/revoke-others">
-      <button type="submit" class="btn btn-outline-light btn-sm">Sign out everywhere else</button>
-    </form>
+    {{ if gt (len .Sessions) 1 }}<div class="o-acts">
+      <form method="POST" action="/sessions/revoke-others" data-confirm="Sign out every other browser?"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Sign out everywhere else</button></form>
+    </div>{{ end }}
   </div>
 
   {{ template "alerts" . }}
 
-  <div class="panel">
-    {{ range .Sessions }}
-    <div class="session">
-      <span class="session-dot {{ if .Current }}is-current{{ end }}" aria-hidden="true"></span>
-      <div class="session-main">
-        <div class="session-where">
-          {{ if .City }}{{ .City }}, {{ end }}{{ if .Country }}{{ .Country }}{{ else }}Unknown location{{ end }}
-          {{ if .Current }}<span class="tag">this device</span>{{ end }}
-        </div>
-        <div class="session-meta">{{ browser .UA }} · {{ .IP }} · started {{ when .Created }} · seen {{ ago .LastSeen }}</div>
-      </div>
-      <form method="POST" action="/sessions/revoke">
-        <input type="hidden" name="id" value="{{ .ID }}">
-        <button type="submit" class="btn btn-sm btn-outline-light">Revoke</button>
-      </form>
+  <section class="o-panel flush">
+    {{ if .Sessions }}
+    <div class="o-scroll">
+    <table class="o-tbl stack">
+      <thead><tr><th>Browser</th><th>Where</th><th>Address</th><th>Started</th><th>Last seen</th><th></th></tr></thead>
+      <tbody>
+      {{ range .Sessions }}
+        <tr>
+          <td class="lead"><span class="o-dot {{ if not .Current }}mute{{ end }}"></span>{{ browser .UA }}{{ if .Current }} <span class="o-chip brass">this browser</span>{{ end }}</td>
+          <td>{{ if .City }}{{ .City }}, {{ end }}{{ if .Country }}{{ .Country }}{{ else }}<span class="o-muted">unknown</span>{{ end }}</td>
+          <td class="n o-muted">{{ .IP }}</td>
+          <td class="n o-muted" title="{{ when .Created }}">{{ ago .Created }}</td>
+          <td class="n">{{ ago .LastSeen }}</td>
+          <td class="act">
+            <form method="POST" action="/sessions/revoke" {{ if .Current }}data-confirm="This signs you out here. Carry on?"{{ end }}>
+              <input type="hidden" name="id" value="{{ .ID }}">
+              <button type="submit" class="o-btn o-btn-sm o-btn-bad">{{ if .Current }}Sign out{{ else }}Revoke{{ end }}</button>
+            </form>
+          </td>
+        </tr>
+      {{ end }}
+      </tbody>
+    </table>
     </div>
     {{ else }}
-    <p class="auth-hint mt-0 mb-0">No live sessions.</p>
+    <p class="o-empty"><b>No live sessions.</b></p>
     {{ end }}
-  </div>
-
-  <p class="auth-hint">Every site checks this list on each request, so revoking one takes effect
-    everywhere at once rather than when a signed cookie happens to expire.</p>
-</div>
+  </section>
+</main>
 {{ end }}

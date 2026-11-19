@@ -14,7 +14,7 @@ haven't moved to the suite yet, and they go as each one does.
 
 ## The suite
 
-This is where the tool sites are headed, and cron and llm are on it.
+This is where the tool sites are headed, and cron, llm and auth are on it.
 
 - **Dark only, on cool charcoal.** Ground `#111315`, top bar `#0c0e10`, sunken
   `#090a0c`, panels `#171a1d` and `#1f2327`, lines `#262a2f`, `#1c1f23` and
@@ -70,8 +70,8 @@ grid drawn in CSS, and no bitmap textures anywhere.
 
 ## The palette
 
-`analytics`, `auth`, `logging` and `status` keep this in
-`frontend/static_src/base/styles/_variables.scss`, and those four files are
+`analytics`, `logging` and `status` keep this in
+`frontend/static_src/base/styles/_variables.scss`, and those files are
 **byte identical**. `repos` has no Sass variables file, so it carries the same
 values as custom properties at the top of its `base.scss` and has to be edited
 alongside them.
@@ -1149,7 +1149,7 @@ version of the old look and a handheld pet shell.
 | `analytics` | green | Bootstrap. Home, docs, dashboards. Four stat tiles |
 | `status` | green | Bootstrap. No docs page yet, which is the one gap in the family |
 | `logging` | green | Bootstrap. Dashboards run full width inside the container |
-| `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
+| `auth` | suite | On the suite, with no Bootstrap left. The home page signs you in from the hero, and the starfield is gone |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
 | `llm` | suite | On the suite. Overview, calls and keys, and the home page says whether Claude or the card is answering |
 | `cron` | suite | On the suite. Jobs, runs, a job form and keys, with `app.css` holding only what is cron's own |

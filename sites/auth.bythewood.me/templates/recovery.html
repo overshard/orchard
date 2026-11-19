@@ -1,20 +1,22 @@
 {{ define "form" }}
-<div class="auth-eyebrow">bythewood.me</div>
-<h1 class="auth-title">{{ .Title }}</h1>
+<span class="o-lab">sign in &middot; recovery</span>
+<h1>Use a recovery code</h1>
+<p class="o-muted">For the day the phone or ntfy isn't there. Each code works once.</p>
 
 {{ template "alerts" . }}
 
-<form method="POST" action="/recovery">
+<form method="POST" action="/recovery" class="signin-form">
   <input type="hidden" name="next" value="{{ .Next }}">
-  <div class="form-floating">
-    <input type="text" class="form-control" name="code" id="id_recovery"
+  <label class="o-field">
+    <span>Recovery code</span>
+    <input type="text" class="mono" name="code" id="id_recovery"
            placeholder="xxxx-xxxx-xxxx" required autofocus
            autocomplete="off" autocapitalize="none" spellcheck="false">
-    <label for="id_recovery">Recovery code</label>
-  </div>
-  <div class="auth-actions">
-    <button type="submit" class="btn btn-primary">Sign in →</button>
-    <a href="/login?next={{ .Next | urlquery }}" class="small link-footer">Back</a>
+  </label>
+  <div class="o-formbar">
+    <button type="submit" class="o-btn o-btn-p">Sign in &rarr;</button>
+    <span class="o-sp"></span>
+    <a href="/login?next={{ .Next | urlquery }}" class="o-muted small">Back to the code</a>
   </div>
 </form>
 {{ end }}

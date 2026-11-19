@@ -1,8 +1,8 @@
 {{ define "form" }}
-<div class="auth-eyebrow">error</div>
-<h1 class="auth-title">{{ .Title }}</h1>
+<span class="o-lab o-bad">error</span>
+<h1>{{ .Title }}</h1>
 {{ template "alerts" . }}
-<a href="/" class="btn btn-primary">Start again →</a>
+<div class="o-formbar"><a href="/" class="o-btn o-btn-p">Start again &rarr;</a></div>
 {{ end }}
 
 {{ define "main" }}{{ template "authShell" . }}{{ end }}

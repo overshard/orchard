@@ -1,11 +1,10 @@
 {{ define "form" }}
-<div class="auth-eyebrow">not set up</div>
-<h1 class="auth-title">{{ .Title }}</h1>
+<span class="o-lab o-warn">not set up</span>
+<h1>{{ .Title }}</h1>
 {{/* Creating the account over HTTP would let whoever found the hostname first
      claim it, so it is a command on the machine instead. */}}
-<p class="auth-hint mt-0 mb-3">There is no account yet. On the machine:</p>
-<div class="code-chip">make auth-init</div>
-<p class="auth-hint">That prints the recovery codes the first sign in uses.</p>
+<p class="o-muted">There's no account yet. On the machine, run this, and it prints the recovery codes the first sign in uses.</p>
+<pre class="o-code"><span class="a">make</span> auth-init</pre>
 {{ end }}
 
 {{ define "main" }}{{ template "authShell" . }}{{ end }}

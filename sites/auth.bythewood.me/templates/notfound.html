@@ -1,8 +1,9 @@
 {{ define "form" }}
 <canvas class="pond-lost" width="216" height="180" aria-hidden="true" data-pond-lost></canvas>
-<div class="auth-eyebrow">404</div>
-<h1 class="auth-title">Nothing here</h1>
-<a href="/" class="btn btn-primary">Back →</a>
+<span class="o-lab">404 &middot; not found</span>
+<h1>No such page</h1>
+<p class="o-muted">That page doesn't exist. This frog took the same wrong turn and is still looking around.</p>
+<div class="o-formbar"><a href="/" class="o-btn">&larr; Home</a></div>
 {{ end }}
 
 {{ define "main" }}{{ template "authShell" . }}{{ end }}

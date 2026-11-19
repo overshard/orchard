@@ -1,7 +1,93 @@
-{{ define "form" }}
-<div class="auth-eyebrow">bythewood.me</div>
-<h1 class="auth-title">Sign in</h1>
-<a href="/login" class="btn btn-primary">Continue →</a>
+{{ define "main" }}
+<main>
+<div class="o-cw">
+  <section class="o-wrap o-hero">
+    <div>
+      <span class="o-lab">auth &middot; ntfy &middot; self-hosted</span>
+      <h1>One sign in for <em>every tool</em>.</h1>
+      <p class="o-lede">Type the username and a six digit code lands on the phone through your own ntfy. It works once, for ten minutes, in the browser that asked for it. Recovery codes cover the day ntfy is down.</p>
+      <form method="POST" action="/login" class="hero-signin">
+        <label class="o-field">
+          <span>Username</span>
+          <input type="text" name="username" required autocomplete="username" autocapitalize="none" spellcheck="false">
+        </label>
+        <button type="submit" class="o-btn o-btn-p">Send a code &rarr;</button>
+      </form>
+    </div>
+    <div class="o-win" aria-label="A staged picture of the code step">
+      <div class="o-win-bar"><i></i><i></i><i></i><span class="u">auth.bythewood.me/code</span><span class="o-staged">STAGED</span></div>
+      <div class="o-win-body">
+        <span class="o-lab">sign in &middot; step 2 of 2</span>
+        <div class="t" data-co>Check your phone.</div>
+        <div class="otp staged" data-co><span>4</span><span>1</span><span>9</span><span class="on"></span><span></span><span></span></div>
+        <div class="o-push" data-co><div class="h"><span>ntfy &middot; auth</span><span>now</span></div><b>Your sign in code is 419 302</b><span class="o-muted">Asked for from a new browser in the US</span></div>
+      </div>
+    </div>
+  </section>
+  <div class="o-wrap o-legend">
+    <div><span class="o-pin">1</span><span>One question a step, the username first and then the code.</span></div>
+    <div><span class="o-pin">2</span><span>Six boxes that take a paste or the phone's autofill, and send themselves when full.</span></div>
+    <div><span class="o-pin">3</span><span>The push says where the request came from, so a stranger asking stands out.</span></div>
+  </div>
+  <div class="o-ov"></div>
+</div>
+
+<div class="o-wrap">
+<section class="o-hsec">
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">bounded</span>
+      <h3>Built for a username that's public</h3>
+      <p>One code is outstanding at a time and no more than five pushes go out an hour, wherever the requests come from, so a flood lands as one quiet notification.</p>
+      <ul><li>Five wrong tries burn the code</li><li>Codes are hashed with Argon2id</li></ul>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-ev"><span class="t">06:14</span><span class="x"><b>Signed in</b><span>Firefox, US</span></span></div>
+      <div class="o-ev"><span class="t">06:14</span><span class="x"><b>Code sent</b><span>new browser, US</span></span></div>
+      <div class="o-ev"><span class="t">02:51</span><span class="x"><b class="o-warn">Code refused</b><span>one was already outstanding</span></span></div>
+      <div class="o-ev"><span class="t">02:51</span><span class="x"><b class="o-bad">Request blocked</b><span>from outside the US</span></span></div>
+    </div>
+  </div>
+  <div class="o-frow flip">
+    <div class="o-ftxt">
+      <span class="o-lab">sessions</span>
+      <h3>Signed out everywhere at once</h3>
+      <p>The cookie is opaque and every tool asks about it on every request, so revoking a browser here works on the next click and doesn't wait for anything to expire.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-rw"><span class="o-dot"></span><span class="n">Firefox &middot; US</span><span class="o-chip brass">this browser</span></div>
+      <div class="o-rw"><span class="o-dot mute"></span><span class="n">Safari &middot; US</span><span class="m">2h ago</span></div>
+      <div class="o-rw"><span class="o-dot mute"></span><span class="n">Chrome &middot; US</span><span class="m">5d ago</span></div>
+    </div>
+  </div>
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">break glass</span>
+      <h3>Ten recovery codes, no password</h3>
+      <p>ntfy runs behind the same tunnel as the tools it guards, so the way in when it's down is a code written down ahead of time, one use each.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="codes staged"><span>7kq2-h8fd-3xwm</span><span>p4rt-9cbn-2ezv</span><span>m6ya-q3jw-8tkd</span><span>c9nf-4hxr-6pqb</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="o-hsec">
+  <div class="o-run">
+    <div class="o-hh"><span class="o-lab">run your own</span><h2 class="o-big">One Go binary and one SQLite file</h2><p>Part of orchard, BSD 2-Clause. The account is made on the machine, never over the web, so nobody who finds the hostname first can claim it.</p></div>
+    <pre class="o-code"><span class="a">make</span> run SITE=auth.bythewood.me
+<span class="a">make</span> auth-init
+<span class="c"># prints the first recovery codes</span></pre>
+  </div>
+</section>
+</div>
+</main>
 {{ end }}
 
-{{ define "main" }}{{ template "authShell" . }}{{ end }}
+{{ define "footer" }}
+{{ template "suite-footer" .Footer }}
+{{ template "suite-status" .Suite }}
+{{ end }}
