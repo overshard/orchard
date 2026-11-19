@@ -88,6 +88,7 @@ type Dashboard struct {
 	CustomEvents []CustomEventDescriptor
 
 	Graph                 []GraphPoint
+	GraphStep             string
 	ByScreenSize          []LabelCount
 	ByDevice              []LabelCount
 	ByBrowser             []LabelCount
@@ -174,7 +175,11 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	var rangeDays int64
 	switch v := q.Get("date_range"); v {
 	case "", "custom":
-		rangeDays = max64((endMS-startMS)/dayMS, 1)
+		// Counted in calendar days, since a window across a DST change is an
+		// hour longer or shorter than its days.
+		a, _ := time.Parse("2006-01-02", dateStart)
+		b, _ := time.Parse("2006-01-02", dateEnd)
+		rangeDays = max64(int64(b.Sub(a).Hours()/24), 1)
 	default:
 		n, err := strconv.ParseInt(v, 10, 64)
 		if err != nil || n < 1 {
@@ -194,8 +199,9 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		startMS = endMS - maxRangeDays*dayMS
 	}
 
-	prevStartMS := startMS - rangeDays*dayMS
-	prevEndMS := endMS - rangeDays*dayMS
+	// The period before is the same span of time ending where this one starts.
+	prevEndMS := startMS - 1
+	prevStartMS := prevEndMS - (endMS - startMS)
 	filterURL := q.Get("filter_url")
 
 	// Anchor the graph to the requested end date, stepping back from today
@@ -219,6 +225,17 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	d.CustomEvents = customEvents
 
 	d.Graph = eventsGraph(ctx, s.db, p.ID, startMS, endMS, filterURL, graphEnd, rangeDays)
+	d.GraphStep = graphStep(rangeDays)
+	series := eventSeries(ctx, s.db, p.ID, startMS, endMS, filterURL, graphEnd, rangeDays)
+	for i, c := range d.EventCards {
+		if c.Event == "" {
+			continue
+		}
+		d.EventCards[i].Series = series[c.Event]
+		if d.EventCards[i].Series == nil {
+			d.EventCards[i].Series = make([]float64, len(series["*"]))
+		}
+	}
 	d.ByScreenSize = eventsByScreenSize(ctx, s.db, p.ID, startMS, endMS, filterURL, 7)
 	d.ByDevice = eventsByDevice(ctx, s.db, p.ID, startMS, endMS, filterURL, 7)
 	d.ByBrowser = eventsByBrowser(ctx, s.db, p.ID, startMS, endMS, filterURL, 7)
