@@ -19,6 +19,19 @@ func TestSpark(t *testing.T) {
 	}
 }
 
+func TestSparkT(t *testing.T) {
+	got := string(SparkT("ok", []float64{1, 2.5, 3}, []string{"a", `b"<`, "c"}))
+	if !strings.Contains(got, `data-v="1,2.5,3"`) {
+		t.Errorf("values missing from %s", got)
+	}
+	if !strings.Contains(got, `data-l="[&#34;a&#34;,&#34;b\&#34;\u003c&#34;,&#34;c&#34;]"`) {
+		t.Errorf("labels not escaped in %s", got)
+	}
+	if strings.Contains(string(SparkT("ok", []float64{1, 2}, []string{"a"})), "data-l") {
+		t.Error("labels that don't line up with the values were kept")
+	}
+}
+
 func TestHandler(t *testing.T) {
 	for path, want := range map[string]int{URL("suite.css"): 200, "/suite/geist.woff2": 200, "/suite/nope.css": 404, "/suite/": 404} {
 		w := httptest.NewRecorder()

@@ -7,11 +7,13 @@ import (
 	"crypto/sha256"
 	"embed"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -73,6 +75,7 @@ func Funcs() template.FuncMap {
 	return template.FuncMap{
 		"suiteURL": URL,
 		"spark":    Spark,
+		"sparkT":   SparkT,
 		"tools":    func() []Tool { return Tools },
 	}
 }
@@ -163,6 +166,25 @@ func (p Page) Mode() string { return strings.ToUpper(p.Tool) }
 // floor and a dotted rule at the median, stretched to whatever box holds it.
 // Kind is ok, warn, bad or flat and only picks the colour.
 func Spark(kind string, vals []float64) template.HTML {
+	return spark(kind, vals, "")
+}
+
+// SparkT is Spark carrying its values and a label per point, so suite.js can
+// move a crosshair across a row of tiles. Labels can be nil.
+func SparkT(kind string, vals []float64, labels []string) template.HTML {
+	nums := make([]string, len(vals))
+	for i, v := range vals {
+		nums[i] = strconv.FormatFloat(v, 'g', 6, 64)
+	}
+	data := ` data-v="` + strings.Join(nums, ",") + `"`
+	if len(labels) == len(vals) {
+		b, _ := json.Marshal(labels)
+		data += ` data-l="` + template.HTMLEscapeString(string(b)) + `"`
+	}
+	return spark(kind, vals, data)
+}
+
+func spark(kind string, vals []float64, data string) template.HTML {
 	if len(vals) < 2 {
 		return ""
 	}
@@ -185,7 +207,7 @@ func Spark(kind string, vals []float64) template.HTML {
 		fmt.Fprintf(&line, "%s%.2f,%.2f ", cmd, x(i), y(v))
 	}
 	d := strings.TrimSpace(line.String())
-	return template.HTML(fmt.Sprintf(`<svg class="o-spark" data-k="%s" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">`+
+	return template.HTML(fmt.Sprintf(`<svg class="o-spark" data-k="%s"%s viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">`+
 		`<path class="a" d="%s L100,32 L0,32 Z"/><line class="b" x1="0" x2="100" y1="%.2f" y2="%.2f"/><path class="l" d="%s"/></svg>`,
-		template.HTMLEscapeString(kind), d, y(base), y(base), d))
+		template.HTMLEscapeString(kind), data, d, y(base), y(base), d))
 }
