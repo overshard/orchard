@@ -37,6 +37,9 @@ const (
 	cfAPI      = "https://api.cloudflare.com/client/v4"
 )
 
+// certs runs in its own container, orchard-dns-acme, the only one holding the
+// Cloudflare token, and it has no port open. The site reads what it left in
+// the shared tls volume.
 type certs struct {
 	dir     string
 	acctKey string
@@ -45,27 +48,33 @@ type certs struct {
 
 	mu       sync.Mutex
 	notAfter time.Time
-	last     string
-	lastAt   time.Time
 }
 
-func newCerts(dir, dataDir, token string) *certs {
-	c := &certs{dir: dir, acctKey: filepath.Join(dataDir, "acme-account.pem"), token: token, http: &http.Client{Timeout: 30 * time.Second}}
+type certNote struct {
+	Note string    `json:"note"`
+	At   time.Time `json:"at"`
+}
+
+func newCerts(dir, acmeDir, token string) *certs {
+	c := &certs{dir: dir, acctKey: filepath.Join(acmeDir, "acme-account.pem"), token: token, http: &http.Client{Timeout: 30 * time.Second}}
 	c.notAfter = c.readNotAfter()
 	return c
 }
 
 // State is what the pages say about the certificate.
 func (c *certs) State() (notAfter time.Time, note string, at time.Time) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.notAfter, c.last, c.lastAt
+	var n certNote
+	if b, err := os.ReadFile(filepath.Join(c.dir, "state.json")); err == nil {
+		_ = json.Unmarshal(b, &n)
+	}
+	return c.readNotAfter(), n.Note, n.At
 }
 
 func (c *certs) note(s string) {
-	c.mu.Lock()
-	c.last, c.lastAt = s, time.Now()
-	c.mu.Unlock()
+	b, _ := json.Marshal(certNote{Note: s, At: time.Now()})
+	if err := writeAtomic(filepath.Join(c.dir, "state.json"), b, 0o644); err != nil {
+		slog.Warn("writing the certificate note", slog.Any("err", err))
+	}
 }
 
 func (c *certs) readNotAfter() time.Time {
@@ -85,18 +94,26 @@ func (c *certs) readNotAfter() time.Time {
 }
 
 // keep runs once a day and renews when the certificate is missing or inside
-// renewAhead of running out.
+// renewAhead of running out. A failure tries again sooner, so a Cloudflare or
+// Let's Encrypt hiccup on a fresh volume isn't a day without DoT.
 func (c *certs) keep() {
+	backoff := []time.Duration{15 * time.Minute, time.Hour, 6 * time.Hour}
+	fails := 0
 	for {
-		c.once()
-		time.Sleep(24 * time.Hour)
+		if c.once() {
+			fails = 0
+			time.Sleep(24 * time.Hour)
+			continue
+		}
+		time.Sleep(backoff[min(fails, len(backoff)-1)])
+		fails++
 	}
 }
 
-func (c *certs) once() {
+func (c *certs) once() bool {
 	if c.token == "" {
 		c.note("waiting for CLOUDFLARE_TOKEN in .env")
-		return
+		return false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -109,18 +126,19 @@ func (c *certs) once() {
 	c.mu.Unlock()
 	if time.Until(na) > renewAhead {
 		c.note("valid, nothing to do")
-		return
+		return true
 	}
 	if err := c.issue(ctx); err != nil {
 		c.note("renewal failed: " + err.Error())
 		slog.Error("dot certificate", slog.Any("err", err))
-		return
+		return false
 	}
 	c.mu.Lock()
 	c.notAfter = c.readNotAfter()
 	c.mu.Unlock()
 	c.note("issued")
 	slog.Info("dot certificate issued", slog.Time("not_after", c.readNotAfter()))
+	return true
 }
 
 func (c *certs) account() (crypto.Signer, error) {

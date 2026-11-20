@@ -64,6 +64,7 @@ func main() {
 
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	dot := flag.Bool("dot", false, "run the DNS over TLS front instead of the site")
+	acmeMode := flag.Bool("acme", false, "keep the DoT certificate instead of running the site")
 	flag.Parse()
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
@@ -77,6 +78,10 @@ func main() {
 	defer shipper.Close()
 
 	tlsDir := env("DNS_TLS", "data/tls")
+	if *acmeMode {
+		runACME(tlsDir, env("DNS_ACME", "data/acme"))
+		return
+	}
 	if *dot {
 		if err := runFront(tlsDir); err != nil {
 			slog.Error("dot front stopped", slog.Any("err", err))
@@ -99,6 +104,7 @@ func main() {
 		os.Exit(1)
 	}
 	s.lists.load()
+	go s.res.watchUpstream()
 	go s.log.run(s.noteSeen)
 	go func() {
 		for {
@@ -117,7 +123,6 @@ func main() {
 			time.Sleep(time.Hour)
 		}
 	}()
-	go s.certs.keep()
 
 	slog.Info(fmt.Sprintf("%s serving %s", selfSource, baseURL))
 	if err := web.Serve(listenAddr, s.handler()); err != nil {
@@ -134,14 +139,11 @@ func newSite(store *Store, dataDir, tlsDir string, auth *web.Authenticator) (*si
 	if tpl, err = suite.Parse(tpl); err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(tlsDir, 0o755); err != nil {
-		return nil, err
-	}
 	lg := newLogger(store)
 	l := newLister(dataDir+"/lists", store)
 	s := &site{tpl: tpl, store: store, lists: l, log: lg, auth: auth,
 		res:   newResolver(l, env("DNS_UPSTREAM", upstreamAddr), lg),
-		certs: newCerts(tlsDir, dataDir, os.Getenv("CLOUDFLARE_TOKEN")),
+		certs: newCerts(tlsDir, "", ""),
 		seen:  map[int64]Lookup{},
 	}
 	if err := s.reload(); err != nil {
@@ -209,7 +211,7 @@ func (s *site) handler() http.Handler {
 	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
 	mux.Handle("GET /suite/", suite.Handler())
 	mux.HandleFunc("GET /robots.txt", robots)
-	mux.HandleFunc("GET /healthz", healthz)
+	mux.HandleFunc("GET /healthz", s.healthz)
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)
 	})
@@ -250,6 +252,38 @@ func (s *site) render(w http.ResponseWriter, code int, name string, data map[str
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
+}
+
+// healthz is the app's own state, the database answering and a table built.
+// unbound being down isn't here, since the fallback still answers.
+func (s *site) healthz(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := s.store.db.PingContext(ctx); err != nil {
+		plainNoStore(w, http.StatusServiceUnavailable, "database: "+err.Error())
+		return
+	}
+	if s.lists.tab.Load() == nil {
+		plainNoStore(w, http.StatusServiceUnavailable, "no blocklist table yet")
+		return
+	}
+	healthz(w, r)
+}
+
+// runACME keeps the certificate and serves only its own health check.
+func runACME(tlsDir, acmeDir string) {
+	for _, d := range []string{tlsDir, acmeDir} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			slog.Error("acme startup failed", slog.Any("err", err))
+			os.Exit(1)
+		}
+	}
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("GET /healthz", healthz)
+		_ = http.ListenAndServe("127.0.0.1:8000", mux)
+	}()
+	newCerts(tlsDir, acmeDir, os.Getenv("CLOUDFLARE_TOKEN")).keep()
 }
 
 func healthz(w http.ResponseWriter, r *http.Request) {

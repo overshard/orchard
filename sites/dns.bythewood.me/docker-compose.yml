@@ -2,7 +2,8 @@ name: orchard-dns
 
 # The site and DoH are reached through Caddy like every other site. The DoT
 # front is the one container here with a published port, 853 on IPv4, and it
-# holds only the certificate, read only.
+# holds only the certificate, read only. acme alone holds the Cloudflare token
+# and listens on nothing, and unbound sits on its own network with the app.
 
 services:
   app:
@@ -15,13 +16,13 @@ services:
     environment:
       DNS_DATA: /data
       DNS_TLS: /tls
-      CLOUDFLARE_TOKEN: ${CLOUDFLARE_TOKEN:-}
+      DNS_BRIDGE_PASSWORD: ${DNS_BRIDGE_PASSWORD:?run make env}
     volumes:
       - data:/data
-      - tls:/tls
+      - tls:/tls:ro
     depends_on:
       unbound:
-        condition: service_started
+        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -44,7 +45,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    networks: [edge]
+    networks: [edge, inner]
 
   dot:
     build:
@@ -56,6 +57,7 @@ services:
     stop_grace_period: 30s
     environment:
       DNS_TLS: /tls
+      DNS_BRIDGE_PASSWORD: ${DNS_BRIDGE_PASSWORD:?run make env}
     ports:
       - "0.0.0.0:853:8853/tcp"
     volumes:
@@ -72,6 +74,45 @@ services:
     healthcheck:
       test: ["CMD", "/app", "-healthcheck"]
       interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs: [/tmp]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge]
+
+  acme:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchard-dns-acme
+    command: ["-acme"]
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      DNS_TLS: /tls
+      DNS_ACME: /acme
+      CLOUDFLARE_TOKEN: ${CLOUDFLARE_TOKEN:-}
+    volumes:
+      - tls:/tls
+      - acme:/acme
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 48M
+          pids: 32
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 60s
       timeout: 5s
       retries: 3
       start_period: 10s
@@ -112,15 +153,24 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    networks: [edge]
+    networks: [inner]
 
 volumes:
   data:
     name: orchard-dns-data
   tls:
     name: orchard-dns-tls
+  acme:
+    name: orchard-dns-acme
 
+# unbound's access-control names this subnet, so it's fixed, and kept off
+# Docker's 172.17-31 pools and wireguard's 10.77.
 networks:
   edge:
     name: orchard-edge
     external: true
+  inner:
+    name: orchard-dns-inner
+    ipam:
+      config:
+        - subnet: 10.53.53.0/24

@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /app .
 
-RUN mkdir -p /seed-data /seed-tls
+RUN mkdir -p /seed-data /seed-tls /seed-acme
 
 FROM scratch
 COPY --from=build /app /app
@@ -19,8 +19,9 @@ EXPOSE 8000 8853
 # 65532 without a chown.
 COPY --from=build --chown=65532:65532 /seed-data /data
 COPY --from=build --chown=65532:65532 /seed-tls /tls
+COPY --from=build --chown=65532:65532 /seed-acme /acme
 USER 65532:65532
-VOLUME ["/data", "/tls"]
+VOLUME ["/data", "/tls", "/acme"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["/app", "-healthcheck"]
 ENV SHIP_LOGS=1
