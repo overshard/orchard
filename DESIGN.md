@@ -644,6 +644,19 @@ below live as tokens at the top of `frontend/src/index.css`.
   raft run a whirlpool turns in the river ahead, pale rings round a dark eye,
   and drags the leaf in. Its eye is a bump and getting past inside its rings
   says SPUN for 3.
+- **Raft run steers itself.** The frog rides its leaf down the river and
+  paddles round most rocks and through most weirs on its own, with a little
+  brown paddle out on the side it's turning to. A held finger or an arrow key
+  takes over at once and lights the leaf's rim lamp yellow, with a lamp mark
+  on the water where the finger is, and letting go hands it back. The frog
+  steers slower than a finger, so taking over pays. Pale streaks ride the
+  current, quicker down the middle than along the darker water at the banks,
+  and a few dashes curl behind each rock where its eddy slows the leaf.
+  Fireflies drift past in rows and each one caught climbs a pentatonic note
+  and rings the leaf in lamp dots for a moment, and pale shells bob across.
+  Banks, weirs and glancing rocks are still bumps, three and it's over, but a
+  rock hit head on tips the leaf, which flips to its pale underside while the
+  frog goes in with rings on the water.
 - **Pebble drop is a shower.** Ten pebbles go as fast as the thumb lets go,
   a little apart, so several bounce down through the reeds at once, and the
   pegs sit a little differently each day. Each pebble climbs its own stretch
