@@ -288,6 +288,17 @@ func (s *site) activity(w http.ResponseWriter, r *http.Request, l live) {
 		s.fail(w, r, "reading the activity log", err)
 		return
 	}
+	if r.URL.Query().Get("format") == "json" {
+		st := activityStats(s.db, time.Now(), events)
+		sessions, _ := listSessions(s.db, l.Hash)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"events":   events,
+			"sessions": sessions,
+			"stats":    map[string]int{"sign_ins": st.SignIns, "codes": st.Codes, "refused": st.Refused, "places": st.Places},
+		})
+		return
+	}
 	data := s.page(r, "Activity", "Every authentication event, newest first.")
 	data.Events = events
 	data.Stats = activityStats(s.db, time.Now(), events)
