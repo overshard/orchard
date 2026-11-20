@@ -135,7 +135,11 @@ func main() {
 	}
 	defer db.Close()
 	go sweepHourly(db)
-	go db.day.poll(context.Background())
+	go db.day.poll(context.Background(), func() {
+		if err := db.keepRain(); err != nil {
+			slog.Error("rain", slog.Any("err", err))
+		}
+	})
 	go windEvery(db)
 	loadTales(filepath.Dir(path))
 	llmURL := os.Getenv("LLM_URL")

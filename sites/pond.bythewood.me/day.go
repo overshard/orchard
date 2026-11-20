@@ -221,7 +221,8 @@ type almanac struct {
 	pinned atomic.Bool
 }
 
-func (a *almanac) poll(ctx context.Context) {
+// poll calls polled after every go, pinned or not, so a dev day is kept too.
+func (a *almanac) poll(ctx context.Context, polled func()) {
 	client := &http.Client{Timeout: 8 * time.Second}
 	for {
 		if !a.pinned.Load() {
@@ -229,6 +230,7 @@ func (a *almanac) poll(ctx context.Context) {
 				slog.Info("the real day", slog.Any("err", err))
 			}
 		}
+		polled()
 		select {
 		case <-ctx.Done():
 			return
@@ -314,9 +316,7 @@ func dayOfReading(r *reading, now time.Time) dayView {
 	if ok1 && ok2 {
 		v.Night = now.Before(rise) || !now.Before(set)
 	}
-	cond := strings.ToLower(r.Cond)
-	v.Rain = r.Rain >= 60 || strings.Contains(cond, "rain") || strings.Contains(cond, "shower") ||
-		strings.Contains(cond, "drizzle") || strings.Contains(cond, "thunder")
+	v.Rain = wetOf(r) > 0
 	v.Cold = r.HasTemp && r.Temp < coldBelow
 
 	if r.HasTemp {

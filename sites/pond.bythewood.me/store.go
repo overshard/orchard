@@ -416,6 +416,11 @@ CREATE TABLE IF NOT EXISTS aims (
     aim     TEXT NOT NULL,
     PRIMARY KEY (pond_id, day, aim)
 ) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS rain (
+    slot INTEGER PRIMARY KEY,
+    wet  INTEGER NOT NULL
+);
 `
 
 // Columns added since the first deploy. CREATE TABLE IF NOT EXISTS leaves a
@@ -866,6 +871,9 @@ func (s *store) sweep() (int64, error) {
 		}
 		// What was bought only counts against today's stock.
 		if _, err = tx.Exec(`DELETE FROM bought WHERE day < ?`, dayOf(s.now().AddDate(0, 0, -2))); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`DELETE FROM rain WHERE slot < ?`, rainSlot(s.now().AddDate(0, 0, -rainKept))); err != nil {
 			return err
 		}
 		return keepRefs(tx)

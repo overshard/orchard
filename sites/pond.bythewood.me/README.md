@@ -268,6 +268,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   turns the weather, the market, the VIX, Hacker News, the news and the health
   strip into what's on the water. It's the same day in every pond, and with
   dash down or a reading over three hours old it's an ordinary day.
+- `rain.go` keeps a month of the ten minute slots that rained in `rain`, 1
+  for drizzle, 2 for rain and 3 for thunder or a chance of 80 or more. Each
+  poll writes its slot once while the reading is fresh, and a pinned dev day
+  writes too.
 - `mood.go` boils that day down to one mood, which tints the water and picks
   the line after the greeting, plus what the frog is watching or playing, Old
   Clover's forecast for tomorrow and the fortune lily. No number from dash

@@ -616,6 +616,10 @@ func (s *site) apiDevClock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.store.skew.Add(int64(in.Hours * 3600))
+	if err := s.store.keepRain(); err != nil {
+		fail(w, r, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]int64{"skew": s.store.skew.Load()})
 }
 
@@ -633,6 +637,10 @@ func (s *site) apiDevDay(w http.ResponseWriter, r *http.Request) {
 		s.store.day.pinned.Store(true)
 		s.store.day.last.Store(in)
 		if err := s.store.lockMarket(); err != nil {
+			fail(w, r, err)
+			return
+		}
+		if err := s.store.keepRain(); err != nil {
 			fail(w, r, err)
 			return
 		}
