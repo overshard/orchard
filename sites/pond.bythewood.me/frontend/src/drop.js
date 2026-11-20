@@ -15,7 +15,7 @@ const GRAV = 420, R = 4, PEG = 3, BOUNCE = 0.4, GRIP = 0.75, STEP = 1 / 240, KIC
 // buds split SPLITS at most, so a round is never more than 13 landings.
 const LIT = 10, BRUSH = 11, FREE = 3, SPLITS = 3, PAD = RIM - 5, SLOW = 0.4;
 // A major pentatonic, and each pebble climbs its own stretch of it.
-const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31, 33];
+export const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31, 33];
 
 let G = null, col = null, spr = null, frogG = null, box = null;
 const F = feel();
