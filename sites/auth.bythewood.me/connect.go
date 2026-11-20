@@ -108,6 +108,7 @@ var connectorReads = []consentTool{
 	{"llm", "spend and calls"},
 	{"repos", "a repository's README"},
 	{"gate", "rules, traffic and what it refused, and proposing a rule"},
+	{"dns", "lookups, blocks and devices on the resolver"},
 	{"dash", "the briefs and advisories"},
 	{"auth", "the sign ins and sessions on the activity page"},
 }
