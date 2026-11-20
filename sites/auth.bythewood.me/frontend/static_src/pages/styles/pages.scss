@@ -104,11 +104,13 @@
 .tools {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-@media (max-width: 1200px) { .tools { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 900px) { .tools { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) {
+  .tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tools > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
 @media (max-width: 560px) { .tools { grid-template-columns: minmax(0, 1fr); } }
 
 .tool {
