@@ -13,7 +13,7 @@ import (
 
 var (
 	insightLine = regexp.MustCompile("^- \\[(\\w+)\\] \\[(\\w+)\\] (.*?)(?::\\s*`([^`]*)`)?$")
-	digits      = regexp.MustCompile(`\d+`)
+	digits      = regexp.MustCompile(`\b\d+\b`)
 )
 
 // groupInsights folds a status report's crawl issues into one line per rule
@@ -186,7 +186,7 @@ func dashBrief(ctx context.Context, rd reader, section string) (string, error) {
 	}
 	if want("advisories") {
 		a := st.Advisories
-		fmt.Fprintf(&b, "\n## Advisories, checked %s, next patch Tuesday %s\n\n", a.Checked, a.NextPatch)
+		fmt.Fprintf(&b, "\n## Advisories, checked %s, next patch day %s\n\n", a.Checked, a.NextPatch)
 		if a.Partial {
 			b.WriteString("Some sources didn't answer, so this list may be short.\n\n")
 		}

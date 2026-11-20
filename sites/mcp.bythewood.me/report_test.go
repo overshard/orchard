@@ -25,12 +25,14 @@ func TestGroupInsightsFoldsRepeatedRules(t *testing.T) {
 		"- [warning] [seo] Title length is 22 chars (recommended 30-60): `https://a/1`\n" +
 		"- [warning] [seo] Title length is 4 chars (recommended 30-60): `https://a/2`\n" +
 		"- [error] [links] Broken internal link (status 404): `https://a/3`\n" +
+		"- [warning] [seo] H1 length is 70 chars (recommended 20-60): `https://a/4`\n" +
 		"- [warning] [content] Thin content (271 words): `https://a/`\n\n## After\n\nkept\n"
 	out := groupInsights(in)
 	for _, want := range []string{
 		"- [error] [links] Broken internal link (status N), on 1 page, like `https://a/3`",
 		"- [warning] [seo] Title length is N chars (recommended N-N), on 2 pages, like `https://a/1`, `https://a/2`",
 		"## After\n\nkept",
+		"H1 length is N chars",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in\n%s", want, out)
