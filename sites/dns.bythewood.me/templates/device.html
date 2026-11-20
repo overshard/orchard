@@ -119,9 +119,11 @@
       </ol>
       <div class="cp"><code>{{$p.DoH}}</code><button type="button" class="o-btn o-btn-sm" data-copy="{{$p.DoH}}" aria-label="Copy the DoH template">Copy</button></div>
       {{if $p.IPs}}<div class="cp ips">{{range $p.IPs}}<code>{{.}}</code>{{end}}</div>
-      <p class="small o-muted">Or in an admin PowerShell, then pick the template in Settings as above:</p>
-      <pre class="o-code">{{range $p.IPs}}Add-DnsClientDohServerAddress -ServerAddress {{.}} -DohTemplate {{$p.DoH}} -AllowFallbackToUdp $False -AutoUpgrade $True
-{{end}}</pre>{{end}}
+      <p class="small o-muted">Or in an admin PowerShell, with <code>$a</code> set to the adapter's name from <code>Get-NetAdapter</code>. Settings then shows DNS over HTTPS as On (automatic template).</p>
+      <pre class="o-code">$a = 'Wi-Fi'
+{{range $p.IPs}}Add-DnsClientDohServerAddress -ServerAddress {{.}} -DohTemplate {{$p.DoH}} -AllowFallbackToUdp $False -AutoUpgrade $True
+{{end}}Set-DnsClientServerAddress -InterfaceAlias $a -ServerAddresses {{range $i, $ip := $p.IPs}}{{if $i}},{{end}}{{$ip}}{{end}}
+Clear-DnsClientCache</pre>{{end}}
       <p class="small o-muted">Those addresses are Cloudflare's, since DoH comes in through the tunnel. If Windows stops resolving one day, they changed, and this page shows the new ones.</p>
     </div>
 {{else if eq .W "linux"}}
