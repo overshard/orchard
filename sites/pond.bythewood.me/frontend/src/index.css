@@ -3483,6 +3483,15 @@ a.prow:active {
   color: var(--muted);
 }
 
+/* Undoes the bag's .ghost, which would shrink the key to a faint 36px square. */
+.cta.ghost {
+  width: auto;
+  height: auto;
+  margin: 0;
+  opacity: 1;
+  filter: none;
+}
+
 .pay {
   display: block;
   width: fit-content;
