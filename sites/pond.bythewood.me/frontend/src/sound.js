@@ -80,6 +80,7 @@ const SFX = {
   splash: () => { tone("sine", 900, 180, 0.14, 0.06); tone("triangle", 1500, 500, 0.08, 0.025); },
   puff: () => { tone("sine", 110, 320, 0.22, 0.1); tone("triangle", 600, 220, 0.18, 0.03); },
   pop: () => tone("square", 700, 1300, 0.05, 0.05),
+  flip: () => { tone("square", 240, 120, 0.035, 0.04); tone("triangle", 1400, 900, 0.02, 0.025); },
   perk: () => {
     tone("triangle", 660, 660, 0.07, 0.05);
     setTimeout(() => tone("triangle", 880, 880, 0.07, 0.05), 70);
