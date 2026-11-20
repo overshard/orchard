@@ -9,6 +9,7 @@ use (
 	./sites/cron.bythewood.me
 	./sites/dash.bythewood.me
 	./sites/gate.bythewood.me
+	./sites/dns.bythewood.me
 	./sites/isaacbythewood.com
 	./sites/llm.bythewood.me
 	./sites/logging.bythewood.me

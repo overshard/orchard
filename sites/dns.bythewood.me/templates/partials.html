@@ -1,0 +1,22 @@
+{{define "head"}}<!doctype html>
+<html lang="en">
+<head>
+{{template "suite-head"}}
+<meta name="robots" content="noindex, nofollow">
+<title>{{.Title}} &middot; dns</title>
+<link rel="stylesheet" href="{{asset "static/app.css"}}">
+<script src="https://analytics.bythewood.me/static/collector.js" data-collector-id="686c722e-089f-441c-acb0-5c197abbc86b" async></script>
+</head>
+<body class="o-body">
+{{template "suite-top" .Suite}}
+<main class="o-wrap o-main">
+{{end}}
+
+{{define "foot"}}
+</main>
+{{template "suite-foot" .Suite}}
+<script type="module" src="{{asset "static/guest.js"}}"></script>
+<script type="module" src="{{asset "static/app.js"}}"></script>
+</body>
+</html>
+{{end}}

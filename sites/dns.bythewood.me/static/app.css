@@ -1,0 +1,52 @@
+/* dns's own pieces. Everything else comes from /suite/suite.css. */
+
+.small { font-size: 0.8rem; }
+.side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.o-cols.even { grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); }
+.o-tbl td.mono { font-family: var(--o-mono); font-size: 0.74rem; }
+.o-tbl td.clip { max-width: 26rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.o-tbl tr.blk td:first-child { box-shadow: inset 2px 0 0 var(--o-bad); }
+.o-tbl tr.fl td:first-child { box-shadow: inset 2px 0 0 var(--o-warn); }
+.o-tbl tr.wait td { background: rgba(240, 107, 91, 0.05); }
+.o-hbar .k a { color: inherit; }
+form.inl { display: inline; }
+
+.o-seg.links { display: inline-flex; }
+.o-seg.links a { display: block; padding: 5px 11px; font: 500 0.74rem var(--o-mono); color: var(--o-muted); border-right: 1px solid var(--o-line-strong); white-space: nowrap; }
+.o-seg.links a:last-child { border-right: 0; }
+.o-seg.links a.on { background: var(--o-panel2); color: var(--o-text); box-shadow: inset 0 -2px 0 var(--o-brass); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.filters.lf { padding: 10px 14px; border-bottom: 1px solid var(--o-line-soft); }
+.srch .o-in { width: 16rem; max-width: 100%; }
+
+.drawer { padding: 4px 0; gap: 18px; }
+.drawer .pick form { display: grid; gap: 6px; margin-top: 6px; }
+.o-acts.col { flex-direction: column; align-items: flex-start; margin-top: 6px; }
+
+.dv { padding: 7px 14px; }
+.dv .n { color: var(--o-text); }
+.dv .v { width: 4rem; text-align: right; font-size: 0.74rem; }
+
+.ev { padding: 8px 14px; border-top: 1px solid var(--o-line-soft); }
+.ev .n { flex: 1; min-width: 0; }
+.ev .w { color: var(--o-muted); font-size: 0.7rem; white-space: nowrap; }
+
+.setup { display: grid; gap: 4px; }
+.setup .way { padding: 12px 0; border-top: 1px solid var(--o-line-soft); }
+.setup .way:first-of-type { border-top: 0; padding-top: 0; }
+.setup .way p { margin: 6px 0 8px; }
+.cp { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cp code { font: 0.82rem var(--o-mono); background: var(--o-sunk); border: 1px solid var(--o-line); padding: 6px 10px; overflow-wrap: anywhere; }
+.cp.ips { margin-top: 8px; }
+.cp.ips code { font-size: 0.74rem; padding: 4px 8px; color: var(--o-muted); }
+.setup pre.o-code { margin: 0; }
+.o-strip.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.o-formbar.danger { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--o-line-soft); }
+.o-formbar.danger form { display: inline; }
+.o-field .o-check { align-items: flex-start; }
+
+.crop-t { font-size: 1.15rem; font-weight: 600; letter-spacing: -0.03em; margin: 6px 0 10px; }
+.steps { margin: 0; padding-left: 1.1rem; display: grid; gap: 6px; font-size: 0.84rem; }
+h3.sub { font-size: 0.86rem; margin: 16px 0 6px; }
+.o-form.one { grid-template-columns: minmax(0, 1fr); }

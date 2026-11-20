@@ -1,0 +1,101 @@
+{{define "landing.html"}}<!doctype html>
+<html lang="en">
+<head>
+{{template "suite-head"}}
+<title>dns &middot; a private resolver for my own devices</title>
+<meta name="description" content="A private DNS resolver for my own devices, with blocklists for ads, trackers and malware, a token per device and a log of every lookup.">
+<link rel="stylesheet" href="{{asset "static/app.css"}}">
+<script src="https://analytics.bythewood.me/static/collector.js" data-collector-id="686c722e-089f-441c-acb0-5c197abbc86b" async></script>
+</head>
+<body class="o-body">
+{{template "suite-top" .Suite}}
+
+<main>
+<div class="o-cw">
+  <section class="o-wrap o-hero">
+    <div>
+      <span class="o-lab">dns &middot; resolver &middot; self-hosted</span>
+      <h1>Every lookup, <em>mine to see</em>.</h1>
+      <p class="o-lede">A DNS resolver for my own phone and computers, over DNS over TLS and DNS over HTTPS. Ads, trackers and malware are blocked from lists, every lookup is logged by the device that asked, and the rest is resolved by unbound with no other company in the middle.</p>
+      <div class="o-ctas">
+        <a class="o-btn o-btn-p" href="/login">Access dashboard &rarr;</a>
+        <a class="o-btn" href="/docs">Docs</a>
+        <a class="o-btn" href="{{.Source}}" target="_blank" rel="noopener">Source</a>
+      </div>
+    </div>
+    <div class="o-win" aria-label="A staged picture of the overview">
+      <div class="o-win-bar"><i></i><i></i><i></i><span class="u">dns.example.com</span><span class="o-staged">STAGED</span></div>
+      <div class="o-win-body">
+        <span class="o-lab">overview &middot; 24h</span>
+        <div class="t" data-co>4,812 lookups today, <em>391 blocked</em>.</div>
+        <div data-co>
+          <div class="o-rw"><span class="o-dot bad"></span><span class="n o-mono">ads.example.net</span><span class="m">phone &middot; pro</span><span class="o-chip">Allow</span></div>
+          <div class="o-rw"><span class="o-dot bad"></span><span class="n o-mono">metrics.example.com</span><span class="m">laptop &middot; winoffice</span><span class="o-chip">Allow</span></div>
+        </div>
+        <div data-co>
+          <div class="o-rw"><span class="o-dot ok"></span><span class="n o-mono">phone</span><span class="m">dot &middot; just now</span><span class="o-chip">2,904</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="o-wrap o-legend">
+    <div><span class="o-pin">1</span><span>The title counts today's lookups and what was blocked.</span></div>
+    <div><span class="o-pin">2</span><span>What was just blocked, with a button to let it through.</span></div>
+    <div><span class="o-pin">3</span><span>Each device, how it asks and how much.</span></div>
+  </div>
+  <div class="o-ov"></div>
+</div>
+
+<div class="o-wrap">
+{{template "suite-ways" .Ways}}
+
+<section class="o-hsec">
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">blocking</span>
+      <h3>Lists that cover the whole name</h3>
+      <p>A listed domain blocks everything under it, and so does a CNAME that points at one. A blocked address answers 0.0.0.0 so an app gives up at once, with the reason in an Extended DNS Error.</p>
+      <ul><li>hagezi Pro, Threat Intelligence and native trackers</li><li>Each device can skip a list</li></ul>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <span class="o-lab">check</span>
+      <div class="crop-t"><span class="o-mono">t.example.com</span> is <em>blocked</em>.</div>
+      <div class="o-mono small o-muted">pro lists example.com, which covers it</div>
+    </div>
+  </div>
+  <div class="o-frow flip">
+    <div class="o-ftxt">
+      <span class="o-lab">un-breaking</span>
+      <h3>Find what broke an app in seconds</h3>
+      <p>The log runs live and filters to one device and to what was blocked. Each row says which list did it and offers to allow the name or the domain above it.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-rw"><span class="o-dot bad"></span><span class="n o-mono">click.example.org</span><span class="m">pro</span><span class="o-chip ok">allow</span></div>
+      <div class="o-rw"><span class="o-dot bad"></span><span class="n o-mono">cdn.tracker.example</span><span class="m">tif</span><span class="o-chip ok">allow</span></div>
+    </div>
+  </div>
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">private</span>
+      <h3>Only for devices with a token</h3>
+      <p>Each device gets its own name for DNS over TLS and its own URL for DNS over HTTPS. Anything else is refused at the handshake, so it's never an open resolver.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <pre class="o-code">k3x9q2m7v4b8n5c6.dns.example.com</pre>
+      <div class="o-mono small o-muted">phone &middot; Private DNS</div>
+    </div>
+  </div>
+</section>
+
+{{template "suite-run" .Ways}}
+</div>
+</main>
+
+{{template "suite-footer" .Footer}}
+{{template "suite-status" .Suite}}
+<script type="module" src="{{asset "static/guest.js"}}"></script>
+</body>
+</html>{{end}}

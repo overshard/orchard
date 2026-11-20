@@ -1,0 +1,49 @@
+{{define "docs.html"}}{{template "head" (dict "Title" "Docs" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">dns &middot; docs</span>
+    <h1>A resolver for my devices, <em>and nobody else's</em>.</h1>
+    <p>How a lookup is answered, what's blocked, and what isn't.</p>
+  </div>
+</div>
+
+<div class="o-cols even">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>A lookup</h2><span class="o-lab">in this order</span></div>
+    <ul class="steps">
+      <li>The device asks over DNS over TLS on port 853 or DNS over HTTPS through the tunnel, with its token as the name or the path. No token, no answer.</li>
+      <li>My own domains are always answered, so nothing can lock me out of this page.</li>
+      <li>A rule of mine that allows the name or a domain above it wins. Then a rule that blocks it. Then each list the device hasn't turned off.</li>
+      <li>Anything left goes to unbound, which asks the root, the top level domain and the domain's own servers itself and checks DNSSEC.</li>
+      <li>A CNAME in the answer gets the same check, so a tracker behind a first party name is caught.</li>
+      <li>Every lookup is written to the log with the device, the result and why, and kept {{.KeepDays}} days.</li>
+    </ul>
+    <h3 class="sub">A blocked answer</h3>
+    <p class="small">0.0.0.0 for an IPv4 address and :: for IPv6, and nothing for any other type, so an app gives up at once instead of retrying. A client that speaks EDNS also gets an Extended DNS Error, code 15, with the list's key, which <code>dig</code> and <code>kdig</code> show.</p>
+    <h3 class="sub">Answered here</h3>
+    <p class="small"><code>use-application-dns.net</code> gets NXDOMAIN, which tells Firefox not to switch to its own DoH. Names under <code>check.dns.bythewood.me</code> are the setup page asking whether a browser uses this resolver.</p>
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>The lists</h2><span class="o-lab">refreshed twice a day</span></div>
+    <dl class="o-kv">
+      {{range .Lists}}<dt>{{.Key}}</dt><dd>{{.Name}}, {{.About}}</dd>{{end}}
+    </dl>
+    <p class="small o-muted">They come from hagezi's wildcard lists on jsDelivr. A refresh that shrinks a list by half or grows it threefold is refused and the copy on disk kept, so a bad build upstream can't empty one or block half the internet.</p>
+    <h3 class="sub">What DNS can't block</h3>
+    <ul class="steps">
+      <li>Ads from the same name as the content, like YouTube's and Instagram's.</li>
+      <li>Google's own Android reporting, which shares hosts with the Play Store and push notifications.</li>
+      <li>Anything inside a page, which is uBlock Origin's job.</li>
+    </ul>
+    <h3 class="sub">When something breaks</h3>
+    <p class="small">Open the log on the device's filter with blocked and 15 minutes, do the thing that broke, and the name is at the top. Allow it, or the domain above it, and try again. A phone may hold the old answer for a few minutes.</p>
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Tokens</h2></div>
+    <p class="small">A token is sixteen lowercase letters and digits. For DNS over TLS it's sent as the server name before the connection is encrypted, so whoever runs the network can read it, the same as NextDNS's ID. Someone with it can only look things up through here and add lines to that device's log. Give each device its own and make a new one on the device's page if one leaks.</p>
+    <p class="small">Port 853 refuses a wrong name at the handshake. Ten wrong names from one address in an hour bans it for a day, and every connection is checked with gate first, so gate's bans hold here too.</p>
+    <h3 class="sub">If it's down</h3>
+    <p class="small">Android's Private DNS doesn't fall back, so switch it to Automatic until it's back. Browsers set to DoH with a fallback use the network's DNS.</p>
+  </section>
+</div>
+{{template "foot" .}}{{end}}

@@ -1,0 +1,126 @@
+name: orchard-dns
+
+# The site and DoH are reached through Caddy like every other site. The DoT
+# front is the one container here with a published port, 853 on IPv4, and it
+# holds only the certificate, read only.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchard-dns
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      DNS_DATA: /data
+      DNS_TLS: /tls
+      CLOUDFLARE_TOKEN: ${CLOUDFLARE_TOKEN:-}
+    volumes:
+      - data:/data
+      - tls:/tls
+    depends_on:
+      unbound:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 320M
+          pids: 128
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs: [/tmp]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge]
+
+  dot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchard-dns-dot
+    command: ["-dot"]
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      DNS_TLS: /tls
+    ports:
+      - "0.0.0.0:853:8853/tcp"
+    volumes:
+      - tls:/tls:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 96M
+          pids: 128
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs: [/tmp]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge]
+
+  unbound:
+    build:
+      context: ./unbound
+      dockerfile: Dockerfile
+    container_name: orchard-dns-unbound
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 160M
+          pids: 64
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs:
+      - /tmp
+      - /var/lib/unbound:mode=1777
+      - /run/unbound:mode=1777
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge]
+
+volumes:
+  data:
+    name: orchard-dns-data
+  tls:
+    name: orchard-dns-tls
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true

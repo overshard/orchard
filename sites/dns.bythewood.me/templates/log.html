@@ -1,0 +1,82 @@
+{{define "log.html"}}{{template "head" (dict "Title" "Log" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">dns &middot; log</span>
+    <h1>{{comma .Total}} lookups, <em>{{comma .BlockedN}} blocked</em>.</h1>
+    <div class="o-pm"><span>showing<b>{{len .Rows}}</b></span><span>blocked<b class="{{if .BlockedN}}bad{{end}}">{{pctOf .BlockedN .Total}}</b></span>{{if .Live}}<span>live<b class="ok" data-live-state>on</b></span>{{end}}</div>
+  </div>
+  <div class="o-acts">
+    {{if .Live}}<button type="button" class="o-btn o-btn-sm" data-live-toggle data-act="pause the log">Pause</button>{{end}}
+    <a class="o-btn o-btn-sm" href="/log?status=blocked&amp;range=15m" data-act="just blocked">Just blocked</a>
+  </div>
+</div>
+
+<section class="o-panel flush">
+  <div class="filters lf">
+    <form method="get" action="/log" class="srch">
+      {{range $k, $v := .Hidden}}<input type="hidden" name="{{$k}}" value="{{$v}}">{{end}}
+      <input class="o-in mono" type="search" name="q" value="{{.Search}}" placeholder="name contains&hellip;" aria-label="Search names" autocomplete="off">
+    </form>
+    <span class="o-seg links">{{range .Ranges}}<a href="{{.Href}}"{{if .On}} class="on"{{end}}>{{.Label}}</a>{{end}}</span>
+    <span class="o-seg links">{{range .Statuses}}<a href="{{.Href}}"{{if .On}} class="on"{{end}}>{{.Label}}</a>{{end}}</span>
+    <span class="o-seg links">{{range .Devices}}<a href="{{.Href}}"{{if .On}} class="on"{{end}}>{{.Label}}</a>{{end}}</span>
+    <span class="o-seg links">{{range .Reasons}}<a href="{{.Href}}"{{if .On}} class="on"{{end}}>{{.Label}}</a>{{end}}</span>
+  </div>
+  <div class="o-scroll">
+  <table class="o-tbl stack lg" data-keys data-live="{{if .Live}}/log/rows?{{.RowsQuery}}{{end}}" data-newest="{{.Newest}}">
+    <thead><tr><th>When</th><th>Device</th><th>Name</th><th>Type</th><th>Result</th><th class="r">ms</th><th>Answer</th></tr></thead>
+    <tbody>
+    {{template "logrows" .}}
+    {{if not .Rows}}<tr class="none"><td colspan="7"><p class="o-empty"><b>Nothing matches.</b>{{if .Live}}New lookups show here as they happen.{{else}}Try a wider range.{{end}}</p></td></tr>{{end}}
+    </tbody>
+  </table>
+  </div>
+  <p class="o-hint"><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>enter</kbd>open</span><span>allow and block cover every subdomain</span></p>
+  {{if .Older}}<div class="o-more"><a href="{{.Older}}">Older &rarr;</a></div>{{end}}
+</section>
+{{template "foot" .}}{{end}}
+
+{{define "logrows"}}{{range .Rows}}
+    <tr class="{{if .Blocked}}blk{{else if eq .Status "fail"}}fl{{end}}" data-id="{{.ID}}">
+      <td class="n o-muted nw" data-tip="{{utc .At}}">{{clock .At}}</td>
+      <td class="nw small" data-l="device">{{.DeviceName}} <span class="o-muted">{{.Proto}}</span></td>
+      <td class="lead mono clip" data-tip="{{.Name}}">{{.Name}}{{if .Via}} <span class="o-muted">&rarr; {{.Via}}</span>{{end}}</td>
+      <td class="nw mono small o-muted" data-l="type">{{qtype .Qtype}}</td>
+      <td class="nw" data-l="result">{{if .Blocked}}<span class="o-chip bad">{{.Reason}}</span>{{else if eq .Status "allow"}}<span class="o-chip ok">allowed over {{.Reason}}</span>{{else if eq .Status "fail"}}<span class="o-chip warn">failed</span>{{else if eq .Status "local"}}<span class="o-chip">{{or .Reason "local"}}</span>{{else}}<span class="o-muted small">{{rcode .Rcode}}</span>{{end}}</td>
+      <td class="r n o-muted" data-l="ms">{{.Ms}}</td>
+      <td class="mono small o-muted clip" data-l="answer" data-tip="{{.Answer}}">{{short .Answer 60}}</td>
+    </tr>
+    <tr class="o-drawer">
+      <td colspan="7">
+        <div class="o-band b3e drawer">
+          <div>
+            <span class="o-lab plain o-muted">what happened</span>
+            <dl class="o-kv">
+              <dt>asked</dt><dd class="mono small">{{.Name}} {{qtype .Qtype}}</dd>
+              {{if .Via}}<dt>via</dt><dd class="mono small">the answer pointed at {{.Via}}, which is listed</dd>{{end}}
+              <dt>result</dt><dd class="small">{{statusWord .Status}}{{if .Reason}}, {{listName .Reason}}{{end}}</dd>
+              <dt>answer</dt><dd class="mono small">{{or .Answer "nothing"}} <span class="o-muted">{{rcode .Rcode}}</span></dd>
+              <dt>from</dt><dd class="mono small">{{.DeviceName}} over {{.Proto}}{{if .IP}} at {{.IP}}{{end}}</dd>
+            </dl>
+          </div>
+          <div class="pick">
+            <span class="o-lab plain o-muted">{{if .Blocked}}allow{{else}}block{{end}}, how wide</span>
+            <form method="post" action="/rules">
+              <input type="hidden" name="action" value="{{if .Blocked}}allow{{else}}block{{end}}">
+              <input type="hidden" name="back" value="/log">
+              {{$n := or .Via .Name}}{{range $i, $p := parents $n}}<label class="o-check"><input type="radio" name="domain" value="{{$p}}" {{if eq $i 0}}checked{{end}}> <code>{{$p}}</code></label>{{end}}
+              <div class="o-formbar"><button class="o-btn o-btn-sm {{if .Blocked}}o-btn-p{{else}}o-btn-bad{{end}}" type="submit">{{if .Blocked}}Allow{{else}}Block{{end}}</button></div>
+            </form>
+          </div>
+          <div>
+            <span class="o-lab plain o-muted">look closer</span>
+            <div class="o-acts col">
+              <a class="o-btn o-btn-sm" href="/log?q={{.Name}}&amp;range=7d">Every lookup of it</a>
+              <a class="o-btn o-btn-sm" href="/log?device={{.Device}}">This device only</a>
+              <a class="o-btn o-btn-sm" href="/check?domain={{.Name}}">Check it</a>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+{{end}}{{end}}

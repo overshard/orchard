@@ -1,0 +1,125 @@
+{{define "overview.html"}}{{template "head" (dict "Title" "Overview" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">dns &middot; overview &middot; 24h</span>
+    <h1>{{.Headline}}</h1>
+    <div class="o-pm"><span>state<b class="{{.Health.Level}}">{{.Health.Word}}</b></span><span>devices<b>{{.Active}} of {{len .Devices}}</b></span><span>listed<b>{{comma .Listed}}</b></span><span>my rules<b>{{.Rules}}</b></span><span>kept<b>7d</b></span>{{if .Dropped}}<span>not logged<b class="warn">{{comma .Dropped}}</b></span>{{end}}</div>
+  </div>
+  <div class="o-acts">
+    <a class="o-btn o-btn-sm" href="/log?status=blocked&amp;range=15m" data-act="just blocked">Just blocked</a>
+    <a class="o-btn o-btn-p o-btn-sm" href="/devices#add" data-act="add a device">Add a device</a>
+  </div>
+</div>
+
+{{if .Health.Note}}<div class="o-note {{if eq .Health.Level "bad"}}bad{{else}}brass{{end}}"><span class="o-lab plain">{{.Health.Word}}</span><span>{{.Health.Note}}.</span></div>{{end}}
+
+<div>
+<div class="o-strip">
+  <a class="o-tile" href="/log">
+    <small>lookups &middot; 24h</small>
+    <b>{{comma .Total}}</b>
+    <span class="o-delta">every device</span>
+    {{sparkT "ok" .HourT .Labels}}
+  </a>
+  <a class="o-tile" href="/log?status=blocked">
+    <small>blocked &middot; 24h</small>
+    <b {{if .Blocked}}class="bad"{{end}}>{{comma .Blocked}}</b>
+    <span class="o-delta">{{pctOf .Blocked .Total}} of lookups</span>
+    {{sparkT "bad" .HourB .Labels}}
+  </a>
+  <a class="o-tile" href="/log?status=blocked" data-tip="Different names blocked, which a chatty app retrying the same tracker can't inflate.">
+    <small>names blocked</small>
+    <b>{{comma .BlockedDomains}}</b>
+    <span class="o-delta">distinct, 24h</span>
+    <span class="o-ticks" aria-hidden="true">{{range .Reasons}}<i class="bad" style="height: {{pct .N (index $.Reasons 0).N}}%" data-tip="{{.Key}}: {{comma .N}}"></i>{{end}}</span>
+  </a>
+  <a class="o-tile" href="/log?status=allow">
+    <small>allowed by me</small>
+    <b {{if .Allowed}}class="ok"{{end}}>{{comma .Allowed}}</b>
+    <span class="o-delta">a list had them, a rule let them by</span>
+    <span class="o-ticks" aria-hidden="true"></span>
+  </a>
+  <a class="o-tile" href="/devices">
+    <small>devices asking</small>
+    <b>{{.Active}}</b>
+    <span class="o-delta">of {{len .Devices}}, 24h</span>
+    <span class="o-ticks" aria-hidden="true">{{range $i, $d := .Devices}}<i class="{{index $.ActiveTicks $i}}" data-tip="{{$d.Name}}: {{comma $d.Total}}"></i>{{end}}</span>
+  </a>
+  <div class="o-tile" data-tip="Time to answer a lookup that went to unbound, cache hits included. Blocked and local answers are left out.">
+    <small>answer time &middot; p50</small>
+    <b>{{.P50}}<small>ms</small></b>
+    <span class="o-delta">p95 {{.P95}}ms</span>
+    <span class="o-ticks" aria-hidden="true"></span>
+  </div>
+  <a class="o-tile" href="/log?status=fail">
+    <small>failed</small>
+    <b {{if .Failed}}class="warn"{{end}}>{{comma .Failed}}</b>
+    <span class="o-delta">no answer from upstream</span>
+    <span class="o-ticks" aria-hidden="true"></span>
+  </a>
+  <a class="o-tile" href="/lists">
+    <small>listed</small>
+    <b>{{comma .Listed}}</b>
+    <span class="o-delta">{{if .Health.Refreshed.IsZero}}not fetched yet{{else}}refreshed {{ago .Health.Refreshed}}{{end}}</span>
+    <span class="o-ticks" aria-hidden="true"></span>
+  </a>
+</div>
+<p class="o-foot"><span data-xs-when>sparks are the last 24 hours by UTC hour</span></p>
+</div>
+
+<div class="o-band b2r">
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Just blocked</h2><span class="o-pm"><span>last 15 minutes</span><span>newest first</span></span></div>
+    {{template "blockedrows" (dict "Rows" .Recent "Back" "/")}}
+    <div class="o-more"><a href="/log?status=blocked">Everything blocked today &rarr;</a></div>
+  </section>
+  <div class="side">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Blocked by</h2><span class="o-pm"><span>lookups</span><span>24h</span></span></div>
+    {{range .Reasons}}<div class="o-hbar"><span class="k o-mono"><a href="/log?status=blocked&amp;reason={{.Key}}">{{.Key}}</a></span><span class="bar"><i class="bad" style="width: {{pct .N (index $.Reasons 0).N}}%"></i></span><span class="v">{{comma .N}}</span></div>
+    {{else}}<p class="o-empty"><b>Nothing blocked yet.</b>Each list and rule shows here with what it caught.</p>{{end}}
+  </section>
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Devices</h2><span class="o-pm"><span>lookups</span><span>blocked</span></span></div>
+    {{range .Devices}}<div class="o-rw dv"><span class="o-dot {{if .Total}}ok{{else}}mute{{end}}"></span><a class="n" href="/devices/{{.ID}}">{{.Name}}</a><span class="m o-mono">{{if .LastProto}}{{.LastProto}} &middot; {{end}}{{ago .LastSeen}}</span><span class="o-mono v">{{comma .Total}}</span><span class="o-mono v o-muted">{{comma .Blocked}}</span></div>
+    {{else}}<p class="o-empty"><b>No devices.</b><a href="/devices#add">Add the first one</a> to get its DoT name and DoH URL.</p>{{end}}
+  </section>
+  </div>
+</div>
+
+<div class="o-band b2">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Most blocked</h2><span class="o-pm"><span>lookups</span><span>devices</span></span></div>
+    {{range .TopBlocked}}<div class="o-hbar" data-tip="{{.Key}}, {{.Reason}}"><span class="k o-mono"><a href="/check?domain={{.Key}}">{{.Key}}</a></span><span class="bar"><i class="bad" style="width: {{pct .N (index $.TopBlocked 0).N}}%"></i></span><span class="v">{{comma .N}}</span><span class="d">{{.Devices}}</span></div>
+    {{else}}<p class="o-empty"><b>Nothing blocked yet.</b></p>{{end}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Most asked</h2><span class="o-pm"><span>answered</span><span>devices</span></span></div>
+    {{range .TopAsked}}<div class="o-hbar" data-tip="{{.Key}}"><span class="k o-mono"><a href="/check?domain={{.Key}}">{{.Key}}</a></span><span class="bar"><i class="ok" style="width: {{pct .N (index $.TopAsked 0).N}}%"></i></span><span class="v">{{comma .N}}</span><span class="d">{{.Devices}}</span></div>
+    {{else}}<p class="o-empty"><b>Nothing asked yet.</b></p>{{end}}
+  </section>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "blockedrows"}}
+<div class="o-scroll">
+<table class="o-tbl stack blk" data-keys>
+  <thead><tr><th>When</th><th>Device</th><th>Name</th><th>Why</th><th class="r"></th></tr></thead>
+  <tbody>
+  {{range .Rows}}
+    <tr>
+      <td class="n o-muted nw" data-tip="{{utc .At}}">{{clock .At}}</td>
+      <td class="nw small" data-l="device">{{.DeviceName}}</td>
+      <td class="lead mono clip" data-tip="{{.Name}}">{{.Name}}{{if .Via}} <span class="o-muted">&rarr; {{.Via}}</span>{{end}}</td>
+      <td class="nw" data-l="why"><span class="o-chip bad">{{.Reason}}</span></td>
+      <td class="r nw">{{template "allowbtn" (dict "Name" (or .Via .Name) "Back" $.Back)}}</td>
+    </tr>
+  {{else}}
+    <tr><td colspan="5"><p class="o-empty"><b>Nothing blocked in the last 15 minutes.</b>When something won't load, it shows here with a button to allow it.</p></td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}
+
+{{define "allowbtn"}}<form method="post" action="/rules" class="inl"><input type="hidden" name="domain" value="{{.Name}}"><input type="hidden" name="action" value="allow"><input type="hidden" name="back" value="{{.Back}}"><button class="o-btn o-btn-sm" type="submit" title="Allow {{.Name}} and everything under it">Allow</button></form>{{end}}

@@ -1,0 +1,94 @@
+{{define "device.html"}}{{template "head" (dict "Title" .D.Name "Suite" .Suite)}}
+{{if .Toast}}<span data-toast hidden>{{.Toast}}</span>{{end}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab"><a href="/devices">devices</a> &middot; {{.D.Kind}}</span>
+    <h1>{{.D.Name}}, <em>{{if .D.LastSeen.IsZero}}not seen yet{{else}}seen {{ago .D.LastSeen}}{{end}}</em>.</h1>
+    <div class="o-pm"><span>lookups<b>{{comma .Total}}</b></span><span>blocked<b class="{{if .Blocked}}bad{{end}}">{{comma .Blocked}}</b></span><span>over<b>{{or .D.LastProto "nothing yet"}}</b></span>{{if .D.LastIP}}<span>from<b>{{.D.LastIP}}</b></span>{{end}}<span>added<b>{{ago .D.Created}}</b></span></div>
+  </div>
+  <div class="o-acts">
+    <a class="o-btn o-btn-sm" href="/log?device={{.D.ID}}" data-act="this device's log">Its log</a>
+    <a class="o-btn o-btn-p o-btn-sm" href="/log?device={{.D.ID}}&amp;status=blocked&amp;range=15m" data-act="just blocked here">Just blocked here</a>
+  </div>
+</div>
+
+<div class="o-band b2r">
+  <section class="o-panel setup">
+    <div class="o-ph2"><h2>Set it up</h2><span class="o-pm"><span>one token, every way in</span></span></div>
+
+    <div class="way">
+      <span class="o-lab">android &middot; private dns</span>
+      <p class="small">Settings, Network &amp; internet, Private DNS, then Private DNS provider hostname. Android talks DNS over TLS on port 853 to this name and nothing else, and it doesn't fall back, so if the box is down switch it back to Automatic.</p>
+      <div class="cp"><code>{{.DoT}}</code><button type="button" class="o-btn o-btn-sm" data-copy="{{.DoT}}">Copy</button></div>
+    </div>
+
+    <div class="way">
+      <span class="o-lab">browser &middot; dns over https</span>
+      <p class="small">Chrome and Edge, Settings, Privacy and security, Security, Use secure DNS, With Custom. Firefox, Settings, Privacy &amp; Security, DNS over HTTPS, Max Protection, Custom. The browser then asks here whatever the network it's on says.</p>
+      <div class="cp"><code>{{.DoH}}</code><button type="button" class="o-btn o-btn-sm" data-copy="{{.DoH}}">Copy</button></div>
+    </div>
+
+    <div class="way">
+      <span class="o-lab">windows 11 &middot; every app</span>
+      <p class="small">Settings, Network &amp; internet, the adapter, Hardware properties, DNS server assignment, Edit, Manual. Turn on IPv4, put the first address as Preferred DNS, set DNS over HTTPS to On (manual template), paste the template and turn off fallback to plaintext. Same again with the second address as Alternate. Windows needs the addresses only to know which server the template belongs to.</p>
+      <div class="cp"><code>{{.DoH}}</code><button type="button" class="o-btn o-btn-sm" data-copy="{{.DoH}}">Copy</button></div>
+      {{if .IPs}}<div class="cp ips">{{range .IPs}}<code>{{.}}</code>{{end}}</div>{{end}}
+      <p class="small o-muted">Those addresses are Cloudflare's, since DoH comes in through the tunnel. If Windows stops resolving one day, they changed, and this page shows the new ones.</p>
+    </div>
+
+    <div class="way">
+      <span class="o-lab">linux &middot; systemd-resolved</span>
+      <p class="small">In <code>/etc/systemd/resolved.conf</code>, then <code>sudo systemctl restart systemd-resolved</code>.</p>
+      <pre class="o-code">[Resolve]
+DNS={{"15.204.248.200"}}#{{.DoT}}
+DNSOverTLS=yes</pre>
+    </div>
+
+    <div class="way probe" data-probe data-zone="{{.ProbeZone}}">
+      <span class="o-lab">is this browser using it?</span>
+      <p class="small" data-probe-out>Looks up a one time name and sees whether it lands here.</p>
+      <button type="button" class="o-btn o-btn-sm" data-probe-go>Check</button>
+    </div>
+  </section>
+
+  <div class="side">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Last 24 hours</h2><span class="o-pm"><span>by UTC hour</span></span></div>
+      <div class="o-strip two">
+        <div class="o-tile"><small>lookups</small><b>{{comma .Total}}</b><span class="o-delta">24h</span>{{sparkT "ok" .HourT .Labels}}</div>
+        <div class="o-tile"><small>blocked</small><b {{if .Blocked}}class="bad"{{end}}>{{comma .Blocked}}</b><span class="o-delta">{{pctOf .Blocked .Total}}</span>{{sparkT "bad" .HourB .Labels}}</div>
+      </div>
+    </section>
+
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Settings</h2></div>
+      <form method="post" action="/devices/{{.D.ID}}" class="o-form one">
+        <label class="o-field"><span>Name</span><input type="text" name="name" value="{{.D.Name}}" maxlength="60" required></label>
+        <fieldset class="o-field"><legend>Kind</legend>
+          <span class="o-seg">{{range .Kinds}}<label><input type="radio" name="kind" value="{{.}}" {{if eq . $.D.Kind}}checked{{end}}><span>{{.}}</span></label>{{end}}</span>
+        </fieldset>
+        <fieldset class="o-field"><legend>Lists <span class="hint">my own rules always apply</span></legend>
+          {{range .Lists}}<label class="o-check"><input type="checkbox" name="list" value="{{.Key}}" {{if .On}}checked{{end}}> <span>{{.Name}} <span class="o-muted small">{{.About}}</span></span></label>{{end}}
+        </fieldset>
+        <div class="o-formbar"><button class="o-btn o-btn-p o-btn-sm" type="submit">Save</button></div>
+      </form>
+      <div class="o-formbar danger">
+        <form method="post" action="/devices/{{.D.ID}}/rotate" data-confirm="A new token stops {{.D.Name}} resolving until it's set up again with the new name."><button class="o-btn o-btn-sm" type="submit">New token</button></form>
+        <form method="post" action="/devices/{{.D.ID}}/delete" data-confirm="Removing {{.D.Name}} stops it resolving here. Its lookups stay until they age out."><button class="o-btn o-btn-sm o-btn-bad" type="submit">Remove</button></form>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="o-band b2">
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Last blocked here</h2><span class="o-pm"><span>newest first</span></span></div>
+    {{template "blockedrows" (dict "Rows" .Recent "Back" (printf "/devices/%d" .D.ID))}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Most blocked here</h2><span class="o-pm"><span>lookups</span><span>24h</span></span></div>
+    {{range .TopBlocked}}<div class="o-hbar" data-tip="{{.Key}}, {{.Reason}}"><span class="k o-mono"><a href="/check?domain={{.Key}}">{{.Key}}</a></span><span class="bar"><i class="bad" style="width: {{pct .N (index $.TopBlocked 0).N}}%"></i></span><span class="v">{{comma .N}}</span></div>
+    {{else}}<p class="o-empty"><b>Nothing blocked here today.</b></p>{{end}}
+  </section>
+</div>
+{{template "foot" .}}{{end}}

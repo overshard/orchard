@@ -1,0 +1,80 @@
+{{define "lists.html"}}{{template "head" (dict "Title" "Lists" "Suite" .Suite)}}
+{{if .Toast}}<span data-toast hidden>{{.Toast}}</span>{{end}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">dns &middot; lists</span>
+    <h1>{{len .Lists}} lists and <em>{{count (len .Rules) "rule" "rules"}} of mine</em>.</h1>
+    <p>A list entry covers the name and everything under it. My allows beat every list, then my blocks, then the lists in the order below.</p>
+  </div>
+  <div class="o-acts">
+    <form method="post" action="/lists/refresh"><button class="o-btn o-btn-sm" type="submit" data-act="refresh the lists">Refresh now</button></form>
+  </div>
+</div>
+
+<section class="o-panel flush">
+  <div class="o-ph2"><h2>Blocklists</h2><span class="o-pm"><span>refreshed twice a day</span><span>blocked<b>7d</b></span></span></div>
+  <div class="o-scroll">
+  <table class="o-tbl stack">
+    <thead><tr><th>List</th><th class="r">Entries</th><th class="r">Blocked</th><th>Fetched</th><th>Changed</th><th>Version</th><th>Skipped by</th></tr></thead>
+    <tbody>
+    {{range .Lists}}
+      <tr class="{{if .St.Error}}wait{{end}}">
+        <td class="lead"><a href="/log?status=blocked&amp;reason={{.Key}}&amp;range=7d" class="o-mono">{{.Key}}</a> {{.Name}}<span class="sub">{{.About}}</span>{{if .St.Error}}<span class="sub o-bad">last try {{ago .St.ErrorAt}}: {{.St.Error}}, still using the copy from {{ago .St.Fetched}}</span>{{end}}</td>
+        <td class="r n" data-l="entries">{{comma .Loaded}}</td>
+        <td class="r n" data-l="blocked">{{comma .Blocked7d}}</td>
+        <td class="nw mono small o-muted" data-l="fetched">{{ago .St.Fetched}}</td>
+        <td class="nw mono small o-muted" data-l="changed">{{ago .St.Changed}}</td>
+        <td class="nw mono small o-muted" data-l="version">{{or .St.Version "none"}}</td>
+        <td class="small" data-l="skipped">{{range $i, $n := .OffOn}}{{if $i}}, {{end}}{{$n}}{{else}}<span class="o-muted">nobody</span>{{end}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+  <p class="o-foot"><span>a refresh that shrinks a list by half or grows it threefold is refused and the old copy kept</span></p>
+</section>
+
+<div class="o-band b2r">
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>My rules</h2><span class="o-pm"><span>hits<b>7d</b></span></span></div>
+    <div class="o-scroll">
+    <table class="o-tbl stack" data-keys>
+      <thead><tr><th>Domain</th><th>Does</th><th class="r">Hits</th><th>Added</th><th></th></tr></thead>
+      <tbody>
+      {{range .Rules}}
+        <tr>
+          <td class="lead mono"><a href="/check?domain={{.Domain}}">{{.Domain}}</a>{{if .Note}}<span class="sub">{{.Note}}</span>{{end}}</td>
+          <td class="nw" data-l="does"><span class="o-chip {{if eq .Action "allow"}}ok{{else}}bad{{end}}">{{.Action}}</span></td>
+          <td class="r n" data-l="hits">{{comma .Hits}}</td>
+          <td class="nw mono small o-muted" data-l="added">{{ago .Created}}</td>
+          <td class="r"><form method="post" action="/rules/{{.ID}}/delete" data-undo="Removed {{.Domain}}" class="inl"><button class="o-btn o-btn-sm" type="submit">Remove</button></form></td>
+        </tr>
+      {{else}}
+        <tr><td colspan="5"><p class="o-empty"><b>No rules of mine.</b>Allow something from the log when a list breaks it, or block a name no list has.</p></td></tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  <div class="side">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Add a rule</h2><span class="o-lab">covers subdomains</span></div>
+      <form method="post" action="/rules" class="o-form one">
+        <label class="o-field"><span>Domain</span><input class="mono" type="text" name="domain" value="{{.Prefill}}" placeholder="example.com" required autocomplete="off"></label>
+        <fieldset class="o-field"><legend>Does</legend>
+          <span class="o-seg"><label><input type="radio" name="action" value="allow" {{if ne .Action "block"}}checked{{end}}><span>allow</span></label><label><input type="radio" name="action" value="block" {{if eq .Action "block"}}checked{{end}}><span>block</span></label></span>
+        </fieldset>
+        <label class="o-field"><span>Note <span class="hint">optional, why</span></span><input type="text" name="note" maxlength="120"></label>
+        <div class="o-formbar"><button class="o-btn o-btn-p o-btn-sm" type="submit">Add</button></div>
+      </form>
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Check a domain</h2></div>
+      <form method="get" action="/check" class="o-form one">
+        <label class="o-field"><span>Domain</span><input class="mono" type="text" name="domain" placeholder="ads.example.com" required autocomplete="off"></label>
+        <div class="o-formbar"><button class="o-btn o-btn-sm" type="submit">Check</button></div>
+      </form>
+    </section>
+  </div>
+</div>
+{{template "foot" .}}{{end}}

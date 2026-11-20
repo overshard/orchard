@@ -1,0 +1,46 @@
+{{define "devices.html"}}{{template "head" (dict "Title" "Devices" "Suite" .Suite)}}
+{{if .Toast}}<span data-toast hidden>{{.Toast}}</span>{{end}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">dns &middot; devices</span>
+    <h1>{{if .Devices}}{{count (len .Devices) "device" "devices"}}, <em>one token each</em>.{{else}}No devices <em>yet</em>.{{end}}</h1>
+    <p>A device's token is its name to this resolver. Anything that asks without a token gets nothing back.</p>
+  </div>
+</div>
+
+<div class="o-band b2r">
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Devices</h2><span class="o-pm"><span>busiest first</span><span>24h</span></span></div>
+    <div class="o-scroll">
+    <table class="o-tbl stack" data-keys>
+      <thead><tr><th>Device</th><th>Last seen</th><th class="r">Lookups</th><th class="r">Blocked</th><th>24h</th><th>14 days</th></tr></thead>
+      <tbody>
+      {{range .Devices}}
+        <tr data-href="/devices/{{.ID}}">
+          <td class="lead"><a href="/devices/{{.ID}}">{{.Name}}</a> <span class="o-chip">{{.Kind}}</span>{{range .OffLists}} <span class="o-chip" data-tip="This device skips {{.}}">no {{.}}</span>{{end}}</td>
+          <td class="nw mono small o-muted" data-l="seen">{{ago .LastSeen}}{{if .LastProto}} &middot; {{.LastProto}}{{end}}</td>
+          <td class="r n" data-l="lookups">{{comma .Total}}</td>
+          <td class="r n" data-l="blocked">{{comma .Blocked}}<span class="sub">{{pctOf .Blocked .Total}}</span></td>
+          <td class="o-cell-spark">{{spark "ok" .ByHour}}</td>
+          <td class="nw">{{$d := .}}<span class="o-ds">{{range $i, $k := .Days}}<i class="{{$k}}" data-tip="{{index $d.DayTips $i}}"></i>{{end}}</span></td>
+        </tr>
+      {{else}}
+        <tr><td colspan="6"><p class="o-empty"><b>No devices.</b>Add one beside this, then follow its setup page.</p></td></tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  <section class="o-panel" id="add">
+    <div class="o-ph2"><h2>Add a device</h2><span class="o-lab">a new token</span></div>
+    <form method="post" action="/devices" class="o-form one">
+      <label class="o-field"><span>Name</span><input type="text" name="name" maxlength="60" placeholder="Pixel, desktop Firefox" required></label>
+      <fieldset class="o-field"><legend>Kind</legend>
+        <span class="o-seg">{{range $i, $k := .Kinds}}<label><input type="radio" name="kind" value="{{$k}}" {{if eq $i 0}}checked{{end}}><span>{{$k}}</span></label>{{end}}</span>
+      </fieldset>
+      <div class="o-formbar"><button class="o-btn o-btn-p" type="submit">Add and set up</button></div>
+    </form>
+    <p class="small o-muted">Give each browser or phone its own, so the log says which one asked and a leaked token only takes one device with it.</p>
+  </section>
+</div>
+{{template "foot" .}}{{end}}
