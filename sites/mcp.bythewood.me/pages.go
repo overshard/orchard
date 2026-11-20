@@ -113,7 +113,7 @@ func waysFor() suite.Ways {
 }
 
 func footer() suite.Footer {
-	return suite.Footer{Tool: "mcp", About: "Lets an agent read every one of my tools, signed in as me and unable to change a thing.",
+	return suite.Footer{Tool: "mcp", About: "Lets an agent read every one of my tools, signed in as me and unable to change a thing beyond proposing a gate rule.",
 		Source: sourceURL, Author: author, Year: time.Now().Year(),
 		Pages: []suite.Tab{{Name: "Home", Href: "/"}, {Name: "Docs", Href: "/docs"}}}
 }

@@ -16,11 +16,12 @@
   {{ else }}
   <div class="o-cols even">
     <section class="o-panel">
-      <div class="o-ph2"><h2>What it gets</h2><span class="o-lab">read only</span></div>
+      <div class="o-ph2"><h2>What it gets</h2><span class="o-lab">read, and propose</span></div>
       <ul class="connectlist">
         <li>Every tool's state, the down properties, failing jobs and quiet sources</li>
-        <li>Status and analytics reports, log search, cron jobs and runs, llm spend and repositories</li>
-        <li>Nothing that changes anything, and nothing on this site</li>
+        <li>Status and analytics reports, log search, cron jobs and runs, llm spend, repositories and gate's traffic</li>
+        <li>Proposing a gate rule, which only watches until you turn it on</li>
+        <li>Nothing else that changes anything, and nothing on this site</li>
       </ul>
       <p class="o-muted small">It gets a session of its own for 90 days, listed on the sessions page as a connector. Revoke it there and it stops on its next call.</p>
       <form method="POST" action="/connect" class="o-formbar">
@@ -34,7 +35,7 @@
     </section>
     <section class="o-panel">
       <div class="o-ph2"><h2>Worth knowing</h2></div>
-      <p class="o-muted small">Log lines, referrers and crawl results are written by strangers, and an agent reads them as they are. Nothing here lets it act on what it reads, which is why this is read only.</p>
+      <p class="o-muted small">Log lines, referrers and crawl results are written by strangers, and an agent reads them as they are. Nothing here lets it act on what it reads, and the one thing it can write is a gate proposal that waits for you.</p>
       <p class="o-muted small">If you didn't just add a connector, don't allow this.</p>
     </section>
   </div>

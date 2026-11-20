@@ -1,6 +1,7 @@
 # mcp.bythewood.me
 
-Every orchard tool, read only, as one MCP server. Add `https://mcp.bythewood.me/mcp`
+Every orchard tool as one MCP server, read only except `gate_propose`, which
+adds a gate rule that only watches until you turn it on. Add `https://mcp.bythewood.me/mcp`
 as a connector in Claude and it signs in through auth.bythewood.me with the
 phone code, then reads status, logging, analytics, cron and repos as you.
 
@@ -35,8 +36,8 @@ and HTTP layer.
   ends the grant on the agent's next call.
 - Only Claude's two client metadata documents may start a sign in, see
   `knownClients`. Another client means adding its URL there.
-- Caddy refuses every path starting with a dot except `/.well-known/oauth-`,
-  so a new `.well-known` route here needs the `dotfiles` snippet changed too.
+- gate refuses every path starting with a dot except `/.well-known/oauth-`,
+  so a new `.well-known` route here needs gate's `dotfiles` rule changed too.
 - It speaks 2026-07-28 to a client that sends `_meta` and `Mcp-Method`, and the
   older initialize handshake to one that doesn't.
 

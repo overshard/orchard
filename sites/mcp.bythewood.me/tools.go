@@ -52,6 +52,24 @@ func (rd reader) get(ctx context.Context, container, path string) (string, error
 	return string(body), nil
 }
 
+// post sends a JSON body and hands back the answer whatever its status, since
+// gate explains a refused proposal in the body.
+func (rd reader) post(ctx context.Context, container, path string, body []byte) (int, string, error) {
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://orchard-"+container+":8000"+path, strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: "bw_session", Value: rd.session})
+	resp, err := rd.client.Do(req)
+	if err != nil {
+		return 0, "", fmt.Errorf("%s didn't answer: %v", container, err)
+	}
+	defer resp.Body.Close()
+	out, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode == http.StatusUnauthorized {
+		return resp.StatusCode, "", errSessionGone
+	}
+	return resp.StatusCode, string(out), nil
+}
+
 func clip(s string) string {
 	if len(s) <= maxResult {
 		return s
@@ -142,7 +160,10 @@ func (rd reader) find(ctx context.Context, tool, kind, name string) (string, str
 type tool struct {
 	Name, Title, Description string
 	Schema                   map[string]any
-	run                      func(ctx context.Context, rd reader, args json.RawMessage) (string, error)
+	// Writes marks the one kind of tool that changes something, a proposal
+	// to gate that only watches until Isaac turns it on.
+	Writes bool
+	run    func(ctx context.Context, rd reader, args json.RawMessage) (string, error)
 }
 
 func obj(props map[string]any, required ...string) map[string]any {
@@ -437,6 +458,75 @@ var tools = []tool{
 			return strangers + clip(body), err
 		},
 	},
+
+	{
+		Name: "gate_report", Title: "gate's rules and who it refused",
+		Description: "gate.bythewood.me, the firewall every request passes: the mode, how many requests were checked, passed and refused, every rule with its hits and who wrote it, proposals waiting on Isaac, the networks, countries, hosts and addresses refused most, bans, recent rule changes and a sample of refused requests.",
+		Schema: obj(map[string]any{
+			"range": enum("The window, 24h if left out.", "1h", "24h", "7d", "30d"),
+		}),
+		run: func(ctx context.Context, rd reader, raw json.RawMessage) (string, error) {
+			q := url.Values{}
+			if r := sarg(argsOf(raw), "range"); r != "" {
+				q.Set("range", r)
+			}
+			body, err := rd.get(ctx, "gate", "/api/report?"+q.Encode())
+			return strangers + clip(body), err
+		},
+	},
+	{
+		Name: "gate_traffic", Title: "gate's traffic, narrowed",
+		Description: "Every request gate checked, narrowed to a network (asn), country, host, address (ip), rule or verdict (pass, exempt, block, banned, limit, challenge, solved): totals, requests an hour, the busiest networks, countries and hosts, the paths and addresses refused most, and sampled requests with their user agents. Use it to look at something before proposing a rule.",
+		Schema: obj(map[string]any{
+			"asn":     str("An AS number, like 14061."),
+			"country": str("A two letter country code."),
+			"host":    str("A hostname, like repos.bythewood.me."),
+			"ip":      str("One address."),
+			"rule":    str("A rule's name."),
+			"verdict": enum("Only requests that got this answer.", "pass", "exempt", "block", "banned", "limit", "challenge", "solved"),
+			"range":   enum("The window, 24h if left out.", "1h", "24h", "7d", "30d"),
+		}),
+		run: func(ctx context.Context, rd reader, raw json.RawMessage) (string, error) {
+			a := argsOf(raw)
+			q := url.Values{}
+			for _, k := range []string{"asn", "country", "host", "ip", "rule", "verdict", "range"} {
+				if v := sarg(a, k); v != "" {
+					q.Set(k, v)
+				}
+			}
+			body, err := rd.get(ctx, "gate", "/api/traffic?"+q.Encode())
+			return strangers + clip(body), err
+		},
+	},
+	{
+		Name: "gate_propose", Title: "Propose a gate rule",
+		Description: "Adds a rule to gate that only watches and waits for Isaac, counting what it would have done, and ends after days unless he turns it on. It never refuses a request by itself. `when` is one condition a line and every line has to hold, each `[not] field test values...`: fields host, path, query, method, ip, asn, country, ua and header:Name, tests is, prefix, contains, suffix and regex (the rest of the line is one Go regex). For example `host is repos.bythewood.me` then `asn is 14061 16509` then `not path prefix /feed`. Look with gate_traffic first and say why in note.",
+		Writes:      true,
+		Schema: obj(map[string]any{
+			"name":      str("One word naming it, like feed-hammer."),
+			"when":      str("The condition lines, separated by newlines."),
+			"then":      enum("What it would do once turned on.", "allow", "block", "limit", "challenge"),
+			"status":    map[string]any{"type": "integer", "minimum": 403, "maximum": 404, "description": "For block, 403 or 404 (404 for scanner noise). 403 if left out."},
+			"rate":      map[string]any{"type": "integer", "minimum": 1, "maximum": 10000, "description": "For limit, requests a minute per address."},
+			"message":   str("For block, what the refusal says."),
+			"note":      str("Why, in a sentence or two, with what you saw."),
+			"days":      map[string]any{"type": "integer", "minimum": 1, "maximum": 90, "description": "How long it lasts unless Isaac keeps it, 30 if left out."},
+			"ban_after": map[string]any{"type": "integer", "minimum": 0, "maximum": 1000, "description": "Ban an address everywhere after this many hits in 10 minutes, 0 or left out for never."},
+			"ban_hours": map[string]any{"type": "integer", "minimum": 1, "maximum": 8760, "description": "How long a ban lasts, 24 if left out."},
+		}, "name", "when", "then", "note"),
+		run: func(ctx context.Context, rd reader, raw json.RawMessage) (string, error) {
+			code, body, err := rd.post(ctx, "gate", "/api/propose", raw)
+			if err != nil {
+				return "", err
+			}
+			if code != http.StatusOK {
+				var e struct{ Error string }
+				_ = json.Unmarshal([]byte(body), &e)
+				return "", fmt.Errorf("gate refused it: %s", e.Error)
+			}
+			return "Proposed, watching and waiting on Isaac.\n\n" + body, nil
+		},
+	},
 }
 
 func toolList() []map[string]any {
@@ -444,7 +534,7 @@ func toolList() []map[string]any {
 	for _, t := range tools {
 		out = append(out, map[string]any{
 			"name": t.Name, "title": t.Title, "description": t.Description, "inputSchema": t.Schema,
-			"annotations": map[string]any{"title": t.Title, "readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+			"annotations": map[string]any{"title": t.Title, "readOnlyHint": !t.Writes, "destructiveHint": false, "idempotentHint": !t.Writes, "openWorldHint": false},
 		})
 	}
 	return out

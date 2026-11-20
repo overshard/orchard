@@ -1,5 +1,5 @@
-// mcp.bythewood.me is every orchard tool, read only, as one MCP server, with an
-// OAuth front that signs an agent in through auth.bythewood.me.
+// mcp.bythewood.me is every orchard tool as one MCP server, read only but for
+// gate proposals, with an OAuth front that signs an agent in through auth.
 package main
 
 import (

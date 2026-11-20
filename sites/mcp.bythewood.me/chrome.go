@@ -22,7 +22,7 @@ func (s *site) chrome(r *http.Request, on string) (suite.Page, bool) {
 		t.On = t.Name == on
 		p.Tabs = append(p.Tabs, t)
 	}
-	p.Right = []suite.Seg{{Text: "read only"}, {Text: "times are UTC"}}
+	p.Right = []suite.Seg{{Text: "read only but gate proposals"}, {Text: "times are UTC"}}
 	p.Status = []suite.Seg{{Text: fmt.Sprintf("%d tools", len(tools))}}
 	if in {
 		grants, _ := s.store.Grants()
