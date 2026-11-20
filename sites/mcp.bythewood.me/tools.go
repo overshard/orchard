@@ -475,6 +475,29 @@ var tools = []tool{
 		},
 	},
 	{
+		Name: "dns_report", Title: "What my devices looked up",
+		Description: "dns.bythewood.me, the private resolver for Isaac's own devices: lookups and blocks over the window, the names blocked and asked most, which list blocked what, what was blocked in the last 15 minutes (the usual answer to why an app or site won't load), each device with how it connects, and each blocklist with its entries and last refresh.",
+		Schema: obj(map[string]any{
+			"range":  enum("The window, 24h if left out.", "1h", "24h", "7d"),
+			"device": str("One device's name, like phone, to narrow to it."),
+		}),
+		run: func(ctx context.Context, rd reader, raw json.RawMessage) (string, error) {
+			a := argsOf(raw)
+			q := url.Values{}
+			switch sarg(a, "range") {
+			case "1h":
+				q.Set("hours", "1")
+			case "7d":
+				q.Set("hours", "168")
+			}
+			if d := sarg(a, "device"); d != "" {
+				q.Set("device", d)
+			}
+			body, err := rd.get(ctx, "dns", "/api/report?"+q.Encode())
+			return strangers + clip(body), err
+		},
+	},
+	{
 		Name: "gate_traffic", Title: "gate's traffic, narrowed",
 		Description: "Every request gate checked, narrowed to a network (asn), country, host, address (ip), rule or verdict (pass, exempt, block, banned, limit, challenge, solved): totals, requests an hour, the busiest networks, countries and hosts, the paths and addresses refused most, and sampled requests with their user agents. Use it to look at something before proposing a rule.",
 		Schema: obj(map[string]any{
