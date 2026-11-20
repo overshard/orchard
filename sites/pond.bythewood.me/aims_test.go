@@ -148,3 +148,60 @@ func TestPinballGoalsAreHeldToTheScore(t *testing.T) {
 		t.Error("lily pinball hasn't two goals today")
 	}
 }
+
+// Raft run's fireflies and distance come from the page, held to the score
+// like every other count, and a run long enough to make them meets them.
+func TestRaftGoalsAreHeldToTheScore(t *testing.T) {
+	all := map[string]int{"weirs": 10, "pebbles": 5, "clean": 20, "whirls": 2, "flies": 10, "far": 30}
+	if !countsFit("raft", 40, all) {
+		t.Errorf("a whole run at 40 doesn't fit %v", all)
+	}
+	for _, c := range []map[string]int{{"flies": 10}, {"far": 30}} {
+		if countsFit("raft", 4, c) {
+			t.Errorf("%v at 4 fits", c)
+		}
+	}
+	for _, key := range []string{"ra_flies", "ra_far"} {
+		var a aim
+		for _, b := range aimList {
+			if b.key == key {
+				a = b
+			}
+		}
+		if a.game != "raft" || !a.met(40, all) || a.met(40, map[string]int{"flies": 9, "far": 29}) {
+			t.Errorf("%s is met wrong: %+v", key, a)
+		}
+	}
+
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	for range 60 {
+		as := aimsOf(dayOf(*clock), "raft")
+		if as[0].key == "ra_far" || as[1].key == "ra_far" {
+			break
+		}
+		*clock = clock.Add(24 * time.Hour)
+	}
+	run := func(score int, took time.Duration) *arcadeDone {
+		t.Helper()
+		st, err := s.arcadeStart(id, "raft")
+		if err != nil {
+			t.Fatal(err)
+		}
+		*clock = clock.Add(took)
+		d, err := s.arcadeFinish(id, "raft", st.Run, score, nil, all)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	if d := run(400, 30*time.Second); d.Paid != 0 || len(d.Aims) != 0 {
+		t.Errorf("400 in 30 seconds paid %d and met %v", d.Paid, d.Aims)
+	}
+	if d := run(raftMost+1, time.Hour); d.Paid != 0 {
+		t.Errorf("a score past raft's most paid %d", d.Paid)
+	}
+	if d := run(60, time.Minute); len(d.Aims) != aimsADay {
+		t.Errorf("a run that did it all met %v", d.Aims)
+	}
+}
