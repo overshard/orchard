@@ -128,7 +128,8 @@ panel heads, and a home page keeps 14px. The pieces that carry it:
 ### Charts
 
 Every Chart.js chart draws from `chart_theme.js`, which is duplicated byte for
-byte in analytics, logging and status the same way `shipper.go` is. Its ink is
+byte in analytics and logging the same way `shipper.go` is. status draws its
+phase chart as SVG with the same series colours and no Chart.js. Its ink is
 the suite's and its font is Geist Mono.
 
 **Series colours are punchier than the UI palette.** Chrome can be
@@ -1140,7 +1141,7 @@ below live as tokens at the top of `frontend/src/index.css`.
 | Site | Phosphor | Notes |
 |---|---|---|
 | `analytics` | suite | On the suite, no Bootstrap. The list carries a fortnight of page views per property, and menus are details elements |
-| `status` | suite | On the suite, no Bootstrap. Properties down first, a property page that doubles as the public status page |
+| `status` | suite | On the suite, no Bootstrap. Properties down first, a property page that doubles as the public status page, which signed out shows only the 90 day bar, incidents and response |
 | `logging` | suite | On the suite, no Bootstrap. The overview, a page per source and search share one set of panels |
 | `auth` | suite | On the suite, with no Bootstrap left. The home page signs you in from the hero, and the starfield is gone |
 | `repos` | suite | On the suite. Its own stylesheet keeps the tree, diff and README styles and maps its colour names onto the suite's. No serif any more |
