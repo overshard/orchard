@@ -381,6 +381,16 @@ func (s *site) callsPage(w http.ResponseWriter, r *http.Request) {
 	usage, _ := s.store.Usage(time.Now().Add(-30 * 24 * time.Hour))
 	day := s.dayStats(time.Now())
 	month, _ := s.month(time.Now())
+	if q.Get("format") == "json" {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"day":   map[string]any{"calls": day.Calls, "errors": day.Errors, "p50_ms": day.P50},
+			"month": map[string]any{"spent": month.Spent, "budget": month.Budget, "projected": month.Projected},
+			"usage": usage, "calls": calls,
+		})
+		return
+	}
 	head := template.HTML(template.HTMLEscapeString(count(day.Calls, "call", "calls")) + " today")
 	if day.Errors > 0 {
 		head += template.HTML(`, <em class="bad">` + count(day.Errors, "failed", "failed") + `</em>.`)
