@@ -54,6 +54,7 @@ var monitored = []Monitored{
 	{Label: "LLM", Source: "llm", Host: "llm.bythewood.me"},
 	{Label: "Cron", Source: "cron", Host: "cron.bythewood.me"},
 	{Label: "MCP", Source: "mcp", Host: "mcp.bythewood.me"},
+	{Label: "DNS", Source: "dns", Host: "dns.bythewood.me"},
 	{Label: "Pond", Source: "pond", Host: "pond.bythewood.me"},
 	{Label: "Dash", Source: "dash", Host: "dash.bythewood.me"},
 
