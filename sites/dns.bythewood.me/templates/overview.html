@@ -3,7 +3,7 @@
   <div>
     <span class="o-lab">dns &middot; overview &middot; 24h</span>
     <h1>{{.Headline}}</h1>
-    <div class="o-pm"><span>state<b class="{{.Health.Level}}">{{.Health.Word}}</b></span><span>devices<b>{{.Active}} of {{len .Devices}}</b></span><span>listed<b>{{comma .Listed}}</b></span><span>my rules<b>{{.Rules}}</b></span><span>kept<b>7d</b></span>{{if .Dropped}}<span>not logged<b class="warn">{{comma .Dropped}}</b></span>{{end}}</div>
+    <div class="o-pm"><span>state<b class="{{.Health.Level}}">{{.Health.Word}}</b></span><span>devices<b>{{.Active}} of {{len .Devices}}</b></span><span>listed<b>{{comma .Listed}}</b></span><span>my rules<b>{{.Rules}}</b></span><span>kept<b>7d</b></span>{{if .Cache}}<span data-tip="unbound's cache hits since it started">cache<b>{{.Cache}}</b></span>{{end}}{{if .FellBack}}<span data-tip="lookups Quad9 answered since the app started, because unbound didn't">fallback<b class="warn">{{comma .FellBack}}</b></span>{{end}}{{if .Dropped}}<span>not logged<b class="warn">{{comma .Dropped}}</b></span>{{end}}</div>
   </div>
   <div class="o-acts">
     <a class="o-btn o-btn-sm" href="/log?status=blocked&amp;range=15m" data-act="just blocked">Just blocked</a>
