@@ -41,7 +41,7 @@
           <td class="n o-muted">{{.Prefix}}&hellip;</td>
           <td class="n o-muted">{{ago .Created}}</td>
           <td class="n o-muted">{{ago .Used}}</td>
-          <td class="act"><form method="post" action="/keys/{{.ID}}/delete" data-confirm="Revoke {{.Name}}? Anything using it stops working."><button type="submit" class="o-btn o-btn-sm o-btn-bad">Revoke</button></form></td>
+          <td class="act"><form method="post" action="/keys/{{.ID}}/delete" data-undo="Revoked {{.Name}}"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Revoke</button></form></td>
         </tr>
       {{end}}
       </tbody>
