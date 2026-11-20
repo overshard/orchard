@@ -38,12 +38,12 @@
   </section>
   <section class="o-panel">
     <div class="o-ph2"><h2>Approving tools</h2><span class="o-lab">always allow</span></div>
-    <p class="o-muted small">Claude asks before it uses each tool, and lets you always allow one. Every tool marked read only below sets <code>readOnlyHint</code> and can't change a thing, so always allow is safe for those. gate_propose only adds a gate rule that watches until you turn it on, so letting it ask each time costs little.</p>
+    <p class="o-muted small">Claude asks before it uses each tool, and lets you always allow one. Every tool marked read only below sets <code>readOnlyHint</code> and can't change a thing, so always allow is safe for those. gate_propose only adds a gate rule that watches until you turn it on, so letting it ask each time costs little. gate_edit changes a rule live and sets <code>destructiveHint</code>, so keep it asking.</p>
   </section>
 </div>
 
 <section class="o-panel flush">
-  <div class="o-ph2"><h2>Tools</h2><span class="o-lab">read only, but gate_propose</span></div>
+  <div class="o-ph2"><h2>Tools</h2><span class="o-lab">read only, but the gate writes</span></div>
   <div class="o-scroll">
   <table class="o-tbl stack tooltbl">
     <thead><tr><th>Tool</th><th>What it reads</th><th>Arguments</th><th>Hint</th></tr></thead>
@@ -53,7 +53,7 @@
         <td class="lead n">{{.Name}}</td>
         <td class="full">{{.Description}}</td>
         <td class="full">{{range $k, $v := .Schema.properties}}<div class="arg"><code>{{$k}}</code> <span class="o-muted">{{index $v "description"}}</span></div>{{else}}<span class="o-muted">none</span>{{end}}</td>
-        <td data-l="hint">{{if .Writes}}<span class="o-chip warn" data-tip="readOnlyHint false, it proposes a gate rule that only watches">proposes</span>{{else}}<span class="o-chip ok" data-tip="readOnlyHint true">read only</span>{{end}}</td>
+        <td data-l="hint">{{if .Live}}<span class="o-chip bad" data-tip="destructiveHint true, it changes a gate rule at once">changes</span>{{else if .Writes}}<span class="o-chip warn" data-tip="readOnlyHint false, it proposes a gate rule that only watches">proposes</span>{{else}}<span class="o-chip ok" data-tip="readOnlyHint true">read only</span>{{end}}</td>
       </tr>
     {{end}}
     </tbody>

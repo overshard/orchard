@@ -140,16 +140,19 @@ func (s *site) toolsPage(w http.ResponseWriter, r *http.Request) {
 	for _, g := range grants {
 		conns = append(conns, newConnRow(g, use[g.ID], top, now))
 	}
-	reads := 0
+	reads, live := 0, 0
 	for _, t := range tools {
 		if !t.Writes {
 			reads++
+		}
+		if t.Live {
+			live++
 		}
 	}
 	s.render(w, 200, "tools.html", map[string]any{"Suite": page, "Rows": rows, "Calls": calls, "Failed": failed, "Failing": failing,
 		"Never": never, "P50": p50, "Grants": len(grants), "Headline": toolsHeadline(len(rows), failing, never),
 		"Causes": s.store.Causes(now.AddDate(0, 0, -7)), "Args": s.store.TopArgs(now.AddDate(0, 0, -7), 6), "Conns": conns,
-		"Reads": reads, "Writes": len(tools) - reads, "Week": week, "WeekFailed": weekFailed, "Labels": labels})
+		"Reads": reads, "Writes": len(tools) - reads, "Live": live, "Week": week, "WeekFailed": weekFailed, "Labels": labels})
 }
 
 func toolsHeadline(n, failing, never int) template.HTML {

@@ -1,7 +1,8 @@
 # mcp.bythewood.me
 
 Every orchard tool as one MCP server, read only except `gate_propose`, which
-adds a gate rule that only watches until you turn it on. Add `https://mcp.bythewood.me/mcp`
+adds a gate rule that only watches until you turn it on, and `gate_edit`, which
+changes an existing rule at once with its reason in gate's change log. Add `https://mcp.bythewood.me/mcp`
 as a connector in Claude and it signs in through auth.bythewood.me with the
 phone code, then reads status, logging, analytics, cron and repos as you.
 

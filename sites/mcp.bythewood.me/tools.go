@@ -160,10 +160,10 @@ func (rd reader) find(ctx context.Context, tool, kind, name string) (string, str
 type tool struct {
 	Name, Title, Description string
 	Schema                   map[string]any
-	// Writes marks the one kind of tool that changes something, a proposal
-	// to gate that only watches until Isaac turns it on.
-	Writes bool
-	run    func(ctx context.Context, rd reader, args json.RawMessage) (string, error)
+	// Writes marks a tool that changes gate. Live marks the one whose change
+	// takes effect at once rather than waiting on Isaac.
+	Writes, Live bool
+	run          func(ctx context.Context, rd reader, args json.RawMessage) (string, error)
 }
 
 func obj(props map[string]any, required ...string) map[string]any {
@@ -527,6 +527,36 @@ var tools = []tool{
 			return "Proposed, watching and waiting on Isaac.\n\n" + body, nil
 		},
 	},
+	{
+		Name: "gate_edit", Title: "Change a gate rule", Live: true,
+		Description: "Changes an existing gate rule by name, only the fields you send, and it takes effect at once. Use it for tuning a rule Isaac already has, like adding ban_after or a path to skip. It can't turn a proposal on, change an allow rule or save a rule that would catch signing in, and every edit lands in gate's change log with your why, where Isaac can restore it. `when` replaces every condition line, so send the whole rule as gate_report shows it plus your change. Look with gate_report and gate_traffic first.",
+		Writes:      true,
+		Schema: obj(map[string]any{
+			"name":      str("The rule's name, as gate_report lists it."),
+			"why":       str("Why, in a sentence, with what you saw."),
+			"when":      str("Every condition line, separated by newlines. Replaces the rule's whole condition."),
+			"then":      enum("What it does.", "block", "limit", "challenge"),
+			"status":    map[string]any{"type": "integer", "minimum": 403, "maximum": 404, "description": "For block, 403 or 404."},
+			"rate":      map[string]any{"type": "integer", "minimum": 1, "maximum": 10000, "description": "For limit, requests a minute per address."},
+			"message":   str("For block, what the refusal says."),
+			"note":      str("The rule's own note, replaced."),
+			"ban_after": map[string]any{"type": "integer", "minimum": 0, "maximum": 1000, "description": "Ban an address everywhere after this many hits in 10 minutes, 0 for never."},
+			"ban_hours": map[string]any{"type": "integer", "minimum": 1, "maximum": 8760, "description": "How long a ban lasts, 24 if never set."},
+			"watching":  map[string]any{"type": "boolean", "description": "true to only count, false to enforce. A proposal can't be set to false."},
+		}, "name", "why"),
+		run: func(ctx context.Context, rd reader, raw json.RawMessage) (string, error) {
+			code, body, err := rd.post(ctx, "gate", "/api/edit", raw)
+			if err != nil {
+				return "", err
+			}
+			if code != http.StatusOK {
+				var e struct{ Error string }
+				_ = json.Unmarshal([]byte(body), &e)
+				return "", fmt.Errorf("gate refused it: %s", e.Error)
+			}
+			return "Changed, live now.\n\n" + body, nil
+		},
+	},
 }
 
 func toolList() []map[string]any {
@@ -534,7 +564,7 @@ func toolList() []map[string]any {
 	for _, t := range tools {
 		out = append(out, map[string]any{
 			"name": t.Name, "title": t.Title, "description": t.Description, "inputSchema": t.Schema,
-			"annotations": map[string]any{"title": t.Title, "readOnlyHint": !t.Writes, "destructiveHint": false, "idempotentHint": !t.Writes, "openWorldHint": false},
+			"annotations": map[string]any{"title": t.Title, "readOnlyHint": !t.Writes, "destructiveHint": t.Live, "idempotentHint": !t.Writes, "openWorldHint": false},
 		})
 	}
 	return out

@@ -81,10 +81,10 @@
     <dl class="o-kv">
       <dt>read only</dt><dd class="o-mono">{{.Reads}}/{{len .Rows}}</dd>
       <dt>writes</dt><dd class="o-mono">{{.Writes}}</dd>
-      <dt>destructive</dt><dd class="o-mono">0</dd>
+      <dt>destructive</dt><dd class="o-mono">{{.Live}}</dd>
       <dt>open world</dt><dd class="o-mono">0</dd>
     </dl>
-    <p class="o-muted small">Always allow is safe for every read only tool. {{if .Writes}}gate_propose only adds a rule that watches until you turn it on in gate, so it can ask each time.{{end}}</p>
+    <p class="o-muted small">Always allow is safe for every read only tool. {{if .Writes}}gate_propose only adds a rule that watches until you turn it on in gate, and gate_edit changes a rule live, so let both ask each time.{{end}}</p>
   </section>
 </div>
 {{template "foot" .}}{{end}}
