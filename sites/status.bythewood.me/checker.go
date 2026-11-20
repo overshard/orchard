@@ -54,6 +54,15 @@ type probeOutcome struct {
 	// live origin could have left it, see classifyCache.
 	originUnreachable bool
 	originStatus      int64
+
+	cert certInfo
+}
+
+// certInfo is the leaf certificate the first hop was served, which for a site
+// behind Cloudflare is the edge's and so the one a visitor sees.
+type certInfo struct {
+	notAfter int64
+	issuer   string
 }
 
 // hopResult is one request and response, with enough detail to follow a redirect.
@@ -62,6 +71,7 @@ type hopResult struct {
 	headers     map[string]string
 	headersJSON string
 	timings     PhaseTimings
+	cert        certInfo
 }
 
 // errPlainHTTP is returned for an http:// URL since the probe is HTTP/2 over TLS
@@ -189,6 +199,13 @@ func runCheck(ctx context.Context, db *sql.DB, p *Property) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("insert check: %w", err)
 	}
+	if outcome.cert.notAfter > 0 {
+		if _, err := db.ExecContext(ctx,
+			"UPDATE properties SET cert_not_after = ?, cert_issuer = ? WHERE id = ?",
+			outcome.cert.notAfter, nullableString(outcome.cert.issuer), p.ID[:]); err != nil {
+			slog.Info("store cert expiry", slog.String("url", p.URL), slog.Any("err", err))
+		}
+	}
 	return effective, nil
 }
 
@@ -270,6 +287,7 @@ func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, erro
 		age:               age,
 		originUnreachable: unreachable,
 		originStatus:      originStatus,
+		cert:              first.cert,
 	}, nil
 }
 
@@ -377,6 +395,10 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 		return nil, fmt.Errorf("tls handshake: server did not negotiate h2 (got %q)", proto)
 	}
 	tlsMS := atLeast1ms(time.Since(tlsStart))
+	var cert certInfo
+	if peers := tlsConn.ConnectionState().PeerCertificates; len(peers) > 0 {
+		cert = certInfo{notAfter: peers[0].NotAfter.UnixMilli(), issuer: peers[0].Issuer.CommonName}
+	}
 
 	status, headers, headersJSON, ttfbMS, err := h2Request(ctx, tlsConn, u)
 	if err != nil {
@@ -387,6 +409,7 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 		statusCode:  status,
 		headers:     headers,
 		headersJSON: headersJSON,
+		cert:        cert,
 		timings: PhaseTimings{
 			DNSMS:   new(dnsMS),
 			TCPMS:   new(tcpMS),
@@ -477,32 +500,47 @@ func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *P
 	}
 
 	transition := ""
+	var incidentID int64
 	switch {
 	case isUp && currentState == "down":
 		transition = "recovery"
+	case !isUp && currentState == "down":
+		if _, err := tx.ExecContext(ctx,
+			"UPDATE incidents SET failed_checks = failed_checks + 1 WHERE property_id = ? AND ended_at IS NULL",
+			p.ID[:]); err != nil {
+			return err
+		}
 	case !isUp && currentState == "up":
 		// The check just inserted is one of the two, look for a second.
 		rows, err := tx.QueryContext(ctx,
-			"SELECT status_code FROM checks WHERE property_id = ? ORDER BY created_at DESC LIMIT 2",
+			"SELECT status_code, created_at FROM checks WHERE property_id = ? ORDER BY created_at DESC LIMIT 2",
 			p.ID[:])
 		if err != nil {
 			return err
 		}
-		var recent []int64
+		var codes, at []int64
 		for rows.Next() {
-			var code int64
-			if err := rows.Scan(&code); err != nil {
+			var code, created int64
+			if err := rows.Scan(&code, &created); err != nil {
 				rows.Close()
 				return err
 			}
-			recent = append(recent, code)
+			codes = append(codes, code)
+			at = append(at, created)
 		}
 		rows.Close()
 		if err := rows.Err(); err != nil {
 			return err
 		}
-		if len(recent) >= 2 && recent[0] != 200 && recent[1] != 200 {
+		if len(codes) >= 2 && codes[0] != 200 && codes[1] != 200 {
 			transition = "down"
+			res, err := tx.ExecContext(ctx,
+				`INSERT INTO incidents (property_id, started_at, down_at, first_code, failed_checks)
+				 VALUES (?, ?, ?, ?, 2)`, p.ID[:], at[1], at[0], codes[1])
+			if err != nil {
+				return err
+			}
+			incidentID, _ = res.LastInsertId()
 		}
 	}
 
@@ -511,10 +549,21 @@ func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *P
 	}
 
 	newState := "down"
-	if transition == "recovery" {
-		newState = "up"
-	}
+	pushed := "pushed_down"
 	now := nowMS()
+	if transition == "recovery" {
+		newState, pushed = "up", "pushed_up"
+		if err := tx.QueryRowContext(ctx,
+			"SELECT id FROM incidents WHERE property_id = ? AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1",
+			p.ID[:]).Scan(&incidentID); err != nil && err != sql.ErrNoRows {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx,
+			"UPDATE incidents SET ended_at = ? WHERE property_id = ? AND ended_at IS NULL",
+			now, p.ID[:]); err != nil {
+			return err
+		}
+	}
 	if _, err := tx.ExecContext(ctx,
 		"UPDATE properties SET alert_state = ?, last_alert_sent = ?, updated_at = ? WHERE id = ?",
 		newState, now, now, p.ID[:]); err != nil {
@@ -536,6 +585,16 @@ func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *P
 		URL:           p.URL,
 		CurrentStatus: statusCode,
 		AvgResponseMS: avg,
+		Sent: func(ok bool) {
+			if incidentID == 0 {
+				return
+			}
+			// Background, since the tick that raised it has moved on by now.
+			if _, err := db.ExecContext(context.Background(),
+				"UPDATE incidents SET "+pushed+" = ? WHERE id = ?", ok, incidentID); err != nil {
+				slog.Info("alert: recording the push", slog.Any("url", p.URL), slog.Any("err", err))
+			}
+		},
 	})
 	return nil
 }

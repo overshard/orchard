@@ -20,6 +20,9 @@ type AlertContext struct {
 	URL           string
 	CurrentStatus int64
 	AvgResponseMS int64
+
+	// Sent hears whether ntfy took it, for the incident log. Nil is fine.
+	Sent func(ok bool)
 }
 
 // Notifier publishes transitions. It holds a client, unlike the prober, since it
@@ -91,7 +94,11 @@ func (n *Notifier) Fire(kind string, ctx AlertContext) {
 		slog.Info("alert: unknown kind", slog.Any("kind", kind), slog.Any("url", ctx.URL))
 		return
 	}
-	if err := n.client.Publish(context.Background(), body); err != nil {
+	err := n.client.Publish(context.Background(), body)
+	if ctx.Sent != nil {
+		ctx.Sent(err == nil)
+	}
+	if err != nil {
 		slog.Error("alert: publishing failed", slog.Any("kind", kind), slog.Any("url", ctx.URL), slog.Any("err", err))
 		return
 	}

@@ -28,6 +28,7 @@ const (
 
 	cleanupInterval = 24 * time.Hour
 	checkRetention  = 3 * 24 * time.Hour
+	rollupInterval  = 10 * time.Minute
 )
 
 // Scheduler owns the background work.
@@ -79,10 +80,20 @@ func (s *Scheduler) run(ctx context.Context) {
 	ticker := time.NewTicker(cycleInterval)
 	defer ticker.Stop()
 
-	var lastCleanup time.Time
+	var lastCleanup, lastRollup time.Time
+
+	if err := backfillIncidents(ctx, s.db); err != nil {
+		slog.Error("backfill incidents", slog.Any("err", err), slog.String("component", "scheduler"))
+	}
 
 	for {
 		s.cycle(ctx, &lastCleanup)
+		if time.Since(lastRollup) >= rollupInterval {
+			if err := rollupDays(ctx, s.db); err != nil {
+				slog.Error("rollup days", slog.Any("err", err), slog.String("component", "scheduler"))
+			}
+			lastRollup = time.Now()
+		}
 
 		select {
 		case <-ctx.Done():

@@ -69,6 +69,39 @@ CREATE TABLE IF NOT EXISTS checks (
 CREATE INDEX IF NOT EXISTS checks_created_at       ON checks(created_at);
 CREATE INDEX IF NOT EXISTS checks_property_created ON checks(property_id, created_at DESC);
 
+-- One row per property per UTC day, kept forever, since checks only last three
+-- days. hours is 24 [checks, failed, p50] triples. The phase columns are medians.
+CREATE TABLE IF NOT EXISTS days (
+    property_id BLOB NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    day         TEXT NOT NULL,
+    checks      INTEGER NOT NULL,
+    failed      INTEGER NOT NULL,
+    p50_ms      INTEGER,
+    p95_ms      INTEGER,
+    dns_ms      INTEGER,
+    tcp_ms      INTEGER,
+    tls_ms      INTEGER,
+    ttfb_ms     INTEGER,
+    hours       TEXT NOT NULL DEFAULT '[]',
+    PRIMARY KEY (property_id, day)
+) WITHOUT ROWID;
+
+-- One row per outage, opened on the down transition and closed on the recovery.
+-- pushed_* is NULL when nothing was sent, which is every backfilled row.
+CREATE TABLE IF NOT EXISTS incidents (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    property_id   BLOB NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    started_at    INTEGER NOT NULL,
+    down_at       INTEGER NOT NULL,
+    ended_at      INTEGER,
+    first_code    INTEGER NOT NULL,
+    failed_checks INTEGER NOT NULL,
+    pushed_down   INTEGER,
+    pushed_up     INTEGER,
+    backfilled    INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS incidents_property_started ON incidents(property_id, started_at DESC);
+
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -76,8 +109,8 @@ CREATE TABLE IF NOT EXISTS meta (
 `
 
 // SQLite has no ADD COLUMN IF NOT EXISTS, and CREATE TABLE IF NOT EXISTS doesn't
-// reconcile columns on a table that already exists, so ensurePhaseColumns adds
-// these by hand.
+// reconcile columns on a table that already exists, so ensureColumns adds these
+// by hand.
 var phaseColumns = []addedColumn{
 	{"dns_ms", "INTEGER"},
 	{"tcp_ms", "INTEGER"},
@@ -85,6 +118,11 @@ var phaseColumns = []addedColumn{
 	{"ttfb_ms", "INTEGER"},
 	{"cf_cache_status", "TEXT"},
 	{"age", "INTEGER"},
+}
+
+var certColumns = []addedColumn{
+	{"cert_not_after", "INTEGER"},
+	{"cert_issuer", "TEXT"},
 }
 
 type addedColumn struct{ name, typ string }
@@ -125,7 +163,10 @@ func openDB(path string) (*sql.DB, error) {
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
-	if err := ensurePhaseColumns(db); err != nil {
+	if err := ensureColumns(db, "checks", phaseColumns); err != nil {
+		return nil, err
+	}
+	if err := ensureColumns(db, "properties", certColumns); err != nil {
 		return nil, err
 	}
 	// SQLite's advice for a long lived connection. A failure only costs the
@@ -134,10 +175,10 @@ func openDB(path string) (*sql.DB, error) {
 	return db, nil
 }
 
-func ensurePhaseColumns(db *sql.DB) error {
-	rows, err := db.Query("PRAGMA table_info(checks)")
+func ensureColumns(db *sql.DB, table string, cols []addedColumn) error {
+	rows, err := db.Query("PRAGMA table_info(" + table + ")")
 	if err != nil {
-		return fmt.Errorf("inspect checks table: %w", err)
+		return fmt.Errorf("inspect %s table: %w", table, err)
 	}
 	defer rows.Close()
 
@@ -151,20 +192,21 @@ func ensurePhaseColumns(db *sql.DB) error {
 			pk         int
 		)
 		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultVal, &pk); err != nil {
-			return fmt.Errorf("inspect checks table: %w", err)
+			return fmt.Errorf("inspect %s table: %w", table, err)
 		}
 		have[name] = true
 	}
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("inspect checks table: %w", err)
+		return fmt.Errorf("inspect %s table: %w", table, err)
 	}
+	rows.Close()
 
-	for _, col := range phaseColumns {
+	for _, col := range cols {
 		if have[col.name] {
 			continue
 		}
-		if _, err := db.Exec("ALTER TABLE checks ADD COLUMN " + col.name + " " + col.typ); err != nil {
-			return fmt.Errorf("add checks.%s: %w", col.name, err)
+		if _, err := db.Exec("ALTER TABLE " + table + " ADD COLUMN " + col.name + " " + col.typ); err != nil {
+			return fmt.Errorf("add %s.%s: %w", table, col.name, err)
 		}
 	}
 	return nil
@@ -206,6 +248,9 @@ type Property struct {
 	AlertState    string
 	LastAlertSent *int64
 
+	CertNotAfter *int64
+	CertIssuer   *string
+
 	CreatedAt int64
 	UpdatedAt int64
 }
@@ -229,7 +274,7 @@ const propertyColumns = `id, url, is_public, is_protected,
 	last_lighthouse_success_at, last_lighthouse_error,
 	last_lighthouse_duration_ms, next_lighthouse_run_at, lighthouse_state,
 	lighthouse_started_at,
-	alert_state, last_alert_sent, created_at, updated_at`
+	alert_state, last_alert_sent, cert_not_after, cert_issuer, created_at, updated_at`
 
 func scanProperty(scan func(...any) error) (*Property, error) {
 	var (
@@ -248,7 +293,7 @@ func scanProperty(scan func(...any) error) (*Property, error) {
 		&p.LastLighthouseSuccessAt, &p.LastLighthouseError,
 		&p.LastLighthouseDurationMS, &p.NextLighthouseRunAt, &p.LighthouseState,
 		&p.LighthouseStartedAt,
-		&p.AlertState, &p.LastAlertSent, &p.CreatedAt, &p.UpdatedAt,
+		&p.AlertState, &p.LastAlertSent, &p.CertNotAfter, &p.CertIssuer, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -354,11 +399,12 @@ type Check struct {
 	TCPMS      *int64
 	TLSMS      *int64
 	TTFBMS     *int64
+	CacheState *string
 }
 
 func recentChecks(ctx context.Context, db *sql.DB, id uuid.UUID, limit int) ([]Check, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT status_code, response_ms, headers, created_at, dns_ms, tcp_ms, tls_ms, ttfb_ms
+		`SELECT status_code, response_ms, headers, created_at, dns_ms, tcp_ms, tls_ms, ttfb_ms, cf_cache_status
 		 FROM checks WHERE property_id = ? ORDER BY created_at DESC LIMIT ?`, id[:], limit)
 	if err != nil {
 		return nil, err
@@ -369,7 +415,7 @@ func recentChecks(ctx context.Context, db *sql.DB, id uuid.UUID, limit int) ([]C
 	for rows.Next() {
 		var c Check
 		if err := rows.Scan(&c.StatusCode, &c.ResponseMS, &c.Headers, &c.CreatedAt,
-			&c.DNSMS, &c.TCPMS, &c.TLSMS, &c.TTFBMS); err != nil {
+			&c.DNSMS, &c.TCPMS, &c.TLSMS, &c.TTFBMS, &c.CacheState); err != nil {
 			return nil, err
 		}
 		out = append(out, c)
