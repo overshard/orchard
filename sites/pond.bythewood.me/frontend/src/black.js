@@ -154,7 +154,7 @@ function row(d, coins) {
   key.textContent = d.coins + " COIN";
   sub.textContent = "about " + d.about.toLocaleString("en-US");
   key.append(sub);
-  key.setAttribute("aria-label", "Buy " + d.name + " for " + d.coins + " Glowworm Coin, about " + d.about + " pebbles");
+  key.setAttribute("aria-label", "Buy " + d.name + " for " + d.coins + " glow coin, about " + d.about + " pebbles");
   key.disabled = coins < d.coins;
   key.addEventListener("click", () => buy(d, key));
   li.append(key);
@@ -167,7 +167,7 @@ export function renderBlack(p, toCoin) {
   sign = (b.back || "").toUpperCase();
   const when = b.hours.map((h) => h[0] + " to " + h[1]).join(" and ");
   $("bm-line").textContent = b.open
-    ? "Open for " + hours(b.edge) + " more. Paid in Glowworm Coin only, and a deal here is a gamble. Some are steals, most are fair or worse, and some aren't what they say."
+    ? "Open for " + hours(b.edge) + " more. Paid in glow coin only, and a deal here is a gamble. Some are steals, most are fair or worse, and some aren't what they say."
     : "Shut. Back at " + b.back + ", in " + hours(b.edge) + ". Open " + when + ", pond time.";
   const coin = button("Get coin", toCoin);
   const tiles = $("bm-coins");

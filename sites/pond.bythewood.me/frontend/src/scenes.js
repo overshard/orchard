@@ -455,8 +455,8 @@ export function drawStall(cv, p) {
   });
 }
 
-// The boardwalk at the market, the chalk board with how the goods moved and
-// a lamp post at each end.
+// The boardwalk at the night market, the chalk board with how the goods and
+// the coin moved, and a lamp post at each end.
 export function drawMarket(cv, p) {
   vista(cv).draw((g, w, h) => {
     const day = p.day, o = mid(w, SW), r = rng(43), L = look(day);
@@ -467,10 +467,11 @@ export function drawMarket(cv, p) {
     for (let x = 2 - o - ((2 - o) % 18 + 18) % 18; x < w - o; x += 18) px(g, "#2a1a0e", x + 2, h - 28, 2, 16);
     const by = h - 96;
     px(g, "#1a2a1a", 60, by + 2, 76, 50); px(g, "#6a4428", 58, by, 80, 2); px(g, "#6a4428", 58, by + 52, 80, 2); px(g, "#6a4428", 58, by, 2, 54); px(g, "#6a4428", 136, by, 2, 54);
-    const goods = ((p.market && p.market.firms) || []).filter((f) => f.kind === "good").slice(0, 3);
-    goods.forEach((f, i) => {
-      const y = by + 5 + i * 15, up = f.price >= (f.prev || f.price);
-      drawIcon(g, f.item, 64, y, 1);
+    const firms = (p.market && p.market.firms) || [];
+    const rows = firms.filter((f) => f.kind === "good").slice(0, 3).concat(firms.filter((f) => f.kind === "coin"));
+    rows.forEach((f, i) => {
+      const y = by + 3 + i * 12, up = f.price >= (f.prev || f.price);
+      drawIcon(g, f.kind === "good" ? f.item : f.kind, 64, y, 1);
       const c = up ? "#6fd08c" : "#ff8a7a";
       for (let k = 0; k < 3; k++) px(g, c, 98 - k, y + (up ? 3 + k : 8 - k), 1 + k * 2, 1);
       let v = 0;

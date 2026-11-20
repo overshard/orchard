@@ -5481,137 +5481,151 @@ button.big {
   z-index: 1;
 }
 
-/* The market's ticker runs along the top. */
-.ticker {
-  margin: 4px 0 10px;
-  padding: 6px 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--well);
-  box-shadow: var(--edge);
-  overflow: hidden;
-}
-
-.ticker .tape {
-  width: max-content;
-  color: var(--text);
-  font-family: var(--ui);
-  font-size: 12px;
-  font-weight: 500;
-  white-space: pre;
-  animation: tape 60s linear infinite;
-}
-
-.ticker .tape .up {
-  color: var(--ok);
-}
-
-.ticker .tape .down {
-  color: var(--bad);
-}
-
-.ticker .tape.still {
-  animation: none;
-}
-
-@keyframes tape {
-  to { transform: translateX(-50%); }
-}
-
-/* Each business is a card with its chart on it, and tapping it trades. */
-.market {
+/* The night market's board, a card a thing with its icon, why it's moving,
+   a spark line and the price, and tapping one trades it. */
+.board,
+.folktape {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  margin: 8px 0;
+  gap: 6px;
+  margin: 0 0 8px;
   padding: 0;
   list-style: none;
 }
 
-.market li {
+.board li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  padding: 10px;
-  border-radius: 10px;
-  background: var(--card);
-  box-shadow: var(--ghost);
-  cursor: pointer;
-}
-
-.market .firm {
-  display: flex;
+  grid-template-columns: 24px minmax(0, 1fr) 64px 56px;
   align-items: center;
   gap: 10px;
-}
-
-.market .what {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  font-size: 14px;
-}
-
-.market .readout {
-  min-width: 84px;
-  margin-left: auto;
-  align-items: flex-end;
-}
-
-.market .readout .v {
-  font-size: 15px;
-}
-
-.readout.down .v,
-.market .readout.down .k {
-  color: var(--bad);
-}
-
-.market canvas.chart {
-  display: block;
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: var(--sunk);
-  image-rendering: pixelated;
-}
-
-.market .own {
-  margin: 0;
-  font-size: 14px;
-  color: var(--ok);
-}
-
-.market .own.down {
-  color: var(--bad);
-}
-
-/* Dividends waiting are a row like the Next strip's, collected in place. */
-#mkt-div {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 10px;
   padding: 8px 10px;
   border-radius: 10px;
   background: var(--card);
-  box-shadow: var(--ghost);
-  font-size: 14px;
+  box-shadow: var(--edge);
+  cursor: pointer;
 }
 
-#mkt-div[hidden] {
-  display: none;
+.board li:active {
+  background: var(--card-2);
 }
 
-#mkt-div .what {
-  flex: 1;
+.board canvas {
+  width: 24px;
+  height: 24px;
+}
+
+.board .t {
+  display: grid;
   min-width: 0;
 }
 
-#mkt-div button {
+.board .t b {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.board .t span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board svg {
+  width: 64px;
+  height: 24px;
+}
+
+.board polyline {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.board polyline.up,
+.board .pr .up {
+  stroke: var(--ok);
+  color: var(--ok);
+}
+
+.board polyline.down,
+.board .pr .down {
+  stroke: var(--bad);
+  color: var(--bad);
+}
+
+.board .pr {
+  display: grid;
+  justify-items: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.board .pr b {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.board .pr span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* The tape is the neighbours' trades, a line each in a dark well. */
+.folktape {
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--well);
+  box-shadow: var(--edge);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.folktape li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.folktape canvas {
+  width: 24px;
+  height: auto;
+}
+
+.folktape b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.folktape small {
+  color: var(--dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.folktape[hidden] {
+  display: none;
+}
+
+#town-market h2 .m {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+#town-market .prow button {
+  min-height: 36px;
   margin: 0 0 3px;
+  padding: 6px 14px;
+}
+
+#mkt-back {
+  margin-top: 12px;
 }
 
 #mkt-tiles .v,
@@ -5619,7 +5633,7 @@ button.big {
   font-size: 13px;
 }
 
-/* The tiles over the board are a key that opens the holdings. */
+/* The tiles of what's held are a key that opens it all. */
 button#mkt-tiles,
 button#mkt-tiles:active {
   width: 100%;
@@ -5631,16 +5645,6 @@ button#mkt-tiles:active {
   box-shadow: var(--sunk);
   transform: none;
   text-align: left;
-}
-
-.newstag {
-  font-size: 12px;
-  letter-spacing: var(--track);
-  color: var(--ok);
-}
-
-.newstag.down {
-  color: var(--bad);
 }
 
 .shelf .readout {
@@ -5666,17 +5670,6 @@ button#mkt-tiles:active {
 .framepick canvas {
   width: 100%;
   height: auto;
-}
-
-/* The market's four filters share a row, the back door included. */
-#mkt-sorts {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-#mkt-sorts button {
-  padding: 4px 2px;
-  letter-spacing: 0.04em;
 }
 
 /* The back door is the market's alley, the hooded frog behind a crate. */

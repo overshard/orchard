@@ -431,14 +431,23 @@
     </div>
 
     <div id="town-market" hidden>
-      <div class="ticker" aria-hidden="true"><div class="tape" id="mkt-tape"></div></div>
-      <button type="button" class="tiles" id="mkt-tiles" aria-label="Your holdings"></button>
-      <div id="mkt-div" hidden></div>
-      <h2>The pond market</h2>
+      <div class="prow" id="mkt-melon">
+        <canvas data-icon="melon" width="24" height="24" aria-hidden="true"></canvas>
+        <span class="gtext"><b id="mkt-melon-head">Moonmelons</b><span id="mkt-melon-line"></span></span>
+        <button type="button" class="primary" id="mkt-melon-go">Buy</button>
+      </div>
+      <h2>The board <span class="m">moves every 10 min</span></h2>
       <p class="help" id="mkt-help" hidden></p>
-      <div class="chiprow" id="mkt-sorts" role="group" aria-label="Show"></div>
-      <p class="dim" id="mkt-open"></p>
-      <ul class="market" id="mkt-list"></ul>
+      <ul class="board" id="mkt-board"></ul>
+      <h2>On the tape <span class="m">neighbours trade too</span></h2>
+      <ul class="folktape" id="mkt-tape"></ul>
+      <h2>What you hold</h2>
+      <button type="button" class="tiles" id="mkt-tiles" aria-label="What you hold"></button>
+      <div class="prow" id="mkt-back">
+        <canvas data-icon="i_hood" width="24" height="24" aria-hidden="true"></canvas>
+        <span class="gtext"><b>The back door</b><span id="mkt-back-line"></span></span>
+        <button type="button" class="primary" id="mkt-back-go">Knock</button>
+      </div>
       <div id="mkt-black" hidden>
         <div class="screen"><canvas id="bm-art" width="352" height="168" aria-label="The back door of the market"></canvas></div>
         <p class="bm-line" id="bm-line"></p>

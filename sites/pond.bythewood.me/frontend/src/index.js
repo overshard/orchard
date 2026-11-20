@@ -38,7 +38,7 @@ const VIEWS = ["pond", "play", "dive", ...SIDE.map((d) => d.key), "wheel", "bag"
 const MAKE = ["garden", "bank", "wizard"];
 const TOWN = ["neighbours", "shops", "stall", "market"];
 // The key in town a waiting thing is behind, by its kind.
-const TOWN_KEY = { stall: "stall", favour: "neighbours", gift: "neighbours", dividend: "market" };
+const TOWN_KEY = { stall: "stall", favour: "neighbours", gift: "neighbours", melon: "market" };
 // The dock key each place lights. Places that open from another light that one's key.
 const TAB_OF = { reeds: "frogs", frog: "frogs", lay: "frogs", stamps: "frogs", job: "frogs", garden: "make", bank: "make", wizard: "make", neighbours: "town", shops: "town", stall: "town", market: "town", collect: "bag", dive: "play", wheel: "play" };
 SIDE.forEach((d) => { TAB_OF[d.key] = "play"; });
@@ -88,7 +88,7 @@ function seeOpen() {
 
 // What comes round every day is new each day. The rest is new until it's
 // been seen once.
-const DAILY = ["log", "dive", "arcade", "favour", "gift", "rested", "dividend"];
+const DAILY = ["log", "dive", "arcade", "favour", "gift", "rested", "melon"];
 
 function sortPips(p, todo) {
   if (seen.pond !== p.share.path) seen = { pond: p.share.path };
