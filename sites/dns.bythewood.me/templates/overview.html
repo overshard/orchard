@@ -37,7 +37,7 @@
     <small>allowed by me</small>
     <b {{if .Allowed}}class="ok"{{end}}>{{comma .Allowed}}</b>
     <span class="o-delta">a list had them, a rule let them by</span>
-    <span class="o-ticks" aria-hidden="true"></span>
+    {{sparkT "ok" .HourA .Labels}}
   </a>
   <a class="o-tile" href="/devices">
     <small>devices asking</small>
@@ -49,22 +49,22 @@
     <small>answer time &middot; p50</small>
     <b>{{.P50}}<small>ms</small></b>
     <span class="o-delta">p95 {{.P95}}ms</span>
-    <span class="o-ticks" aria-hidden="true"></span>
+    {{sparkT "ok" .HourMs .Labels}}
   </div>
   <a class="o-tile" href="/log?status=fail">
     <small>failed</small>
     <b {{if .Failed}}class="warn"{{end}}>{{comma .Failed}}</b>
-    <span class="o-delta">no answer from upstream</span>
-    <span class="o-ticks" aria-hidden="true"></span>
+    <span class="o-delta">no answer from unbound or Quad9</span>
+    {{sparkT "warn" .HourF .Labels}}
   </a>
   <a class="o-tile" href="/lists">
     <small>listed</small>
     <b>{{comma .Listed}}</b>
     <span class="o-delta">{{if .Health.Refreshed.IsZero}}not fetched yet{{else}}refreshed {{ago .Health.Refreshed}}{{end}}</span>
-    <span class="o-ticks" aria-hidden="true"></span>
+    <span class="o-ticks" aria-hidden="true">{{range .ListTicks}}<i style="height: {{pct .N $.ListMax}}%" data-tip="{{.Key}}: {{comma .N}}"></i>{{end}}</span>
   </a>
 </div>
-<p class="o-foot"><span data-xs-when>sparks are the last 24 hours by UTC hour</span></p>
+<p class="o-foot"><span data-xs-when>sparks are the last 24 hours by UTC hour, answer time is the hourly mean</span></p>
 </div>
 
 <div class="o-band b2r">
@@ -81,7 +81,7 @@
   </section>
   <section class="o-panel flush">
     <div class="o-ph2"><h2>Devices</h2><span class="o-pm"><span>lookups</span><span>blocked</span></span></div>
-    {{range .Devices}}<div class="o-rw dv"><span class="o-dot {{if .Total}}ok{{else}}mute{{end}}"></span><a class="n" href="/devices/{{.ID}}">{{.Name}}</a><span class="m o-mono">{{if .LastProto}}{{.LastProto}} &middot; {{end}}{{ago .LastSeen}}</span><span class="o-mono v">{{comma .Total}}</span><span class="o-mono v o-muted">{{comma .Blocked}}</span></div>
+    {{range .Devices}}<div class="o-rw dv"{{if .Quiet}} data-tip="Quiet longer than a {{.Kind}} usually is, check it's still set up"{{end}}><span class="o-dot {{if .Quiet}}warn{{else if .Total}}ok{{else}}mute{{end}}"></span><a class="n" href="/devices/{{.ID}}">{{.Name}}</a><span class="m o-mono">{{if .LastProto}}{{.LastProto}} &middot; {{end}}{{ago .LastSeen}}</span><span class="o-mono v">{{comma .Total}}</span><span class="o-mono v o-muted">{{comma .Blocked}}</span></div>
     {{else}}<p class="o-empty"><b>No devices.</b><a href="/devices#add">Add the first one</a> to get its DoT name and DoH URL.</p>{{end}}
   </section>
   </div>
@@ -107,10 +107,10 @@
   <thead><tr><th>When</th><th>Device</th><th>Name</th><th>Why</th><th class="r"></th></tr></thead>
   <tbody>
   {{range .Rows}}
-    <tr>
+    <tr data-href="/check?domain={{or .Via .Name}}">
       <td class="n o-muted nw" data-tip="{{utc .At}}">{{clock .At}}</td>
       <td class="nw small" data-l="device">{{.DeviceName}}</td>
-      <td class="lead mono clip" data-tip="{{.Name}}">{{.Name}}{{if .Via}} <span class="o-muted">&rarr; {{.Via}}</span>{{end}}</td>
+      <td class="lead mono clip full" data-tip="{{.Name}}">{{.Name}}{{if .Via}} <span class="o-muted">&rarr; {{.Via}}</span>{{end}}</td>
       <td class="nw" data-l="why"><span class="o-chip bad">{{.Reason}}</span></td>
       <td class="r nw">{{template "allowbtn" (dict "Name" (or .Via .Name) "Back" $.Back)}}</td>
     </tr>
@@ -122,4 +122,4 @@
 </div>
 {{end}}
 
-{{define "allowbtn"}}<form method="post" action="/rules" class="inl"><input type="hidden" name="domain" value="{{.Name}}"><input type="hidden" name="action" value="allow"><input type="hidden" name="back" value="{{.Back}}"><button class="o-btn o-btn-sm" type="submit" title="Allow {{.Name}} and everything under it">Allow</button></form>{{end}}
+{{define "allowbtn"}}<form method="post" action="/rules" class="inl" data-undo="Allowing {{.Name}}"><input type="hidden" name="domain" value="{{.Name}}"><input type="hidden" name="action" value="allow"><input type="hidden" name="back" value="{{.Back}}"><button class="o-btn o-btn-sm" type="submit" title="Allow {{.Name}} and everything under it">Allow</button></form>{{end}}

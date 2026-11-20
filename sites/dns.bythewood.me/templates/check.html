@@ -3,8 +3,8 @@
   <div>
     <span class="o-lab"><a href="/lists">lists</a> &middot; check</span>
     {{if .V}}
-    <h1><span class="o-mono">{{.Name}}</span> is <em class="{{if or (eq .V.Status "block") (eq .V.Status "deny")}}bad{{end}}">{{if or (eq .V.Status "block") (eq .V.Status "deny")}}blocked{{else}}answered{{end}}</em>.</h1>
-    <p>{{if eq .V.Status "block"}}{{listName .V.Reason}} lists <code>{{.V.Domain}}</code>{{if ne .V.Domain .Name}}, which covers it{{end}}.{{else if eq .V.Status "deny"}}My rule blocks <code>{{.V.Domain}}</code>.{{else if eq .V.Status "allow"}}{{listName .V.Reason}} has it, and my rule for <code>{{.V.Domain}}</code> lets it by.{{else}}No list and no rule of mine has it.{{end}} A device that skips a list can still get it, and a CNAME it answers with is checked too.</p>
+    <h1><span class="o-mono">{{.Name}}</span> is <em class="{{if or (eq .V.Status "block") (eq .V.Status "deny")}}bad{{end}}">{{if or (eq .V.Status "block") (eq .V.Status "deny")}}blocked{{else if eq .V.Status "rewrite"}}rewritten{{else}}answered{{end}}</em>.</h1>
+    <p>{{if eq .V.Status "block"}}{{listName .V.Reason}} lists <code>{{.V.Domain}}</code>{{if ne .V.Domain .Name}}, which covers it{{end}}.{{else if eq .V.Status "deny"}}My rule blocks <code>{{.V.Domain}}</code>.{{else if eq .V.Status "rewrite"}}My rule for <code>{{.V.Domain}}</code> points it at <code>{{.V.Target}}</code>.{{else if eq .V.Status "allow"}}{{listName .V.Reason}} has it, and my rule for <code>{{.V.Domain}}</code> lets it by.{{else}}No list and no rule of mine has it.{{end}} This is for every device. A device's own rules, a list it skips or SafeSearch can change it, and a CNAME it answers with is checked too.</p>
     {{else}}
     <h1>Check a <em>domain</em>.</h1>
     <p>{{if .Bad}}That doesn't look like a domain. {{end}}Type a name to see what a device would get and why.</p>
@@ -21,10 +21,12 @@
     <div class="o-ph2"><h2>In the lists</h2></div>
     {{range .In}}<div class="o-rw"><span class="o-dot bad"></span><span class="n o-mono">{{.}}</span><span class="m">{{listName .}}</span></div>{{else}}<p class="o-empty"><b>In no list.</b></p>{{end}}
     <div class="o-formbar">
-      {{if or (eq .V.Status "block") (eq .V.Status "deny")}}
-      <form method="post" action="/rules"><input type="hidden" name="domain" value="{{.Name}}"><input type="hidden" name="action" value="allow"><input type="hidden" name="back" value="/check?domain={{.Name}}"><button class="o-btn o-btn-p o-btn-sm" type="submit">Allow {{.Name}}</button></form>
+      {{if .Mine}}
+      <form method="post" action="/rules/{{.Mine.ID}}/delete" data-undo="Removing my rule for {{.Mine.Domain}}"><input type="hidden" name="back" value="/check?domain={{.Name}}"><button class="o-btn o-btn-p o-btn-sm" type="submit">Remove my {{.Mine.Action}} for {{.Mine.Domain}}</button></form>
+      {{else if eq .V.Status "block"}}
+      <form method="post" action="/rules" data-undo="Allowing {{.Name}}"><input type="hidden" name="domain" value="{{.Name}}"><input type="hidden" name="action" value="allow"><input type="hidden" name="back" value="/check?domain={{.Name}}"><button class="o-btn o-btn-p o-btn-sm" type="submit">Allow {{.Name}}</button></form>
       {{else}}
-      <form method="post" action="/rules"><input type="hidden" name="domain" value="{{.Name}}"><input type="hidden" name="action" value="block"><input type="hidden" name="back" value="/check?domain={{.Name}}"><button class="o-btn o-btn-sm o-btn-bad" type="submit">Block {{.Name}}</button></form>
+      <form method="post" action="/rules" data-undo="Blocking {{.Name}}"><input type="hidden" name="domain" value="{{.Name}}"><input type="hidden" name="action" value="block"><input type="hidden" name="back" value="/check?domain={{.Name}}"><button class="o-btn o-btn-sm o-btn-bad" type="submit">Block {{.Name}}</button></form>
       {{end}}
       <a class="o-btn o-btn-sm" href="/lists?domain={{.Name}}">Write a wider rule</a>
     </div>

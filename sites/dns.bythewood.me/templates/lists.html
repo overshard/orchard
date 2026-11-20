@@ -3,8 +3,8 @@
 <div class="o-ph">
   <div>
     <span class="o-lab">dns &middot; lists</span>
-    <h1>{{len .Lists}} lists and <em>{{count (len .Rules) "rule" "rules"}} of mine</em>.</h1>
-    <p>A list entry covers the name and everything under it. My allows beat every list, then my blocks, then the lists in the order below.</p>
+    <h1>{{len .Lists}} lists and <em>{{count .AllRules "rule" "rules"}} of mine</em>.</h1>
+    <p>A list entry covers the name and everything under it. A rewrite comes first, then a device's own rules, then my rules for every device, allow before block, then the lists in the order below.</p>
   </div>
   <div class="o-acts">
     <form method="post" action="/lists/refresh"><button class="o-btn o-btn-sm" type="submit" data-act="refresh the lists">Refresh now</button></form>
@@ -15,13 +15,14 @@
   <div class="o-ph2"><h2>Blocklists</h2><span class="o-pm"><span>refreshed twice a day</span><span>blocked<b>7d</b></span></span></div>
   <div class="o-scroll">
   <table class="o-tbl stack">
-    <thead><tr><th>List</th><th class="r">Entries</th><th class="r">Blocked</th><th>Fetched</th><th>Changed</th><th>Version</th><th>Skipped by</th></tr></thead>
+    <thead><tr><th>List</th><th class="r">Entries</th><th class="r">Blocked</th><th>7 days</th><th>Fetched</th><th>Changed</th><th>Version</th><th>Skipped by</th></tr></thead>
     <tbody>
     {{range .Lists}}
       <tr class="{{if .St.Error}}wait{{end}}">
         <td class="lead"><a href="/log?status=blocked&amp;reason={{.Key}}&amp;range=7d" class="o-mono">{{.Key}}</a> {{.Name}}<span class="sub">{{.About}}</span>{{if .St.Error}}<span class="sub o-bad">last try {{ago .St.ErrorAt}}: {{.St.Error}}, still using the copy from {{ago .St.Fetched}}</span>{{end}}</td>
         <td class="r n" data-l="entries">{{comma .Loaded}}</td>
         <td class="r n" data-l="blocked">{{comma .Blocked7d}}</td>
+        <td class="nw" data-l="7 days">{{$l := .}}<span class="o-ds">{{range $i, $k := .Days}}<i class="{{$k}}" data-tip="{{index $l.DayTips $i}}"></i>{{end}}</span></td>
         <td class="nw mono small o-muted" data-l="fetched">{{ago .St.Fetched}}</td>
         <td class="nw mono small o-muted" data-l="changed">{{ago .St.Changed}}</td>
         <td class="nw mono small o-muted" data-l="version">{{or .St.Version "none"}}</td>
@@ -37,24 +38,33 @@
 <div class="o-band b2r">
   <section class="o-panel flush">
     <div class="o-ph2"><h2>My rules</h2><span class="o-pm"><span>hits<b>7d</b></span></span></div>
+    <div class="filters lf">
+      <form method="get" action="/lists" class="srch"><input class="o-in mono" type="search" name="q" value="{{.Find}}" placeholder="domain or note contains&hellip;" aria-label="Find a rule" autocomplete="off"></form>
+      {{if .Find}}<a class="o-btn o-btn-sm" href="/lists">Show all {{.AllRules}}</a>{{end}}
+    </div>
+    <form method="post" action="/rules/delete" id="bulk-rules" data-undo="Removing the picked rules" hidden><button class="o-btn o-btn-sm o-btn-bad" type="submit">Remove</button></form>
     <div class="o-scroll">
-    <table class="o-tbl stack" data-keys>
-      <thead><tr><th>Domain</th><th>Does</th><th class="r">Hits</th><th>Added</th><th></th></tr></thead>
+    <table class="o-tbl stack" data-keys data-bulk="bulk-rules">
+      <thead><tr><th class="pick"><input type="checkbox" aria-label="Pick every rule"></th><th>Domain</th><th>Does</th><th>For</th><th class="r">Hits</th><th>Last hit</th><th>Added</th><th></th></tr></thead>
       <tbody>
       {{range .Rules}}
-        <tr>
-          <td class="lead mono"><a href="/check?domain={{.Domain}}">{{.Domain}}</a>{{if .Note}}<span class="sub">{{.Note}}</span>{{end}}</td>
-          <td class="nw" data-l="does"><span class="o-chip {{if eq .Action "allow"}}ok{{else}}bad{{end}}">{{.Action}}</span></td>
+        <tr data-id="{{.ID}}">
+          <td class="pick"><input type="checkbox" value="{{.ID}}" aria-label="Pick {{.Domain}}"></td>
+          <td class="lead mono full"><a href="/check?domain={{.Domain}}">{{.Domain}}</a>{{if .Target}} <span class="o-muted">&rarr; {{.Target}}</span>{{end}}{{if .Note}}<span class="sub">{{.Note}}</span>{{end}}</td>
+          <td class="nw" data-l="does"><span class="o-chip {{if eq .Action "allow"}}ok{{else if eq .Action "block"}}bad{{end}}">{{.Action}}</span></td>
+          <td class="nw small" data-l="for">{{deviceName $.Names .Device}}</td>
           <td class="r n" data-l="hits">{{comma .Hits}}</td>
+          <td class="nw mono small o-muted" data-l="last hit">{{if eq .Action "allow"}}&ndash;{{else}}{{ago .Last}}{{end}}</td>
           <td class="nw mono small o-muted" data-l="added">{{ago .Created}}</td>
           <td class="r"><form method="post" action="/rules/{{.ID}}/delete" data-undo="Removed {{.Domain}}" class="inl"><button class="o-btn o-btn-sm" type="submit">Remove</button></form></td>
         </tr>
       {{else}}
-        <tr><td colspan="5"><p class="o-empty"><b>No rules of mine.</b>Allow something from the log when a list breaks it, or block a name no list has.</p></td></tr>
+        <tr><td colspan="8"><p class="o-empty">{{if .Find}}<b>No rule matches.</b>{{else}}<b>No rules of mine.</b>Allow something from the log when a list breaks it, block a name no list has, or point a name at an address of my own.{{end}}</p></td></tr>
       {{end}}
       </tbody>
     </table>
     </div>
+    <p class="o-hint"><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>x</kbd>pick, then remove</span><span><kbd>?</kbd>every key</span></p>
   </section>
   <div class="side">
     <section class="o-panel">
@@ -62,8 +72,10 @@
       <form method="post" action="/rules" class="o-form one">
         <label class="o-field"><span>Domain</span><input class="mono" type="text" name="domain" value="{{.Prefill}}" placeholder="example.com" required autocomplete="off"></label>
         <fieldset class="o-field"><legend>Does</legend>
-          <span class="o-seg"><label><input type="radio" name="action" value="allow" {{if ne .Action "block"}}checked{{end}}><span>allow</span></label><label><input type="radio" name="action" value="block" {{if eq .Action "block"}}checked{{end}}><span>block</span></label></span>
+          <span class="o-seg"><label><input type="radio" name="action" value="allow" {{if and (ne .Action "block") (ne .Action "rewrite")}}checked{{end}}><span>allow</span></label><label><input type="radio" name="action" value="block" {{if eq .Action "block"}}checked{{end}}><span>block</span></label><label><input type="radio" name="action" value="rewrite" {{if eq .Action "rewrite"}}checked{{end}}><span>rewrite</span></label></span>
         </fieldset>
+        <label class="o-field"><span>Points at <span class="hint">rewrite only, an address or a name</span></span><input class="mono" type="text" name="target" placeholder="192.168.1.20" autocomplete="off"></label>
+        <label class="o-field"><span>For</span><select name="device"><option value="0">every device</option>{{range .Devices}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></label>
         <label class="o-field"><span>Note <span class="hint">optional, why</span></span><input type="text" name="note" maxlength="120"></label>
         <div class="o-formbar"><button class="o-btn o-btn-p o-btn-sm" type="submit">Add</button></div>
       </form>

@@ -7,19 +7,20 @@
   </div>
 </div>
 
-<div class="o-cols even">
+<div class="o-band b2">
   <section class="o-panel">
     <div class="o-ph2"><h2>A lookup</h2><span class="o-lab">in this order</span></div>
     <ul class="steps">
       <li>The device asks over DNS over TLS on port 853 or DNS over HTTPS through the tunnel, with its token as the name or the path. No token, no answer.</li>
+      <li>A rewrite of mine answers first, with my own address or another name, and SafeSearch does the same for the search engines on a device that has it on.</li>
       <li>My own domains are always answered, so nothing can lock me out of this page.</li>
-      <li>A rule of mine that allows the name or a domain above it wins. Then a rule that blocks it. Then each list the device hasn't turned off.</li>
-      <li>Anything left goes to unbound, which asks the root, the top level domain and the domain's own servers itself and checks DNSSEC.</li>
-      <li>A CNAME in the answer gets the same check, so a tracker behind a first party name is caught.</li>
+      <li>The device's own rules come next, then my rules for every device, an allow before a block. Then each list the device hasn't turned off.</li>
+      <li>Anything left goes to unbound, which asks the root, the top level domain and the domain's own servers itself and checks DNSSEC. If unbound doesn't answer, Quad9 does over TLS, and the log says fallback.</li>
+      <li>A CNAME or HTTPS record in the answer gets the same check, so a tracker behind a first party name is caught. A public name answering with a private address is dropped, which stops DNS rebinding.</li>
       <li>Every lookup is written to the log with the device, the result and why, and kept {{.KeepDays}} days.</li>
     </ul>
     <h3 class="sub">A blocked answer</h3>
-    <p class="small">0.0.0.0 for an IPv4 address and :: for IPv6, and nothing for any other type, so an app gives up at once instead of retrying. A client that speaks EDNS also gets an Extended DNS Error, code 15, with the list's key, which <code>dig</code> and <code>kdig</code> show.</p>
+    <p class="small">0.0.0.0 for an IPv4 address and :: for IPv6, and nothing for any other type, so an app gives up at once instead of retrying, and an SOA so the empty answer is cached for a minute. A client that speaks EDNS also gets an Extended DNS Error, code 15, with the list's key, which <code>dig</code> and <code>kdig</code> show.</p>
     <h3 class="sub">Answered here</h3>
     <p class="small"><code>use-application-dns.net</code> gets NXDOMAIN, which tells Firefox not to switch to its own DoH. Names under <code>check.dns.bythewood.me</code> are the setup page asking whether a browser uses this resolver.</p>
   </section>
@@ -36,14 +37,14 @@
       <li>Anything inside a page, which is uBlock Origin's job.</li>
     </ul>
     <h3 class="sub">When something breaks</h3>
-    <p class="small">Open the log on the device's filter with blocked and 15 minutes, do the thing that broke, and the name is at the top. Allow it, or the domain above it, and try again. A phone may hold the old answer for a few minutes.</p>
+    <p class="small">Open the log on the device's filter with blocked and 15 minutes, do the thing that broke, and the name is at the top. Allow it, or the domain above it, and try again. A blocked answer is cached for a minute, so give it that long.</p>
   </section>
   <section class="o-panel">
     <div class="o-ph2"><h2>Tokens</h2></div>
     <p class="small">A token is sixteen lowercase letters and digits. For DNS over TLS it's sent as the server name before the connection is encrypted, so whoever runs the network can read it, the same as NextDNS's ID. Someone with it can only look things up through here and add lines to that device's log. Give each device its own and make a new one on the device's page if one leaks.</p>
-    <p class="small">Port 853 refuses a wrong name at the handshake. Ten wrong names from one address in an hour bans it for a day, and every connection is checked with gate first, so gate's bans hold here too.</p>
+    <p class="small">Port 853 refuses a wrong name at the handshake. Ten wrong names or stalled handshakes from one address in an hour bans it for a day, and every connection is checked with gate first, so gate's bans hold here too. An address that finished a handshake lately keeps a little room past the connection limit, so a flood of strangers can't lock a phone out.</p>
     <h3 class="sub">If it's down</h3>
-    <p class="small">Android's Private DNS doesn't fall back, so switch it to Automatic until it's back. Browsers set to DoH with a fallback use the network's DNS.</p>
+    <p class="small">Android's Private DNS doesn't fall back, so if the whole box is down switch it to Automatic until it's back. unbound being down alone is covered by Quad9. Browsers set to DoH with a fallback use the network's DNS.</p>
   </section>
 </div>
 {{template "foot" .}}{{end}}

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"html/template"
 	"net"
@@ -241,8 +244,18 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	rs, _ := s.store.Rules()
 	tab := s.lists.tab.Load()
 	listed := 0
+	type tick struct {
+		Key string
+		N   int
+	}
+	var listTicks []tick
 	if tab != nil {
 		listed = len(tab.off)
+		for i, li := range lists {
+			if i < len(tab.size) {
+				listTicks = append(listTicks, tick{li.Key, tab.size[i]})
+			}
+		}
 	}
 	h := s.health(now)
 	headline := template.HTML(fmt.Sprintf("%s lookups today, <em>%s blocked</em>.", comma(total), comma(blocked)))
@@ -257,9 +270,19 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		"Total": total, "Blocked": blocked, "Failed": failed, "Allowed": allowed, "P50": p50, "P95": p95,
 		"BlockedDomains": blockedDomains, "Active": active, "ActiveTicks": activeTicks,
 		"HourT": hourT, "HourB": hourB, "Labels": hourLabels(24, now),
+		"HourA": s.store.HourlyOf("allow", 24, now), "HourF": s.store.HourlyOf("fail", 24, now), "HourMs": s.store.HourlyMs(24, now),
+		"ListTicks": listTicks, "ListMax": maxTick(listTicks, func(t tick) int { return t.N }),
 		"Recent": s.rows(recent), "TopBlocked": topBlocked, "TopAsked": topAsked, "Reasons": reasons,
 		"Devices": devices, "Rules": len(rs), "Listed": listed, "Dropped": int(s.log.dropped.Load()),
 	})
+}
+
+func maxTick[T any](xs []T, n func(T) int) int {
+	m := 0
+	for _, x := range xs {
+		m = max(m, n(x))
+	}
+	return m
 }
 
 func (s *site) filterFrom(r *http.Request) (Filter, url.Values) {
@@ -284,7 +307,7 @@ func (s *site) filterFrom(r *http.Request) (Filter, url.Values) {
 func link(q url.Values, k, v string) string {
 	n := url.Values{}
 	for key, vals := range q {
-		if key != "before" && key != "after" {
+		if key != "before" && key != "after" && key != "toast" {
 			n[key] = vals
 		}
 	}
@@ -319,14 +342,18 @@ func (s *site) logPage(w http.ResponseWriter, r *http.Request) {
 		}
 		return out
 	}
-	var devOpts []string
-	devOpts = append(devOpts, "every device", "")
-	for _, d := range ds {
-		devOpts = append(devOpts, d.Name, strconv.FormatInt(d.ID, 10))
+	type sel struct {
+		Label, Value string
+		On           bool
 	}
-	reasonOpts := []string{"any reason", ""}
+	devSel := []sel{{"every device", "", q.Get("device") == ""}}
+	for _, d := range ds {
+		id := strconv.FormatInt(d.ID, 10)
+		devSel = append(devSel, sel{d.Name, id, q.Get("device") == id})
+	}
+	reasonSel := []sel{{"any reason", "", q.Get("reason") == ""}}
 	for _, li := range lists {
-		reasonOpts = append(reasonOpts, li.Key, li.Key)
+		reasonSel = append(reasonSel, sel{li.Key, li.Key, q.Get("reason") == li.Key})
 	}
 	var older string
 	if len(ls) == f.Limit {
@@ -338,12 +365,11 @@ func (s *site) logPage(w http.ResponseWriter, r *http.Request) {
 	}
 	s.render(w, 200, "log.html", map[string]any{
 		"Suite": page, "Rows": s.rows(ls), "Total": total, "BlockedN": blocked, "Q": q, "Search": f.Search,
-		"Devices":  opts("device", devOpts...),
+		"DeviceSel": devSel, "ReasonSel": reasonSel,
 		"Statuses": opts("status", "everything", "", "blocked", "blocked", "allowed by me", "allow", "failed", "fail"),
 		"Ranges":   opts("range", "15m", "15m", "1h", "1h", "24h", "", "7d", "7d"),
-		"Reasons":  opts("reason", reasonOpts...),
 		"Older":    older, "Newest": newest, "Live": f.Before == 0, "RowsQuery": rowsQuery(q),
-		"Hidden": hiddenFields(q),
+		"Hidden": hiddenFields(q), "Back": link(q, "", ""),
 	})
 }
 
@@ -381,7 +407,11 @@ func (s *site) logRows(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_ = s.tpl.ExecuteTemplate(w, "logrows", map[string]any{"Rows": s.rows(ls)})
+	back := "/log"
+	if rq := rowsQuery(r.URL.Query()); rq != "" {
+		back += "?" + rq
+	}
+	_ = s.tpl.ExecuteTemplate(w, "logrows", map[string]any{"Rows": s.rows(ls), "Back": back, "Drawn": true})
 }
 
 func (s *site) devicesPage(w http.ResponseWriter, r *http.Request) {
@@ -449,12 +479,102 @@ func (s *site) devicePage(w http.ResponseWriter, r *http.Request) {
 	for _, li := range lists {
 		lo = append(lo, listOpt{li, !d.Off(li.Key)})
 	}
+	primary, rest := setupFor(d.Kind)
 	s.render(w, 200, "device.html", map[string]any{
 		"Suite": page, "D": d, "Total": total, "Blocked": blocked, "HourT": hourT, "HourB": hourB, "Labels": hourLabels(24, now),
 		"Recent": s.rows(recent), "TopBlocked": topBlocked, "Lists": lo, "Kinds": kinds,
 		"DoT": d.Token + "." + dotZone, "DoH": baseURL + "/q/" + d.Token, "IPs": s.dohIPs(r.Context()),
-		"Toast": r.URL.Query().Get("toast"), "ProbeZone": probeZone,
+		"Toast": r.URL.Query().Get("toast"), "ProbeZone": probeZone, "BoxIP": publicIP,
+		"Primary": primary, "Rest": rest, "Quiet": isQuiet(d, now),
 	})
+}
+
+// setupFor puts the setup a kind of device most likely needs first, and the
+// rest behind a fold.
+func setupFor(kind string) (primary, rest []string) {
+	all := []string{"android", "apple", "browser", "windows", "linux"}
+	switch kind {
+	case "phone":
+		primary = []string{"android", "apple"}
+	case "computer":
+		primary = []string{"windows", "apple", "linux"}
+	case "browser":
+		primary = []string{"browser"}
+	default:
+		return all, nil
+	}
+	for _, w := range all {
+		if !contains(primary, w) {
+			rest = append(rest, w)
+		}
+	}
+	return primary, rest
+}
+
+// appleProfile is a configuration profile that points an iPhone, iPad or Mac
+// at this device's DoH URL, on Wi-Fi and cellular both.
+func (s *site) appleProfile(w http.ResponseWriter, r *http.Request) {
+	d := s.deviceFrom(w, r)
+	if d == nil {
+		return
+	}
+	var name bytes.Buffer
+	_ = xml.EscapeText(&name, []byte(d.Name))
+	inner, outer := stableUUID(d.Token+"/dns"), stableUUID(d.Token+"/profile")
+	body := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>DNSSettings</key>
+			<dict>
+				<key>DNSProtocol</key>
+				<string>HTTPS</string>
+				<key>ServerURL</key>
+				<string>` + baseURL + `/q/` + d.Token + `</string>
+			</dict>
+			<key>PayloadDisplayName</key>
+			<string>dns.bythewood.me</string>
+			<key>PayloadIdentifier</key>
+			<string>me.bythewood.dns.` + inner + `</string>
+			<key>PayloadType</key>
+			<string>com.apple.dnsSettings.managed</string>
+			<key>PayloadUUID</key>
+			<string>` + inner + `</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>dns for ` + name.String() + `</string>
+	<key>PayloadIdentifier</key>
+	<string>me.bythewood.dns.profile.` + outer + `</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>` + outer + `</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
+	w.Header().Set("Content-Disposition", `attachment; filename="dns-`+strconv.FormatInt(d.ID, 10)+`.mobileconfig"`)
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write([]byte(body))
+}
+
+// stableUUID is a UUID made from a string, so downloading the profile again
+// replaces the one installed instead of adding a second.
+func stableUUID(s string) string {
+	h := sha256.Sum256([]byte(s))
+	h[6] = h[6]&0x0f | 0x50
+	h[8] = h[8]&0x3f | 0x80
+	return strings.ToUpper(fmt.Sprintf("%x-%x-%x-%x-%x", h[0:4], h[4:6], h[6:8], h[8:10], h[10:16]))
 }
 
 // dohIPs are the addresses dns.bythewood.me answers on, which Windows wants
@@ -491,7 +611,7 @@ func (s *site) editDevice(w http.ResponseWriter, r *http.Request) {
 			off = append(off, li.Key)
 		}
 	}
-	if err := s.store.UpdateDevice(d.ID, name, kind, off); err != nil {
+	if err := s.store.UpdateDevice(d.ID, name, kind, off, r.FormValue("safe") == "on"); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -525,6 +645,8 @@ type ListRow struct {
 	Blocked7d int
 	OffOn     []string
 	Loaded    int
+	Days      []string
+	DayTips   []string
 }
 
 func (s *site) listsPage(w http.ResponseWriter, r *http.Request) {
@@ -537,9 +659,23 @@ func (s *site) listsPage(w http.ResponseWriter, r *http.Request) {
 	}
 	ds, _ := s.store.Devices()
 	tab := s.lists.tab.Load()
+	daily := s.store.DailyByReason(7, now)
+	labels := dayLabels(7, now)
 	var rows []ListRow
 	for i, li := range lists {
 		row := ListRow{List: li, St: states[li.Key], Blocked7d: hits[li.Key]}
+		for j := 0; j < 7; j++ {
+			n := 0
+			if daily[li.Key] != nil {
+				n = daily[li.Key][j]
+			}
+			k := ""
+			if n == 0 {
+				k = "n"
+			}
+			row.Days = append(row.Days, k)
+			row.DayTips = append(row.DayTips, fmt.Sprintf("%s: %s blocked", labels[j], comma(n)))
+		}
 		if tab != nil && i < len(tab.size) {
 			row.Loaded = tab.size[i]
 		}
@@ -553,22 +689,31 @@ func (s *site) listsPage(w http.ResponseWriter, r *http.Request) {
 	type ruleRow struct {
 		Rule
 		Hits int
+		Last time.Time
 	}
 	rs, _ := s.store.Rules()
 	ruleHits := map[string]int{}
-	for _, t := range s.store.Top(Filter{Status: "deny", Since: now.Add(-7 * 24 * time.Hour)}, "reason", 200) {
-		ruleHits[strings.TrimPrefix(t.Key, "rule ")] = t.N
+	for _, st := range []string{"deny", "rewrite"} {
+		for _, t := range s.store.Top(Filter{Status: st, Since: now.Add(-7 * 24 * time.Hour)}, "reason", 200) {
+			ruleHits[strings.TrimPrefix(t.Key, "rule ")] += t.N
+		}
 	}
+	last := s.store.LastByReason()
+	find := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 	var rr []ruleRow
 	for _, x := range rs {
+		if find != "" && !strings.Contains(x.Domain, find) && !strings.Contains(strings.ToLower(x.Note), find) {
+			continue
+		}
 		n := ruleHits[x.Domain]
 		if x.Action == "allow" {
 			n, _ = s.store.Count(Filter{Status: "allow", Search: x.Domain, Since: now.Add(-7 * 24 * time.Hour)})
 		}
-		rr = append(rr, ruleRow{x, n})
+		rr = append(rr, ruleRow{x, n, last["rule "+x.Domain]})
 	}
-	s.render(w, 200, "lists.html", map[string]any{"Suite": page, "Lists": rows, "Rules": rr, "Toast": r.URL.Query().Get("toast"),
-		"Prefill": cleanName(r.URL.Query().Get("domain")), "Action": r.URL.Query().Get("action")})
+	s.render(w, 200, "lists.html", map[string]any{"Suite": page, "Lists": rows, "Rules": rr, "AllRules": len(rs), "Toast": r.URL.Query().Get("toast"),
+		"Prefill": cleanName(r.URL.Query().Get("domain")), "Action": r.URL.Query().Get("action"), "Find": find,
+		"Devices": ds, "Names": s.deviceNames(), "Days": labels})
 }
 
 func (s *site) refreshLists(w http.ResponseWriter, r *http.Request) {
@@ -583,16 +728,23 @@ func (s *site) addRule(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(back, "?") {
 		sep = "&"
 	}
-	if err := s.store.PutRule(domain, action, strings.TrimSpace(r.FormValue("note"))); err != nil {
+	device, _ := strconv.ParseInt(r.FormValue("device"), 10, 64)
+	if r.FormValue("only") != "" {
+		device, _ = strconv.ParseInt(r.FormValue("only"), 10, 64)
+	}
+	if err := s.store.PutRuleFor(domain, action, strings.TrimSpace(r.FormValue("note")), device, r.FormValue("target")); err != nil {
 		http.Redirect(w, r, back+sep+"toast="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	_ = s.reload()
-	word := "Allowed"
-	if action == "block" {
-		word = "Blocked"
+	word := map[string]string{"allow": "Allowed", "block": "Blocked", "rewrite": "Rewrote"}[action]
+	where := ""
+	if device != 0 {
+		if d, err := s.store.Device(device); err == nil {
+			where = " on " + d.Name
+		}
 	}
-	http.Redirect(w, r, back+sep+"toast="+url.QueryEscape(word+" "+cleanName(domain)), http.StatusSeeOther)
+	http.Redirect(w, r, back+sep+"toast="+url.QueryEscape(word+" "+cleanName(domain)+where), http.StatusSeeOther)
 }
 
 // safeBack keeps a redirect on this site. A backslash is refused since
@@ -613,7 +765,26 @@ func (s *site) deleteRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = s.reload()
-	http.Redirect(w, r, "/lists?toast="+url.QueryEscape("Removed the rule for "+x.Domain), http.StatusSeeOther)
+	back := safeBack(r.FormValue("back"), "/lists")
+	sep := "?"
+	if strings.Contains(back, "?") {
+		sep = "&"
+	}
+	http.Redirect(w, r, back+sep+"toast="+url.QueryEscape("Removed the rule for "+x.Domain), http.StatusSeeOther)
+}
+
+// deleteRules removes every rule picked on the lists page.
+func (s *site) deleteRules(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	n := 0
+	for _, v := range r.Form["id"] {
+		id, _ := strconv.ParseInt(v, 10, 64)
+		if _, err := s.store.DeleteRule(id); err == nil {
+			n++
+		}
+	}
+	_ = s.reload()
+	http.Redirect(w, r, "/lists?toast="+url.QueryEscape("Removed "+count(n, "rule", "rules")), http.StatusSeeOther)
 }
 
 // checkPage says what would happen to a name, and why.
@@ -624,6 +795,11 @@ func (s *site) checkPage(w http.ResponseWriter, r *http.Request) {
 	if looksLikeDomain(name) {
 		v, in := s.res.Explain(name)
 		data["V"], data["In"] = v, in
+		if v.Rule != 0 {
+			if x, err := s.store.Rule(v.Rule); err == nil {
+				data["Mine"] = x
+			}
+		}
 		last, _ := s.store.Log(Filter{Search: name, Limit: 10})
 		data["Last"] = s.rows(last)
 	} else if name != "" {

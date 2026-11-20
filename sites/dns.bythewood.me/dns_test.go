@@ -120,7 +120,7 @@ func TestDecideOrder(t *testing.T) {
 	if v := s.res.decide(d, "x.fine.example"); v.Status != "deny" {
 		t.Errorf("my block covers subdomains: %+v", v)
 	}
-	_ = s.store.UpdateDevice(d.ID, d.Name, d.Kind, []string{"pro"})
+	_ = s.store.UpdateDevice(d.ID, d.Name, d.Kind, []string{"pro"}, false)
 	_ = s.reload()
 	d2 := s.res.device(d.Token)
 	if v := s.res.decide(d2, "ads.example.net"); v.Status != "block" || v.Reason != "tif" {
@@ -259,9 +259,12 @@ func TestPagesRender(t *testing.T) {
 	s.res.Answer(d, query("ok.example.org", dns.TypeA), "dot", "")
 	waitLogged(t, s, 2)
 	_ = s.store.PutRule("fine.example", "block", "testing")
+	_ = s.store.PutRuleFor("nas.example", "rewrite", "", d.ID, "192.168.1.20")
+	pc, _ := s.store.AddDevice("desk", "computer")
 	_ = s.reload()
 	h := s.handler()
-	for _, path := range []string{"/", "/log", "/log?status=blocked&range=15m", "/devices", "/devices/" + itoa(d.ID), "/lists", "/check?domain=a.ads.example.net", "/check?domain=ok.example.org", "/docs", "/nope", "/api/report"} {
+	for _, path := range []string{"/", "/log", "/log?status=blocked&range=15m&device=" + itoa(d.ID), "/log/rows?after=1", "/devices", "/devices/" + itoa(d.ID), "/devices/" + itoa(pc.ID),
+		"/lists", "/lists?q=fine", "/check?domain=a.ads.example.net", "/check?domain=ok.example.org", "/check?domain=fine.example", "/docs", "/nope", "/api/report"} {
 		r := httptest.NewRequest(http.MethodGet, path, nil)
 		r.AddCookie(&http.Cookie{Name: web.SessionCookie, Value: "good"})
 		w := httptest.NewRecorder()
@@ -271,7 +274,8 @@ func TestPagesRender(t *testing.T) {
 			want = 404
 		}
 		body, _ := io.ReadAll(w.Body)
-		if w.Code != want || bytes.Contains(body, []byte("<no value>")) || (path != "/api/report" && !bytes.Contains(body, []byte("</html>"))) {
+		page := path != "/api/report" && !strings.HasPrefix(path, "/log/rows")
+		if w.Code != want || bytes.Contains(body, []byte("<no value>")) || (page && !bytes.Contains(body, []byte("</html>"))) {
 			t.Errorf("%s: %d", path, w.Code)
 		}
 	}
@@ -286,5 +290,12 @@ func TestPagesRender(t *testing.T) {
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/log", nil))
 	if w.Code != http.StatusSeeOther && w.Code != http.StatusFound {
 		t.Errorf("the log must need signing in, got %d", w.Code)
+	}
+	r := httptest.NewRequest(http.MethodGet, "/devices/"+itoa(d.ID)+"/profile", nil)
+	r.AddCookie(&http.Cookie{Name: web.SessionCookie, Value: "good"})
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "/q/"+d.Token) || !strings.Contains(w.Body.String(), "com.apple.dnsSettings.managed") {
+		t.Errorf("profile: %d %s", w.Code, w.Body.String())
 	}
 }

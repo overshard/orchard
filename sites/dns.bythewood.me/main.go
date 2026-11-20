@@ -203,6 +203,8 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /lists/refresh", s.auth.RequireAuth(s.refreshLists))
 	mux.HandleFunc("POST /rules", s.auth.RequireAuth(s.addRule))
 	mux.HandleFunc("POST /rules/{id}/delete", s.auth.RequireAuth(s.deleteRule))
+	mux.HandleFunc("POST /rules/delete", s.auth.RequireAuth(s.deleteRules))
+	mux.HandleFunc("GET /devices/{id}/profile", s.auth.RequireAuth(s.appleProfile))
 	mux.HandleFunc("GET /check", s.auth.RequireAuth(s.checkPage))
 	mux.HandleFunc("GET /probe/{nonce}", s.auth.RequireAuthJSON(s.probe))
 	mux.HandleFunc("GET /docs", s.docs)

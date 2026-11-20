@@ -2,7 +2,6 @@
 
 .small { font-size: 0.8rem; }
 .side { display: grid; gap: 14px; align-content: start; min-width: 0; }
-.o-cols.even { grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); }
 .o-tbl td.mono { font-family: var(--o-mono); font-size: 0.74rem; }
 .o-tbl td.clip { max-width: 26rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .o-tbl tr.blk td:first-child { box-shadow: inset 2px 0 0 var(--o-bad); }
@@ -50,3 +49,11 @@ form.inl { display: inline; }
 .steps { margin: 0; padding-left: 1.1rem; display: grid; gap: 6px; font-size: 0.84rem; }
 h3.sub { font-size: 0.86rem; margin: 16px 0 6px; }
 .o-form.one { grid-template-columns: minmax(0, 1fr); }
+
+.pickers { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pickers select.o-in { width: auto; max-width: 14rem; padding-block: 4px; font-size: 0.74rem; }
+.o-tbl :is(td, th).pick { width: 28px; }
+.o-tbl.stack td.full { overflow-wrap: anywhere; }
+.setup details.more { padding: 12px 0; border-top: 1px solid var(--o-line-soft); }
+.setup details.more summary { cursor: pointer; }
+.setup details.more .way:first-of-type { border-top: 0; }

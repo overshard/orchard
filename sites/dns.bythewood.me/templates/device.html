@@ -15,38 +15,13 @@
 <div class="o-band b2r">
   <section class="o-panel setup">
     <div class="o-ph2"><h2>Set it up</h2><span class="o-pm"><span>one token, every way in</span></span></div>
-
-    <div class="way">
-      <span class="o-lab">android &middot; private dns</span>
-      <p class="small">Settings, Network &amp; internet, Private DNS, then Private DNS provider hostname. Android talks DNS over TLS on port 853 to this name and nothing else, and it doesn't fall back, so if the box is down switch it back to Automatic.</p>
-      <div class="cp"><code>{{.DoT}}</code><button type="button" class="o-btn o-btn-sm" data-copy="{{.DoT}}">Copy</button></div>
-    </div>
-
-    <div class="way">
-      <span class="o-lab">browser &middot; dns over https</span>
-      <p class="small">Chrome and Edge, Settings, Privacy and security, Security, Use secure DNS, With Custom. Firefox, Settings, Privacy &amp; Security, DNS over HTTPS, Max Protection, Custom. The browser then asks here whatever the network it's on says.</p>
-      <div class="cp"><code>{{.DoH}}</code><button type="button" class="o-btn o-btn-sm" data-copy="{{.DoH}}">Copy</button></div>
-    </div>
-
-    <div class="way">
-      <span class="o-lab">windows 11 &middot; every app</span>
-      <p class="small">Settings, Network &amp; internet, the adapter, Hardware properties, DNS server assignment, Edit, Manual. Turn on IPv4, put the first address as Preferred DNS, set DNS over HTTPS to On (manual template), paste the template and turn off fallback to plaintext. Same again with the second address as Alternate. Windows needs the addresses only to know which server the template belongs to.</p>
-      <div class="cp"><code>{{.DoH}}</code><button type="button" class="o-btn o-btn-sm" data-copy="{{.DoH}}">Copy</button></div>
-      {{if .IPs}}<div class="cp ips">{{range .IPs}}<code>{{.}}</code>{{end}}</div>{{end}}
-      <p class="small o-muted">Those addresses are Cloudflare's, since DoH comes in through the tunnel. If Windows stops resolving one day, they changed, and this page shows the new ones.</p>
-    </div>
-
-    <div class="way">
-      <span class="o-lab">linux &middot; systemd-resolved</span>
-      <p class="small">In <code>/etc/systemd/resolved.conf</code>, then <code>sudo systemctl restart systemd-resolved</code>.</p>
-      <pre class="o-code">[Resolve]
-DNS={{"15.204.248.200"}}#{{.DoT}}
-DNSOverTLS=yes</pre>
-    </div>
+    {{if .Quiet}}<div class="o-note brass"><span class="o-lab plain">quiet</span><span>{{.D.Name}} hasn't asked since {{ago .D.LastSeen}}, longer than a {{.D.Kind}} usually goes. Check the setting below is still in place.</span></div>{{end}}
+    {{range .Primary}}{{template "way" (dict "W" . "P" $)}}{{end}}
+    {{if .Rest}}<details class="way more"><summary class="o-lab plain">other ways in</summary>{{range .Rest}}{{template "way" (dict "W" . "P" $)}}{{end}}</details>{{end}}
 
     <div class="way probe" data-probe data-zone="{{.ProbeZone}}">
       <span class="o-lab">is this browser using it?</span>
-      <p class="small" data-probe-out>Looks up a one time name and sees whether it lands here.</p>
+      <p class="small" data-probe-out aria-live="polite">Looks up a one time name and sees whether it lands here.</p>
       <button type="button" class="o-btn o-btn-sm" data-probe-go>Check</button>
     </div>
   </section>
@@ -70,6 +45,9 @@ DNSOverTLS=yes</pre>
         <fieldset class="o-field"><legend>Lists <span class="hint">my own rules always apply</span></legend>
           {{range .Lists}}<label class="o-check"><input type="checkbox" name="list" value="{{.Key}}" {{if .On}}checked{{end}}> <span>{{.Name}} <span class="o-muted small">{{.About}}</span></span></label>{{end}}
         </fieldset>
+        <fieldset class="o-field"><legend>Filtering</legend>
+          <label class="o-check"><input type="checkbox" name="safe" {{if .D.Safe}}checked{{end}}> <span>SafeSearch <span class="o-muted small">Google, Bing and DuckDuckGo filter results, YouTube in restricted mode</span></span></label>
+        </fieldset>
         <div class="o-formbar"><button class="o-btn o-btn-p o-btn-sm" type="submit">Save</button></div>
       </form>
       <div class="o-formbar danger">
@@ -92,3 +70,64 @@ DNSOverTLS=yes</pre>
   </section>
 </div>
 {{template "foot" .}}{{end}}
+
+{{define "way"}}{{$p := .P}}
+{{if eq .W "android"}}
+    <div class="way">
+      <span class="o-lab">android &middot; private dns</span>
+      <ol class="steps">
+        <li>Settings, Network &amp; internet, Private DNS.</li>
+        <li>Pick Private DNS provider hostname and paste the name below.</li>
+        <li>Android won't fall back, so if the box is down switch it to Automatic.</li>
+      </ol>
+      <div class="cp"><code>{{$p.DoT}}</code><button type="button" class="o-btn o-btn-sm" data-copy="{{$p.DoT}}" aria-label="Copy the Private DNS name">Copy</button></div>
+    </div>
+{{else if eq .W "apple"}}
+    <div class="way">
+      <span class="o-lab">iphone, ipad, mac &middot; profile</span>
+      <ol class="steps">
+        <li>Open this page on the device and download the profile.</li>
+        <li>iPhone and iPad, Settings, Profile Downloaded, Install. Mac, System Settings, Privacy &amp; Security, Profiles.</li>
+        <li>It covers Wi-Fi and cellular. Remove the profile to undo it.</li>
+      </ol>
+      <div class="cp"><a class="o-btn o-btn-sm o-btn-p" href="/devices/{{$p.D.ID}}/profile">Download the profile</a></div>
+    </div>
+{{else if eq .W "browser"}}
+    <div class="way">
+      <span class="o-lab">browser &middot; dns over https</span>
+      <ol class="steps">
+        <li>Chrome and Edge, Settings, Privacy and security, Security, Use secure DNS, With Custom.</li>
+        <li>Firefox, Settings, Privacy &amp; Security, DNS over HTTPS, Max Protection, Custom. Increased Protection falls back to plain DNS and goes around this.</li>
+        <li>Paste the URL below. The browser then asks here whatever network it's on.</li>
+      </ol>
+      <div class="cp"><code>{{$p.DoH}}</code><button type="button" class="o-btn o-btn-sm" data-copy="{{$p.DoH}}" aria-label="Copy the DoH URL">Copy</button></div>
+    </div>
+{{else if eq .W "windows"}}
+    <div class="way">
+      <span class="o-lab">windows 11 &middot; every app</span>
+      <ol class="steps">
+        <li>Settings, Network &amp; internet, the adapter, Hardware properties, DNS server assignment, Edit, Manual.</li>
+        <li>Turn on IPv4, put the first address below as Preferred DNS, set DNS over HTTPS to On (manual template), paste the template and turn off fallback to plaintext.</li>
+        <li>Same again with the second address as Alternate.</li>
+        <li>In Firefox, Settings, DNS over HTTPS, Off, so it uses the system's.</li>
+      </ol>
+      <div class="cp"><code>{{$p.DoH}}</code><button type="button" class="o-btn o-btn-sm" data-copy="{{$p.DoH}}" aria-label="Copy the DoH template">Copy</button></div>
+      {{if $p.IPs}}<div class="cp ips">{{range $p.IPs}}<code>{{.}}</code>{{end}}</div>
+      <p class="small o-muted">Or in an admin PowerShell, then pick the template in Settings as above:</p>
+      <pre class="o-code">{{range $p.IPs}}Add-DnsClientDohServerAddress -ServerAddress {{.}} -DohTemplate {{$p.DoH}} -AllowFallbackToUdp $False -AutoUpgrade $True
+{{end}}</pre>{{end}}
+      <p class="small o-muted">Those addresses are Cloudflare's, since DoH comes in through the tunnel. If Windows stops resolving one day, they changed, and this page shows the new ones.</p>
+    </div>
+{{else if eq .W "linux"}}
+    <div class="way">
+      <span class="o-lab">linux &middot; systemd-resolved</span>
+      <ol class="steps">
+        <li>Put this in <code>/etc/systemd/resolved.conf</code>.</li>
+        <li>Run <code>sudo systemctl restart systemd-resolved</code>.</li>
+      </ol>
+      <pre class="o-code">[Resolve]
+DNS={{$p.BoxIP}}#{{$p.DoT}}
+DNSOverTLS=yes</pre>
+    </div>
+{{end}}
+{{end}}
