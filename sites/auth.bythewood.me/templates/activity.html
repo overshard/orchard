@@ -2,52 +2,29 @@
 <main class="o-wrap o-main">
   <div class="o-ph">
     <div>
-      <span class="o-lab">auth &middot; activity</span>
+      <span class="o-lab">auth &middot; activity{{ range .Filters }}{{ if and .Key (eq .Key $.Filter) }} &middot; {{ .Name }}{{ end }}{{ end }}</span>
       <h1>Every sign in, <em>newest first</em>.</h1>
       <p>The last 200 events. They ship to logging too, and this copy is here for when logging is what's down.</p>
     </div>
   </div>
 
-  {{ with .Stats }}
-  <div class="o-tiles">
-    <div class="o-tile">
-      <small>sign ins &middot; 30d</small>
-      <b>{{ .SignIns }}</b>
-      <span class="o-delta">from {{ .Places }} {{ if eq .Places 1 }}place{{ else }}places{{ end }}</span>
-      {{ spark "ok" .SignInDays }}
-    </div>
-    <div class="o-tile">
-      <small>codes asked for &middot; 30d</small>
-      <b>{{ .Codes }}</b>
-      <span class="o-delta">each one pushed to the phone</span>
-      {{ spark "flat" .CodeDays }}
-    </div>
-    <div class="o-tile">
-      <small>refused &middot; 30d</small>
-      <b class="{{ if .Refused }}warn{{ end }}">{{ .Refused }}</b>
-      <span class="o-delta">wrong codes and limits hit</span>
-      {{ spark (or (and .Refused "warn") "flat") .RefusedDays }}
-    </div>
-    <div class="o-tile">
-      <small>kept here</small>
-      <b>{{ len $.Events }}</b>
-      <span class="o-delta">sign ins lit, refusals amber</span>
-      <span class="o-ticks" aria-hidden="true">{{ range .Last }}<i class="{{ . }}"></i>{{ end }}</span>
-    </div>
-  </div>
-  {{ end }}
+  {{ template "checkup" .Tiles }}
+
+  <nav class="o-filters" aria-label="Filter activity">
+    {{ range .Filters }}<a class="o-chip {{ if eq .Key $.Filter }}{{ if or (eq .Key "refused") (eq .Key "new") }}warn{{ else }}brass{{ end }}{{ end }}" href="/activity{{ with .Key }}?f={{ . }}{{ end }}"{{ if eq .Key $.Filter }} aria-current="page"{{ end }}>{{ .Name }} <span class="o-muted">{{ .N }}</span></a>{{ end }}
+  </nav>
 
   <section class="o-panel flush">
-    {{ if .Events }}
+    {{ if .Rows }}
     <div class="o-scroll">
     <table class="o-tbl stack">
       <thead><tr><th>When</th><th>What</th><th>Where</th><th>Address</th><th>Browser</th></tr></thead>
       <tbody>
-      {{ range .Events }}
-        <tr class="{{ if eq (eventClass .Kind) "is-warn" }}hot{{ end }}">
-          <td class="n o-muted" title="{{ when .TS }}">{{ ago .TS }}</td>
+      {{ range .Rows }}
+        <tr class="{{ if eq (eventClass .Kind) "is-warn" }}hot{{ else if .NewPlace }}newplace{{ end }}">
+          <td class="n o-muted" data-tip="{{ when .TS }}">{{ ago .TS }}</td>
           <td class="lead"><span class="o-dot {{ if eq (eventClass .Kind) "is-warn" }}bad{{ else if eq (eventClass .Kind) "is-note" }}{{ else }}mute{{ end }}"></span>{{ eventLabel .Kind }}{{ with .Detail }} <span class="o-muted">{{ . }}</span>{{ end }}</td>
-          <td>{{ if .City }}{{ .City }}, {{ end }}{{ if .Country }}{{ .Country }}{{ else }}<span class="o-muted">unknown</span>{{ end }}</td>
+          <td>{{ with .Where }}{{ . }}{{ else }}<span class="o-muted">unknown</span>{{ end }}{{ if .NewPlace }} <span class="o-chip warn" data-tip="Nobody signed in from here in the 30 days before">new place</span>{{ end }}</td>
           <td class="n o-muted">{{ .IP }}</td>
           <td class="o-muted">{{ if .UA }}{{ browser .UA }}{{ end }}</td>
         </tr>
@@ -56,7 +33,7 @@
     </table>
     </div>
     {{ else }}
-    <p class="o-empty"><b>Nothing yet.</b></p>
+    <p class="o-empty"><b>Nothing {{ if .Filter }}under this filter{{ else }}yet{{ end }}.</b></p>
     {{ end }}
   </section>
 </main>
