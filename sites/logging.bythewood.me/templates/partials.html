@@ -48,42 +48,50 @@
   <div class="o-ph2"><h2>{{ .title }}</h2><span class="o-lab">{{ .col }}</span></div>
   {{ $top := .top }}
   {{ $link := .link }}
+  {{ $field := .field }}{{ $range := .range }}{{ $extra := .extra }}{{ $kind := .kind }}
   {{ range .items }}
   {{/* title as well as the visible text, because these ellipsis at any width
        and a truncated label is otherwise unrecoverable. */}}
-  <div class="o-hbar"><span class="k o-mono" title="{{ .Label }}">{{ if $link }}<a href="{{ $link }}{{ .Label }}">{{ .Label }}</a>{{ else }}{{ .Label }}{{ end }}</span><span class="bar"><i style="width: {{ pct .Count $top }}%"></i></span><span class="v">{{ num .Count }}</span></div>
+  <div class="o-hbar"><span class="k o-mono" data-tip="{{ .Label }}">{{ if $field }}<a href="{{ searchFor $range $field .Label $extra }}">{{ .Label }}</a>{{ else if $link }}<a href="{{ $link }}{{ .Label }}">{{ .Label }}</a>{{ else }}{{ .Label }}{{ end }}</span><span class="bar"><i class="{{ $kind }}" style="width: {{ pct .Count $top }}%"></i></span><span class="v">{{ num .Count }}</span></div>
   {{ else }}
   <p class="o-empty">Nothing in this window.</p>
   {{ end }}
 </section>
 {{ end }}
 
-{{/* One log line, as a row. Used by both the error feed and the search results,
-     so the two can never drift into showing different things. */}}
-{{ define "recordRow" }}
-<div class="log-row {{ levelClass .Level }}">
-  <span class="log-time">{{ .Time }}</span>
-  <span class="log-level {{ levelClass .Level }}">{{ .Level }}</span>
-  <a class="log-source" href="/sources/{{ .Source }}">{{ .Source }}</a>
-  <span class="log-msg">
-    {{ if eq .Msg "request" }}
+{{/* One log line. The summary is the line and opening it shows every pair,
+     each with + to keep only lines like it and - to hide them. Used by the
+     search results, the tail and the problem feed, so they can't drift. */}}
+{{ define "logLine" }}
+<details class="ln {{ levelClass .Level }}{{ if .Target }} target{{ end }}" data-id="{{ .ID }}"{{ if .Target }} open{{ end }}>
+  <summary>
+    <span class="ln-c" aria-hidden="true"></span>
+    <span class="ln-t">{{ .Stamp }}</span>
+    <span class="ln-l {{ levelClass .Level }}">{{ .Level }}</span>
+    <span class="ln-s">{{ .Source }}</span>
+    <span class="ln-m">
+      {{- if eq .Msg "request" }}
       {{ if .Status }}<span class="log-status {{ statusClass .Status }}">{{ .Status }}</span>{{ end }}
-      <span class="log-method">{{ .Method }}</span>
-      <span class="log-path">{{ .Path }}</span>
-      <span class="log-dur">{{ ms .DurationMS }}</span>
-      {{/* Loopback is excluded here for the same reason it is excluded from
-           the direct hits tile: the process probing itself never crossed the
-           tunnel and never could. Without this the badge and the tile use
-           identical wording and disagree, which is how it read on the live
-           site: a tile saying 0 above a page showing 41 badges. */}}
-      {{ if and (not .CFRay) (not (isLoopback .IP)) }}<span class="log-flag" title="No CF-Ray: this request reached the origin without crossing the tunnel">direct</span>{{ end }}
-    {{ else }}
+      <span class="ln-mu">{{ .Method }}</span>
+      <span class="ln-p">{{ mark .Path .Terms }}</span>
+      <span class="ln-mu">{{ ms .DurationMS }}</span>
+      {{/* Loopback is left out the same way the direct hits tile leaves it
+           out, since a process probing itself never crossed the tunnel. */}}
+      {{ if and (not .CFRay) (not (isLoopback .IP)) }}<span class="log-flag" data-tip="No CF-Ray, so this request reached the origin without crossing the tunnel">direct</span>{{ end }}
+      {{- else }}
       {{ if .Component }}<span class="log-component">{{ .Component }}</span>{{ end }}
-      <span class="log-text">{{ .Msg }}</span>
-    {{ end }}
-  </span>
-  {{ if ne .Attrs "{}" }}<span class="log-attrs">{{ .Attrs }}</span>{{ end }}
-</div>
+      <span class="ln-x">{{ mark .Msg .Terms }}</span>
+      {{- end }}
+      {{ if .AttrRun }}<span class="ln-a">{{ mark .AttrRun .Terms }}</span>{{ end }}
+    </span>
+  </summary>
+  <div class="kvx">
+    {{- range .KV }}
+    <span class="kv"><i>{{ .Key }}</i> <b>{{ .Value }}</b>{{ if .Plus }}<a href="{{ .Plus }}" data-tip="Only lines with this" aria-label="Only lines with {{ .Key }} {{ .Value }}">+</a><a href="{{ .Minus }}" data-tip="Hide lines with this" aria-label="Hide lines with {{ .Key }} {{ .Value }}">&minus;</a>{{ end }}</span>
+    {{- end }}
+    {{ if not .Target }}<a class="ctx" href="{{ .Context }}">context &plusmn;25</a>{{ end }}
+  </div>
+</details>
 {{ end }}
 
 {{/* The metric tile. bad marks the number as trouble, so a zero error count
@@ -93,7 +101,7 @@
   <small>{{ .label }}</small>
   <b class="{{ if .bad }}bad{{ else if .warn }}warn{{ end }}">{{ .value }}</b>
   <span class="o-delta">{{ .sub }}</span>
-  {{ if .spark }}{{ spark .kind .spark }}{{ else }}<span class="o-nospark"></span>{{ end }}
+  {{ if and .spark .labels }}{{ sparkT .kind .spark .labels }}{{ else if .spark }}{{ spark .kind .spark }}{{ else }}<span class="o-nospark"></span>{{ end }}
 </div>
 {{ end }}
 
@@ -107,7 +115,7 @@
   <div class="o-acts d-print-none">
     {{ if .Source }}
     {{ template "rangePicker" dict "options" .RangeOptions "current" .RangeKey "base" (printf "/sources/%s" .Source) }}
-    <a href="/search{{ query "source" .Source "range" .RangeKey }}" class="o-btn o-btn-sm">Search {{ .Source }}</a>
+    <a href="/search{{ query "q" (printf "source:%s" .Source) "range" .RangeKey }}" class="o-btn o-btn-sm">Search {{ .Source }}</a>
     <a href="/sources/{{ .Source }}{{ query "range" .RangeKey "report" "md" }}" target="_blank" class="o-btn o-btn-sm">Markdown</a>
     <a href="/sources/{{ .Source }}{{ query "range" .RangeKey "report" "pdf" }}" target="_blank" class="o-btn o-btn-sm">PDF report</a>
     {{ else }}
@@ -121,14 +129,24 @@
 {{/* Records and errors are counts over the window, and the rates are the
      numbers worth an alert rule. An ERROR record is a program complaining and
      a 5xx is a visitor being told no, so they stay apart. */}}
-<div class="o-tiles six">
-  {{ template "tile" dict "label" "records" "value" (num .Totals.Records) "sub" (printf "%s requests" (num .Totals.Requests)) "kind" "flat" "spark" (series "count" .Graph) }}
-  {{ template "tile" dict "label" "error records" "bad" (gt .Totals.Errors 0) "value" (num .Totals.Errors) "sub" (printf "%s warnings" (num .Totals.Warnings)) "kind" (or (and (gt .Totals.Errors 0) "bad") "flat") "spark" (series "errors" .Graph) }}
-  {{ template "tile" dict "label" "5xx rate" "bad" (gt .Totals.Server5xx 0) "value" (printf "%.2f%%" .Totals.ErrorRate) "sub" (printf "%s of %s requests" (num .Totals.Server5xx) (num .Totals.Requests)) "kind" (or (and (gt .Totals.Server5xx 0) "bad") "flat") "spark" (series "rate" .Graph) }}
+<div class="o-strip">
+  {{ $l := .Labels }}
+  {{ template "tile" dict "label" "records" "value" (num .Totals.Records) "sub" (printf "%s requests" (num .Totals.Requests)) "kind" "flat" "spark" (series "count" .Graph) "labels" $l }}
+  {{ template "tile" dict "label" "error records" "bad" (gt .Totals.Errors 0) "value" (num .Totals.Errors) "sub" (printf "%s warnings" (num .Totals.Warnings)) "kind" (or (and (gt .Totals.Errors 0) "bad") "flat") "spark" (series "errors" .Graph) "labels" $l }}
+  {{ template "tile" dict "label" "5xx rate" "bad" (gt .Totals.Server5xx 0) "value" (printf "%.2f%%" .Totals.ErrorRate) "sub" (printf "%s of %s requests" (num .Totals.Server5xx) (num .Totals.Requests)) "kind" (or (and (gt .Totals.Server5xx 0) "bad") "flat") "spark" (series "rate" .Graph) "labels" $l }}
+  {{/* The spark is the mean per bucket, so it stays out of the crosshair,
+       which would print it under a p95 heading. */}}
   {{ template "tile" dict "label" "p95 latency" "value" (ms .Latency.P95) "sub" (printf "p50 %s · p99 %s" (ms .Latency.P50) (ms .Latency.P99)) "kind" "ok" "spark" (series "latency" .Graph) }}
-  {{ template "tile" dict "label" "4xx" "warn" (gt .Totals.Client4xx 0) "value" (num .Totals.Client4xx) "sub" "not found, refused, limited" "kind" (or (and (gt .Totals.Client4xx 0) "warn") "flat") "spark" (series "4xx" .Graph) }}
+  {{ template "tile" dict "label" "4xx" "warn" (gt .Totals.Client4xx 0) "value" (num .Totals.Client4xx) "sub" "not found, refused, limited" "kind" (or (and (gt .Totals.Client4xx 0) "warn") "flat") "spark" (series "4xx" .Graph) "labels" $l }}
   {{/* cf_ray is absent exactly when a request did not cross the tunnel. */}}
-  {{ template "tile" dict "label" "direct hits" "warn" (gt .Totals.DirectHits 0) "value" (num .Totals.DirectHits) "sub" "external, no CF-Ray" "kind" (or (and (gt .Totals.DirectHits 0) "warn") "flat") "spark" (series "direct" .Graph) }}
+  {{ template "tile" dict "label" "direct hits" "warn" (gt .Totals.DirectHits 0) "value" (num .Totals.DirectHits) "sub" "external, no CF-Ray" "kind" (or (and (gt .Totals.DirectHits 0) "warn") "flat") "spark" (series "direct" .Graph) "labels" $l }}
+  {{ if .Source }}
+  {{ template "tile" dict "label" "last line" "warn" (not .IsLive) "value" .LastAge "sub" (or (and .IsLive "live, inside 15 minutes") "quiet for 15 minutes or more") }}
+  {{ else }}
+  {{ template "tile" dict "label" "sources live" "warn" (lt .Live (len .Sources)) "value" (printf "%d of %d" .Live (len .Sources)) "sub" "a line inside 15 minutes" "kind" "flat" "spark" (series "sources" .Graph) "labels" $l }}
+  {{ end }}
+  {{/* Since the restart, so it has no history to draw. */}}
+  {{ template "tile" dict "label" "ingest drops" "bad" (gt .Drops 0) "value" (num .Drops) "sub" (printf "since restart · %s written" (num .Ingest.Written)) }}
 </div>
 
 <div class="o-cols charts">
@@ -154,39 +172,29 @@
 {{ define "dashPanels" }}
 <section class="o-panel flush">
   <div class="o-ph2"><h2>Latest problems</h2><span class="o-lab">warnings, errors and 5xx, newest first</span></div>
-  <div class="log-body">
-    {{ range .Errors }}{{ template "recordRow" . }}{{ else }}
+  <div class="lx-lines">
+    {{ range dashLines .Errors .RangeKey }}{{ template "logLine" . }}{{ else }}
     <p class="o-empty"><b>Nothing went wrong in this window.</b></p>
     {{ end }}
   </div>
 </section>
 
-<div class="o-cols lower">
-  <section class="o-panel flush">
-    <div class="o-ph2"><h2>Slowest paths</h2><span class="o-lab">by p95, 5 samples or more</span></div>
-    <div class="o-scroll">
-      <table class="o-tbl stack">
-        <thead><tr><th>Path</th><th class="r">Hits</th><th class="r">p95</th><th class="r">Max</th><th class="r">5xx</th></tr></thead>
-        <tbody>
-          {{ range .Slowest }}
-          <tr>
-            <td class="lead clip n" title="{{ .Path }}">{{ .Path }}</td>
-            <td class="r n">{{ num .Count }}</td>
-            <td class="r n o-warn">{{ ms .P95 }}</td>
-            <td class="r n">{{ ms .Max }}</td>
-            <td class="r n {{ if .Errors }}o-bad{{ else }}o-muted{{ end }}">{{ num .Errors }}</td>
-          </tr>
-          {{ else }}
-          <tr><td colspan="5" class="o-empty">No requests with a measured time in this window.</td></tr>
-          {{ end }}
-        </tbody>
-      </table>
-    </div>
+{{/* Every value here opens the search for it, which is where a path or a
+     component gets explained. */}}
+{{ $r := .RangeKey }}
+<div class="o-band b4">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Slowest paths</h2><span class="o-lab">p95 &middot; 5 hits or more</span></div>
+    {{ $top := 1.0 }}{{ with .Slowest }}{{ $top = (index . 0).P95 }}{{ end }}
+    {{ range .Slowest }}
+    <div class="o-hbar"><span class="k o-mono" data-tip="{{ .Path }}&#10;{{ num .Count }} hits · max {{ ms .Max }} · {{ num .Errors }} 5xx"><a href="{{ searchFor $r "path" .Path "" }}">{{ .Path }}</a></span><span class="bar"><i class="{{ if .Errors }}bad{{ else }}warn{{ end }}" style="width: {{ pctf .P95 $top }}%"></i></span><span class="v">{{ ms .P95 }}</span></div>
+    {{ else }}
+    <p class="o-empty">No requests with a measured time in this window.</p>
+    {{ end }}
   </section>
-  <div class="charts-side">
-    {{ template "rankList" dict "title" "Busiest paths" "col" "hits" "items" .TopPaths "top" (topCount .TopPaths) }}
-    {{ template "rankList" dict "title" "Components" "col" "records" "items" .ByComponent "top" (topCount .ByComponent) }}
-  </div>
+  {{ template "rankList" dict "title" "Busiest paths" "col" "hits" "items" .TopPaths "top" (topCount .TopPaths) "field" "path" "range" $r "extra" "" "kind" "" }}
+  {{ template "rankList" dict "title" "Components" "col" "records" "items" .ByComponent "top" (topCount .ByComponent) "field" "component" "range" $r "extra" "" "kind" "" }}
+  {{ template "rankList" dict "title" "4xx paths" "col" "refused" "items" .Refused "top" (topCount .Refused) "field" "path" "range" $r "extra" "status:4xx" "kind" "warn" }}
 </div>
 
 {{/* The ingest counters. A logging site that can't say whether it's dropping

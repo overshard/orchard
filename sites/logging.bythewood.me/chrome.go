@@ -85,8 +85,10 @@ func series(field string, g []GraphPoint) []float64 {
 			out[i] = float64(p.DirectHits)
 		case "rate":
 			if p.Requests > 0 {
-				out[i] = float64(p.Server5xx) / float64(p.Requests)
+				out[i] = float64(p.Server5xx) * 100 / float64(p.Requests)
 			}
+		case "sources":
+			out[i] = float64(p.Sources)
 		case "latency":
 			if p.DurCount > 0 {
 				out[i] = p.DurSum / float64(p.DurCount)

@@ -8,7 +8,6 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -82,6 +81,10 @@ type Dashboard struct {
 	ByComponent   []LabelCount
 	StatusClasses []LabelCount
 	TopPaths      []LabelCount
+	Refused       []LabelCount
+	Labels        []string
+	Live          int
+	LastSeen      int64
 
 	Sources []SourceRow
 	Slowest []PathRow
@@ -109,6 +112,7 @@ func (o rangeOption) WithinRetention() bool { return o.Dur <= rawRetention }
 // only the raw detail thins out beyond it.
 var rangeOptions = []rangeOption{
 	{"1h", "Last hour", time.Hour},
+	{"6h", "Last 6 hours", 6 * time.Hour},
 	{"24h", "Last 24 hours", 24 * time.Hour},
 	{"7d", "Last 7 days", 7 * 24 * time.Hour},
 	{"30d", "Last 30 days", 30 * 24 * time.Hour},
@@ -117,6 +121,22 @@ var rangeOptions = []rangeOption{
 }
 
 const defaultRange = "24h"
+
+// Drops is every record ingest refused or failed to write since the restart.
+func (d *Dashboard) Drops() int64 { return d.Ingest.Rejected + d.Ingest.Failed }
+
+// LastAge is how long since the source's newest line, in words.
+func (d *Dashboard) LastAge() string {
+	if d.LastSeen == 0 {
+		return "none"
+	}
+	return humanDuration(time.Since(time.UnixMilli(d.LastSeen))) + " ago"
+}
+
+// IsLive matches the sources table's dot, a line in the last 15 minutes.
+func (d *Dashboard) IsLive() bool {
+	return d.LastSeen > 0 && time.Since(time.UnixMilli(d.LastSeen)) < 15*time.Minute
+}
 
 // RangeOptions is what the picker iterates, as a method so the page data does
 // not have to carry it.
@@ -236,9 +256,24 @@ func (s *site) renderDashboard(w http.ResponseWriter, r *http.Request, source st
 	d.Slowest = slowestPaths(ctx, s.db, f, 10)
 	d.Errors = errorFeed(ctx, s.db, f, 25)
 
+	d.Refused = refusedPaths(ctx, s.db, f, 10)
+	d.Labels = make([]string, len(d.Graph))
+	for i, p := range d.Graph {
+		d.Labels[i] = p.Label
+	}
+
 	if source == "" {
 		d.BySource = breakdown(ctx, s.db, f, "source", 10)
 		d.Sources = sources(ctx, s.db, f)
+		sparks := sourceSparks(ctx, s.db, f, d.Graph)
+		for i := range d.Sources {
+			d.Sources[i].Spark = sparks[d.Sources[i].Source]
+			if d.Sources[i].IsLive {
+				d.Live++
+			}
+		}
+	} else {
+		d.LastSeen = lastSeen(ctx, s.db, source)
 	}
 
 	d.fillReportExtras()
@@ -339,97 +374,6 @@ func chartPolyline(points []GraphPoint) string {
 		parts = append(parts, fmt.Sprintf("%.1f,%.1f", x, y))
 	}
 	return strings.Join(parts, " ")
-}
-
-// SearchView is the form state, one page of results, and enough to paginate
-// without a count over the whole table.
-type SearchView struct {
-	Q           string
-	Source      string
-	Level       string
-	Component   string
-	StatusClass int
-	RangeKey    string
-	RangeName   string
-
-	Sources []string
-	Levels  []string
-
-	Results  []RecordRow
-	Page     int
-	PerPage  int
-	HasMore  bool
-	Retained int
-}
-
-const searchPerPage = 100
-
-func (v *SearchView) RangeOptions() []rangeOption { return rangeOptions }
-
-func (s *site) search(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	q := r.URL.Query()
-
-	key, name, startMS, endMS := resolveWindow(q)
-
-	page, _ := strconv.Atoi(q.Get("page"))
-	if page < 1 {
-		page = 1
-	}
-
-	statusClass, _ := strconv.Atoi(q.Get("status"))
-	level := strings.ToUpper(strings.TrimSpace(q.Get("level")))
-	switch level {
-	case "", "DEBUG", "INFO", "WARN", "ERROR":
-	default:
-		level = ""
-	}
-
-	f := filter{
-		StartMS:     startMS,
-		EndMS:       endMS,
-		Source:      normalizeSource(q.Get("source")),
-		Level:       level,
-		Component:   strings.TrimSpace(q.Get("component")),
-		StatusClass: statusClass,
-		Q:           strings.TrimSpace(q.Get("q")),
-	}
-
-	// One row more than a page, so "is there a next page" costs a row instead
-	// of a COUNT(*) over a filtered scan.
-	rows := recentRecords(ctx, s.db, f, searchPerPage+1, (page-1)*searchPerPage)
-	hasMore := len(rows) > searchPerPage
-	if hasMore {
-		rows = rows[:searchPerPage]
-	}
-
-	view := &SearchView{
-		Q:           f.Q,
-		Source:      f.Source,
-		Level:       f.Level,
-		Component:   f.Component,
-		StatusClass: f.StatusClass,
-		RangeKey:    key,
-		RangeName:   name,
-		Sources:     knownSources(ctx, s.db),
-		Levels:      []string{"DEBUG", "INFO", "WARN", "ERROR"},
-		Results:     rows,
-		Page:        page,
-		PerPage:     searchPerPage,
-		HasMore:     hasMore,
-		Retained:    int(rawRetention / (24 * time.Hour)),
-	}
-
-	if q.Get("report") == "md" {
-		writeSearchMarkdown(w, view)
-		return
-	}
-
-	data := s.page(r, "Search", "Search every raw log line inside the retention window.")
-	data.PageScript = s.dashScript
-	data.PageStyles = s.dashStyles
-	data.Search = view
-	s.renderer.Render(w, http.StatusOK, "search.html", data)
 }
 
 // jsonBlock marshals a value for an inline <script type="application/json">.

@@ -32,6 +32,7 @@ type GraphPoint struct {
 	DurSum     float64 `json:"-"`
 	DurCount   int64   `json:"-"`
 	DirectHits int64   `json:"-"`
+	Sources    int64   `json:"-"`
 }
 
 // Latency is the request duration distribution. Percentiles come from raw rows,
@@ -65,6 +66,7 @@ type RecordRow struct {
 
 type SourceRow struct {
 	Source    string
+	Spark     []float64
 	Records   int64
 	Errors    int64
 	Requests  int64
@@ -206,27 +208,26 @@ func totals(ctx context.Context, db *sql.DB, f filter) Totals {
 	return t
 }
 
-// volumeGraph buckets the record count over time, from rollups. The bucket
-// width follows the range: hourly up to three days, six-hourly up to two weeks,
-// daily beyond.
-func volumeGraph(ctx context.Context, db *sql.DB, f filter) []GraphPoint {
-	span := f.EndMS - f.StartMS
+// volumeBucket is the volume chart's bucket width and label for a span:
+// hourly up to three days, six-hourly up to two weeks, daily beyond.
+func volumeBucket(span int64) (int64, string) {
 	const hourMS = int64(60 * 60 * 1000)
-
-	bucket := hourMS
-	layout := "Jan 2 15:04"
 	switch {
 	// Past about ten months the first and last labels collide without a year.
 	case span > 300*24*hourMS:
-		bucket = 24 * hourMS
-		layout = "Jan 2 2006"
+		return 24 * hourMS, "Jan 2 2006"
 	case span > 14*24*hourMS:
-		bucket = 24 * hourMS
-		layout = "Jan 2"
+		return 24 * hourMS, "Jan 2"
 	case span > 3*24*hourMS:
-		bucket = 6 * hourMS
-		layout = "Jan 2 15h"
+		return 6 * hourMS, "Jan 2 15h"
 	}
+	return hourMS, "Jan 2 15:04"
+}
+
+// volumeGraph buckets the record count over time, from rollups.
+func volumeGraph(ctx context.Context, db *sql.DB, f filter) []GraphPoint {
+	span := f.EndMS - f.StartMS
+	bucket, layout := volumeBucket(span)
 
 	w, args := f.where("hour")
 	args = append([]any{bucket, bucket}, args...)
@@ -239,7 +240,8 @@ func volumeGraph(ctx context.Context, db *sql.DB, f filter) []GraphPoint {
 		       SUM(CASE WHEN status >= 500 AND component != 'healthz' THEN count ELSE 0 END),
 		       SUM(CASE WHEN status >= 400 AND status < 500 AND component != 'healthz' THEN count ELSE 0 END),
 		       SUM(CASE WHEN component != 'healthz' THEN dur_sum ELSE 0 END),
-		       SUM(CASE WHEN component != 'healthz' THEN dur_count ELSE 0 END)
+		       SUM(CASE WHEN component != 'healthz' THEN dur_count ELSE 0 END),
+		       COUNT(DISTINCT CASE WHEN component != 'healthz' THEN source END)
 		FROM rollups WHERE `+w+`
 		GROUP BY bucket ORDER BY bucket`, args...)
 	if err != nil {
@@ -254,7 +256,7 @@ func volumeGraph(ctx context.Context, db *sql.DB, f filter) []GraphPoint {
 	for rows.Next() {
 		var p GraphPoint
 		var at int64
-		if err := rows.Scan(&at, &p.Count, &p.Errors, &p.Requests, &p.Server5xx, &p.Client4xx, &p.DurSum, &p.DurCount); err != nil {
+		if err := rows.Scan(&at, &p.Count, &p.Errors, &p.Requests, &p.Server5xx, &p.Client4xx, &p.DurSum, &p.DurCount, &p.Sources); err != nil {
 			queryFailed("volume graph scan", err)
 			return nil
 		}
@@ -626,4 +628,67 @@ func knownSources(ctx context.Context, db *sql.DB) []string {
 	}
 	queryFailed("known sources rows", rows.Err())
 	return out
+}
+
+// sourceSparks is records per bucket for each source, from rollups, on the
+// same buckets as the volume chart so the cell sparks line up with it.
+func sourceSparks(ctx context.Context, db *sql.DB, f filter, g []GraphPoint) map[string][]float64 {
+	out := map[string][]float64{}
+	if len(g) == 0 {
+		return out
+	}
+	bucket, _ := volumeBucket(f.EndMS - f.StartMS)
+	start := f.StartMS / bucket * bucket
+	w, args := f.where("hour")
+	rows, err := db.QueryContext(ctx, `
+		SELECT source, hour / ? * ? AS b, SUM(count) FROM rollups
+		WHERE `+w+` AND component != 'healthz'
+		GROUP BY source, b`, append([]any{bucket, bucket}, args...)...)
+	if err != nil {
+		queryFailed("source sparks", err)
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var src string
+		var at, n int64
+		if err := rows.Scan(&src, &at, &n); err != nil {
+			queryFailed("source sparks scan", err)
+			return out
+		}
+		i := int((at - start) / bucket)
+		if i < 0 || i >= len(g) {
+			continue
+		}
+		if out[src] == nil {
+			out[src] = make([]float64, len(g))
+		}
+		out[src][i] = float64(n)
+	}
+	queryFailed("source sparks rows", rows.Err())
+	return out
+}
+
+// refusedPaths is the 4xx paths, the scanners and the dead links. The status
+// bounds are literals so the planner can prove records_status_ts applies.
+func refusedPaths(ctx context.Context, db *sql.DB, f filter, limit int) []LabelCount {
+	w, args := f.where("ts")
+	rows, err := db.QueryContext(ctx, `
+		SELECT path, COUNT(*) AS n FROM records
+		WHERE `+w+` AND status >= 400 AND status < 500 AND path != ''
+		GROUP BY path ORDER BY n DESC LIMIT ?`, append(args, limit)...)
+	if err != nil {
+		queryFailed("refused paths", err)
+		return nil
+	}
+	defer rows.Close()
+	return scanLabelCounts(rows, "refused paths")
+}
+
+// lastSeen is the newest raw line from one source, zero if none.
+func lastSeen(ctx context.Context, db *sql.DB, source string) int64 {
+	var last sql.NullInt64
+	err := db.QueryRowContext(ctx, `SELECT MAX(ts) FROM records WHERE source = ?`, source).Scan(&last)
+	queryFailed("last seen", err)
+	return last.Int64
 }

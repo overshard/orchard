@@ -1,90 +1,174 @@
 {{ define "extra_css" }}{{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}{{ end }}
 
+{{ define "extra_js" }}<script type="module" src="{{ .PageScript }}"></script>{{ end }}
+
 {{ define "main" }}
 {{ with .Search }}
-<main class="o-wrap o-main">
+<main class="o-wrap o-main lx">
   <div class="o-ph">
     <div>
-      <span class="o-lab">logging &middot; search</span>
-      <h1>{{ if .Results }}{{ if .HasMore }}More than <em>{{ len .Results }} lines</em> match.{{ else }}<em>{{ len .Results }} {{ if eq (len .Results) 1 }}line{{ else }}lines{{ end }}</em> match.{{ end }}{{ else }}Nothing matches.{{ end }}</h1>
-      <p>Every raw line inside the {{ .Retained }} day window. Older than that only the hourly counts survive, which the graphs read and search can't.</p>
+      <span class="o-lab">logging &middot; search &middot; {{ .RangeKey }}</span>
+      <h1>{{ searchHead . }}</h1>
+      <span class="o-pm">
+        <span>query<b>{{ if .Q }}{{ .Q }}{{ else }}everything{{ end }}</b></span>
+        {{ if not .Context }}
+        <span>sources<b>{{ .Sources }}</b></span>
+        {{ if .First }}<span>first<b>{{ .First }}</b></span><span>last<b>{{ .Last }}</b></span>{{ end }}
+        <span>scanned<b>{{ num .Scanned }}</b></span>
+        {{ if .Slow }}<span>budget<b class="warn">ran out, narrow the window</b></span>{{ end }}
+        {{ end }}
+      </span>
+    </div>
+    <div class="o-acts d-print-none">
+      <nav class="range" aria-label="Time window">
+        {{- range .Ranges }}<a class="{{ if .On }}on{{ end }}" href="{{ .Href }}"{{ if .On }} aria-current="true"{{ end }}>{{ .Key }}</a>{{ end -}}
+      </nav>
+      <button type="button" class="o-btn o-btn-sm live-btn" data-tail-toggle hidden data-act="Live tail this search"><span class="o-dot"></span>Live</button>
+      <a class="o-btn o-btn-sm" href="{{ .MdHref }}" target="_blank">Markdown</a>
     </div>
   </div>
 
-  {{/* One GET form, so a search is a URL somebody can bookmark or paste into
-       a note about an incident. Nothing here posts. */}}
-  <form method="get" class="o-panel searchform">
-    <label class="o-field q">
-      <span>Message, path or attribute contains</span>
-      <input type="search" class="mono" name="q" id="q" value="{{ .Q }}" autofocus placeholder="timeout">
-    </label>
-    <label class="o-field">
-      <span>Source</span>
-      <select name="source" id="source">
-        <option value="">any source</option>
-        {{ $s := .Source }}
-        {{ range .Sources }}<option value="{{ . }}" {{ if eq . $s }}selected{{ end }}>{{ . }}</option>{{ end }}
-      </select>
-    </label>
-    <label class="o-field">
-      <span>Level</span>
-      <select name="level" id="level">
-        <option value="">any level</option>
-        {{ $l := .Level }}
-        {{ range .Levels }}<option value="{{ . }}" {{ if eq . $l }}selected{{ end }}>{{ . }}</option>{{ end }}
-      </select>
-    </label>
-    <label class="o-field">
-      <span>Status</span>
-      <select name="status" id="status">
-        {{ $c := .StatusClass }}
-        <option value="0">any status</option>
-        <option value="2" {{ if eq $c 2 }}selected{{ end }}>2xx</option>
-        <option value="3" {{ if eq $c 3 }}selected{{ end }}>3xx</option>
-        <option value="4" {{ if eq $c 4 }}selected{{ end }}>4xx</option>
-        <option value="5" {{ if eq $c 5 }}selected{{ end }}>5xx</option>
-      </select>
-    </label>
-    <label class="o-field">
-      <span>Window</span>
-      <select name="range" id="range">
-        {{/* Only the windows the raw table can answer, since anything older
-             exists only as an hourly counter. */}}
-        {{ $r := .RangeKey }}
-        {{ range .RangeOptions }}{{ if .WithinRetention }}<option value="{{ .Key }}" {{ if eq .Key $r }}selected{{ end }}>{{ .Name }}</option>{{ end }}{{ end }}
-      </select>
-    </label>
+  {{/* One GET form, so every search is a URL somebody can bookmark or paste
+       into a note about an incident. The window rides along hidden. */}}
+  <form method="get" action="/search" class="sq">
+    <input type="search" class="o-in mono" name="q" value="{{ .Q }}" placeholder="contains, -exclude, field:value" aria-label="Query" autocomplete="off" spellcheck="false" {{ if not .Q }}autofocus{{ end }}>
+    <input type="hidden" name="range" value="{{ .RangeKey }}">
+    {{ if .Zoomed }}<input type="hidden" name="from" value="{{ .FromMS }}"><input type="hidden" name="to" value="{{ .ToMS }}">{{ end }}
+    {{ if eq .View "patterns" }}<input type="hidden" name="view" value="patterns">{{ end }}
     <button type="submit" class="o-btn o-btn-p">Search</button>
   </form>
+  <div class="chips">
+    {{- range .Chips }}<a class="o-chip x{{ if .Neg }} neg{{ end }}" href="{{ .Href }}" data-tip="Remove this filter">{{ .Label }}</a>{{ end }}
+    {{ if .Chips }}<a class="clear" href="{{ .ClearHref }}">clear all</a>{{ else }}<span class="o-muted">No filters. Type a word, -word to hide one, or field:value like status:5xx or source:blog. Facets, the chart and opened lines add filters too.</span>{{ end }}
+  </div>
 
+  {{ if .Context }}
   <section class="o-panel flush">
-    <div class="o-ph2"><h2>Lines</h2><span class="o-lab">{{ if .Results }}page {{ .Page }} &middot; newest first{{ else }}none{{ end }}</span></div>
-    <div class="log-body">
-      {{ range .Results }}{{ template "recordRow" . }}{{ else }}
-      <p class="o-empty">
-        {{ if gt .Page 1 }}
-        <b>No more lines past page {{ sub .Page 1 }}.</b>Go back, or widen the window.
-        {{ else }}
-        <b>Nothing matched.</b>Widen the window or drop a filter. The raw window is {{ $.Search.Retained }} days and anything older is only in the counts.
-        {{ end }}
-      </p>
-      {{ end }}
+    <div class="o-ph2"><h2>Context</h2><span class="o-pm"><span>source<b>{{ .Context.Source }}</b></span><span>at<b>{{ .Context.Time }}</b></span><span>newest first</span></span><a class="o-btn o-btn-sm" href="{{ .CtxBack }}">Back to the search</a></div>
+    <div class="lx-lines">{{ range .Results }}{{ template "logLine" . }}{{ end }}</div>
+  </section>
+  {{ else }}
+
+  <div class="o-strip">
+    {{ $labels := .HistLabels }}
+    <div class="o-tile"><small>matches</small><b>{{ num .Matches }}{{ if .Capped }}+{{ end }}</b><span class="o-delta">of {{ num .Scanned }} lines</span>{{ sparkT "flat" (.MatchSpark "all") $labels }}</div>
+    <div class="o-tile"><small>errors</small><b class="{{ if .Errors }}bad{{ end }}">{{ num .Errors }}</b><span class="o-delta">{{ if .Errors }}level ERROR{{ else }}none{{ end }}</span>{{ sparkT (or (and .Errors "bad") "flat") (.MatchSpark "errors") $labels }}</div>
+    <div class="o-tile"><small>warns</small><b class="{{ if .Warns }}warn{{ end }}">{{ num .Warns }}</b><span class="o-delta">level WARN</span>{{ sparkT (or (and .Warns "warn") "flat") (.MatchSpark "warns") $labels }}</div>
+    <div class="o-tile"><small>5xx</small><b class="{{ if .S5xx }}bad{{ end }}">{{ num .S5xx }}</b><span class="o-delta">of {{ num .Requests }} requests</span>{{ sparkT (or (and .S5xx "bad") "flat") (.MatchSpark "5xx") $labels }}</div>
+    <div class="o-tile"><small>4xx</small><b class="{{ if .S4xx }}warn{{ end }}">{{ num .S4xx }}</b><span class="o-delta">not found, refused</span>{{ sparkT (or (and .S4xx "warn") "flat") (.MatchSpark "4xx") $labels }}</div>
+    <div class="o-tile"><small>p95 &middot; matched</small><b>{{ ms .Latency.P95 }}</b><span class="o-delta">p50 {{ ms .Latency.P50 }}</span><span class="o-nospark"></span></div>
+    <div class="o-tile"><small>sources</small><b>{{ .Sources }}</b><span class="o-delta">{{ range $i, $s := .TopSrc }}{{ if $i }} {{ end }}{{ $s.Label }}{{ end }}</span><span class="o-nospark"></span></div>
+    <div class="o-tile"><small>patterns</small><b>{{ .Shapes }}</b><span class="o-delta">{{ if .Patterns }}top is {{ printf "%.0f" .TopPatternShare }}%{{ else }}none{{ end }}</span><span class="o-nospark"></span></div>
+  </div>
+
+  <section class="o-panel">
+    <div class="o-ph2"><h2>When</h2><span class="o-pm"><span>per<b>{{ .BucketName }}</b></span>{{ if .Peak.Total }}<span>peak<b>{{ .Peak.Label }} &middot; {{ num .Peak.Total }}</b></span>{{ end }}<span class="hide-sm">drag to zoom</span></span></div>
+    {{/* Each bar is a link that zooms to its bucket, and search.js turns a
+         drag across several into one zoom. */}}
+    <div class="hist{{ if .Zoomed }} zoomed{{ end }}" data-hist data-start="{{ .StartMS }}" data-bucket="{{ .BucketMS }}" data-n="{{ len .Hist }}" data-base="{{ .BaseHref }}" data-unzoom="{{ .UnzoomHref }}">
+      <svg viewBox="0 0 {{ .HistWidth }} 100" preserveAspectRatio="none" role="img" aria-label="Matching lines per {{ .BucketName }} across the window, errors in red">
+        <line class="g" x1="0" x2="{{ .HistWidth }}" y1="25" y2="25"/><line class="g" x1="0" x2="{{ .HistWidth }}" y1="50" y2="50"/><line class="g" x1="0" x2="{{ .HistWidth }}" y1="75" y2="75"/>
+        {{- range .HistBars }}
+        <a href="{{ .Href }}" class="{{ if not .In }}out{{ end }}{{ if .Unread }} na{{ end }}"><rect class="hit" x="{{ .X }}" y="0" width="{{ .W }}" height="100" data-tip="{{ .Tip }}"/>{{ $x := .X }}{{ range .Segs }}<rect class="{{ .Class }}" x="{{ $x }}" y="{{ printf "%.2f" .Y }}" width="8.6" height="{{ printf "%.2f" .H }}"/>{{ end }}</a>
+        {{- end }}
+      </svg>
+      <i class="brush" hidden></i>
     </div>
+    <div class="hist-ticks">{{ range .HistTicks }}<span>{{ . }}</span>{{ end }}</div>
+    {{ if .Capped }}<p class="o-foot">stopped at {{ .CapAt }} to stay quick, so counts cover from there to the end &middot; zoom or narrow the query to reach further back</p>{{ end }}
+    <div class="leg"><span><i class="e"></i>error</span><span><i class="w"></i>warn</span><span><i class="i"></i>everything else</span>{{ if .Zoomed }}<a href="{{ .UnzoomHref }}">reset zoom</a>{{ end }}</div>
   </section>
 
-  {{/* Pagination without a COUNT. The query asks for one row more than a page,
-       so is there a next page costs a row and not a scan of every match. */}}
-  {{ if or (gt .Page 1) .HasMore }}
-  <nav class="pager" aria-label="Pages">
-    {{ if gt .Page 1 }}
-    <a class="o-btn o-btn-sm" href="/search{{ query "q" .Q "source" .Source "level" .Level "status" (printf "%d" .StatusClass) "range" .RangeKey "page" (printf "%d" (sub .Page 1)) }}">&larr; Newer</a>
-    {{ else }}<span></span>{{ end }}
-    <span class="o-mono o-muted small">page {{ .Page }}</span>
-    {{ if .HasMore }}
-    <a class="o-btn o-btn-sm" href="/search{{ query "q" .Q "source" .Source "level" .Level "status" (printf "%d" .StatusClass) "range" .RangeKey "page" (printf "%d" (add .Page 1)) }}">Older &rarr;</a>
-    {{ else }}<span></span>{{ end }}
-  </nav>
+  <div class="facets">
+    {{- range .Facets }}
+    <div>
+      <h4>{{ .Name }}</h4>
+      {{ $top := 1 }}{{ with .Values }}{{ $top = (index . 0).Count }}{{ end }}
+      {{- range .Values }}
+      <a class="o-hbar{{ if .On }} on{{ end }}" href="{{ .Href }}" data-tip="{{ if .On }}Remove this filter{{ else }}Add as a filter{{ end }}"><span class="k o-mono">{{ .Value }}</span><span class="bar"><i class="{{ .Kind }}" style="width: {{ pct .Count $top }}%"></i></span><span class="v">{{ num .Count }}</span></a>
+      {{- else }}
+      <span class="o-muted none">none</span>
+      {{- end }}
+    </div>
+    {{- end }}
+  </div>
+
+  {{ if eq .View "patterns" }}
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Patterns</h2>{{ template "lxMode" . }}</div>
+    <div class="o-scroll">
+      <table class="o-tbl pat">
+        <thead><tr><th class="r">Count</th><th>Level</th><th>Pattern</th><th>When</th><th>First</th><th>Last</th></tr></thead>
+        <tbody>
+          {{ range .Patterns }}
+          <tr data-href="{{ .Href }}" class="{{ if eq .Level "ERROR" }}hot{{ end }}">
+            <td class="r n">{{ num .Count }}</td>
+            <td><span class="o-chip {{ if eq .Level "ERROR" }}bad{{ else if eq .Level "WARN" }}warn{{ end }}">{{ .Level }}</span></td>
+            <td class="n clip"><a href="{{ .Href }}">{{ .Shape }}</a> <span class="o-muted">&middot; {{ .Source }}</span></td>
+            <td class="o-cell-spark">{{ spark (or (and (eq .Level "ERROR") "bad") (and (eq .Level "WARN") "warn") "flat") .Spark }}</td>
+            <td class="n o-muted">{{ .First }}</td>
+            <td class="n o-muted">{{ .Last }}</td>
+          </tr>
+          {{ else }}
+          <tr><td colspan="6" class="o-empty"><b>Nothing matches.</b>Remove a chip or a word from the query.</td></tr>
+          {{ end }}
+        </tbody>
+      </table>
+    </div>
+    <p class="o-foot pad">numbers, ids and paths masked &middot; click a pattern for its lines{{ if .PatCapped }} &middot; from the newest 50,000 matches{{ end }}</p>
+  </section>
+  {{ else }}
+
+  <div class="o-band b2r">
+    <section class="o-panel flush">
+      <div class="o-ph2"><h2>Lines</h2><span class="o-pm"><span>newest first</span>{{ if .Results }}<span>page<b>{{ .Page }}{{ if .Pages }} of {{ .Pages }}{{ end }}</b></span>{{ end }}</span>{{ template "lxMode" . }}</div>
+      <div class="tail" data-tail="{{ .TailHref }}" hidden>
+        <div class="tail-bar o-pm"><span>state<b class="ok" data-tail-state>following</b></span><span>new<b data-tail-count>0</b></span><button type="button" class="o-btn o-btn-sm" data-tail-pause>Pause</button></div>
+        <div class="tail-box lx-lines" data-tail-box></div>
+        <button type="button" class="pill" data-tail-pill hidden></button>
+      </div>
+      <div class="lx-lines" data-lines>
+        {{ range .Results }}{{ template "logLine" . }}{{ else }}
+        <p class="o-empty">
+          {{ if gt .Page 1 }}<b>No more lines past page {{ sub .Page 1 }}.</b>Go back, or widen the window.
+          {{ else }}<b>Nothing matches.</b>Remove a chip or a word from the query, and excluded words start with a minus. The raw window is {{ .Retained }} days and anything older is only in the counts.{{ end }}
+        </p>
+        {{ end }}
+      </div>
+      {{ if or (gt .Page 1) .HasMore }}
+      <nav class="pager" aria-label="Pages">
+        {{ if gt .Page 1 }}<a class="o-btn o-btn-sm" href="{{ .PrevHref }}">&larr; Newer</a>{{ else }}<span></span>{{ end }}
+        <span class="o-mono o-muted small">page {{ .Page }}</span>
+        {{ if .HasMore }}<a class="o-btn o-btn-sm" href="{{ .NextHref }}">Older &rarr;</a>{{ else }}<span></span>{{ end }}
+      </nav>
+      {{ end }}
+    </section>
+
+    <section class="o-panel flush">
+      <div class="o-ph2"><h2>Patterns</h2><span class="o-pm"><span>shapes<b>{{ .Shapes }}</b></span></span></div>
+      <div class="pats">
+        {{ range $i, $p := .Patterns }}{{ if lt $i 8 }}
+        <a class="pat-row{{ if eq .Level "ERROR" }} hot{{ end }}" href="{{ .Href }}" data-tip="{{ .Source }} &middot; first {{ .First }} &middot; last {{ .Last }}">
+          <span class="n">{{ num .Count }}</span>
+          <span class="o-chip {{ if eq .Level "ERROR" }}bad{{ else if eq .Level "WARN" }}warn{{ end }}">{{ .Level }}</span>
+          <span class="s">{{ .Shape }}</span>
+          {{ spark (or (and (eq .Level "ERROR") "bad") (and (eq .Level "WARN") "warn") "flat") .Spark }}
+        </a>
+        {{ end }}{{ else }}
+        <p class="o-empty">Nothing to group.</p>
+        {{ end }}
+      </div>
+      <p class="o-foot pad">numbers, ids and paths masked{{ if gt (len .Patterns) 8 }} &middot; <a href="{{ .PatternsHref }}">all {{ .Shapes }}</a>{{ end }}</p>
+    </section>
+  </div>
+  {{ end }}
   {{ end }}
 </main>
 {{ end }}
+{{ end }}
+
+{{ define "lxMode" }}
+<nav class="range mode" aria-label="Show">
+  <a class="{{ if ne .View "patterns" }}on{{ end }}" href="{{ .LinesHref }}">lines</a><a class="{{ if eq .View "patterns" }}on{{ end }}" href="{{ .PatternsHref }}">patterns</a>
+</nav>
 {{ end }}

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html/template"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -55,6 +56,7 @@ func csp() string {
 
 type site struct {
 	renderer *web.Renderer
+	lineTmpl *template.Template
 	db       *sql.DB
 	dist     fs.FS
 	assets   *web.Assets
@@ -150,11 +152,17 @@ func realMain() error {
 		return err
 	}
 
+	lineTmpl, err := parseLineTemplate(templates)
+	if err != nil {
+		return err
+	}
+
 	writer := NewWriter(db)
 	defer writer.Close()
 
 	s := &site{
 		renderer:    renderer,
+		lineTmpl:    lineTmpl,
 		db:          db,
 		dist:        dist,
 		assets:      assets,
@@ -233,6 +241,7 @@ func realMain() error {
 	mux.HandleFunc("GET /overview", noStore(s.auth.RequireAuth(s.overview)))
 	mux.HandleFunc("GET /sources/{source}", noStore(s.auth.RequireAuth(s.sourceDetail)))
 	mux.HandleFunc("GET /search", noStore(s.auth.RequireAuth(s.search)))
+	mux.HandleFunc("GET /search/tail", noStore(s.auth.RequireAuthJSON(s.tail)))
 
 	// Unauthenticated, and reachable only over the bridge since Caddy refuses
 	// /ingest on the public hostname.

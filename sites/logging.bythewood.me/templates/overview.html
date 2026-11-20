@@ -27,7 +27,7 @@
       <table class="o-tbl stack sources">
         <thead>
           <tr>
-            <th>Source</th><th class="r">Records</th><th class="r">Requests</th>
+            <th>Source</th><th>Volume</th><th class="r">Records</th><th class="r">Requests</th>
             <th class="r">4xx</th><th class="r">5xx</th><th class="r">Errors</th>
             <th class="r">5xx rate</th><th class="r">p95</th><th>Last line</th>
           </tr>
@@ -41,6 +41,7 @@
               <a class="name" href="/sources/{{ .Source }}{{ query "range" $range }}">{{ .Source }}</a>
               {{ if not .IsLive }}<span class="o-chip warn">quiet</span>{{ end }}
             </td>
+            <td class="o-cell-spark">{{ if .Spark }}{{ sparkT (or (and (or .Errors .Server5xx) "bad") "flat") .Spark $.Dash.Labels }}{{ end }}</td>
             <td class="r n">{{ num .Records }}</td>
             <td class="r n o-muted">{{ num .Requests }}</td>
             <td class="r n {{ if .Client4xx }}o-warn{{ else }}o-muted{{ end }}">{{ num .Client4xx }}</td>
@@ -51,7 +52,7 @@
             <td class="n o-muted">{{ if .LastSeen }}{{ .LastSeen }}{{ else }}&mdash;{{ end }}</td>
           </tr>
           {{ else }}
-          <tr><td colspan="9" class="o-empty"><b>Nothing has shipped yet.</b>Deploy a site with the shipper in its <code>web/</code> and it shows here within five seconds of its first request.</td></tr>
+          <tr><td colspan="10" class="o-empty"><b>Nothing has shipped yet.</b>Deploy a site with the shipper in its <code>web/</code> and it shows here within five seconds of its first request.</td></tr>
           {{ end }}
         </tbody>
       </table>
