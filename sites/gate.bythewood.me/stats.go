@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/netip"
+	"strings"
 	"sync"
 	"time"
 )
@@ -16,7 +18,31 @@ type stats struct {
 	bans    []Ban
 	minute  time.Time
 	inMin   int
+	ring    *ring
+	rules   func() []*Rule
+	solves  map[solveKey]*solveCount
+	people  map[peopleKey]struct{}
+	pHour   int64
 }
+
+type solveKey struct {
+	Hour int64
+	Host string
+	Rule int64
+}
+
+// solveCount is one host's challenges in an hour. People is addresses, each
+// counted once an hour however many challenge pages it loads.
+type solveCount struct{ People, Solved, Failed int }
+
+type peopleKey struct {
+	rule int64
+	ip   netip.Addr
+}
+
+// maxPeople bounds the set of addresses challenged this hour, so a flood from
+// a botnet can't grow it without end. Past it new addresses go uncounted.
+const maxPeople = 50000
 
 type trafficKey struct {
 	Hour    int64
@@ -48,6 +74,8 @@ type Event struct {
 	Rule    string
 	Verdict string
 	Watch   bool
+	Why
+	Also string // other rules the request matched, comma separated
 }
 
 // maxEventsPerMinute bounds the writes a flood can cause. The counts stay
@@ -55,7 +83,8 @@ type Event struct {
 const maxEventsPerMinute = 600
 
 func newStats() *stats {
-	return &stats{traffic: map[trafficKey]int{}, hits: map[hitKey]*hitCount{}, orgs: map[int]string{}}
+	return &stats{traffic: map[trafficKey]int{}, hits: map[hitKey]*hitCount{}, orgs: map[int]string{}, ring: newRing(ringSize),
+		rules: func() []*Rule { return nil }, solves: map[solveKey]*solveCount{}, people: map[peopleKey]struct{}{}}
 }
 
 func hourOf(t time.Time) int64 { return t.UTC().Truncate(time.Hour).Unix() }
@@ -68,14 +97,52 @@ func (s *stats) count(q *req, v verdict) {
 	if q.ASN != 0 && q.Org != "" {
 		s.orgs[q.ASN] = q.Org
 	}
+	if !v.orchard {
+		s.ring.add(now, q, v)
+	}
 	switch v.kind {
 	case vBlock, vLimit, vChallenge, vBanned:
-		name := ""
-		if v.rule != nil {
-			name = v.rule.Name
-		}
-		s.event(now, q, name, v.kind, false)
+		s.event(now, q, v.rule, v.kind, false)
 	}
+	if v.kind == vChallenge && v.rule != nil {
+		s.challenged(now, q, v.rule.ID)
+	}
+}
+
+func (s *stats) challenged(now time.Time, q *req, rule int64) {
+	h := hourOf(now)
+	if h != s.pHour {
+		s.pHour = h
+		clear(s.people)
+	}
+	k := peopleKey{rule, q.IP}
+	if _, ok := s.people[k]; ok || len(s.people) >= maxPeople {
+		return
+	}
+	s.people[k] = struct{}{}
+	s.solveCount(h, q.Host, rule).People++
+}
+
+// solved counts an answer posted to /__gate/solve, good or not.
+func (s *stats) solved(host string, rule int64, ok bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	c := s.solveCount(hourOf(time.Now()), host, rule)
+	if ok {
+		c.Solved++
+	} else {
+		c.Failed++
+	}
+}
+
+func (s *stats) solveCount(hour int64, host string, rule int64) *solveCount {
+	k := solveKey{hour, host, rule}
+	c := s.solves[k]
+	if c == nil {
+		c = &solveCount{}
+		s.solves[k] = c
+	}
+	return c
 }
 
 func (s *stats) hit(q *req, r *Rule, watch bool) {
@@ -90,13 +157,15 @@ func (s *stats) hit(q *req, r *Rule, watch bool) {
 	}
 	if watch {
 		c.Watched++
-		s.event(now, q, r.Name, r.Action, true)
+		s.event(now, q, r, r.Action, true)
 	} else {
 		c.Hits++
 	}
 }
 
-func (s *stats) event(now time.Time, q *req, rule, verdict string, watch bool) {
+// event keeps a sampled request and works out why it matched. The why and the
+// other rules it matched are only worked out here, past the per minute cap.
+func (s *stats) event(now time.Time, q *req, r *Rule, verdict string, watch bool) {
 	if m := now.Truncate(time.Minute); !m.Equal(s.minute) {
 		s.minute, s.inMin = m, 0
 	}
@@ -108,8 +177,19 @@ func (s *stats) event(now time.Time, q *req, rule, verdict string, watch bool) {
 	if q.IP.IsValid() {
 		ip = q.IP.Unmap().String()
 	}
-	s.events = append(s.events, Event{At: now, IP: ip, ASN: q.ASN, Org: q.Org, Country: q.Country, Host: q.Host,
-		Method: q.Method, Path: cut(q.Path, 300), UA: cut(q.UA, 200), Rule: rule, Verdict: verdict, Watch: watch})
+	e := Event{At: now, IP: ip, ASN: q.ASN, Org: q.Org, Country: q.Country, Host: q.Host,
+		Method: q.Method, Path: cut(q.Path, 300), UA: cut(q.UA, 200), Verdict: verdict, Watch: watch}
+	if r != nil {
+		e.Rule, e.Why = r.Name, r.why(q)
+		var also []string
+		for _, o := range s.rules() {
+			if o.ID != r.ID && o.match(q) {
+				also = append(also, o.Name)
+			}
+		}
+		e.Also = strings.Join(also, ",")
+	}
+	s.events = append(s.events, e)
 }
 
 func (s *stats) ban(b Ban) {
@@ -131,12 +211,14 @@ type pending struct {
 	orgs    map[int]string
 	events  []Event
 	bans    []Ban
+	solves  map[solveKey]*solveCount
 }
 
 func (s *stats) take() pending {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	p := pending{s.traffic, s.hits, s.orgs, s.events, s.bans}
+	p := pending{s.traffic, s.hits, s.orgs, s.events, s.bans, s.solves}
 	s.traffic, s.hits, s.orgs, s.events, s.bans = map[trafficKey]int{}, map[hitKey]*hitCount{}, map[int]string{}, nil, nil
+	s.solves = map[solveKey]*solveCount{}
 	return p
 }

@@ -43,6 +43,7 @@ type site struct {
 	engine *engine
 	geo    *Geo
 	auth   *web.Authenticator
+	shadow shadowCache
 }
 
 func env(k, def string) string {
@@ -99,6 +100,13 @@ func main() {
 		}
 	}()
 	go func() {
+		for range time.Tick(30 * time.Second) {
+			if s.store.Setting("mode") != modeOn && s.engine.Mode() == modeOn {
+				_ = s.reload()
+			}
+		}
+	}()
+	go func() {
 		for {
 			now := time.Now()
 			s.engine.sweep(now)
@@ -146,10 +154,8 @@ func (s *site) reload() error {
 		return err
 	}
 	s.engine.load(rules)
-	mode := s.store.Setting("mode")
-	if mode != modeWatch && mode != modeOff {
-		mode = modeOn
-	}
+	mode, until := s.modeSetting(time.Now())
+	s.engine.until.Store(until)
 	s.engine.mode.Store(mode)
 	s.engine.setSelf(selfAddrs(s.store.Setting("self")))
 	return nil
@@ -178,6 +184,8 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("GET /rules/{id}", s.auth.RequireAuth(s.rulePage))
 	mux.HandleFunc("POST /rules/{id}", s.auth.RequireAuth(s.editRule))
 	mux.HandleFunc("POST /rules/{id}/{op}", s.auth.RequireAuth(s.ruleOp))
+	mux.HandleFunc("POST /rules/test", s.auth.RequireAuth(s.testRulePage))
+	mux.HandleFunc("POST /changes/{id}/restore", s.auth.RequireAuth(s.restore))
 	mux.HandleFunc("GET /traffic", s.auth.RequireAuth(s.trafficPage))
 	mux.HandleFunc("GET /bans", s.auth.RequireAuth(s.bansPage))
 	mux.HandleFunc("POST /bans", s.auth.RequireAuth(s.addBan))

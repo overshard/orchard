@@ -31,9 +31,9 @@ func (s *site) chrome(r *http.Request, on string) (suite.Page, bool) {
 	case modeOn:
 		p.Status = []suite.Seg{{Text: "enforcing", Kind: "ok"}}
 	case modeWatch:
-		p.Status = []suite.Seg{{Text: "watching only", Kind: "warn"}}
+		p.Status = []suite.Seg{{Text: "watching only, " + left(s.engine.until.Load(), time.Now()) + " left", Kind: "warn"}}
 	default:
-		p.Status = []suite.Seg{{Text: "off", Kind: "bad"}}
+		p.Status = []suite.Seg{{Text: "off, " + left(s.engine.until.Load(), time.Now()) + " left", Kind: "bad"}}
 	}
 	if in {
 		rules := *s.engine.rules.Load()
@@ -72,20 +72,31 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now()
 	day := s.store.Day(24*time.Hour, now)
-	rules, _ := s.store.Rules()
-	uses := s.store.RuleUses(rules, 24*time.Hour, now)
+	uses := s.ruleRows(24*time.Hour, now)
 	var waiting []RuleUse
+	watched, hits := make(Series, 24), make(Series, 24)
+	would, shadowed := 0, 0
 	for _, u := range uses {
 		if u.Pending {
 			waiting = append(waiting, u)
 		}
+		if u.ShadowBy != "" {
+			shadowed++
+		}
+		would += u.Watched
+		watched = sumSeries(24, watched, u.WatchedByHour)
+		hits = sumSeries(24, hits, u.ByHour)
 	}
 	f := TrafficFilter{Window: 24 * time.Hour}
 	bans, _ := s.store.Bans()
+	nets, netTotal := s.store.NetworksByHour(24*time.Hour, now)
+	sv := s.store.Solves(24*time.Hour, now)
 	s.render(w, 200, "overview.html", map[string]any{"Suite": page, "Day": day, "Headline": headline(day, len(waiting), s.engine.Mode()),
-		"Rules": sortUses(uses), "Waiting": waiting, "Networks": s.store.Groups("asn", f, "refused", 6, now),
-		"Hosts": s.store.Groups("host", f, "refused", 6, now), "Events": s.store.Events(f, "", 12, now),
-		"Bans": len(bans), "TopRule": topHits(uses)})
+		"Rules": uses, "Waiting": waiting, "Labels": hourLabels(24, now), "Solves": sv, "Watched": watched, "Would": would,
+		"RuleHits": hits, "Shadowed": shadowed, "NetSeries": nets, "NetTotal": netTotal,
+		"Networks": s.store.Groups("asn", f, "refused", 5, now), "Countries": s.store.Groups("country", f, "refused", 5, now),
+		"Hosts": s.store.Groups("host", f, "refused", 5, now), "Paths": s.store.TopPaths(TrafficFilter{Window: 24 * time.Hour, Verdict: "refused"}, 5, now),
+		"Events": s.eventRows(s.store.Events(f, "", 12, now), now), "Bans": len(bans), "Mode": s.engine.Mode()})
 }
 
 // sortUses puts proposals first, then the busiest, with rules that did nothing
@@ -132,11 +143,10 @@ func (s *site) rulesPage(w http.ResponseWriter, r *http.Request) {
 	page, _ := s.chrome(r, "rules")
 	now := time.Now()
 	window := windowOf(r.URL.Query().Get("range"), 24*time.Hour)
-	rules, _ := s.store.Rules()
-	uses := s.store.RuleUses(rules, window, now)
-	changes, total, _ := s.store.Changes(20)
-	s.render(w, 200, "rules.html", map[string]any{"Suite": page, "Rules": sortUses(uses), "TopRule": topHits(uses),
-		"Changes": changes, "Version": total, "Range": rangeName(window)})
+	uses := s.ruleRows(window, now)
+	changes, total, _ := s.store.Changes(30)
+	s.render(w, 200, "rules.html", map[string]any{"Suite": page, "Rules": uses, "TopRule": topHits(uses),
+		"Changes": changes, "Version": total, "Range": rangeName(window), "Msg": r.URL.Query().Get("msg")})
 }
 
 func (s *site) newRulePage(w http.ResponseWriter, r *http.Request) {
@@ -157,7 +167,14 @@ func (s *site) rulePage(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	use := s.store.RuleUses([]Rule{rule}, 7*24*time.Hour, now)[0]
 	f := TrafficFilter{Rule: rule.Name, Window: 7 * 24 * time.Hour}
-	s.render(w, 200, "rule.html", map[string]any{"Suite": page, "Rule": rule, "Use": use, "Ends": "",
+	var lock []string
+	if rule.Watching && r.URL.Query().Get("confirm") != "" {
+		on := rule
+		on.Watching = false
+		lock = s.lockoutFor(&on)
+	}
+	s.render(w, 200, "rule.html", map[string]any{"Suite": page, "Rule": rule, "Use": use, "Ends": "", "ConfirmOn": lock,
+		"Saved":  r.URL.Query().Get("saved") != "",
 		"Events": s.store.Events(f, "", 40, now), "Paths": s.store.TopPaths(f, 8, now), "IPs": s.store.TopIPs(f, 8, now)})
 }
 
@@ -188,8 +205,22 @@ func ruleFromForm(r *http.Request, rule Rule) Rule {
 	return rule
 }
 
+// needsConfirm is a save that would turn on a rule catching signing in
+// without the second tick that says so.
+func (s *site) needsConfirm(r *http.Request, rule *Rule) []string {
+	if rule.Watching || r.FormValue("lockout_ok") == "1" || rule.validate() != nil {
+		return nil
+	}
+	return s.lockoutFor(rule)
+}
+
 func (s *site) addRule(w http.ResponseWriter, r *http.Request) {
 	rule := ruleFromForm(r, Rule{Author: "you"})
+	if lock := s.needsConfirm(r, &rule); len(lock) > 0 {
+		page, _ := s.chrome(r, "rules")
+		s.render(w, http.StatusConflict, "rule.html", map[string]any{"Suite": page, "Rule": rule, "New": true, "Lockout": lock, "Ends": r.FormValue("ends")})
+		return
+	}
 	if err := s.store.AddRule(&rule, "you"); err != nil {
 		page, _ := s.chrome(r, "rules")
 		s.render(w, http.StatusBadRequest, "rule.html", map[string]any{"Suite": page, "Rule": rule, "New": true, "Error": err.Error(), "Ends": r.FormValue("ends")})
@@ -208,6 +239,12 @@ func (s *site) editRule(w http.ResponseWriter, r *http.Request) {
 	}
 	rule := ruleFromForm(r, old)
 	rule.Pending = false
+	if lock := s.needsConfirm(r, &rule); len(lock) > 0 {
+		page, _ := s.chrome(r, "rules")
+		use := s.store.RuleUses([]Rule{old}, 7*24*time.Hour, time.Now())[0]
+		s.render(w, http.StatusConflict, "rule.html", map[string]any{"Suite": page, "Rule": rule, "Use": use, "Lockout": lock, "Ends": r.FormValue("ends")})
+		return
+	}
 	if err := s.store.UpdateRule(&rule, "you"); err != nil {
 		page, _ := s.chrome(r, "rules")
 		use := s.store.RuleUses([]Rule{old}, 7*24*time.Hour, time.Now())[0]
@@ -234,6 +271,10 @@ func (s *site) ruleOp(w http.ResponseWriter, r *http.Request) {
 	switch r.PathValue("op") {
 	case "on":
 		rule.Watching, rule.Pending = false, false
+		if lock := s.needsConfirm(r, &rule); len(lock) > 0 {
+			http.Redirect(w, r, fmt.Sprintf("/rules/%d?confirm=1", rule.ID), http.StatusSeeOther)
+			return
+		}
 		err = s.store.UpdateRule(&rule, "you")
 	case "watch":
 		rule.Watching, rule.Pending = true, false
@@ -354,7 +395,7 @@ func (s *site) trafficPage(w http.ResponseWriter, r *http.Request) {
 	s.render(w, 200, "traffic.html", map[string]any{"Suite": page, "F": f, "Range": rangeName(f.Window), "Day": day,
 		"Networks": s.store.Groups("asn", f, "", 12, now), "Refusing": s.store.Groups("asn", f, "refused", 12, now),
 		"Countries": s.store.Groups("country", f, "", 10, now), "Hosts": s.store.Groups("host", f, "", 14, now),
-		"Paths": s.store.TopPaths(f, 12, now), "IPs": s.store.TopIPs(f, 12, now), "Events": s.store.Events(f, "", 60, now),
+		"Paths": s.store.TopPaths(f, 12, now), "IPs": s.store.TopIPs(f, 12, now), "Events": s.eventRows(s.store.Events(f, "", 60, now), now),
 		"Ranges": []string{"1h", "24h", "7d", "30d"}})
 }
 
@@ -408,7 +449,18 @@ func (s *site) filteredDay(f TrafficFilter, now time.Time) Day {
 func (s *site) bansPage(w http.ResponseWriter, r *http.Request) {
 	page, _ := s.chrome(r, "bans")
 	bans, _ := s.store.Bans()
-	s.render(w, 200, "bans.html", map[string]any{"Suite": page, "Bans": bans, "Error": r.URL.Query().Get("error")})
+	rows := make([]BanRow, len(bans))
+	refused := s.store.BanRefusals(bans)
+	now := time.Now()
+	total := 0
+	for i, b := range bans {
+		rows[i] = BanRow{Ban: b, Refused: refused[b.IP.String()]}
+		total += rows[i].Refused
+		if span := b.Until.Sub(b.Created); span > 0 {
+			rows[i].Left = max(2, int(100*b.Until.Sub(now)/span))
+		}
+	}
+	s.render(w, 200, "bans.html", map[string]any{"Suite": page, "Bans": rows, "Refused": total, "Error": r.URL.Query().Get("error")})
 }
 
 func (s *site) addBan(w http.ResponseWriter, r *http.Request) {
@@ -436,9 +488,14 @@ func (s *site) addBan(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/bans", http.StatusSeeOther)
 }
 
+// liftBan takes one address or the picked ones from the bulk bar.
 func (s *site) liftBan(w http.ResponseWriter, r *http.Request) {
-	ip, err := netip.ParseAddr(r.FormValue("ip"))
-	if err == nil {
+	_ = r.ParseForm()
+	for _, v := range r.Form["ip"] {
+		ip, err := netip.ParseAddr(v)
+		if err != nil {
+			continue
+		}
 		_ = s.store.Lift(ip)
 		s.engine.lift(ip)
 		s.store.Change("you", "ban", "lifted "+ip.String())
@@ -446,17 +503,50 @@ func (s *site) liftBan(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/bans", http.StatusSeeOther)
 }
 
+// BanRow is a ban with what it refused since it started and the share of its
+// time still to run.
+type BanRow struct {
+	Ban
+	Refused, Left int
+}
+
+// BanRefusals counts each ban's refused requests from the sampled events.
+func (s *Store) BanRefusals(bans []Ban) map[string]int {
+	out := map[string]int{}
+	for _, b := range bans {
+		var n int
+		_ = s.db.QueryRow(`SELECT COUNT(*) FROM events WHERE ip = ? AND verdict = 'banned' AND at >= ?`, b.IP.String(), b.Created.UnixMilli()).Scan(&n)
+		out[b.IP.String()] = n
+	}
+	return out
+}
+
 func (s *site) settingsPage(w http.ResponseWriter, r *http.Request) {
 	page, _ := s.chrome(r, "settings")
-	s.render(w, 200, "settings.html", map[string]any{"Suite": page, "Mode": s.engine.Mode(), "Self": s.store.Setting("self"),
+	until := ""
+	if s.engine.Mode() != modeOn {
+		until = left(s.engine.until.Load(), time.Now())
+	}
+	s.render(w, 200, "settings.html", map[string]any{"Suite": page, "Mode": s.engine.Mode(), "Until": until, "UntilAt": s.engine.until.Load(), "Self": s.store.Setting("self"),
 		"Built": s.geo.Built(), "Saved": r.URL.Query().Get("saved") != ""})
 }
 
 func (s *site) saveSettings(w http.ResponseWriter, r *http.Request) {
 	if m := r.FormValue("mode"); m == modeOn || m == modeWatch || m == modeOff {
-		if m != s.engine.Mode() {
-			s.store.Change("you", "gate", "mode "+m)
+		d, ok := modeFor[r.FormValue("for")]
+		if !ok {
+			d = time.Hour
 		}
+		until := "0"
+		what := "mode " + m
+		if m != modeOn {
+			until = strconv.FormatInt(time.Now().Add(d).Unix(), 10)
+			what += " for " + r.FormValue("for")
+		}
+		if m != s.engine.Mode() || m != modeOn {
+			s.store.Change("you", "gate", what)
+		}
+		_ = s.store.SetSetting("mode_until", until)
 		_ = s.store.SetSetting("mode", m)
 	}
 	if r.Form.Has("self") {
@@ -506,12 +596,12 @@ func (s *site) suiteState(r *http.Request) suite.State {
 	}
 	switch {
 	case s.engine.Mode() == modeOff:
-		st.Level, st.Note = "bad", "off, every request goes through"
+		st.Level, st.Note = "warn", "off for "+left(s.engine.until.Load(), now)+", every request goes through"
 	case waiting > 0:
 		st.Level, st.Count = "warn", waiting
 		st.Note = count(waiting, "proposal", "proposals") + " waiting, " + st.Note
 	case s.engine.Mode() == modeWatch:
-		st.Level, st.Note = "warn", "watching only, "+st.Note
+		st.Level, st.Note = "warn", "watching only for "+left(s.engine.until.Load(), now)+", "+st.Note
 	}
 	return st
 }

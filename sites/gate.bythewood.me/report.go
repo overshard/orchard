@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -27,11 +28,12 @@ func slot(hour int64, now time.Time, n int) int {
 type Day struct {
 	Checked, Passed, Exempt, Blocked, Limited, Challenged, Solved, Banned int
 	ByHour, BlockedByHour, ChallengedByHour                               Series
+	BannedByHour                                                          Series
 }
 
 func (s *Store) Day(window time.Duration, now time.Time) Day {
 	n := hours(window)
-	d := Day{ByHour: make(Series, n), BlockedByHour: make(Series, n), ChallengedByHour: make(Series, n)}
+	d := Day{ByHour: make(Series, n), BlockedByHour: make(Series, n), ChallengedByHour: make(Series, n), BannedByHour: make(Series, n)}
 	rows, err := s.db.Query(`SELECT hour, verdict, SUM(n) FROM traffic WHERE hour > ? GROUP BY hour, verdict`, hourOf(now)-int64(n)*3600)
 	if err != nil {
 		return d
@@ -63,6 +65,7 @@ func (s *Store) Day(window time.Duration, now time.Time) Day {
 		case vBanned:
 			d.Banned += c
 			d.BlockedByHour[i] += float64(c)
+			d.BannedByHour[i] += float64(c)
 		case vLimit:
 			d.Limited += c
 			d.BlockedByHour[i] += float64(c)
@@ -80,9 +83,21 @@ func (d Day) Refused() int { return d.Blocked + d.Banned + d.Limited }
 // RuleUse is one rule with what it did over a window.
 type RuleUse struct {
 	Rule
-	Hits, Watched int
-	ByHour        Series
-	Last          time.Time
+	Hits, Watched  int
+	ByHour         Series
+	WatchedByHour  Series
+	Last           time.Time
+	Order          int // where it runs, from 1, 0 for a rule that can't run
+	ShadowBy       string
+	People, Solved int
+}
+
+// SolveRate is the challenge rules' solved answers over people challenged.
+func (u RuleUse) SolveRate() string {
+	if u.Action != actChallenge || u.People == 0 {
+		return "–"
+	}
+	return fmt.Sprintf("%.1f%%", min(100, 100*float64(u.Solved)/float64(u.People)))
 }
 
 func (s *Store) RuleUses(rules []Rule, window time.Duration, now time.Time) []RuleUse {
@@ -90,7 +105,7 @@ func (s *Store) RuleUses(rules []Rule, window time.Duration, now time.Time) []Ru
 	by := map[int64]*RuleUse{}
 	out := make([]RuleUse, len(rules))
 	for i, r := range rules {
-		out[i] = RuleUse{Rule: r, ByHour: make(Series, n)}
+		out[i] = RuleUse{Rule: r, ByHour: make(Series, n), WatchedByHour: make(Series, n)}
 		by[r.ID] = &out[i]
 	}
 	rows, err := s.db.Query(`SELECT rule, hour, hits, watched FROM hits WHERE hour > ?`, hourOf(now)-int64(n)*3600)
@@ -112,6 +127,7 @@ func (s *Store) RuleUses(rules []Rule, window time.Duration, now time.Time) []Ru
 		u.Hits += h
 		u.Watched += w
 		u.ByHour[i] += float64(h + w)
+		u.WatchedByHour[i] += float64(w)
 		if t := time.Unix(hour, 0); t.After(u.Last) && h+w > 0 {
 			u.Last = t
 		}
@@ -285,7 +301,7 @@ func (s *Store) Events(f TrafficFilter, watch string, limit int, now time.Time) 
 		w = append(w, "watch = 0")
 	}
 	orgs := s.Orgs()
-	rows, err := s.db.Query(`SELECT at, ip, asn, country, host, method, path, ua, rule, verdict, watch FROM events WHERE `+
+	rows, err := s.db.Query(`SELECT at, ip, asn, country, host, method, path, ua, rule, verdict, watch, line, matched, also FROM events WHERE `+
 		strings.Join(w, " AND ")+` ORDER BY at DESC LIMIT ?`, append(args, limit)...)
 	if err != nil {
 		return nil
@@ -296,7 +312,7 @@ func (s *Store) Events(f TrafficFilter, watch string, limit int, now time.Time) 
 		var e Event
 		var at int64
 		var watched int
-		if rows.Scan(&at, &e.IP, &e.ASN, &e.Country, &e.Host, &e.Method, &e.Path, &e.UA, &e.Rule, &e.Verdict, &watched) != nil {
+		if rows.Scan(&at, &e.IP, &e.ASN, &e.Country, &e.Host, &e.Method, &e.Path, &e.UA, &e.Rule, &e.Verdict, &watched, &e.Line, &e.Matched, &e.Also) != nil {
 			continue
 		}
 		e.At, e.Watch = time.UnixMilli(at).UTC(), watched == 1
@@ -322,6 +338,9 @@ func (s *Store) TopPaths(f TrafficFilter, limit int, now time.Time) []Group {
 	}
 	if f.IP != "" {
 		w, args = append(w, "ip = ?"), append(args, f.IP)
+	}
+	if f.Verdict == "refused" {
+		w = append(w, "watch = 0 AND verdict IN ('block','limit','banned')")
 	}
 	rows, err := s.db.Query(`SELECT host || path, COUNT(*) AS c FROM events WHERE `+strings.Join(w, " AND ")+
 		` GROUP BY host, path ORDER BY c DESC LIMIT ?`, append(args, limit)...)

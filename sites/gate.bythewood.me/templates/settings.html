@@ -2,19 +2,27 @@
 <div class="o-ph">
   <div>
     <span class="o-lab">gate &middot; settings</span>
-    <h1>{{if eq .Mode "on"}}Gate is <em>enforcing</em>.{{else if eq .Mode "watch"}}Gate is <em>only watching</em>.{{else}}Gate is <em class="bad">off</em>.{{end}}</h1>
-    <p>Watching runs every rule as if it were watching, and off lets everything through without looking. Either is for the day a rule refuses something it shouldn't.</p>
+    <h1>{{if eq .Mode "on"}}Gate is <em>enforcing</em>.{{else if eq .Mode "watch"}}Gate is <em>only watching</em> for <span data-until="{{.UntilAt}}">{{.Until}}</span>.{{else}}Gate is <em class="bad">off</em> for <span data-until="{{.UntilAt}}">{{.Until}}</span>.{{end}}</h1>
+    <p>Watching runs every rule as if it were watching, and off lets everything through without looking. Either is for the day a rule refuses something it shouldn't, and either goes back to enforcing on its own when its time runs out.</p>
   </div>
 </div>
-{{if .Saved}}<div data-toast="Saved"></div>{{end}}
+{{if .Saved}}<span hidden data-toast="Saved"></span>{{end}}
 <form class="o-panel" method="post" action="/settings">
   <div class="o-form">
-    <fieldset class="o-field full">
+    <fieldset class="o-field">
       <legend>Mode</legend>
       <div class="o-seg">
         <label><input type="radio" name="mode" value="on" {{if eq .Mode "on"}}checked{{end}}><span>enforcing</span></label>
         <label><input type="radio" name="mode" value="watch" {{if eq .Mode "watch"}}checked{{end}}><span>only watching</span></label>
         <label><input type="radio" name="mode" value="off" {{if eq .Mode "off"}}checked{{end}}><span>off</span></label>
+      </div>
+    </fieldset>
+    <fieldset class="o-field">
+      <legend>For <span class="hint">then back to enforcing</span></legend>
+      <div class="o-seg">
+        <label><input type="radio" name="for" value="1h" checked><span>an hour</span></label>
+        <label><input type="radio" name="for" value="4h"><span>4 hours</span></label>
+        <label><input type="radio" name="for" value="1d"><span>a day</span></label>
       </div>
     </fieldset>
     <label class="o-field full">

@@ -1,13 +1,14 @@
 {{define "rules.html"}}{{template "head" (dict "Title" "Rules" "Suite" .Suite)}}
+{{if .Msg}}<span hidden data-toast="{{.Msg}}"></span>{{end}}
 <div class="o-ph">
   <div>
     <span class="o-lab">gate &middot; rules &middot; {{.Range}}</span>
     <h1>{{len .Rules}} rules, <em>{{.Version}} changes</em> since the first.</h1>
-    <p>Allow runs first, then block, limit and challenge. A watching rule only counts what it would have done.</p>
+    <p>They run in the order shown, allow first, then block, limit and challenge. A watching rule only counts what it would have done.</p>
   </div>
   <div class="o-acts">
     <nav class="o-seg links">{{range $r := (list "1h" "24h" "7d" "30d")}}<a href="/rules?range={{$r}}" {{if eq $r $.Range}}class="on"{{end}}>{{$r}}</a>{{end}}</nav>
-    <a class="o-btn o-btn-p o-btn-sm" href="/rules/new">New rule</a>
+    <a class="o-btn o-btn-p o-btn-sm" href="/rules/new" data-act="new rule">New rule</a>
   </div>
 </div>
 
@@ -15,9 +16,25 @@
   {{template "ruletable" (dict "Rules" .Rules "Back" "/rules")}}
 </section>
 
-<section class="o-panel flush">
-  <div class="o-ph2"><h2>Changes</h2><span class="o-lab">newest first</span></div>
-  {{range .Changes}}<div class="o-rw ev"><span class="o-dot {{if eq .Who "claude"}}warn{{else}}mute{{end}}"></span><span class="n o-mono">{{.Rule}}</span><span class="m">{{.What}} &middot; {{.Who}}</span><span class="w o-mono">{{ago .At}}</span></div>
-  {{else}}<p class="o-empty"><b>Nothing changed yet.</b>Every rule you or an agent adds, changes or removes shows here.</p>{{end}}
+<section class="o-panel flush" id="changes">
+  <div class="o-ph2"><h2>Changes</h2><span class="o-pm"><span>newest first</span><span>version<b>{{.Version}}</b></span></span></div>
+  <div class="o-scroll">
+  <table class="o-tbl stack changes">
+    <thead><tr><th>When</th><th>Rule</th><th>What changed</th><th>By</th><th></th></tr></thead>
+    <tbody>
+    {{range .Changes}}
+      <tr>
+        <td class="n o-muted nw" data-tip="{{utc .At}}">{{ago .At}}</td>
+        <td class="lead nw mono">{{.Rule}}</td>
+        <td>{{with .Diff}}<div class="diff">{{range .}}<div class="{{if eq .Op "+"}}add{{else}}del{{end}}"><span>{{.Op}}</span><code>{{.Text}}</code></div>{{end}}</div>{{else}}<span class="o-muted">{{.What}}</span>{{end}}</td>
+        <td class="nw" data-l="by">{{if eq .Who "claude"}}<span class="o-chip brass">claude</span>{{else}}<span class="o-muted">{{.Who}}</span>{{end}}</td>
+        <td class="act">{{if .Restorable}}<form method="post" action="/changes/{{.ID}}/restore"><button type="submit" class="o-btn o-btn-sm" data-tip="Put {{.Rule}} back the way it was before this">Restore</button></form>{{end}}</td>
+      </tr>
+    {{else}}
+      <tr><td colspan="5"><p class="o-empty"><b>Nothing changed yet.</b>Every rule you or an agent adds, changes or removes shows here.</p></td></tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
 </section>
 {{template "foot" .}}{{end}}

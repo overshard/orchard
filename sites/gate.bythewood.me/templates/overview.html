@@ -3,71 +3,112 @@
   <div>
     <span class="o-lab">gate &middot; overview &middot; 24h</span>
     <h1>{{.Headline}}</h1>
-    <p>Every request to every site is checked here first. {{comma .Day.Exempt}} came from orchard or someone signed in and skipped the rules.</p>
+    <div class="o-pm"><span>mode<b class="{{if eq .Mode "on"}}ok{{else}}warn{{end}}">{{if eq .Mode "on"}}enforcing{{else if eq .Mode "watch"}}watching{{else}}off{{end}}</b></span><span>checked<b>{{comma .Day.Checked}}</b></span><span>refused<b>{{pctOf .Day.Refused .Day.Checked}}</b></span><span>exempt<b>{{comma .Day.Exempt}}</b></span><span>events kept<b>30d</b></span></div>
   </div>
   <div class="o-acts">
-    <a class="o-btn o-btn-sm" href="/traffic">Traffic</a>
-    <a class="o-btn o-btn-p o-btn-sm" href="/rules/new">New rule</a>
+    <a class="o-btn o-btn-sm" href="/traffic" data-act="traffic">Traffic</a>
+    <a class="o-btn o-btn-p o-btn-sm" href="/rules/new" data-act="new rule">New rule</a>
   </div>
 </div>
 
-<div class="o-tiles">
+<div>
+<div class="o-strip">
   <a class="o-tile" href="/traffic">
     <small>checked &middot; 24h</small>
     <b>{{comma .Day.Checked}}</b>
-    <span class="o-delta">by the hour</span>
-    {{spark "ok" .Day.ByHour}}
+    <span class="o-delta">{{comma .Day.Exempt}} orchard or signed in</span>
+    {{sparkT "ok" .Day.ByHour .Labels}}
   </a>
   <a class="o-tile" href="/traffic?verdict=block">
     <small>refused &middot; 24h</small>
     <b {{if .Day.Refused}}class="bad"{{end}}>{{comma .Day.Refused}}</b>
-    <span class="o-delta">{{comma .Day.Blocked}} blocked, {{comma .Day.Limited}} limited, {{comma .Day.Banned}} banned</span>
-    {{spark "bad" .Day.BlockedByHour}}
+    <span class="o-delta">{{pctOf .Day.Refused .Day.Checked}} of checked</span>
+    {{sparkT "bad" .Day.BlockedByHour .Labels}}
   </a>
   <a class="o-tile" href="/traffic?verdict=challenge">
-    <small>challenged &middot; 24h</small>
-    <b {{if .Day.Challenged}}class="warn"{{end}}>{{comma .Day.Challenged}}</b>
-    <span class="o-delta">{{comma .Day.Solved}} passed with a solved cookie</span>
-    {{spark "warn" .Day.ChallengedByHour}}
+    <small>challenged &middot; people</small>
+    <b {{if .Solves.People}}class="warn"{{end}}>{{comma .Solves.People}}</b>
+    <span class="o-delta">{{comma .Day.Challenged}} pages served</span>
+    {{sparkT "warn" .Solves.PeopleByHour .Labels}}
+  </a>
+  <div class="o-tile" data-tip="Solved answers over people challenged. Steady is normal, a drop is a crawler at the wall and a jump means a rule is catching readers.">
+    <small>solve rate</small>
+    <b data-f="0.0%">{{printf "%.1f" .Solves.Rate}}%</b>
+    <span class="o-delta">{{comma .Solves.Solved}} solved, {{comma .Solves.Failed}} failed</span>
+    {{sparkT "flat" .Solves.RateByHour .Labels}}
+  </div>
+  <a class="o-tile" href="/rules">
+    <small>would refuse</small>
+    <b {{if .Would}}class="warn"{{end}}>{{comma .Would}}</b>
+    <span class="o-delta">watching rules, 24h</span>
+    {{sparkT "warn" .Watched .Labels}}
+  </a>
+  <a class="o-tile" href="/bans">
+    <small>banned now</small>
+    <b>{{.Bans}}</b>
+    <span class="o-delta">{{comma .Day.Banned}} refused by bans</span>
+    {{sparkT "bad" .Day.BannedByHour .Labels}}
+  </a>
+  <a class="o-tile" href="/traffic">
+    <small>networks refused</small>
+    <b>{{comma .NetTotal}}</b>
+    <span class="o-delta">refused anything, 24h</span>
+    {{sparkT "flat" .NetSeries .Labels}}
   </a>
   <a class="o-tile" href="/rules">
     <small>rules</small>
     <b>{{len .Rules}}</b>
-    <span class="o-delta">hits each in the last 24h{{if .Bans}}, {{.Bans}} banned{{end}}</span>
-    <span class="o-ticks" aria-hidden="true">{{$top := .TopRule}}{{range .Rules}}<i class="{{if .Pending}}q{{else if eq .Action "block"}}bad{{else if or (eq .Action "limit") (eq .Action "challenge")}}warn{{end}}" style="height: {{pct (add .Hits .Watched) $top}}%" data-tip="{{.Name}} &middot; {{.Hits}} hits{{if .Watched}}, {{.Watched}} watched{{end}}"></i>{{else}}<i class="none" style="height: 8%"></i>{{end}}</span>
+    <span class="o-delta">{{len .Waiting}} waiting{{if .Shadowed}}, {{.Shadowed}} shadowed{{end}}</span>
+    {{sparkT "flat" .RuleHits .Labels}}
   </a>
 </div>
+<p class="o-foot"><span data-xs-when>sparks are the last 24 hours by UTC hour</span></p>
+</div>
 
-<div class="o-cols">
+<div class="{{if .Waiting}}o-band b2{{end}}">
   <section class="o-panel flush">
-    <div class="o-ph2"><h2>Rules</h2><span class="o-lab">waiting first, then by hits</span></div>
+    <div class="o-ph2"><h2>Rules</h2><span class="o-pm"><span>in the order they run</span><span>24h</span></span></div>
     {{template "ruletable" (dict "Rules" .Rules "Back" "/")}}
-    <div class="o-more"><a href="/rules">Every rule and what changed &rarr;</a></div>
+    <p class="o-hint"><span>allow first, then block, limit and challenge</span><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>enter</kbd>open</span></p>
   </section>
+  {{if .Waiting}}
   <div class="side">
-    {{if .Waiting}}
     <section class="o-panel flush waitp">
-      <div class="o-ph2"><h2>Waiting on you</h2><span class="o-lab">proposed, watching</span></div>
+      <div class="o-ph2"><h2>Waiting on you</h2><span class="o-pm"><span>proposed<b class="warn">{{len .Waiting}}</b></span></span></div>
       {{range .Waiting}}{{template "proposal" .}}{{end}}
     </section>
-    {{end}}
-    <section class="o-panel">
-      <div class="o-ph2"><h2>Refused by network</h2><span class="o-lab">ASN &middot; 24h</span></div>
-      {{range .Networks}}<div class="o-hbar"><span class="k o-mono"><a href="/traffic?asn={{.Key}}">{{.Label}}</a></span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{comma .Refused}}</span></div>
-      {{else}}<p class="o-empty"><b>Nothing refused yet.</b>Networks show here once a rule refuses something.</p>{{end}}
-    </section>
-    <section class="o-panel">
-      <div class="o-ph2"><h2>Refused by host</h2><span class="o-lab">24h</span></div>
-      {{range .Hosts}}<div class="o-hbar"><span class="k o-mono"><a href="/traffic?host={{.Key}}">{{.Label}}</a></span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{comma .Refused}}</span></div>
-      {{else}}<p class="o-empty"><b>Nothing refused yet.</b>Each site shows here once something on it is refused.</p>{{end}}
-    </section>
-    <section class="o-panel flush">
-      <div class="o-ph2"><h2>Latest</h2><span class="o-lab">refused or watched</span></div>
-      {{range .Events}}{{template "evrow" .}}{{else}}<p class="o-empty"><b>Nothing yet.</b>Requests a rule acts on show here.</p>{{end}}
-    </section>
   </div>
+  {{end}}
 </div>
+
+<div class="o-band b4">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Networks</h2><span class="o-pm"><span>refused</span><span>% of theirs</span></span></div>
+    {{range .Networks}}{{template "grow" (dict "G" . "Href" (printf "/traffic?asn=%s" .Key))}}{{else}}<p class="o-empty"><b>Nothing refused yet.</b></p>{{end}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Countries</h2><span class="o-pm"><span>refused</span><span>% of theirs</span></span></div>
+    {{range .Countries}}{{template "grow" (dict "G" . "Href" (printf "/traffic?country=%s" .Key))}}{{else}}<p class="o-empty"><b>Nothing refused yet.</b></p>{{end}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Hosts</h2><span class="o-pm"><span>refused</span><span>% of theirs</span></span></div>
+    {{range .Hosts}}{{template "grow" (dict "G" . "Href" (printf "/traffic?host=%s" .Key))}}{{else}}<p class="o-empty"><b>Nothing refused yet.</b></p>{{end}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Paths</h2><span class="o-pm"><span>refused</span><span>sampled</span></span></div>
+    {{range .Paths}}<div class="o-hbar" data-tip="{{.Label}}"><span class="k o-mono">{{.Label}}</span><span class="bar"><i class="bad" style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{comma .Total}}</span></div>
+    {{else}}<p class="o-empty"><b>Nothing refused yet.</b></p>{{end}}
+  </section>
+</div>
+
+<section class="o-panel flush">
+  <div class="o-ph2"><h2>Latest</h2><span class="o-pm"><span>refused or watched</span><span>sampled<b>600/min</b></span></span></div>
+  {{template "evtable" (dict "Events" .Events)}}
+  <div class="o-more"><a href="/traffic">Every request it acted on &rarr;</a></div>
+</section>
 {{template "foot" .}}{{end}}
+
+{{define "grow"}}<div class="o-hbar" data-tip="{{.G.Label}}: {{comma .G.Refused}} refused of {{comma .G.Total}}"><span class="k o-mono"><a href="{{.Href}}">{{.G.Label}}</a></span><span class="bar"><i class="bad" style="width: {{printf "%.0f" .G.Share}}%"></i></span><span class="v">{{comma .G.Refused}}</span><span class="d">{{.G.RefusedPct}}</span></div>{{end}}
 
 {{define "proposal"}}<div class="prop">
   <div class="ph"><span class="o-dot mute"></span><a class="o-mono" href="/rules/{{.ID}}">{{.Name}}</a><span class="o-chip {{actionKind .Action}}">{{.Then}}</span><span class="o-sp"></span><span class="o-mono o-muted small">{{ago .Created}}</span></div>
@@ -76,6 +117,7 @@
   <p class="o-mono small">{{comma .Watched}} would have been {{if eq .Action "allow"}}allowed{{else if eq .Action "block"}}blocked{{else if eq .Action "limit"}}limited{{else}}challenged{{end}} in the last 24h</p>
   <div class="crop-btns">
     <form method="post" action="/rules/{{.ID}}/on"><input type="hidden" name="back" value="/"><button class="o-btn o-btn-p o-btn-sm" type="submit">Turn on</button></form>
+    <a class="o-btn o-btn-sm" href="/rules/{{.ID}}#test">Test</a>
     <form method="post" action="/rules/{{.ID}}/keep"><input type="hidden" name="back" value="/"><button class="o-btn o-btn-sm" type="submit">Keep watching</button></form>
     <form method="post" action="/rules/{{.ID}}/delete" data-undo="Dismissed {{.Name}}"><input type="hidden" name="back" value="/"><button class="o-btn o-btn-sm" type="submit">Dismiss</button></form>
   </div>
@@ -83,18 +125,19 @@
 
 {{define "ruletable"}}
 <div class="o-scroll">
-<table class="o-tbl stack rules">
-  <thead><tr><th>Rule</th><th>When</th><th>Then</th><th class="r">Hits</th><th>Trend</th><th>By</th><th class="r">Ends</th></tr></thead>
+<table class="o-tbl stack rules" data-keys>
+  <thead><tr><th class="r">#</th><th>Rule</th><th>Then</th><th class="r">Hits</th><th>Trend</th><th class="r">Last</th><th class="r">Solve</th></tr></thead>
   <tbody>
   {{range .Rules}}
     <tr data-href="/rules/{{.ID}}" class="{{if .Pending}}wait{{else if .Watching}}off{{end}}">
-      <td class="lead n"><a href="/rules/{{.ID}}">{{.Name}}</a></td>
-      <td class="clip o-muted mono" title="{{oneLine .When}}">{{oneLine .When}}</td>
-      <td class="nw">{{if .Watching}}<span class="o-chip">watch</span> {{end}}<span class="o-chip {{actionKind .Action}}">{{.Then}}</span></td>
-      <td class="r n" data-l="hits">{{comma .Hits}}{{if .Watched}}<span class="sub">{{comma .Watched}} watched</span>{{end}}</td>
+      <td class="r n o-muted">{{if .Order}}{{.Order}}{{else}}&ndash;{{end}}</td>
+      <td class="lead"><a class="o-mono" href="/rules/{{.ID}}">{{.Name}}</a>{{if .ShadowBy}} <span class="o-chip" data-tip="Every request it matched in the last hour was taken first by {{.ShadowBy}}">shadowed by {{.ShadowBy}}</span>{{end}}{{if eq .Author "claude"}} <span class="o-chip brass">claude</span>{{end}}
+        <span class="sub clip mono" data-tip="{{.When}}">{{oneLine .When}}</span></td>
+      <td class="nw" data-l="then">{{if .Watching}}<span class="o-chip">watch</span> {{end}}<span class="o-chip {{actionKind .Action}}">{{.Then}}</span></td>
+      <td class="r n" data-l="hits">{{comma .Hits}}{{if .Watched}}<span class="sub">{{comma .Watched}} would</span>{{end}}</td>
       <td class="o-cell-spark">{{spark (sparkKind .Action) .ByHour}}</td>
-      <td class="nw">{{if eq .Author "claude"}}<span class="o-chip brass">claude</span>{{else}}<span class="o-muted">{{.Author}}</span>{{end}}</td>
-      <td class="r n o-muted" data-l="ends">{{until .Expires}}</td>
+      <td class="r n o-muted" data-l="last">{{if .Last.IsZero}}&ndash;{{else}}{{ago .Last}}{{end}}</td>
+      <td class="r n" data-l="solve">{{.SolveRate}}</td>
     </tr>
   {{else}}
     <tr><td colspan="7"><p class="o-empty"><b>No rules.</b><a href="/rules/new">Write the first one</a>, every request passes until then.</p></td></tr>
@@ -104,4 +147,57 @@
 </div>
 {{end}}
 
-{{define "evrow"}}<div class="o-rw ev"><span class="o-dot {{if .Watch}}mute{{else}}{{actionKind .Verdict}}{{end}}"></span><span class="n o-mono">{{if .Watch}}would{{else}}{{.Verdict}}{{end}}</span><span class="m"><a href="/traffic?ip={{.IP}}">{{.IP}}</a> &middot; {{.Host}}{{short .Path 60}}{{if .Rule}} &middot; {{.Rule}}{{end}}</span><span class="w o-mono">{{ago .At}}</span></div>{{end}}
+{{define "evrow"}}<div class="o-rw ev"><span class="o-dot {{if .Watch}}mute{{else}}{{actionKind .Verdict}}{{end}}"></span><span class="n o-mono">{{if .Watch}}would{{else}}{{.Verdict}}{{end}}</span><span class="m"><a href="/traffic?ip={{.IP}}">{{.IP}}</a> &middot; {{.Host}}{{short .Path 60}}{{if .Rule}} &middot; {{.Rule}}{{if .Line}} line {{.Line}}{{end}}{{end}}</span><span class="w o-mono">{{ago .At}}</span></div>{{end}}
+
+{{define "evtable"}}
+<div class="o-scroll">
+<table class="o-tbl stack evs" data-keys>
+  <thead><tr><th>When</th><th>What</th><th>Request</th><th>From</th><th>Why</th></tr></thead>
+  <tbody>
+  {{range .Events}}
+    <tr>
+      <td class="n o-muted nw" data-tip="{{utc .At}}">{{clock .At}}</td>
+      <td class="nw">{{if .Watch}}<span class="o-chip">would {{.Verdict}}</span>{{else}}<span class="o-chip {{actionKind .Verdict}}">{{.Verdict}}</span>{{end}}</td>
+      <td class="lead clip mono" data-tip="{{.Method}} {{.Host}}{{.Path}}">{{.Method}} {{.Host}}{{.Path}}</td>
+      <td class="nw mono small" data-l="from">{{.IP}} <span class="o-muted">{{.Country}}{{if .ASN}} AS{{.ASN}}{{end}}</span></td>
+      <td class="nw mono small" data-l="why">{{.Rule}}{{with .Summary}} <span class="o-muted">&middot; {{.}}</span>{{end}}</td>
+    </tr>
+    <tr class="o-drawer">
+      <td colspan="5">
+        <div class="o-band b3e drawer">
+          <div>
+            <span class="o-lab plain o-muted">why</span>
+            {{if .Lines}}<div class="why">{{range .Lines}}<div class="{{.State}}{{if .Decided}} on{{end}}"><span class="ln">{{.N}}</span><code>{{.Text}}</code>{{if .Piece}}<mark>{{short .Piece 60}}</mark>{{else if eq .State "unknown"}}<span class="o-muted">not kept</span>{{end}}</div>{{end}}</div>
+            {{else}}<p class="o-muted small">{{if .Rule}}{{.Rule}} isn't a rule any more.{{else}}Banned, so no rule ran.{{end}}</p>{{end}}
+            <dl class="o-kv">
+              <dt>agent</dt><dd class="mono small">{{or .UA "none sent"}}</dd>
+              <dt>also</dt><dd class="mono small">{{if .AlsoL}}{{range $i, $a := .AlsoL}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}no other rule{{end}}</dd>
+              <dt>network</dt><dd class="mono small">{{if .ASN}}AS{{.ASN}} {{.Org}}{{else}}unknown{{end}}</dd>
+            </dl>
+          </div>
+          <div>
+            <span class="o-lab plain o-muted">this address, 24h</span>
+            <span class="o-ticks" aria-hidden="true">{{range .Ticks}}<i class="{{.}}"></i>{{end}}</span>
+            <p class="small o-muted">{{comma .Refused}} refused, sampled</p>
+            <div class="o-acts">
+              <form method="post" action="/bans" data-undo="Banned {{.IP}} for a day"><input type="hidden" name="ip" value="{{.IP}}"><input type="hidden" name="hours" value="24"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Ban 24h</button></form>
+              <a class="o-btn o-btn-sm" href="/traffic?ip={{.IP}}">Filter to it</a>
+            </div>
+          </div>
+          <div class="build" data-build>
+            <span class="o-lab plain o-muted">rule from this</span>
+            {{range $i, $b := .Build}}<label class="o-check"><input type="checkbox" value="{{$b}}" {{if lt $i 2}}checked{{end}}> <code>{{$b}}</code></label>{{end}}
+            <p class="small o-muted" data-build-out></p>
+            <a class="o-btn o-btn-sm o-btn-p" data-build-go href="/rules/new?when={{index .Build 0}}%0A{{index .Build 1}}">Write the rule</a>
+          </div>
+        </div>
+      </td>
+    </tr>
+  {{else}}
+    <tr><td colspan="5"><p class="o-empty"><b>Nothing refused or watched.</b>Requests a rule acts on show here, sampled to a few hundred a minute.</p></td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+<p class="o-hint"><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>enter</kbd>open why</span><span><kbd>?</kbd>every key</span></p>
+{{end}}

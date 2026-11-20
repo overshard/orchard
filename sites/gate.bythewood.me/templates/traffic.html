@@ -59,25 +59,7 @@
 </div>
 
 <section class="o-panel flush">
-  <div class="o-ph2"><h2>Requests</h2><span class="o-lab">refused or watched &middot; newest first</span></div>
-  <div class="o-scroll">
-  <table class="o-tbl stack">
-    <thead><tr><th>When</th><th>What</th><th>Request</th><th>From</th><th>Rule</th><th>User agent</th></tr></thead>
-    <tbody>
-    {{range .Events}}
-      <tr>
-        <td class="n o-muted" title="{{utc .At}}">{{ago .At}}</td>
-        <td class="nw">{{if .Watch}}<span class="o-chip">would {{.Verdict}}</span>{{else}}<span class="o-chip {{actionKind .Verdict}}">{{.Verdict}}</span>{{end}}</td>
-        <td class="lead clip mono" title="{{.Method}} {{.Host}}{{.Path}}">{{.Method}} {{.Host}}{{.Path}}</td>
-        <td class="nw mono small"><a href="{{$.F.With "ip" .IP}}">{{.IP}}</a> <span class="o-muted">{{.Country}} <a href="{{$.F.With "asn" (printf "%d" .ASN)}}">AS{{.ASN}}</a> {{short .Org 24}}</span></td>
-        <td class="nw mono small">{{.Rule}}</td>
-        <td class="clip o-muted small" title="{{.UA}}">{{.UA}}</td>
-      </tr>
-    {{else}}
-      <tr><td colspan="6"><p class="o-empty"><b>Nothing refused or watched.</b>Requests a rule acts on show here, sampled to a few hundred a minute.</p></td></tr>
-    {{end}}
-    </tbody>
-  </table>
-  </div>
+  <div class="o-ph2"><h2>Requests</h2><span class="o-pm"><span>refused or watched</span><span>newest first</span></span></div>
+  {{template "evtable" (dict "Events" .Events)}}
 </section>
 {{template "foot" .}}{{end}}

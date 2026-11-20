@@ -29,11 +29,27 @@ func (e *engine) sign(parts ...string) string {
 	return hex.EncodeToString(m.Sum(nil))[:32]
 }
 
-func (e *engine) seed(host string, now time.Time) string {
+// The rule that challenged rides in the signed nonce, so an answer can be
+// counted against the rule that asked for it.
+func (e *engine) seed(host string, rule int64, now time.Time) string {
 	b := make([]byte, 12)
 	_, _ = rand.Read(b)
-	ts, nonce := strconv.FormatInt(now.Unix(), 36), hex.EncodeToString(b)
+	ts, nonce := strconv.FormatInt(now.Unix(), 36), hex.EncodeToString(b)+"r"+strconv.FormatInt(rule, 36)
 	return ts + "." + nonce + "." + e.sign("seed", ts, nonce, host)
+}
+
+// seedRule is the rule a seed was made for, 0 when it doesn't say.
+func seedRule(seed string) int64 {
+	parts := strings.Split(seed, ".")
+	if len(parts) != 3 {
+		return 0
+	}
+	_, id, ok := strings.Cut(parts[1], "r")
+	if !ok {
+		return 0
+	}
+	n, _ := strconv.ParseInt(id, 36, 64)
+	return n
 }
 
 func (e *engine) seedOK(seed, host string, now time.Time) bool {
@@ -96,7 +112,7 @@ func siteOf(host string) string {
 
 var challengeTpl *template.Template
 
-func (e *engine) challenge(w http.ResponseWriter, r *http.Request, q *req) {
+func (e *engine) challenge(w http.ResponseWriter, r *http.Request, q *req, rule *Rule) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
 	w.Header().Set("X-Robots-Tag", "noindex")
@@ -109,7 +125,7 @@ func (e *engine) challenge(w http.ResponseWriter, r *http.Request, q *req) {
 		back = "/"
 	}
 	err := challengeTpl.ExecuteTemplate(w, "challenge.html", map[string]any{
-		"Seed": e.seed(siteOf(q.Host), time.Now()), "Zeros": powZeros, "Back": back, "Host": q.Host,
+		"Seed": e.seed(siteOf(q.Host), rule.ID, time.Now()), "Zeros": powZeros, "Back": back, "Host": q.Host,
 	})
 	if err != nil {
 		slog.Error("render challenge", slog.Any("err", err))
@@ -123,10 +139,18 @@ func (e *engine) solve(w http.ResponseWriter, r *http.Request) {
 	if h, _, ok := strings.Cut(host, ":"); ok {
 		host = h
 	}
+	full := host
 	host = siteOf(host)
 	seed, nonce := r.PostFormValue("seed"), r.PostFormValue("nonce")
 	now := time.Now()
-	if !e.seedOK(seed, host, now) || !worked(seed, nonce) {
+	signed := e.seedOK(seed, host, now)
+	ok := signed && worked(seed, nonce)
+	var rule int64
+	if signed {
+		rule = seedRule(seed)
+	}
+	e.stats.solved(full, rule, ok)
+	if !ok {
 		plain(w, http.StatusBadRequest, "That didn't check out. Go back and let the page finish.")
 		return
 	}

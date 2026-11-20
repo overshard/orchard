@@ -2,7 +2,7 @@
 <div class="o-ph">
   <div>
     <span class="o-lab">gate &middot; rules &middot; {{if .New}}new{{else}}{{.Rule.Name}}{{end}}</span>
-    {{if .New}}<h1>A new rule, <em>live on save</em>.</h1>
+    {{if .New}}<h1>A new rule, <em>tested before it runs</em>.</h1>
     {{else if .Rule.Pending}}<h1>{{.Rule.Name}}, <em>proposed by {{.Rule.Author}}</em>.</h1>
     {{else if .Rule.Watching}}<h1>{{.Rule.Name}}, <em>watching</em>.</h1>
     {{else}}<h1>{{.Rule.Name}}, <em>{{comma .Use.Hits}} hits</em> this week.</h1>{{end}}
@@ -18,6 +18,14 @@
 </div>
 
 {{if .Error}}<div class="o-note bad"><span class="o-lab plain o-bad">not saved</span><span>{{.Error}}</span></div>{{end}}
+{{if .Saved}}<span hidden data-toast="Saved {{.Rule.Name}}"></span>{{end}}
+{{with .ConfirmOn}}<form class="o-note bad lockout" method="post" action="/rules/{{$.Rule.ID}}/on">
+  <span class="o-lab plain o-bad">signs you out</span>
+  <div>
+    <p>Turned on, this rule refuses signing in to orchard: {{range $i, $l := .}}{{if $i}}, {{end}}<code>{{$l}}</code>{{end}}. With it on and your session gone you can't get back in to turn it off.</p>
+    <div class="o-formbar"><label class="o-check"><input type="checkbox" name="lockout_ok" value="1" required> I know this catches signing in, turn it on anyway</label><span class="o-sp"></span><input type="hidden" name="back" value="/rules/{{$.Rule.ID}}"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Turn on</button></div>
+  </div>
+</form>{{end}}
 
 {{if not .New}}
 <div class="o-tiles">
@@ -29,7 +37,8 @@
 {{end}}
 
 <div class="o-cols">
-<form class="o-panel" method="post" action="{{if .New}}/rules{{else}}/rules/{{.Rule.ID}}{{end}}">
+<div class="side">
+<form class="o-panel" method="post" action="{{if .New}}/rules{{else}}/rules/{{.Rule.ID}}{{end}}" data-rule-form>
   <div class="o-form">
     <label class="o-field">
       <span>Name <span class="hint">one word, like feed-hammer</span></span>
@@ -81,6 +90,13 @@
       <span>Note <span class="hint">why it's here</span></span>
       <input type="text" name="note" value="{{.Rule.Note}}" maxlength="300">
     </label>
+    <div class="o-note bad lockout full" data-lockout {{if not .Lockout}}hidden{{end}}>
+      <span class="o-lab plain o-bad">signs you out</span>
+      <div>
+        <p>On, this rule refuses signing in to orchard: <span data-lockout-list>{{range $i, $l := .Lockout}}{{if $i}}, {{end}}<code>{{$l}}</code>{{end}}</span>. Leave only watch ticked, or tick this as well to turn it on.</p>
+        <label class="o-check"><input type="checkbox" name="lockout_ok" value="1"> I know this catches signing in, turn it on anyway</label>
+      </div>
+    </div>
     <div class="o-formbar full">
       <label class="o-check"><input type="checkbox" name="watching" {{if or .Rule.Watching .New}}checked{{end}}> Only watch</label>
       <label class="o-check"><input type="checkbox" name="quiet" {{if .Rule.Quiet}}checked{{end}}> Keep out of the access log</label>
@@ -90,6 +106,12 @@
     </div>
   </div>
 </form>
+
+<section class="o-panel" id="test" data-test>
+  <div class="o-ph2"><h2>Test on the last hour</h2><span class="o-pm" data-test-pm><span>runs as you type</span></span></div>
+  <div data-test-out><p class="o-muted small">Every edit runs the rule over the requests gate checked in the last hour, with the same matcher /check uses. Nothing is saved until you save.</p></div>
+</section>
+</div>
 
 <div class="side">
 {{if not .New}}

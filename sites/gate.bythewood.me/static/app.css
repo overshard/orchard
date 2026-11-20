@@ -40,3 +40,45 @@
 
 h3.sub { font-size: 0.86rem; margin: 14px 0 6px; }
 .steps { margin: 0 0 10px; padding-left: 20px; display: grid; gap: 6px; font-size: 0.84rem; }
+
+.o-tbl td .sub.clip { display: block; max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evs td.clip { max-width: 22rem; }
+.drawer .o-kv { margin-top: 10px; }
+.drawer .o-acts { margin-top: 8px; }
+.why { display: grid; gap: 3px; margin-top: 6px; font: 0.74rem var(--o-mono); }
+.why > div { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.why .ln { color: var(--o-muted); width: 1.4rem; text-align: right; flex: none; }
+.why code { overflow-wrap: anywhere; min-width: 0; }
+.why .fails code, .why .unknown code { color: var(--o-muted); }
+.why .on code { color: var(--o-text); box-shadow: inset 2px 0 0 var(--o-bad); padding-left: 6px; }
+.why mark { background: rgba(240, 107, 91, 0.16); color: var(--o-text); padding: 0 3px; flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.build { display: grid; gap: 4px; align-content: start; }
+.build .o-check code { font-size: 0.72rem; overflow-wrap: anywhere; }
+.build .o-btn { justify-self: start; }
+
+.gmin { display: flex; align-items: flex-end; gap: 2px; height: 46px; margin-top: 4px; }
+.gmin i { flex: 1; background: var(--o-line-soft); min-height: 2px; }
+.gmin i.m.bad { background: var(--o-bad); }
+.gmin i.m.warn { background: var(--o-warn); }
+.gmin i.m.ok { background: var(--o-ok); }
+.gmin-ax { display: flex; justify-content: space-between; font: 0.66rem var(--o-mono); color: var(--o-muted); margin: 4px 0 10px; }
+.gfac { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 10px 18px; }
+.gfac h4 { margin: 0 0 4px; font: 500 0.7rem var(--o-mono); color: var(--o-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.gwarn { display: grid; gap: 6px; margin-top: 12px; font-size: 0.82rem; }
+.gwarn > div { display: flex; gap: 8px; align-items: baseline; }
+.gwarn .o-lab { flex: none; width: 6.5rem; }
+.gwarn .bad span:last-child { color: var(--o-text); }
+
+.lockout { display: flex; gap: 10px; align-items: flex-start; }
+.lockout p { margin: 0 0 6px; font-size: 0.84rem; }
+.lockout[hidden] { display: none; }
+
+.diff { display: grid; gap: 2px; font: 0.72rem var(--o-mono); }
+.diff > div { display: flex; gap: 6px; min-width: 0; }
+.diff code { overflow-wrap: anywhere; min-width: 0; }
+.diff .add span { color: var(--o-ok); }
+.diff .del span, .diff .del code { color: var(--o-muted); }
+.diff .del code { text-decoration: line-through; }
+.bans td.left { min-width: 9rem; }
+.bans td.left .o-hbar { display: flex; gap: 8px; align-items: center; }
+.bans td.left .bar { flex: 1; }

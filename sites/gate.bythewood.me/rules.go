@@ -74,9 +74,11 @@ type req struct {
 	UA      string
 	Crawler string
 	Header  func(string) string
+	Session bool // carried an orchard session cookie, live or not
 }
 
 type cond struct {
+	line   int
 	not    bool
 	field  string
 	header string
@@ -103,6 +105,7 @@ func parseWhen(when string) ([]cond, error) {
 		if err != nil {
 			return nil, fmt.Errorf("line %d: %v", n+1, err)
 		}
+		c.line = n + 1
 		out = append(out, c)
 	}
 	if len(out) == 0 {
@@ -235,6 +238,9 @@ func (c *cond) value(q *req) (string, bool) {
 	case "crawler":
 		return q.Crawler, q.Crawler != ""
 	case "header":
+		if q.Header == nil {
+			return "", false
+		}
 		return q.Header(c.header), true
 	}
 	return "", false
@@ -308,4 +314,57 @@ func (r *Rule) validate() error {
 		return fmt.Errorf("a message is at most 300 characters")
 	}
 	return nil
+}
+
+// Why is the line of a rule that decided a match and the piece of the request
+// it matched, worked out only for events so a plain pass costs nothing.
+type Why struct {
+	Line    int
+	Matched string
+}
+
+// why names the last line that matched something, since the lines before it
+// usually only narrow the host and the last one is what caught it. A rule of
+// only not lines names its first line.
+func (r *Rule) why(q *req) Why {
+	var out Why
+	for i := range r.conds {
+		c := &r.conds[i]
+		if c.not {
+			continue
+		}
+		v, _ := c.value(q)
+		out = Why{Line: c.line, Matched: cut(c.piece(q, v), 120)}
+	}
+	if out.Line == 0 && len(r.conds) > 0 {
+		out.Line = r.conds[0].line
+	}
+	return out
+}
+
+// piece is the part of a value a condition matched, empty when it didn't.
+func (c *cond) piece(q *req, v string) string {
+	if c.field == "ip" {
+		for _, p := range c.nets {
+			if p.Contains(q.IP.Unmap()) {
+				return p.String()
+			}
+		}
+		return ""
+	}
+	if c.op == "regex" {
+		return c.re.FindString(v)
+	}
+	lv := v
+	if c.field != "asn" && c.field != "country" {
+		lv = strings.ToLower(v)
+	}
+	for _, want := range c.vals {
+		switch {
+		case c.op == "is" && lv == want, c.op == "prefix" && strings.HasPrefix(lv, want),
+			c.op == "contains" && strings.Contains(lv, want), c.op == "suffix" && strings.HasSuffix(lv, want):
+			return want
+		}
+	}
+	return ""
 }

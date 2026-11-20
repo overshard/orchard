@@ -36,6 +36,7 @@ const (
 type engine struct {
 	rules  atomic.Pointer[[]*Rule]
 	mode   atomic.Value
+	until  atomic.Int64 // unix seconds a watch or off mode runs out, 0 for never
 	self   atomic.Pointer[[]netip.Prefix]
 	geo    *Geo
 	bots   *Crawlers
@@ -73,6 +74,7 @@ func newEngine(geo *Geo, auth *web.Authenticator, secret []byte, st *stats) *eng
 	e.mode.Store(modeOn)
 	empty := []*Rule{}
 	e.rules.Store(&empty)
+	st.rules = func() []*Rule { return *e.rules.Load() }
 	none := []netip.Prefix{}
 	e.self.Store(&none)
 	return e
@@ -95,7 +97,18 @@ func (e *engine) load(rules []Rule) {
 
 func (e *engine) setSelf(addrs []netip.Prefix) { e.self.Store(&addrs) }
 
-func (e *engine) Mode() string { return e.mode.Load().(string) }
+// Mode reads the clock itself, so a watch or off that ran out is enforcing
+// from that second whatever the database says until the next reload.
+func (e *engine) Mode() string {
+	m := e.mode.Load().(string)
+	if m == modeOn {
+		return m
+	}
+	if u := e.until.Load(); u != 0 && time.Now().Unix() >= u {
+		return modeOn
+	}
+	return m
+}
 
 // orchard is the bridge, loopback and the box's own public address, which is
 // where status' probes and the Claude on this box come from.
@@ -113,9 +126,10 @@ func (e *engine) orchard(ip netip.Addr) bool {
 }
 
 type verdict struct {
-	kind  string
-	rule  *Rule
-	quiet bool
+	kind    string
+	rule    *Rule
+	quiet   bool
+	orchard bool // never checked, and left out of the hour ring
 }
 
 // check is what Caddy asks before every request. A 2xx lets the request on to
@@ -137,7 +151,7 @@ func (e *engine) check(w http.ResponseWriter, r *http.Request) {
 	}
 	switch v.kind {
 	case vChallenge:
-		e.challenge(w, r, q)
+		e.challenge(w, r, q, v.rule)
 	case vLimit:
 		w.Header().Set("Retry-After", "60")
 		plain(w, http.StatusTooManyRequests, "Slow down, and try again in a minute.")
@@ -162,6 +176,7 @@ func plain(w http.ResponseWriter, code int, msg string) {
 
 func (e *engine) request(r *http.Request) *req {
 	q := &req{Header: r.Header.Get, UA: r.Header.Get("User-Agent")}
+	q.Session = strings.Contains(r.Header.Get("Cookie"), web.SessionCookie+"=")
 	q.IP, _ = netip.ParseAddr(strings.TrimSpace(r.Header.Get("X-Gate-Ip")))
 	// Caddy keeps the visitor's Host on the way to /check. X-Forwarded-Host is
 	// passed through from the client behind a trusted proxy, so it isn't read.
@@ -201,7 +216,7 @@ func (e *engine) request(r *http.Request) *req {
 
 func (e *engine) decide(q *req, r *http.Request) verdict {
 	if !q.IP.IsValid() || e.orchard(q.IP) || strings.HasPrefix(q.Path, "/__gate/") {
-		return verdict{kind: vExempt}
+		return verdict{kind: vExempt, orchard: true}
 	}
 	mode := e.Mode()
 	if mode == modeOff {

@@ -84,6 +84,15 @@ CREATE TABLE IF NOT EXISTS changes (
     rule TEXT    NOT NULL,
     what TEXT    NOT NULL
 );
+CREATE TABLE IF NOT EXISTS solves (
+    hour   INTEGER NOT NULL,
+    host   TEXT    NOT NULL,
+    rule   INTEGER NOT NULL,
+    people INTEGER NOT NULL DEFAULT 0,
+    solved INTEGER NOT NULL DEFAULT 0,
+    failed INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (hour, host, rule)
+) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS settings (
     k TEXT PRIMARY KEY,
     v TEXT NOT NULL
@@ -108,7 +117,40 @@ func OpenStore(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	for _, c := range added {
+		if err := addColumn(db, c[0], c[1], c[2]); err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
 	return &Store{db: db}, nil
+}
+
+// added is every column put on a table after it first shipped. Columns are
+// only ever added, so an older binary still reads the same database.
+var added = [][3]string{
+	{"events", "line", "INTEGER NOT NULL DEFAULT 0"},
+	{"events", "matched", "TEXT NOT NULL DEFAULT ''"},
+	{"events", "also", "TEXT NOT NULL DEFAULT ''"},
+	{"changes", "before", "TEXT NOT NULL DEFAULT ''"},
+	{"changes", "after", "TEXT NOT NULL DEFAULT ''"},
+}
+
+func addColumn(db *sql.DB, table, col, def string) error {
+	rows, err := db.Query(`SELECT name FROM pragma_table_info(?)`, table)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if rows.Scan(&name) == nil && name == col {
+			return nil
+		}
+	}
+	rows.Close()
+	_, err = db.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + col + ` ` + def)
+	return err
 }
 
 func (s *Store) Close() error { return s.db.Close() }
@@ -201,7 +243,7 @@ func (s *Store) AddRule(r *Rule, who string) error {
 		return err
 	}
 	r.ID, _ = res.LastInsertId()
-	s.Change(who, r.Name, "added, "+describe(*r))
+	s.ruleChange(who, r.Name, "added, "+describe(*r), nil, r)
 	return nil
 }
 
@@ -209,6 +251,7 @@ func (s *Store) UpdateRule(r *Rule, who string) error {
 	if err := r.validate(); err != nil {
 		return err
 	}
+	old, oerr := s.Rule(r.ID)
 	_, err := s.db.Exec(`UPDATE rules SET name = ?, note = ?, cond = ?, action = ?, status = ?, message = ?, rate = ?, ban_after = ?, ban_for = ?,
 		quiet = ?, watching = ?, pending = ?, expires = ? WHERE id = ?`,
 		r.Name, r.Note, r.When, r.Action, r.Status, r.Message, r.Rate, r.BanAfter, int64(r.BanFor/time.Second),
@@ -219,7 +262,11 @@ func (s *Store) UpdateRule(r *Rule, who string) error {
 		}
 		return err
 	}
-	s.Change(who, r.Name, "changed, "+describe(*r))
+	if oerr != nil {
+		s.ruleChange(who, r.Name, "changed, "+describe(*r), nil, r)
+	} else {
+		s.ruleChange(who, r.Name, "changed, "+describe(*r), &old, r)
+	}
 	return nil
 }
 
@@ -228,7 +275,7 @@ func (s *Store) DeleteRule(r Rule, who string) error {
 		return err
 	}
 	_, _ = s.db.Exec(`DELETE FROM hits WHERE rule = ?`, r.ID)
-	s.Change(who, r.Name, "removed")
+	s.ruleChange(who, r.Name, "removed", &r, nil)
 	return nil
 }
 
@@ -244,38 +291,63 @@ func describe(r Rule) string {
 }
 
 type Change struct {
+	ID              int64
 	At              time.Time
 	Who, Rule, What string
+	Before, After   string
 }
 
 func (s *Store) Change(who, rule, what string) {
 	_, _ = s.db.Exec(`INSERT INTO changes (at, who, rule, what) VALUES (?, ?, ?, ?)`, time.Now().Unix(), who, rule, what)
 }
 
+// ruleChange keeps the rule as it was and as it is, so the log can show what
+// changed and put the old one back.
+func (s *Store) ruleChange(who, rule, what string, before, after *Rule) {
+	_, _ = s.db.Exec(`INSERT INTO changes (at, who, rule, what, before, after) VALUES (?, ?, ?, ?, ?, ?)`,
+		time.Now().Unix(), who, rule, what, snapOf(before), snapOf(after))
+}
+
+const changeCols = `id, at, who, rule, what, before, after`
+
+func scanChange(sc interface{ Scan(...any) error }) (Change, error) {
+	var c Change
+	var at int64
+	err := sc.Scan(&c.ID, &at, &c.Who, &c.Rule, &c.What, &c.Before, &c.After)
+	c.At = fromUnix(at)
+	return c, err
+}
+
 func (s *Store) Changes(limit int) ([]Change, int, error) {
 	var total int
 	_ = s.db.QueryRow(`SELECT COUNT(*) FROM changes`).Scan(&total)
-	rows, err := s.db.Query(`SELECT at, who, rule, what FROM changes ORDER BY id DESC LIMIT ?`, limit)
+	rows, err := s.db.Query(`SELECT `+changeCols+` FROM changes ORDER BY id DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, total, err
 	}
 	defer rows.Close()
 	var out []Change
 	for rows.Next() {
-		var c Change
-		var at int64
-		if err := rows.Scan(&at, &c.Who, &c.Rule, &c.What); err != nil {
+		c, err := scanChange(rows)
+		if err != nil {
 			return nil, total, err
 		}
-		c.At = fromUnix(at)
 		out = append(out, c)
 	}
 	return out, total, rows.Err()
 }
 
+func (s *Store) ChangeByID(id int64) (Change, error) {
+	c, err := scanChange(s.db.QueryRow(`SELECT `+changeCols+` FROM changes WHERE id = ?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return c, errNoRule
+	}
+	return c, err
+}
+
 // Flush writes what check counted since the last one in a single transaction.
 func (s *Store) Flush(p pending) error {
-	if len(p.traffic) == 0 && len(p.hits) == 0 && len(p.events) == 0 && len(p.bans) == 0 && len(p.orgs) == 0 {
+	if len(p.traffic) == 0 && len(p.hits) == 0 && len(p.events) == 0 && len(p.bans) == 0 && len(p.orgs) == 0 && len(p.solves) == 0 {
 		return nil
 	}
 	tx, err := s.db.Begin()
@@ -301,8 +373,16 @@ func (s *Store) Flush(p pending) error {
 		}
 	}
 	for _, e := range p.events {
-		if _, err := tx.Exec(`INSERT INTO events (at, ip, asn, country, host, method, path, ua, rule, verdict, watch) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			e.At.UnixMilli(), e.IP, e.ASN, e.Country, e.Host, e.Method, e.Path, e.UA, e.Rule, e.Verdict, b2i(e.Watch)); err != nil {
+		if _, err := tx.Exec(`INSERT INTO events (at, ip, asn, country, host, method, path, ua, rule, verdict, watch, line, matched, also)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			e.At.UnixMilli(), e.IP, e.ASN, e.Country, e.Host, e.Method, e.Path, e.UA, e.Rule, e.Verdict, b2i(e.Watch), e.Line, e.Matched, e.Also); err != nil {
+			return err
+		}
+	}
+	for k, c := range p.solves {
+		if _, err := tx.Exec(`INSERT INTO solves (hour, host, rule, people, solved, failed) VALUES (?, ?, ?, ?, ?, ?)
+			ON CONFLICT DO UPDATE SET people = people + excluded.people, solved = solved + excluded.solved, failed = failed + excluded.failed`,
+			k.Hour, k.Host, k.Rule, c.People, c.Solved, c.Failed); err != nil {
 			return err
 		}
 	}
@@ -319,6 +399,7 @@ func (s *Store) Sweep(now time.Time) {
 	cut := now.Add(-keepFor)
 	_, _ = s.db.Exec(`DELETE FROM traffic WHERE hour < ?`, cut.Unix())
 	_, _ = s.db.Exec(`DELETE FROM hits WHERE hour < ?`, cut.Unix())
+	_, _ = s.db.Exec(`DELETE FROM solves WHERE hour < ?`, cut.Unix())
 	_, _ = s.db.Exec(`DELETE FROM events WHERE at < ?`, cut.UnixMilli())
 	_, _ = s.db.Exec(`DELETE FROM bans WHERE until < ?`, now.Unix())
 	_, _ = s.db.Exec(`DELETE FROM changes WHERE at < ?`, now.AddDate(-1, 0, 0).Unix())

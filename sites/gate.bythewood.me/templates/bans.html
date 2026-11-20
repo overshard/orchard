@@ -2,31 +2,38 @@
 <div class="o-ph">
   <div>
     <span class="o-lab">gate &middot; bans</span>
-    <h1>{{if .Bans}}{{len .Bans}} addresses, <em>refused everywhere</em>.{{else}}No bans, <em>nobody refused everywhere</em>.{{end}}</h1>
+    <h1>{{if .Bans}}{{count (len .Bans) "address" "addresses"}}, <em>{{comma .Refused}} refused</em> since they started.{{else}}No bans, <em>nobody refused everywhere</em>.{{end}}</h1>
     <p>A rule with ban after set bans an address that keeps tripping it. A ban refuses that address on every host until it runs out, unless it's signed in.</p>
   </div>
 </div>
 {{if .Error}}<div class="o-note bad"><span class="o-lab plain o-bad">not banned</span><span>{{.Error}}</span></div>{{end}}
-<div class="o-cols">
+<div class="o-band b2r">
   <section class="o-panel flush">
+    {{if .Bans}}
+    <form id="lift" method="post" action="/bans/lift" data-name="ip" data-undo="Lifted the picked bans" hidden>
+      <button type="submit" class="o-btn o-btn-sm">Lift</button>
+    </form>
+    {{end}}
     <div class="o-scroll">
-    <table class="o-tbl stack">
-      <thead><tr><th>Address</th><th>By</th><th>Since</th><th class="r">Ends</th><th></th></tr></thead>
+    <table class="o-tbl stack bans" data-keys data-bulk="lift">
+      <thead><tr><th class="pick"><input type="checkbox" aria-label="Pick every ban"></th><th>Address</th><th>By</th><th class="r">Refused</th><th>Time left</th><th></th></tr></thead>
       <tbody>
       {{range .Bans}}
-        <tr>
-          <td class="lead n"><a href="/traffic?ip={{.IP}}">{{.IP}}</a></td>
-          <td class="nw mono small">{{.Rule}}</td>
-          <td class="n o-muted">{{ago .Created}}</td>
-          <td class="r n">{{until .Until}}</td>
+        <tr data-id="{{.IP}}">
+          <td class="pick"><input type="checkbox" value="{{.IP}}" aria-label="Pick {{.IP}}"></td>
+          <td class="lead n"><a href="/traffic?ip={{.IP}}">{{.IP}}</a><span class="sub">since {{ago .Created}}</span></td>
+          <td class="nw mono small" data-l="by">{{.Rule}}</td>
+          <td class="r n" data-l="refused" data-tip="refused since it started, from the sampled events">{{comma .Refused}}</td>
+          <td class="left" data-l="left"><span class="o-hbar"><span class="bar"><i class="bad" style="width: {{.Left}}%"></i></span><span class="v" data-tip="{{utc .Until}}">{{until .Until}}</span></span></td>
           <td class="act"><form method="post" action="/bans/lift" data-undo="Lifted {{.IP}}"><input type="hidden" name="ip" value="{{.IP}}"><button class="o-btn o-btn-sm" type="submit">Lift</button></form></td>
         </tr>
       {{else}}
-        <tr><td colspan="5"><p class="o-empty"><b>Nothing banned.</b>Set ban after on a rule, or ban an address by hand.</p></td></tr>
+        <tr><td colspan="6"><p class="o-empty"><b>Nothing banned.</b>Set ban after on a rule, or ban an address by hand.</p></td></tr>
       {{end}}
       </tbody>
     </table>
     </div>
+    {{if .Bans}}<p class="o-hint"><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>x</kbd>pick, then lift</span><span><kbd>?</kbd>every key</span></p>{{end}}
   </section>
   <form class="o-panel" method="post" action="/bans">
     <div class="o-ph2"><h2>Ban by hand</h2></div>

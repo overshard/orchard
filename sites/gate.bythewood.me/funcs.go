@@ -20,8 +20,16 @@ func funcs() template.FuncMap {
 			return s[:n] + "…"
 		},
 		"actionKind": actionKind,
-		"add":        func(a, b int) int { return a + b },
-		"list":       func(v ...string) []string { return v },
+		"count":      count,
+		"clock":      func(t time.Time) string { return t.UTC().Format("15:04:05") },
+		"pctOf": func(n, of int) string {
+			if of == 0 {
+				return "0%"
+			}
+			return fmt.Sprintf("%.1f%%", 100*float64(n)/float64(of))
+		},
+		"add":  func(a, b int) int { return a + b },
+		"list": func(v ...string) []string { return v },
 		"sparkKind": func(a string) string {
 			if k := actionKind(a); k != "" {
 				return k
