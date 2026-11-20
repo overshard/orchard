@@ -57,6 +57,7 @@ export const ICONS = {
   g_pin: [["............", "............", ".....SSS....", "....SWSSs...", "..GGSSSSsGG.", ".GGlGssssGGG", ".GGGGGGGGGGG", ".GGGGGG.GGGG", ".gGGGGG..GGg", "..ggggg..gg.", "............", "............"]],
   g_sweep: [["............", ".SSS.SSS.SSS", ".SSS.SSS.SkS", "............", ".SSS.SkS.SSS", ".SSS.SSS.SSS", "............", ".SkS.SSS.SSS", ".SSS.SSS.SSS", "............", "............", "............"]],
   g_putt: [["............", "......R.....", "......RR....", "......RRR...", "......b.....", "......b.....", "..ggggbgggg.", ".gGGGGkGGGGg", ".gGlGGGGGGGg", "..gggggggg..", "............", "............"]],
+  g_derby: [["............", "............", "....bbbb....", "...bBYYBb...", "..bBYbbYBb.k", "..bBYbYYBb.H", "..bBBYYBBbH.", "...bBBBBb.H.", ".HHHHHHHHHH.", "hhhhhhhhhhh.", "............", "............"]],
   g_race: [["............", "..bWkWkW....", "..bkWkWk....", "..bWkWkW....", "..bkWkWk....", "..b.........", "..b.........", "..b.........", ".bbb........", "............", "............", "............"]],
   g_cross: [["............", "............", ".SSSSSSSSSS.", ".e.ee.ee.e..", ".SSSSSSSSSS.", "............", "....GGGG....", "...GwGGwG...", "...GGGGGG...", "UUUUUUUUUUUU", "uuuuuuuuuuuu", "............"]],
   g_raft: [["............", "............", "....GG......", "...GGGG.....", "...GwwG.....", ".BBBBBBBBB..", ".bBbBbBbBb..", "..........U.", ".UUU..UUU...", "UuuuUUuuuUU.", "............", "............"]],
