@@ -559,14 +559,11 @@ func playForAims(t *testing.T, s *store, clock *time.Time, id int64, game string
 	return d
 }
 
-// playMarket locks the day's prices, collects dividends, sells anything
-// that's up and buys one of something.
+// playMarket locks the day's prices, sells anything that's up and buys one
+// of something.
 func playMarket(t *testing.T, s *store, id int64) {
 	t.Helper()
 	if err := s.lockMarket(); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.collectDividends(id); err != nil {
 		t.Fatal(err)
 	}
 	v, _ := s.view(id)
@@ -578,7 +575,7 @@ func playMarket(t *testing.T, s *store, id int64) {
 		}
 	}
 	f := v.Market.Firms[rand.IntN(len(v.Market.Firms))]
-	if _, err := s.trade(id, f.Key, 1, false); err != nil && !errors.Is(err, errPoor) && !errors.Is(err, errCap) {
+	if _, err := s.trade(id, f.Key, 1, false); err != nil && !errors.Is(err, errPoor) && !errors.Is(err, errCap) && !errors.Is(err, errMelonShut) {
 		t.Fatal(err)
 	}
 }

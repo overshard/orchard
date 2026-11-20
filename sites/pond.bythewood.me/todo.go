@@ -70,8 +70,12 @@ func todoOf(v *view) []todo {
 	for _, f := range short {
 		add("short", f.Work.Short, titled(f.Name)+" ran out of "+f.Work.Short, "job")
 	}
-	if v.Market.Due > 0 {
-		add("dividend", "peb", fmt.Sprintf("%d in dividends", v.Market.Due), "market")
+
+	if m := v.Market.Melon; m.Open && m.Left == m.Max {
+		add("melon", "melon", "Moonmelons are in, today only", "market")
+	}
+	if m := v.Market.Melon; !m.Open && m.Held > 0 && m.Days == 1 {
+		add("melon", "melon", plural(m.Held, "moonmelon")+" spoil tonight", "market")
 	}
 
 	if w := v.Want; w.Ready && v.Pebbles >= w.Price {

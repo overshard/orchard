@@ -33,10 +33,11 @@ type tune struct {
 }
 
 var tunes = map[string]tune{
-	kindShare: {sigma: 0.01, lean: 0.01, beta: 0.03, cap: 0.05},
 	// Goods lean back hard, since more coming in pushes them down a step at a time.
-	kindGood: {sigma: 0.02, lean: 0.08, beta: -0.05, cap: 0.08},
+	kindGood: {sigma: 0.02, lean: 0.08, beta: -0.05, cap: 0.1},
 	kindCoin: {sigma: 0.05, jumps: true},
+	// Nothing pulls a melon anywhere, so holding one is a coin toss with a clock on it.
+	kindMelon: {sigma: 0.08, cap: 0.3},
 }
 
 // The coin spikes about once a month and crashes a little more often, each
@@ -164,18 +165,8 @@ func (b flowBook) ratio(key, day string, at time.Time, full bool) float64 {
 	return (today + usual - usualSoFar + flowDamp) / (usual + flowDamp)
 }
 
-// pull is the log of an asset's ratio, held to a doubling or a halving.
+// pull is the log of a good's ratio, held to a doubling or a halving.
 func (b flowBook) pull(a asset, day string, at time.Time, full bool) float64 {
-	if a.flow == "" && a.Kind == kindShare {
-		sum, n := 0.0, 0
-		for _, o := range assets {
-			if o.Kind == kindShare && o.flow != "" {
-				sum += b.pull(o, day, at, full)
-				n++
-			}
-		}
-		return sum / float64(n)
-	}
 	if a.flow == "" {
 		return 0
 	}
@@ -198,9 +189,15 @@ func dayBounds(day string) (time.Time, time.Time) {
 	return t, t.AddDate(0, 0, 1)
 }
 
+// dayMove is what moves a day past its walk and flow, the day's push and
+// the residents' trades so far.
+type dayMove struct {
+	push, folk float64
+}
+
 // priceAt is an asset's price at a moment of day, from the day's open. With
-// full it's the close, and div is what a share pays for the day.
-func priceAt(a asset, d draw, book flowBook, day string, open float64, at time.Time, full bool) (price, div float64) {
+// full it's the close.
+func priceAt(a asset, d draw, book flowBook, day string, open float64, at time.Time, full bool, m dayMove) float64 {
 	start, end := dayBounds(day)
 	frac, n := 1.0, int(math.Ceil(float64(end.Sub(start))/float64(slotLen)))
 	if !full {
@@ -209,11 +206,8 @@ func priceAt(a asset, d draw, book flowBook, day string, open float64, at time.T
 	}
 	t := tunes[a.Kind]
 	x := walk(t, d, n)
-	pull := book.pull(a, day, at, full)
-	x += t.beta * pull / math.Ln2
-	if a.Kind == kindShare {
-		x += newsMove(book.newsOn(day), a.Key, frac)
-	}
+	x += t.beta * book.pull(a, day, at, full) / math.Ln2
+	x += m.push*min(1, frac*24/pushHours) + m.folk
 	switch {
 	case a.Kind == kindCoin && open < coinFloor:
 		x += coinLean * frac * math.Log(coinFloor/open)
@@ -225,12 +219,9 @@ func priceAt(a asset, d draw, book flowBook, day string, open float64, at time.T
 	if t.cap > 0 {
 		x = max(-t.cap, min(t.cap, x))
 	}
-	price = max(1, open*math.Exp(x))
+	price := max(1, open*math.Exp(x))
 	if a.Kind == kindGood {
 		price = max(a.base*goodLow, min(a.base*goodHigh, price))
 	}
-	if a.Kind == kindShare {
-		div = divYield * price * max(0.6, min(1.4, math.Exp(pull/2)))
-	}
-	return price, div
+	return price
 }

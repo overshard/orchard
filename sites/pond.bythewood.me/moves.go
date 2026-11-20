@@ -50,6 +50,34 @@ func plural(n int, one string) string {
 	return fmt.Sprintf("%d %ss", n, one)
 }
 
+// noteAway leaves a line for the next greeting's away list.
+func noteAway(tx *sql.Tx, id int64, at time.Time, what, line string) error {
+	_, err := tx.Exec(`INSERT INTO away (pond_id, at, what, line) VALUES (?, ?, ?, ?)`, id, at.Unix(), what, line)
+	return err
+}
+
+// takeAway hands over the lines left for the away list, once.
+func takeAway(tx *sql.Tx, id int64) ([][2]string, error) {
+	rows, err := tx.Query(`SELECT what, line FROM away WHERE pond_id = ? ORDER BY at, rowid`, id)
+	if err != nil {
+		return nil, err
+	}
+	var out [][2]string
+	for rows.Next() {
+		var l [2]string
+		if err := rows.Scan(&l[0], &l[1]); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		out = append(out, l)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	_, err = tx.Exec(`DELETE FROM away WHERE pond_id = ?`, id)
+	return out, err
+}
+
 // greet is the one call a visit makes. A present is handed over when the last
 // one was long enough ago and stamped there and then, so a reload finds none.
 func (s *store) greet(id int64, first bool) (*greeting, error) {
@@ -124,7 +152,7 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 			if l := moodLine(r, dayOfReading(r, now).Mood, p.Seed, gen.Nature, dayOf(now)); l != "" {
 				g.Line += " " + l
 			}
-			m, err := marketOf(tx, p, now)
+			m, err := marketOf(tx, p, now, s.pepper)
 			if err != nil {
 				return err
 			}
@@ -148,6 +176,14 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		// What's waiting to be collected is left to the page's chips, which
 		// follow the pond as it changes, and this list never does.
 		g.Missed = append(g.Missed, kept...)
+		if _, err := spoilMelons(tx, p); err != nil {
+			return err
+		}
+		notes, err := takeAway(tx, p.ID)
+		if err != nil {
+			return err
+		}
+		g.Missed = append(g.Missed, notes...)
 		if stage != "egg" && dayOf(time.Unix(p.LastSeenAt, 0)) != dayOf(now) {
 			g.Missed = append(g.Missed, [2]string{"Dream", dreamOf(p.Seed, dayOf(now))})
 		}

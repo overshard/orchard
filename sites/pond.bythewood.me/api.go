@@ -688,16 +688,12 @@ func (s *site) apiStallTake(id int64, r *http.Request, w http.ResponseWriter) (a
 
 func (s *site) apiShares(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	var in struct {
-		Key     string `json:"key"`
-		N       int    `json:"n"`
-		Sell    bool   `json:"sell"`
-		Collect bool   `json:"collect"`
+		Key  string `json:"key"`
+		N    int    `json:"n"`
+		Sell bool   `json:"sell"`
 	}
 	if !readJSON(w, r, &in) {
 		return nil, nil
-	}
-	if in.Collect {
-		return s.store.collectDividends(id)
 	}
 	return s.store.trade(id, in.Key, in.N, in.Sell)
 }

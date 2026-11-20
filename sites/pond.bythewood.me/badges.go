@@ -172,7 +172,7 @@ var badges = []badge{
 	{"friends_all", "Good neighbour", "Get to one heart with every neighbour", "neighbours", func(t *tally) (int, int) { return t.friends, len(residents) }},
 	{"best_friend", "Best friend", "Get to five hearts with a neighbour", "neighbours", upTo(func(t *tally) int { return t.mementos }, 1)},
 	{"stall", "Stallholder", "List something on the stall", "stall", upTo(func(t *tally) int { return t.stall }, 1)},
-	{"share", "Shareholder", "Buy a share on the market", "market", upTo(func(t *tally) int { return t.share }, 1)},
+	{"share", "Trader", "Buy something on the night market", "market", upTo(func(t *tally) int { return t.share }, 1)},
 	{"furniture", "Home comforts", "Buy three things from Tansy", "shops", upTo(func(t *tally) int { return t.furniture }, 3)},
 	{"days_30", "Thirty days", "Spend thirty days at the pond", "pond", upTo(func(t *tally) int { return t.days }, 30)},
 	{"days_100", "A hundred days", "Spend a hundred days at the pond", "pond", upTo(func(t *tally) int { return t.days }, 100)},

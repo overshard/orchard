@@ -63,17 +63,18 @@ func TestGazetteHasThreeDifferentHeadlines(t *testing.T) {
 }
 
 func TestMarketHeadline(t *testing.T) {
-	quiet := marketHeadline([]firmView{{Name: "Ribbit Labs", Price: 100, Prev: 100}}, "2026-11-10")
+	reeds, _ := assetOf("g_reeds")
+	melon, _ := assetOf(melonKey)
+	quiet := marketHeadline([]firmView{{asset: reeds, Price: 45, Prev: 45}}, "2026-11-10")
 	if !strings.Contains(quiet, "quiet") {
 		t.Errorf("flat board: %q", quiet)
 	}
-	firms := []firmView{
-		{Name: "Ribbit Labs", Price: 101, Prev: 100},
-		{Name: "Bog Oil & Peat", Price: 90, Prev: 100},
-	}
-	h := marketHeadline(firms, "2026-11-10")
-	if !strings.Contains(h, "Bog Oil & Peat") || strings.ContainsAny(h, "0123456789%") {
-		t.Errorf("biggest mover: %q", h)
+	firms := []firmView{{asset: reeds, Price: 46, Prev: 45}, {asset: melon, Price: 27, Prev: 30}}
+	for d := range 4 {
+		h := marketHeadline(firms, dayShift("2026-11-10", d))
+		if !strings.Contains(strings.ToLower(h), "moonmelons") || strings.ContainsAny(h, "0123456789%") {
+			t.Errorf("biggest mover: %q", h)
+		}
 	}
 }
 

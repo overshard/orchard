@@ -14,7 +14,7 @@ import (
 )
 
 // A frog in a black hood sells a few things at the market's back door for
-// Glowworm Coin. What a deal really is comes off an HMAC of the pepper, so
+// glow coin. What a deal really is comes off an HMAC of the pepper, so
 // the source can't read it ahead and the page learns it only once bought.
 const blackDeals = 3
 
@@ -76,7 +76,7 @@ var patter = [4][]string{
 var (
 	errBlackShut = errors.New("the back door's shut, so come back when the lantern's lit")
 	errDealt     = errors.New("you've had that deal already")
-	errNoCoin    = errors.New("you don't have that much Glowworm Coin")
+	errNoCoin    = errors.New("you don't have that much glow coin")
 )
 
 // blackWindow is the window open at now and when it shuts, or with open

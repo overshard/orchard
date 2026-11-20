@@ -304,6 +304,8 @@ CREATE TABLE IF NOT EXISTS market_days (
     close  REAL NOT NULL,
     open   REAL NOT NULL DEFAULT 0,
     div    REAL NOT NULL DEFAULT 0,
+    push   REAL NOT NULL DEFAULT 0,
+    why    TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (key, day)
 ) WITHOUT ROWID;
 
@@ -329,6 +331,26 @@ CREATE TABLE IF NOT EXISTS shares (
     count    INTEGER NOT NULL,
     cost     INTEGER NOT NULL,
     PRIMARY KEY (pond_id, key)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS melons (
+    pond_id  INTEGER PRIMARY KEY REFERENCES ponds(id) ON DELETE CASCADE,
+    week     TEXT NOT NULL,
+    count    INTEGER NOT NULL,
+    cost     INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS away (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    at       INTEGER NOT NULL,
+    what     TEXT NOT NULL,
+    line     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS away_pond ON away(pond_id);
+
+CREATE TABLE IF NOT EXISTS migrations (
+    name  TEXT PRIMARY KEY,
+    at    INTEGER NOT NULL
 ) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS diary (
@@ -466,6 +488,8 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "paint", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "far", "INTEGER NOT NULL DEFAULT 0"},
 	{"sold", "face", "INTEGER NOT NULL DEFAULT 0"},
+	{"market_days", "push", "REAL NOT NULL DEFAULT 0"},
+	{"market_days", "why", "TEXT NOT NULL DEFAULT ''"},
 }
 
 func ensureColumns(db *sql.DB) (map[string]bool, error) {
@@ -575,6 +599,10 @@ func openStore(path string, pepper []byte) (*store, error) {
 			w.Close()
 			return nil, err
 		}
+	}
+	if err := payShares(w, time.Now()); err != nil {
+		w.Close()
+		return nil, err
 	}
 	if added["ponds.rank_top"] {
 		if err := seedRanks(w, time.Now()); err != nil {
@@ -1293,7 +1321,7 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if v.Taper, err = taperOf(q, p.ID, dayOf(now)); err != nil {
 		return err
 	}
-	if v.Market, err = marketOf(q, p, now); err != nil {
+	if v.Market, err = marketOf(q, p, now, s.pepper); err != nil {
 		return err
 	}
 	if v.Black, err = s.blackOf(q, p.ID, now); err != nil {
@@ -1313,7 +1341,7 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	for i := range v.Neighbours.All {
 		n := &v.Neighbours.All[i]
 		for _, f := range v.Market.Firms {
-			if f.Key == residentFirm(i).Key {
+			if f.Key == leans[i].key {
 				n.Firm = f.Name
 				n.Talk = firmTalk(f, residents[i].seed)
 			}

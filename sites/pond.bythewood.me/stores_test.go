@@ -98,7 +98,7 @@ func TestMarshSellsEachFrameOnce(t *testing.T) {
 	}
 }
 
-func TestTheNewShopsMoveTheirShares(t *testing.T) {
+func TestTheNewShopsCountTheirFlow(t *testing.T) {
 	s, _ := testStore(t)
 	_, id := newPond(t, s)
 	rich(t, s, id, 2000)
@@ -110,11 +110,6 @@ func TestTheNewShopsMoveTheirShares(t *testing.T) {
 		s.r.QueryRow(`SELECT SUM(n) FROM market_flow WHERE key = ?`, "shop:"+shop).Scan(&n)
 		if n != 1 {
 			t.Errorf("%s's flow is %d after a sale", shop, n)
-		}
-	}
-	for _, k := range []string{"tackle", "frames"} {
-		if a, ok := assetOf(k); !ok || a.Kind != kindShare || a.flow == "" {
-			t.Errorf("no share for %s: %+v", k, a)
 		}
 	}
 }

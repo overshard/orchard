@@ -266,14 +266,14 @@ func gazetteWithPhoto(mood, day string) ([]string, int, bool) {
 	return out, photo, named
 }
 
-// marketHeadline is the gazette's business story, off whichever business or
-// coin moved furthest in pebbles today. Like every other line it carries no number.
+// marketHeadline is the gazette's business story, off whichever thing on the
+// board moved furthest today. Like every other line it carries no number.
 func marketHeadline(firms []firmView, day string) string {
 	var best *firmView
 	bestMove := 0.0
 	for i := range firms {
 		f := &firms[i]
-		if f.Prev == 0 || f.Kind == kindGood {
+		if f.Prev == 0 {
 			continue
 		}
 		m := float64(f.Price-f.Prev) / float64(f.Prev)
@@ -282,23 +282,25 @@ func marketHeadline(firms []firmView, day string) string {
 		}
 	}
 	if best == nil || bestMove > -0.01 && bestMove < 0.01 {
-		return "A quiet day on the market board, traders mostly napping"
+		return "A quiet night at the market, traders mostly napping"
 	}
 	h := dayHash(day, "business")
 	var pool []string
 	switch {
 	case bestMove >= 0.05:
-		pool = []string{"{firm} has a day to remember, shareholders throw a party",
-			"{firm} shoots up the board and nobody can quite say why"}
+		pool = []string{"The price of {x} shoots up the chalk board and nobody can quite say why",
+			"A night to remember for anybody holding {x}"}
 	case bestMove > 0:
-		pool = []string{"{firm} edges up and its shareholders look smug",
-			"A good day for {firm}, says everybody who owns some"}
+		pool = []string{"The price of {x} edges up and the traders look smug",
+			"A good night for {x} at the market, says everybody who has some"}
 	case bestMove <= -0.05:
-		pool = []string{"{firm} tumbles down the board, shareholders take a long swim",
-			"A rough day for {firm}, and the board is very pink"}
+		pool = []string{"The price of {x} tumbles down the chalk board",
+			"A rough night for {x}, and the board is very pink"}
 	default:
-		pool = []string{"{firm} slips a little, owners say it's nothing",
-			"{firm} has an off day and blames the weather"}
+		pool = []string{"The price of {x} slips a little, and the traders say it's nothing",
+			"{X} has an off night at the market and blames the weather"}
 	}
-	return strings.ReplaceAll(pool[h%uint32(len(pool))], "{firm}", best.Name)
+	x := storyName(best.asset)
+	line := strings.ReplaceAll(pool[h%uint32(len(pool))], "{x}", x)
+	return strings.ReplaceAll(line, "{X}", strings.ToUpper(x[:1])+x[1:])
 }

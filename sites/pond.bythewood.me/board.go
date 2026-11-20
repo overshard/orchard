@@ -4,12 +4,19 @@ import (
 	"math"
 	"slices"
 	"sort"
-	"strings"
 	"time"
 )
 
 // A day's flow has to be this far off its usual to make the paper.
 const boardFlowMin = 0.15
+
+// flowNames is each line of work the ponds' flow is counted by, as the paper names it.
+var flowNames = [][2]string{
+	{"job:bugs", "Bugs caught"}, {"job:reeds", "Reeds cut"}, {"job:mud", "Mud dug"}, {"job:sticks", "Sticks gathered"},
+	{"job:pebbles", "Dives for pebbles"}, {"job:garden", "Work in the beds"}, {"job:craft", "Things made at the craft bench"},
+	{"g_fish", "Fish landed"}, {"finds", "Finds turned up at work"}, {"cooked", "Dishes cooked"}, {"played", "Games played"},
+	{"fed", "Frogs fed and eggs laid"}, {"sold", "Everything ponds sell"},
+}
 
 type boardRow struct {
 	Name  string  `json:"name"`
@@ -45,7 +52,6 @@ func boardOf(q querier, firms []firmView, day string) (*board, error) {
 		r := boardRow{Name: f.Name, Price: f.Price, Pct: pctOf(f.price, f.prev)}
 		if f.Kind == kindGood {
 			b.Goods = append(b.Goods, r)
-			continue
 		}
 		moved = append(moved, r)
 	}
@@ -65,17 +71,13 @@ func boardOf(q querier, firms []firmView, day string) (*board, error) {
 	if err != nil {
 		return nil, err
 	}
-	before, seen := dayShift(day, -1), map[string]bool{}
-	for _, a := range assets {
-		if a.Kind != kindShare || a.flow == "" || seen[a.flow] {
-			continue
-		}
-		seen[a.flow] = true
-		m := book.ratio(a.flow, before, time.Time{}, true) - 1
+	before := dayShift(day, -1)
+	for _, f := range flowNames {
+		m := book.ratio(f[0], before, time.Time{}, true) - 1
 		if math.Abs(m) < boardFlowMin {
 			continue
 		}
-		b.Flows = append(b.Flows, boardFlow{What: strings.ToUpper(a.Moves[:1]) + a.Moves[1:], Pct: int(math.Round(m * 100))})
+		b.Flows = append(b.Flows, boardFlow{What: f[1], Pct: int(math.Round(m * 100))})
 	}
 	sort.SliceStable(b.Flows, func(i, j int) bool { return math.Abs(float64(b.Flows[i].Pct)) > math.Abs(float64(b.Flows[j].Pct)) })
 	if len(b.Flows) > 4 {

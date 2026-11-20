@@ -101,7 +101,7 @@ func goalsOf(v *view, p *pond) []goal {
 		add("egg", "egg", "Lay an egg on the bench", "reeds", "")
 	}
 	if p.Tried&triedShare == 0 && v.Market.In == 0 {
-		add("share", "i_market", "Buy a share on the market", "market", "")
+		add("share", "i_market", "Buy something on the night market", "market", "")
 	}
 	if b.Burrows.Level > 0 && len(b.Burrows.Lodgers) == 0 {
 		add("lodger", "i_folk", "Take in a lodger", "bank", "")
