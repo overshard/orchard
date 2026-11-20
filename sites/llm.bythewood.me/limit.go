@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -47,8 +48,9 @@ func (l *keyLimiter) allow(key int64, now time.Time) bool {
 	return true
 }
 
-// claudeAllowed turns a call away with a 429 when its key is going too fast or
-// the month is over budget, and says whether it may go on.
+// claudeAllowed turns a call away when its key is too fast or over its own cap,
+// or the month is over budget. A failed read of the ledger lets the call
+// through, so it doesn't stop every caller at once.
 func (s *site) claudeAllowed(w http.ResponseWriter, k Key) bool {
 	now := time.Now()
 	if !s.limits.allow(k.ID, now) {
@@ -56,13 +58,22 @@ func (s *site) claudeAllowed(w http.ResponseWriter, k Key) bool {
 		writeOAError(w, http.StatusTooManyRequests, "rate_limit_exceeded", "too many requests for this key, slow down")
 		return false
 	}
+	start, _ := monthOf(now)
+	if k.CapMicros > 0 {
+		spent, err := s.store.KeySpentSince(k.ID, start)
+		if err != nil {
+			slog.Error("reading a key's spend", "err", err, "key", k.Name)
+		} else if spent >= k.CapMicros {
+			writeOAError(w, http.StatusUnprocessableEntity, "insufficient_quota",
+				fmt.Sprintf("this key has spent its monthly cap of $%.2f", float64(k.CapMicros)/1e6))
+			return false
+		}
+	}
 	if s.budget <= 0 {
 		return true
 	}
 	m, err := s.month(now)
 	if err != nil {
-		// A broken read of the ledger lets the call through, so it doesn't stop
-		// every caller at once.
 		slog.Error("reading the month's spend", "err", err)
 		return true
 	}
