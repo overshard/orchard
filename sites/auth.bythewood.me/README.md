@@ -26,7 +26,8 @@ recovery codes, and `make auth-recovery` replaces them from the machine.
 ## Layout
 
 `login.go` and `otp.go` are the sign in, `session.go` the cookie, `handlers.go`
-the account pages and `/verify`, `credentials.go` the Argon2id hashing,
+the account pages and `/verify`, `overview.go` the checkup tiles, new place
+flags and activity filters those pages share, `connect.go` the consent page, `credentials.go` the Argon2id hashing,
 `ntfy.go` what gets pushed and `ntfy/` the push, and `init.go` the `-init`,
 `-check` and `-recovery` modes.
 State is `data/db.sqlite3`, or the `orchard-auth-data` volume in production.
@@ -35,5 +36,9 @@ State is `data/db.sqlite3`, or the `orchard-auth-data` volume in production.
 
 - With `SESSION_DOMAIN` set locally the login reports success and then doesn't
   stick, since a `.bythewood.me` cookie is never sent to localhost.
+- A new place is a city or country with no sign in in the 30 days before, so a
+  fresh database or a wiped events table calls nothing new until it has history.
+- Connector call counts live on mcp. auth only knows the days a connector's
+  session was used and when it was last checked, to within five minutes.
 - Caddy refuses `/verify` on the public hostname, so only the bridge reaches it.
 - With this container down every gated site treats you as signed out.
