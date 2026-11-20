@@ -18,12 +18,16 @@
     <section class="o-panel">
       <div class="o-ph2"><h2>What it gets</h2><span class="o-lab">read, and propose</span></div>
       <ul class="connectlist">
-        <li>Every tool's state, the down properties, failing jobs and quiet sources</li>
-        <li>Status and analytics reports, log search, cron jobs and runs, llm spend, repositories and gate's traffic</li>
-        <li>Proposing a gate rule, which only watches until you turn it on</li>
-        <li>Nothing else that changes anything, and nothing on this site</li>
+        {{ range .Consent.Tools }}<li><b>{{ .Name }}</b> <span class="o-muted">{{ .What }}</span></li>{{ end }}
       </ul>
-      <p class="o-muted small">It gets a session of its own for 90 days, listed on the sessions page as a connector. Revoke it there and it stops on its next call.</p>
+      <p class="o-muted small">Proposing a gate rule only watches until you turn it on. Nothing else it can do changes anything. It can read the sign ins and sessions here, but it can't revoke one, rename the account or see a code.</p>
+      <dl class="o-kv">
+        <dt>session</dt><dd>its own, listed on the sessions page as a connector</dd>
+        <dt>expires</dt><dd class="o-mono">{{ when .Consent.Expires }}</dd>
+      </dl>
+      {{ with .Consent.Existing }}
+      <div class="o-note" role="status">{{ $.Connect.Client }} is already allowed {{ if eq (len .) 1 }}once{{ else }}{{ len . }} times{{ end }}, most recently {{ ago (index . 0).Created }}{{ with (index . 0).City }} from {{ . }}{{ end }}. Allowing again adds another, and the old one stays until it expires or you <a href="/sessions#connectors">revoke it</a>.</div>
+      {{ end }}
       <form method="POST" action="/connect" class="o-formbar">
         <input type="hidden" name="req" value="{{ .Connect.Req }}">
         <input type="hidden" name="client" value="{{ .Connect.Client }}">
