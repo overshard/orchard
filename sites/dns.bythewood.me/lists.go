@@ -135,6 +135,14 @@ func build(sets [][]string) *table {
 // parse reads a list file, skipping comments, and gives its domains and the
 // Version line hagezi stamps on each build.
 func parse(r io.Reader) (domains []string, version string, err error) {
+	return parseUpTo(r, 0)
+}
+
+var errTooMany = errors.New("too many entries")
+
+// parseUpTo stops once a list passes max entries, so a bloated list is turned
+// away before it's all held in memory. Zero means no limit.
+func parseUpTo(r io.Reader, max int) (domains []string, version string, err error) {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 64*1024), 64*1024)
 	for sc.Scan() {
@@ -150,6 +158,9 @@ func parse(r io.Reader) (domains []string, version string, err error) {
 		}
 		d := cleanName(line)
 		if looksLikeDomain(d) {
+			if max > 0 && len(domains) >= max {
+				return nil, version, fmt.Errorf("%w, over %d", errTooMany, max)
+			}
 			domains = append(domains, d)
 		}
 	}
@@ -163,6 +174,8 @@ type lister struct {
 	store *Store
 	tab   atomic.Pointer[table]
 	http  *http.Client
+	// missing is the lists the last load couldn't read off disk.
+	missing atomic.Pointer[[]string]
 }
 
 func newLister(dir string, store *Store) *lister {
@@ -175,15 +188,21 @@ func (l *lister) path(key string) string { return filepath.Join(l.dir, key+".txt
 // things straight away without waiting on the network.
 func (l *lister) load() {
 	sets := make([][]string, len(lists))
+	var missing []string
 	for i, li := range lists {
 		f, err := os.Open(l.path(li.Key))
 		if err != nil {
+			missing = append(missing, li.Key)
 			continue
 		}
-		sets[i], _, _ = parse(f)
+		sets[i], _, err = parse(f)
 		f.Close()
+		if err != nil || len(sets[i]) == 0 {
+			missing = append(missing, li.Key)
+		}
 	}
 	l.tab.Store(build(sets))
+	l.missing.Store(&missing)
 }
 
 // Swings bigger than these are refused, since a list that halved or tripled
@@ -192,6 +211,10 @@ const (
 	minEntries = 50
 	maxShrink  = 0.5
 	maxGrow    = 3.0
+	// maxBytes caps any download, and a list we already have can only come
+	// back four times its size. Container memory is 320M.
+	maxBytes   = 40 << 20
+	maxEntries = 2_000_000
 )
 
 var errSwing = errors.New("refused")
@@ -233,23 +256,37 @@ func (l *lister) fetch(ctx context.Context, li List, had int) (int, string, erro
 	if resp.StatusCode != http.StatusOK {
 		return 0, "", fmt.Errorf("answered %d", resp.StatusCode)
 	}
+	limit := int64(maxBytes)
+	if st, err := os.Stat(l.path(li.Key)); err == nil && st.Size()*4 < limit {
+		limit = max(st.Size()*4, 1<<20)
+	}
 	tmp := l.path(li.Key) + ".new"
 	f, err := os.Create(tmp)
 	if err != nil {
 		return 0, "", err
 	}
 	defer os.Remove(tmp)
-	if _, err := io.Copy(f, io.LimitReader(resp.Body, 256<<20)); err != nil {
-		f.Close()
+	n64, err := io.Copy(f, io.LimitReader(resp.Body, limit+1))
+	f.Close()
+	if err != nil {
 		return 0, "", err
 	}
-	f.Close()
+	if n64 > limit {
+		return 0, "", fmt.Errorf("%w, bigger than %d bytes", errSwing, limit)
+	}
 	f, err = os.Open(tmp)
 	if err != nil {
 		return 0, "", err
 	}
-	domains, version, err := parse(f)
+	most := maxEntries
+	if had > 0 {
+		most = int(float64(had)*maxGrow) + 1
+	}
+	domains, version, err := parseUpTo(f, most)
 	f.Close()
+	if errors.Is(err, errTooMany) {
+		return 0, "", fmt.Errorf("%w, %v", errSwing, err)
+	}
 	if err != nil {
 		return 0, "", err
 	}
