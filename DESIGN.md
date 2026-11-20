@@ -594,10 +594,26 @@ below live as tokens at the top of `frontend/src/index.css`.
   desktop, on an Arcade shelf for the quick games with the deepest first, a
   Puzzles shelf for the slower thinking ones, and a Classics shelf for retired
   games that still play but pay nothing, each under a section head. Under the
-  jars, Every day has the race, the snail derby, the wheel and the old log
-  as rows like the Next strip's, with a green edge and a lamp key while
-  there's something to do, and the three logs to pick from inside the log's
-  row. The derby's row names the race and whose snail is the favourite.
+  jars, Every day has the race, the snail derby, the wheel, the old log and
+  the rain barrel as rows like the Next strip's, with a green edge and a lamp
+  key while there's something to do, and the three logs to pick from inside
+  the log's row. The derby's row names the race and whose snail is the
+  favourite.
+- **The rain barrel is a picture inside its row**, under the old log, 120px
+  tall at two CSS pixels a pixel and as wide as the row, the scene in the
+  middle and the night sky, treeline and ground carried on to the sides. A
+  lantern on the bank, a stream groove down it, a wooden sieve on two stakes
+  with what it caught sitting in the mesh as small coloured lumps, a spout,
+  the barrel with its water showing in the mouth as high as it's full, and a
+  garden bed. The groove is dry mud until it really rains, then it runs with
+  pale streaks into the sieve and down the spout while rain falls over it all.
+  Its line says what's in the sieve, and under the picture are a lamp Tip it
+  out key and a ghost Water the garden key, greyed with the reason on a wet
+  or frosty day. Tipping lifts the sieve, pops each thing up out of it with
+  its icon and count while the pops climb the pentatonic scale, then turns
+  the barrel over whole toward the bank, or toward the garden whose sprouts
+  shoot up and flower, and pours it out in an arc. Reduced motion gets the
+  still picture and the pops fading in place.
 - **A side game fills a tall phone.** The field sits in the middle and the
   room over and under it is a flat colour the game names, or its top and
   bottom rows stretched where that carries the scene on. Crossing takes more
