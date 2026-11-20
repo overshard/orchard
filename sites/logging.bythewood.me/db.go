@@ -122,6 +122,9 @@ func dsn(path string) string {
 		"&_pragma=synchronous(NORMAL)" +
 		"&_pragma=busy_timeout(5000)" +
 		"&_pragma=foreign_keys(ON)" +
+		// Search walks a month of rows, and reading pages through a map skips
+		// a syscall per page.
+		"&_pragma=mmap_size(268435456)" +
 		// A deferred transaction that reads first gets SQLITE_BUSY on the upgrade
 		// to a write, and busy_timeout does not retry that.
 		"&_txlock=immediate"
