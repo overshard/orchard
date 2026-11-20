@@ -4,7 +4,7 @@
   <div>
     <span class="o-lab">llm &middot; keys</span>
     <h1>{{.Headline}}</h1>
-    <p>Every call is kept with the key that made it, and revoking one stops it on the next request.</p>
+    <p>Every call is kept with the key that made it, and revoking one stops it on the next request. A key with a monthly cap gets a 422 once it has spent it, until the 1st.</p>
   </div>
 </div>
 
@@ -22,7 +22,7 @@
     <form method="post" action="/keys" class="o-form" style="grid-template-columns:1fr">
       <label class="o-field">
         <span>What will use it</span>
-        <input type="text" name="name" placeholder="cron" required maxlength="60" autocomplete="off">
+        <input type="text" id="new" name="name" placeholder="cron" required maxlength="60" autocomplete="off" data-act="make a key">
       </label>
       <div class="o-formbar"><button type="submit" class="o-btn o-btn-p o-btn-sm">Make key</button></div>
     </form>
@@ -33,7 +33,7 @@
     {{if .Keys}}
     <div class="o-scroll">
     <table class="o-tbl stack">
-      <thead><tr><th>Name</th><th>Last 14 days</th><th class="r">Calls 14d</th><th class="r">Spent</th><th>Key</th><th>Made</th><th>Last used</th><th></th></tr></thead>
+      <thead><tr><th>Name</th><th>Last 14 days</th><th class="r">Calls 14d</th><th class="r">Spent</th><th>Monthly cap</th><th>Key</th><th>Made</th><th>Last used</th><th></th></tr></thead>
       <tbody>
       {{range .Keys}}
         <tr {{if .Revoked}}class="off"{{end}}>
@@ -41,7 +41,10 @@
           {{$u := index $.Use .ID}}
           <td class="o-cell-spark">{{if $u}}{{spark (or (and .Revoked "flat") "ok") $u.Days}}{{end}}</td>
           <td class="r n" data-l="14d">{{if $u}}{{num $u.Calls}}{{else}}0{{end}}</td>
-          <td class="r n" data-l="spent">{{if $u}}${{printf "%.2f" $u.Spent}}{{else}}$0.00{{end}}</td>
+          {{$spent := 0.0}}{{if $u}}{{$spent = $u.Spent}}{{end}}
+          {{$cap := dollars .CapMicros}}
+          <td class="r n {{if and (gt $cap 0.0) (ge $spent $cap)}}o-bad{{else if and (gt $cap 0.0) (ge $spent (mul $cap 0.8))}}o-warn{{end}}" data-l="spent">{{usd $spent}}{{if gt $cap 0.0}}<span class="o-muted"> of {{usd $cap}}</span>{{end}}</td>
+          <td data-l="cap">{{if not .Revoked}}<form method="post" action="/keys/{{.ID}}/cap" class="capf"><input class="o-in mono" type="text" inputmode="decimal" name="cap" value="{{if .CapMicros}}{{printf "%.2f" $cap}}{{end}}" placeholder="none" aria-label="Monthly cap for {{.Name}} in dollars" size="6"><button type="submit" class="o-btn o-btn-sm">Set</button></form>{{else}}<span class="o-muted">&ndash;</span>{{end}}</td>
           <td class="n o-muted hide">{{.Prefix}}&hellip;</td>
           <td class="n o-muted hide">{{when .Created}}</td>
           <td class="n o-muted" data-l="used">{{when .Used}}</td>
@@ -50,7 +53,7 @@
               <span class="o-chip">revoked</span>
               <form method="post" action="/keys/{{.ID}}/delete" data-confirm="Delete {{.Name}} for good?"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete</button></form>
             {{else}}
-              <form method="post" action="/keys/{{.ID}}/revoke" data-confirm="Revoke {{.Name}}? It stops working on its next request."><button type="submit" class="o-btn o-btn-sm o-btn-bad">Revoke</button></form>
+              <form method="post" action="/keys/{{.ID}}/revoke" data-undo="Revoked {{.Name}}"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Revoke</button></form>
             {{end}}
           </td>
         </tr>
