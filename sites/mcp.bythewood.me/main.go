@@ -94,7 +94,7 @@ func main() {
 }
 
 func newSite(store *Store, auth *web.Authenticator) (*site, error) {
-	tpl, err := template.New("").Funcs(suite.FuncsWith(template.FuncMap{"ago": ago, "secs": secs, "comma": comma, "asset": assetURL, "filterURL": filterURL, "dict": dict, "pct": pct})).ParseFS(templateFS, "templates/*.html")
+	tpl, err := template.New("").Funcs(suite.FuncsWith(template.FuncMap{"ago": ago, "secs": secs, "comma": comma, "asset": assetURL, "filterURL": filterURL, "dict": dict, "pct": pct, "json": jsonHTML, "argPairs": argPairs, "days": days, "clientState": clientStateOf, "count": count})).ParseFS(templateFS, "templates/*.html")
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +113,7 @@ func (s *site) handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("GET /calls", s.auth.RequireAuth(s.callsPage))
+	mux.HandleFunc("GET /tools", s.auth.RequireAuth(s.toolsPage))
 	mux.HandleFunc("GET /docs", s.docs)
 	mux.Handle("GET /static/", static())
 	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
@@ -188,6 +189,13 @@ func dict(kv ...any) map[string]any {
 	}
 	return m
 }
+
+// days is a duration from now in whole days, for an expiry.
+func days(t time.Time) int {
+	return int(time.Until(t).Hours() / 24)
+}
+
+func clientStateOf(m map[string]clientState, key string) clientState { return m[key] }
 
 func pct(n, top int) int {
 	if top <= 0 {

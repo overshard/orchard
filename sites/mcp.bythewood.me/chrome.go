@@ -16,7 +16,7 @@ func (s *site) chrome(r *http.Request, on string) (suite.Page, bool) {
 	p := suite.Page{Tool: "mcp", SignedIn: in, Source: sourceURL, Author: author, Year: time.Now().Year(), Meta: resourceURL}
 	tabs := []suite.Tab{{Name: "home", Href: "/"}, {Name: "docs", Href: "/docs"}, {Name: "source", Href: sourceURL}}
 	if in {
-		tabs = []suite.Tab{{Name: "overview", Href: "/"}, {Name: "calls", Href: "/calls"}, {Name: "docs", Href: "/docs"}}
+		tabs = []suite.Tab{{Name: "overview", Href: "/"}, {Name: "calls", Href: "/calls"}, {Name: "tools", Href: "/tools"}, {Name: "docs", Href: "/docs"}}
 	}
 	for _, t := range tabs {
 		t.On = t.Name == on

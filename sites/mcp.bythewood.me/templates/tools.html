@@ -1,0 +1,90 @@
+{{define "tools.html"}}{{template "head" (dict "Title" "Tools" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">mcp &middot; tools &middot; 7d</span>
+    <h1>{{.Headline}}</h1>
+    <div class="o-pm"><span>calls<b>{{comma .Calls}}</b></span><span>failed<b {{if .Failed}}class="bad"{{end}}>{{.Failed}}</b></span><span>p50<b>{{secs .P50}}</b></span><span>never called<b>{{.Never}}</b></span><span>connectors<b>{{.Grants}}</b></span></div>
+  </div>
+  <div class="o-acts">
+    <a class="o-btn o-btn-sm" href="/calls?failed=1&amp;range=7d" data-act="failed calls this week">Failed calls</a>
+    <a class="o-btn o-btn-sm" href="/docs">Docs</a>
+  </div>
+</div>
+
+<div>
+<div class="o-strip">
+  <a class="o-tile" href="/calls?range=7d">
+    <small>every tool</small>
+    <b>{{comma .Calls}}</b>
+    <span class="o-delta">p50 {{secs .P50}}</span>
+    {{sparkT "flat" .Week .Labels}}
+  </a>
+  <a class="o-tile" href="/calls?failed=1&amp;range=7d">
+    <small>failed</small>
+    <b {{if .Failed}}class="bad"{{end}}>{{.Failed}}</b>
+    <span class="o-delta {{if .Failed}}o-bad{{end}}">{{if .Failed}}{{count .Failing "tool" "tools"}}{{else}}every call answered{{end}}</span>
+    {{sparkT (or (and .Failed "bad") "flat") .WeekFailed .Labels}}
+  </a>
+  {{range .Rows}}
+  <a class="o-tile" href="/calls?tool={{.Name}}&amp;range=7d">
+    <small>{{.Name}}</small>
+    <b {{if .Failed}}class="bad"{{end}}>{{.Calls}}</b>
+    <span class="o-delta {{if .Failed}}o-bad{{end}}">{{if .Failed}}{{.Failed}} failed{{else if .LastUsed.IsZero}}never called{{else if .Calls}}p50 {{secs .P50}}{{else}}used {{ago .LastUsed}}{{end}}</span>
+    {{sparkT .Spark .Week .WeekLabels}}
+  </a>
+  {{end}}
+</div>
+<p class="o-foot"><span data-xs-when>calls a day for the last 7 UTC days, red where a tool failed</span></p>
+</div>
+
+<section class="o-panel flush">
+  <div class="o-ph2"><h2>Tools</h2><span class="o-pm"><span>trouble first</span><span>read only<b>{{.Reads}}/{{len .Rows}}</b></span></span></div>
+  <div class="o-scroll">
+  <table class="o-tbl stack tooltab" data-keys>
+    <thead><tr><th>Tool</th><th>Reads</th><th>7d</th><th class="r">Calls</th><th class="r">Failed</th><th class="r">p50</th><th>Last used</th><th>14d</th><th>Last error</th></tr></thead>
+    <tbody>
+    {{range .Rows}}
+      <tr data-href="/calls?tool={{.Name}}" {{if .Failed}}class="hot"{{end}}>
+        <td class="lead n"><span class="o-dot {{if .Failed}}bad{{else if .LastUsed.IsZero}}mute{{end}}"></span><a href="/calls?tool={{.Name}}">{{.Name}}</a>{{if .Writes}} <span class="o-chip warn" data-tip="proposes a gate rule that only watches until it's turned on">writes</span>{{end}}</td>
+        <td class="o-muted full">{{.Title}}</td>
+        <td class="cellspark" data-l="7d">{{spark .Spark .Week}}</td>
+        <td class="r n" data-l="calls">{{.Calls}}</td>
+        <td class="r n {{if .Failed}}o-bad{{end}}" data-l="failed">{{.Failed}}</td>
+        <td class="r n" data-l="p50">{{if .Calls}}{{secs .P50}}{{else}}&ndash;{{end}}</td>
+        <td class="n nw" data-l="last used">{{if .LastUsed.IsZero}}<span class="o-muted">never</span>{{else}}<span data-tip="{{.LastUsed.UTC.Format "2006-01-02 15:04 UTC"}}">{{ago .LastUsed}}</span>{{end}}</td>
+        <td data-l="14d"><span class="o-ds">{{range .Days}}<i class="{{.Kind}}" data-tip="{{.Tip}}"></i>{{end}}</span></td>
+        <td class="clip full {{if .Failed}}o-bad{{else}}o-muted{{end}}" data-l="last error">{{if .LastErr}}<span data-tip="{{.LastErr}}&#10;{{ago .LastErrAt}}">{{.LastErr}}</span>{{else if .LastUsed.IsZero}}never called{{else}}&middot;{{end}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+</section>
+<p class="o-hint"><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>enter</kbd>open its calls</span><span><kbd>?</kbd>every key</span></p>
+
+<div class="o-band b4">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Failures by cause</h2><span class="o-pm"><span>7d<b {{if .Failed}}class="bad"{{end}}>{{.Failed}}</b></span></span></div>
+    {{template "causes" .Causes}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>By connector</h2><span class="o-pm"><span>7d</span></span></div>
+    {{range .Conns}}<div class="o-hbar"><a class="k" href="/calls?client={{.ClientName}}&amp;range=7d">{{.ClientName}}</a><span class="bar"><i class="{{if .Idle}}warn{{end}}" style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{.Week}}</span></div>{{else}}<p class="o-empty"><b>Nothing connected.</b>The <a href="/docs">docs</a> say how to add it.</p>{{end}}
+    {{if .Conns}}<p class="o-foot">sessions end in {{range $i, $c := .Conns}}{{if $i}} and {{end}}{{days $c.Expires}}d{{end}}</p>{{end}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Most asked</h2><span class="o-pm"><span>arguments &middot; 7d</span></span></div>
+    {{range .Args}}<div class="o-hbar"><a class="k o-mono" href="/calls?q={{.Arg}}&amp;range=7d">{{.Arg}}</a><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{.N}}</span></div>{{else}}<p class="o-empty"><b>No arguments yet.</b>Calls that take one, like a property or a query, show here.</p>{{end}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Approval in Claude</h2><span class="o-pm"><span>hints</span></span></div>
+    <dl class="o-kv">
+      <dt>read only</dt><dd class="o-mono">{{.Reads}}/{{len .Rows}}</dd>
+      <dt>writes</dt><dd class="o-mono">{{.Writes}}</dd>
+      <dt>destructive</dt><dd class="o-mono">0</dd>
+      <dt>open world</dt><dd class="o-mono">0</dd>
+    </dl>
+    <p class="o-muted small">Always allow is safe for every read only tool. {{if .Writes}}gate_propose only adds a rule that watches until you turn it on in gate, so it can ask each time.{{end}}</p>
+  </section>
+</div>
+{{template "foot" .}}{{end}}

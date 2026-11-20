@@ -6,19 +6,20 @@
     <p>Every tool, read only but gate proposals, at <span class="o-mono">{{.Resource}}</span>.</p>
   </div>
   <div class="o-acts">
-    <a class="o-btn o-btn-sm" href="/calls?failed=1">Failed calls</a>
+    <a class="o-btn o-btn-sm" href="/tools">Tools</a>
+    <a class="o-btn o-btn-sm" href="/calls?failed=1&amp;range=24h">Failed calls</a>
     <a class="o-btn o-btn-sm" href="https://auth.bythewood.me/sessions">Sessions on auth</a>
   </div>
 </div>
 
 <div class="o-tiles">
-  <a class="o-tile" href="/calls">
+  <a class="o-tile" href="/calls?range=24h">
     <small>tool calls &middot; 24h</small>
     <b>{{comma .Day.Calls}}</b>
     <span class="o-delta">by the hour</span>
     {{spark "ok" .Day.ByHour}}
   </a>
-  <a class="o-tile" href="/calls?failed=1">
+  <a class="o-tile" href="/calls?failed=1&amp;range=24h">
     <small>failed &middot; 24h</small>
     <b {{if .Day.Failed}}class="bad"{{end}}>{{.Day.Failed}}</b>
     <span class="o-delta {{if .Day.Failed}}o-bad{{end}}">{{if .Day.Failed}}see which{{else}}every call answered{{end}}</span>
@@ -49,10 +50,14 @@
       <div class="o-ph2"><h2>By tool</h2><span class="o-lab">last week</span></div>
       {{range .Tools}}<div class="o-hbar"><span class="k o-mono"><a href="/calls?tool={{.Tool}}">{{.Tool}}</a></span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v {{if .Failed}}o-bad{{end}}">{{.Calls}}</span></div>{{end}}
     </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Failures by cause</h2><span class="o-lab">last week</span></div>
+      {{template "causes" .Causes}}
+    </section>
     <section class="o-panel flush">
-      <div class="o-ph2"><h2>Connectors</h2><span class="o-lab">revoke on auth</span></div>
+      <div class="o-ph2"><h2>Connectors</h2><a class="o-lab" href="https://auth.bythewood.me/sessions">revoke on auth &rarr;</a></div>
       {{if .Grants}}
-      {{range .Grants}}<div class="o-rw grant"><span class="o-dot"></span><a class="n" href="/calls?client={{.ClientName}}">{{.ClientName}}</a><span class="m">allowed {{ago .Created}} &middot; {{if .LastUsed.IsZero}}never used{{else}}used {{ago .LastUsed}}{{end}}</span><span class="o-chip">{{.Week}} this week</span></div>{{end}}
+      {{range .Grants}}<div class="o-rw grant"><span class="o-dot {{if .Idle}}warn{{end}}"></span><a class="n" href="/calls?client={{.ClientName}}">{{.ClientName}}</a><span class="m">allowed {{ago .Created}} &middot; {{if .LastUsed.IsZero}}never used{{else}}used {{ago .LastUsed}}{{end}} &middot; <span data-tip="its session on auth ends {{.Expires.UTC.Format "Jan 2 2006"}}">ends in {{days .Expires}}d</span></span>{{if .Idle}}<a class="o-chip warn" href="https://auth.bythewood.me/sessions" data-tip="unused for 30 days, revoke it on auth if it's not wanted">idle 30d</a>{{end}}<span class="o-chip">{{.Week}} this week</span></div>{{end}}
       {{else}}<p class="o-empty"><b>Nothing connected.</b>The <a href="/docs">docs</a> say how to add it.</p>{{end}}
     </section>
     <section class="o-panel flush">

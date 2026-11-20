@@ -15,6 +15,7 @@
 </main>
 {{template "suite-foot" .Suite}}
 <script type="module" src="{{asset "static/guest.js"}}"></script>
+<script type="module" src="{{asset "static/app.js"}}"></script>
 </body>
 </html>
 {{end}}
@@ -27,11 +28,11 @@
   <thead><tr><th>When</th><th>Connector</th><th>Tool</th><th>Asked</th><th>Result</th><th class="r">Size</th><th class="r">Took</th></tr></thead>
   <tbody>
   {{range .}}
-    <tr data-href="/calls#call-{{.ID}}" {{if not .OK}}class="hot"{{end}}>
+    <tr data-href="/calls?id={{.ID}}" {{if not .OK}}class="hot"{{end}}>
       <td class="n" title="{{.At.UTC.Format "2006-01-02 15:04:05 UTC"}}">{{ago .At}}</td>
       <td class="nw o-muted">{{.Client}}</td>
-      <td class="lead n"><a href="/calls#call-{{.ID}}">{{if .Tool}}{{.Tool}}{{else}}<span class="o-muted">{{.Method}}</span>{{end}}</a></td>
-      <td class="clip full o-muted mono" title="{{.Args}}">{{if .Args}}{{.Args}}{{else}}&middot;{{end}}</td>
+      <td class="lead n"><a href="/calls?id={{.ID}}">{{if .Tool}}{{.Tool}}{{else}}<span class="o-muted">{{.Method}}</span>{{end}}</a></td>
+      <td class="clip full o-muted mono" data-l="asked">{{range $i, $p := argPairs .Args}}{{if $i}} {{end}}{{index $p 0}}={{index $p 1}}{{else}}{{if .Args}}{{.Args}}{{else}}&middot;{{end}}{{end}}</td>
       <td>{{template "callchip" .}}</td>
       <td class="r n o-muted" data-l="size">{{if .Chars}}{{comma .Chars}}{{else}}&middot;{{end}}</td>
       <td class="r n" data-l="took">{{secs .MS}}</td>
@@ -41,3 +42,68 @@
 </table>
 </div>
 {{end}}
+
+{{define "causes"}}
+{{range .}}<div class="o-hbar"><span class="k" data-tip="newest: {{.Last}}">{{.Cause}}</span><span class="bar"><i class="bad" style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{.N}}</span></div>
+{{else}}<p class="o-empty"><b>Nothing failed.</b>A failed call shows here grouped with others like it, a timeout with the timeouts.</p>{{end}}
+{{end}}
+
+{{define "calltable"}}
+<table class="o-tbl stack calltbl" data-keys>
+  <thead><tr><th>When</th><th>Tool</th><th>Arguments</th><th>Connector</th><th class="r">Size</th><th class="r">Took</th><th>Result</th></tr></thead>
+  <tbody>
+  {{range .}}
+    <tr id="call-{{.ID}}" {{if not .OK}}class="hot"{{end}}>
+      <td class="n nw" data-tip="{{.At.UTC.Format "2006-01-02 15:04:05 UTC"}}">{{ago .At}}</td>
+      <td class="lead n"><b>{{if .Tool}}{{.Tool}}{{else}}<span class="o-muted">{{.Method}}</span>{{end}}</b></td>
+      <td class="clip full o-muted mono" data-l="args">{{range $i, $p := argPairs .Args}}{{if $i}} {{end}}{{index $p 0}}={{index $p 1}}{{else}}{{if .Args}}{{.Args}}{{else}}&middot;{{end}}{{end}}</td>
+      <td class="nw o-muted" data-l="connector">{{.Client}}</td>
+      <td class="r n o-muted" data-l="size">{{if .Chars}}{{comma .Chars}}{{else}}&middot;{{end}}</td>
+      <td class="r n" data-l="took">{{secs .MS}}</td>
+      <td>{{template "callchip" .}}</td>
+    </tr>
+    <tr class="o-drawer" data-call="{{.ID}}">
+      <td colspan="7">
+        {{$x := .Exchange}}
+        <div class="drawhead">
+          <div class="o-seg seg-sm" role="radiogroup" aria-label="View">
+            <label><input type="radio" name="view-{{.ID}}" value="formatted" checked><span>formatted</span></label>
+            <label><input type="radio" name="view-{{.ID}}" value="raw"><span>raw</span></label>
+          </div>
+          <span class="o-sp"></span>
+          <button type="button" class="o-btn o-btn-sm" data-copy-call>Copy</button>
+          {{if .Tool}}<a class="o-btn o-btn-sm" href="/calls?tool={{.Tool}}">Every {{.Tool}} call</a>{{end}}
+          <a class="o-btn o-btn-sm" href="/calls?id={{.ID}}">Link</a>
+        </div>
+        <div class="o-band b2 view-formatted">
+          <div>
+            <span class="o-lab plain o-muted">arguments</span>
+            <dl class="o-kv">
+              {{range argPairs .Args}}<dt>{{index . 0}}</dt><dd class="o-mono">{{index . 1}}</dd>{{else}}{{if .Args}}<dt>as sent</dt><dd class="o-mono">{{.Args}}</dd>{{else}}<dt>none</dt><dd class="o-muted">{{if .Tool}}asked with no arguments{{else}}{{.Method}} takes none{{end}}</dd>{{end}}{{end}}
+              <dt>connector</dt><dd>{{.Client}}</dd>
+              <dt>method</dt><dd class="o-mono">{{.Method}}</dd>
+              <dt>took</dt><dd class="o-mono">{{secs .MS}}</dd>
+              <dt>at</dt><dd class="o-mono">{{.At.UTC.Format "2006-01-02 15:04:05 UTC"}}</dd>
+            </dl>
+          </div>
+          <div>
+            <span class="o-lab plain {{if .OK}}o-muted{{else}}o-bad{{end}}">{{if .OK}}what came back{{else}}error{{end}}</span>
+            {{if .Err}}<pre class="o-code wrap bad" data-part="text">{{.Err}}</pre>
+            {{else if .Preview}}<pre class="o-code wrap" data-part="text">{{.Preview}}</pre>
+            {{else}}<p class="o-muted small" data-part="text">{{if .Tool}}nothing came back{{else}}the answer to {{.Method}} isn't kept{{end}}</p>{{end}}
+            {{if .Chars}}<p class="o-foot">{{comma .Chars}} characters{{if .Cut}}, the first 600 kept{{end}}</p>{{end}}
+          </div>
+        </div>
+        <div class="o-band b2 view-raw" hidden>
+          <div><span class="o-lab plain o-muted">request</span><pre class="o-code json" data-part="request">{{json $x.Request}}</pre></div>
+          <div><span class="o-lab plain o-muted">response</span><pre class="o-code json" data-part="response">{{json $x.Response}}</pre></div>
+        </div>
+        <p class="o-foot view-raw" hidden>rebuilt from what's kept{{with $x.Note}}, {{.}}{{end}}</p>
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}
+
+{{define "handshake"}}{{if .Connected}}<span class="o-lab">{{if .Handshake.IsZero}}connected{{else}}last handshake <span data-tip="{{.Handshake.UTC.Format "2006-01-02 15:04 UTC"}}">{{ago .Handshake}}</span>{{end}}</span>{{else}}<span class="o-lab o-muted">not connected</span>{{end}}{{end}}

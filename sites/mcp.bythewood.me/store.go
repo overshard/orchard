@@ -6,8 +6,11 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -49,6 +52,7 @@ CREATE TABLE IF NOT EXISTS calls (
     preview  TEXT    NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS calls_at ON calls(at);
+CREATE INDEX IF NOT EXISTS calls_tool ON calls(tool, at);
 CREATE TABLE IF NOT EXISTS events (
     id     INTEGER PRIMARY KEY AUTOINCREMENT,
     at     INTEGER NOT NULL,
@@ -81,7 +85,39 @@ func OpenStore(path string) (*Store, error) {
 	if _, err := db.Exec(schema); err != nil {
 		return nil, err
 	}
+	if err := addColumns(db, "calls", map[string]string{
+		"rpc_id": "TEXT NOT NULL DEFAULT ''",
+		"code":   "INTEGER NOT NULL DEFAULT 0",
+	}); err != nil {
+		return nil, err
+	}
 	return &Store{db: db}, nil
+}
+
+// addColumns adds any of cols a table doesn't have yet, since SQLite has no
+// ADD COLUMN IF NOT EXISTS.
+func addColumns(db *sql.DB, table string, cols map[string]string) error {
+	rows, err := db.Query(`SELECT name FROM pragma_table_info(?)`, table)
+	if err != nil {
+		return err
+	}
+	have := map[string]bool{}
+	for rows.Next() {
+		var n string
+		if rows.Scan(&n) == nil {
+			have[n] = true
+		}
+	}
+	rows.Close()
+	for _, n := range slices.Sorted(maps.Keys(cols)) {
+		if have[n] {
+			continue
+		}
+		if _, err := db.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + n + ` ` + cols[n]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Store) Close() error { return s.db.Close() }
@@ -203,23 +239,36 @@ type Call struct {
 	Err     string
 	Chars   int
 	Preview string
+	// RPCID is the request's JSON-RPC id as it was sent. Code is the error
+	// code of a JSON-RPC error reply, or the HTTP status of a reply that
+	// wasn't JSON-RPC at all, like the challenge after a revoke.
+	RPCID string
+	Code  int
 }
 
 func (s *Store) AddCall(c Call) {
-	_, _ = s.db.Exec(`INSERT INTO calls (at, grant_id, client, method, tool, args, ms, ok, err, chars, preview) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		c.At.UnixMilli(), c.Grant, c.Client, c.Method, c.Tool, c.Args, c.MS, c.OK, c.Err, c.Chars, c.Preview)
+	_, _ = s.db.Exec(`INSERT INTO calls (at, grant_id, client, method, tool, args, ms, ok, err, chars, preview, rpc_id, code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		c.At.UnixMilli(), c.Grant, c.Client, c.Method, c.Tool, c.Args, c.MS, c.OK, c.Err, c.Chars, c.Preview, c.RPCID, c.Code)
 }
 
+// CallFilter narrows the calls table. Q matches anywhere in the arguments and
+// ID picks out one call.
 type CallFilter struct {
-	Tool, Client string
-	Failed       bool
-	Since        time.Time
-	Limit        int
+	Tool, Client, Q string
+	Range           string
+	Failed          bool
+	ID              int64
+	Since           time.Time
+	Limit           int
 }
 
-func (s *Store) Calls(f CallFilter) ([]Call, error) {
-	q := `SELECT id, at, grant_id, client, method, tool, args, ms, ok, err, chars, preview FROM calls WHERE at >= ?`
+func (f CallFilter) where() (string, []any) {
+	q := ` WHERE at >= ?`
 	args := []any{f.Since.UnixMilli()}
+	if f.ID > 0 {
+		q += ` AND id = ?`
+		args = append(args, f.ID)
+	}
 	if f.Tool != "" {
 		q += ` AND tool = ?`
 		args = append(args, f.Tool)
@@ -228,15 +277,26 @@ func (s *Store) Calls(f CallFilter) ([]Call, error) {
 		q += ` AND client = ?`
 		args = append(args, f.Client)
 	}
+	if f.Q != "" {
+		q += ` AND args LIKE ? ESCAPE '\'`
+		args = append(args, "%"+likeEscape(f.Q)+"%")
+	}
 	if f.Failed {
 		q += ` AND ok = 0`
 	}
+	return q, args
+}
+
+func likeEscape(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
+}
+
+func (s *Store) Calls(f CallFilter) ([]Call, error) {
+	where, args := f.where()
 	if f.Limit <= 0 {
 		f.Limit = 200
 	}
-	q += ` ORDER BY id DESC LIMIT ?`
-	args = append(args, f.Limit)
-	rows, err := s.db.Query(q, args...)
+	rows, err := s.db.Query(`SELECT id, at, grant_id, client, method, tool, args, ms, ok, err, chars, preview, rpc_id, code FROM calls`+where+` ORDER BY id DESC LIMIT ?`, append(args, f.Limit)...)
 	if err != nil {
 		return nil, err
 	}
@@ -245,12 +305,55 @@ func (s *Store) Calls(f CallFilter) ([]Call, error) {
 	for rows.Next() {
 		var c Call
 		var at int64
-		if rows.Scan(&c.ID, &at, &c.Grant, &c.Client, &c.Method, &c.Tool, &c.Args, &c.MS, &c.OK, &c.Err, &c.Chars, &c.Preview) == nil {
+		if rows.Scan(&c.ID, &at, &c.Grant, &c.Client, &c.Method, &c.Tool, &c.Args, &c.MS, &c.OK, &c.Err, &c.Chars, &c.Preview, &c.RPCID, &c.Code) == nil {
 			c.At = time.UnixMilli(at)
 			out = append(out, c)
 		}
 	}
 	return out, rows.Err()
+}
+
+// CountCalls is how many calls match a filter, failed ones too, ignoring Limit.
+func (s *Store) CountCalls(f CallFilter) (n, failed int) {
+	where, args := f.where()
+	_ = s.db.QueryRow(`SELECT COUNT(*), COALESCE(SUM(ok = 0), 0) FROM calls`+where, args...).Scan(&n, &failed)
+	return n, failed
+}
+
+// Clients is every connector name that made a call since a time.
+func (s *Store) Clients(since time.Time) []string {
+	rows, err := s.db.Query(`SELECT DISTINCT client FROM calls WHERE at >= ? ORDER BY client`, since.UnixMilli())
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var c string
+		if rows.Scan(&c) == nil {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// LastHandshake is when each connector last opened a session with the server,
+// by initialize or server/discover.
+func (s *Store) LastHandshake() map[string]time.Time {
+	out := map[string]time.Time{}
+	rows, err := s.db.Query(`SELECT client, MAX(at) FROM calls WHERE method IN ('initialize', 'server/discover') GROUP BY client`)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var c string
+		var at int64
+		if rows.Scan(&c, &at) == nil {
+			out[c] = time.UnixMilli(at)
+		}
+	}
+	return out
 }
 
 // Event is something that happened to a connector rather than a call it

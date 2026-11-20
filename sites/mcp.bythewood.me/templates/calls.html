@@ -2,14 +2,25 @@
 {{$f := .Filter}}
 <div class="o-ph">
   <div>
-    <span class="o-lab">mcp &middot; calls{{with $f.Tool}} &middot; {{.}}{{end}}{{with $f.Client}} &middot; {{.}}{{end}}{{if $f.Failed}} &middot; failed{{end}}</span>
-    <h1>{{.Head}} {{if eq (len .Calls) 1}}call{{else}}calls{{end}}{{if .Failed}}, <em class="bad">{{.Failed}} failed</em>{{end}}.</h1>
-    <p>Kept {{.Keep}} days with what was asked and the start of what came back. Every one is in logging too.</p>
+    <span class="o-lab">mcp &middot; calls &middot; {{$f.Range}}{{with $f.Tool}} &middot; {{.}}{{end}}{{with $f.Client}} &middot; {{.}}{{end}}{{if $f.Failed}} &middot; failed{{end}}</span>
+    <h1>{{.Head}} {{if eq .Total 1}}call{{else}}calls{{end}}{{if .Failed}}, <em class="bad">{{.Failed}} failed</em>{{end}}.</h1>
+    <div class="o-pm"><span>shown<b>{{len .Calls}}</b></span><span>failed<b {{if .Failed}}class="bad"{{end}}>{{.Failed}}</b></span><span>p50<b>{{secs .P50}}</b></span><span>kept<b>{{.Keep}}d</b></span></div>
   </div>
 </div>
 
+<form class="o-filters callsearch" method="get" action="/calls" role="search">
+  {{with $f.Tool}}<input type="hidden" name="tool" value="{{.}}">{{end}}
+  {{with $f.Client}}<input type="hidden" name="client" value="{{.}}">{{end}}
+  {{if $f.Failed}}<input type="hidden" name="failed" value="1">{{end}}
+  {{if ne $f.Range "90d"}}<input type="hidden" name="range" value="{{$f.Range}}">{{end}}
+  <input class="o-in" type="search" name="q" value="{{$f.Q}}" placeholder="Search the arguments, like shop or timeout" aria-label="Search the arguments">
+  <button type="submit" class="o-btn o-btn-sm">Search</button>
+  {{if .Filtered}}<a class="o-btn o-btn-sm" href="/calls">Clear</a>{{end}}
+</form>
+
 <nav class="o-filters" aria-label="Filter calls">
-  <a class="o-chip {{if and (not $f.Tool) (not $f.Client) (not $f.Failed)}}brass{{end}}" href="/calls">all</a>
+  {{range .Ranges}}<a class="o-chip {{.Kind}}" href="{{.Href}}">{{.Name}}</a>{{end}}
+  <span class="o-sep"></span>
   <a class="o-chip {{if $f.Failed}}bad{{end}}" href="{{filterURL $f "failed" (or (and $f.Failed "") "1")}}">failed only</a>
   <span class="o-sep"></span>
   {{range .Tools}}<a class="o-chip {{if eq .Name $f.Tool}}brass{{end}}" href="{{filterURL $f "tool" (or (and (eq .Name $f.Tool) "") .Name)}}">{{.Name}}</a>{{end}}
@@ -18,26 +29,13 @@
 </nav>
 
 {{if .Calls}}
-<div class="calllist">
-{{range .Calls}}
-<article class="o-panel call {{if not .OK}}bad{{end}}" id="call-{{.ID}}">
-  <header>
-    <span class="o-dot {{if not .OK}}bad{{end}}"></span>
-    <b class="o-mono">{{if .Tool}}{{.Tool}}{{else}}{{.Method}}{{end}}</b>
-    <span class="o-muted">{{.Client}}</span>
-    <span class="o-mono o-muted" title="{{.At.UTC.Format "2006-01-02 15:04:05 UTC"}}">{{ago .At}}</span>
-    <span class="o-sp"></span>
-    {{if .Chars}}<span class="o-mono o-muted">{{comma .Chars}} chars</span>{{end}}
-    <span class="o-mono">{{secs .MS}}</span>
-    {{template "callchip" .}}
-  </header>
-  {{if .Args}}<code class="args">{{.Args}}</code>{{end}}
-  {{if .Err}}<p class="o-bad o-mono callerr">{{.Err}}</p>{{end}}
-  {{if .Preview}}<details><summary>What came back <span class="o-muted">{{.Preview}}</span></summary><pre class="o-code">{{.Preview}}</pre></details>{{end}}
-</article>
-{{end}}
+<section class="o-panel flush">
+<div class="o-scroll">
+{{template "calltable" .Calls}}
 </div>
+</section>
+<p class="o-hint"><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>enter</kbd>open the call</span><span><kbd>?</kbd>every key</span></p>
 {{else}}
-<p class="o-empty"><b>Nothing{{with $f.Tool}} from {{.}}{{end}}{{if $f.Failed}} failed{{end}} in {{.Keep}} days.</b><a href="/calls">Show every call</a></p>
+<p class="o-empty"><b>Nothing{{with $f.Tool}} from {{.}}{{end}}{{if $f.Failed}} failed{{end}}{{with $f.Q}} asking for {{.}}{{end}} in {{$f.Range}}.</b>{{if .Filtered}}<a href="/calls">Show every call</a>{{else}}Add the connector to Claude and ask it something, it starts with orchard_brief.{{end}}</p>
 {{end}}
 {{template "foot" .}}{{end}}

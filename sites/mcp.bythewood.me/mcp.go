@@ -131,7 +131,7 @@ func (s *site) serveMCP(w http.ResponseWriter, r *http.Request) {
 	}
 	s.store.Touch(g.ID)
 	start := time.Now()
-	call := Call{At: start, Grant: g.ID, Client: g.ClientName, Method: req.Method, OK: true}
+	call := Call{At: start, Grant: g.ID, Client: g.ClientName, Method: req.Method, OK: true, RPCID: keptID(req.ID)}
 	defer func() {
 		call.MS = time.Since(start).Milliseconds()
 		s.store.AddCall(call)
@@ -169,7 +169,7 @@ func (s *site) serveMCP(w http.ResponseWriter, r *http.Request) {
 		call.Tool, call.Args = p.Name, compactArgs(p.Arguments)
 		t, ok := toolNamed(p.Name)
 		if !ok {
-			call.OK, call.Err = false, "no such tool"
+			call.OK, call.Err, call.Code = false, "no such tool", -32602
 			reply(w, 200, req.ID, nil, &rpcError{Code: -32602, Message: "no tool named " + p.Name})
 			return
 		}
@@ -182,7 +182,7 @@ func (s *site) serveMCP(w http.ResponseWriter, r *http.Request) {
 			// The session was revoked on auth's sessions page, so this grant is over.
 			s.store.Revoke(g.ID)
 			s.store.AddEvent("ended", g.ClientName, "auth no longer honours its session")
-			call.OK, call.Err = false, "session revoked"
+			call.OK, call.Err, call.Code = false, "session revoked", http.StatusUnauthorized
 			challenge(w)
 			return
 		}
@@ -194,13 +194,22 @@ func (s *site) serveMCP(w http.ResponseWriter, r *http.Request) {
 		call.Chars, call.Preview = len(text), preview(text)
 		reply(w, 200, req.ID, map[string]any{"resultType": "complete", "content": []map[string]string{{"type": "text", "text": text}}, "isError": isErr}, nil)
 	default:
-		call.OK, call.Err = false, "no such method"
+		call.OK, call.Err, call.Code = false, "no such method", -32601
 		status := 200
 		if modern {
 			status = http.StatusNotFound
 		}
 		reply(w, status, req.ID, nil, &rpcError{Code: -32601, Message: "no method " + req.Method})
 	}
+}
+
+// keptID is the request id to store, dropped when it's too long to be one a
+// client really numbers its requests with.
+func keptID(id json.RawMessage) string {
+	if len(id) > 64 {
+		return ""
+	}
+	return string(id)
 }
 
 // compactArgs keeps a call's arguments short enough to list.
