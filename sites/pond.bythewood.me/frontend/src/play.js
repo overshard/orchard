@@ -25,6 +25,7 @@ import { whirl, whirlArt } from "./whirl.js";
 import { sling, slingArt } from "./sling.js";
 import { pin, pinArt } from "./pin.js";
 import { derby, derbyArt } from "./derby.js";
+import { pusher, pushArt, pushCard } from "./pusher.js";
 
 // Every game on Play. A game is a key, a name, one line, the picture on its
 // title card and the game the frame runs. A new game is one line on its
@@ -62,7 +63,11 @@ export const SHELVES = [
 // The snail derby runs in the same frame but sits under Every day.
 export const DERBY = { key: "derby", name: "Snail derby", line: "Four snails on a mossy log and a free slip.", art: derbyArt, game: derby };
 
-export const JARS = [FLAGSHIP, ...SHELVES.flatMap((s) => s.jars), DERBY];
+// The pebble pusher is its own card under fishing, since its table keeps
+// and it has a day's drops in place of runs.
+export const PUSHER = { key: "pusher", name: "Pebble pusher", line: "Your own table. Drop pebbles and the shelf shoves the pile.", art: pushArt, game: pusher };
+
+export const JARS = [FLAGSHIP, PUSHER, ...SHELVES.flatMap((s) => s.jars), DERBY];
 
 // Each game's title card picture, and the race's, kept off the page.
 const LABELS = {};
@@ -87,13 +92,13 @@ function jarCard(d) {
 }
 
 // Fishing gets a card of its own over the jars.
-function featureCard(d) {
+function featureCard(d, cta) {
   const a = el("a", "feature"), cv = el("canvas"), text = el("span", "ftext"), pay = el("span", "fpay");
   a.href = "#" + d.key; a.id = "play-" + d.key;
   cv.id = "play-" + d.key + "-art"; cv.width = 60; cv.height = 44;
   cv.setAttribute("aria-hidden", "true");
   text.append(el("b", "", d.name), el("span", "", d.line), pay, el("span", "aimleds"));
-  a.append(cv, text, el("span", "cta", "Cast"));
+  a.append(cv, text, el("span", "cta", cta || "Cast"));
   return a;
 }
 
@@ -119,7 +124,7 @@ function gameView(d) {
 // buildPlay puts fishing on top and the jars on their shelves, and makes each
 // game's view, and has to run before a game's frame goes looking for its canvas.
 export function buildPlay(shelves, after) {
-  shelves.append(featureCard(FLAGSHIP));
+  shelves.append(featureCard(FLAGSHIP), featureCard(PUSHER, "Push"));
   SHELVES.forEach((s) => {
     const head = el("h2", "", s.name), row = el("div", "jars");
     if (s.note) head.append(el("span", "m", s.note));
@@ -160,6 +165,22 @@ export function showJar(key, a) {
   let seed = 0;
   for (const c of key) seed = seed * 31 + c.charCodeAt(0);
   paintJar(g, key, 0, 0, rng(seed), lit);
+}
+
+// showPusher draws the pond's own table on its card, with the drops waiting.
+export function showPusher(p) {
+  const v = p.pusher, card = $("play-pusher");
+  if (!card || !v) return;
+  card.hidden = !(p.open && p.open.works);
+  if (card.hidden) return;
+  const lit = v.drops > 0, word = v.full ? "Full, " + v.drops + " drops waiting" : lit ? v.drops + " drop" + (v.drops > 1 ? "s" : "") + " waiting" : "Out of drops, " + v.daily + " more tomorrow";
+  card.classList.toggle("lit", lit);
+  card.querySelector(".cta").classList.toggle("ghost", !lit);
+  const tag = el("span", "pay " + (lit ? "full" : "done"), word);
+  const n = v.prizes.length, pile = n ? " · " + n + " prize" + (n > 1 ? "s" : "") + " on the pile" : "";
+  card.querySelector(".fpay").replaceChildren(tag, document.createTextNode(v.on + " on the table" + pile));
+  card.setAttribute("aria-label", [PUSHER.name, word, v.on + " pebbles on the table"].join(". "));
+  pushCard($("play-pusher-art"), p);
 }
 
 // raceLine says where the pond is on today's board, or who's out front.

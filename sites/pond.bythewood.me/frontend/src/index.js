@@ -4,7 +4,7 @@ import { draw } from "./lit.js";
 import { drawIcon, iconCanvas, drawFurn } from "./icons.js";
 import { initDive, enterDive, leaveDive, diveMode } from "./dive.js";
 import { arcade } from "./arcade.js";
-import { buildPlay, drawLabels, JARS, raceLine, showJar } from "./play.js";
+import { buildPlay, drawLabels, JARS, raceLine, showJar, showPusher } from "./play.js";
 import { derbyLine } from "./derby.js";
 import { initBarrel, renderBarrel, showBarrel } from "./barrel.js";
 import { initWheel, enterWheel } from "./wheel.js";
@@ -108,7 +108,7 @@ function sortPips(p, todo) {
 
 function isOpen(v) {
   if (v === "market") return open.works && open.market;
-  return ["frogs", "reeds", "frog", "lay", "stamps", "job", "garden", "bank"].includes(v) ? open.works : true;
+  return ["frogs", "reeds", "frog", "lay", "stamps", "job", "garden", "bank", "pusher"].includes(v) ? open.works : true;
 }
 
 function townAt() { return document.querySelector('#town-tabs button[aria-pressed="true"]').dataset.town; }
@@ -960,6 +960,7 @@ function drawPlay() {
   drawLabels(g, p);
   showJar("dive", p.dive);
   (p.arcade || []).forEach((a) => showJar(a.key, a));
+  showPusher(p);
   document.querySelectorAll("#logs canvas").forEach((cv, i) => drawLog(cv, logTurned && logPick === i));
   showBarrel();
 }

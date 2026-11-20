@@ -72,6 +72,7 @@ const SFX = {
   },
   twang: () => { tone("square", 190, 95, 0.16, 0.05); tone("triangle", 720, 340, 0.09, 0.04); },
   creak: () => tone("triangle", 260, 300, 0.03, 0.025),
+  shove: () => { tone("sawtooth", 96, 72, 0.2, 0.035); tone("triangle", 190, 160, 0.14, 0.03); },
   reed: () => tone("sawtooth", 1500, 520, 0.05, 0.03),
   wood: () => { tone("square", 320, 130, 0.08, 0.05); tone("triangle", 900, 600, 0.03, 0.03); },
   mud: () => tone("sine", 210, 70, 0.12, 0.1),
