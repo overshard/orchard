@@ -14,7 +14,7 @@ const rand = rng(7);
 let w = world(rand);
 fresh(w, 90);
 w.spill = 10;
-let front = 0, sides = 0, holes = 0, showers = 0, shower = 0, biggest = 0, dropped = 0, day = 0, next = 1;
+let front = 0, sides = 0, holes = 0, showers = 0, shower = 0, biggest = 0, dropped = 0, day = 0;
 const prizeAt = new Map(), took = [], firstDays = [];
 let wonToday = 0;
 
@@ -28,7 +28,7 @@ function step(secs) {
       if (e.k === "shower") { showers++; shower += e.n; biggest = Math.max(biggest, e.n); }
     }
     w.events.length = 0;
-    for (const id of w.claimed) { took.push(day - prizeAt.get(id).day); prizeAt.delete(id); }
+    for (const id of w.claimed) { took.push(day - prizeAt.get(id).day); prizeAt.delete(id); w.ready.delete(id); }
     w.claimed.length = 0;
     for (const [id, p] of prizeAt) if (dropped - p.at >= 30) w.ready.add(id);
   }
@@ -38,7 +38,8 @@ while (dropped < total) {
   // A day's sitting starts from the table as the server kept it.
   const kept = pack(w), spill = w.spill, ready = w.ready;
   w = world(rand); unpack(w, kept); w.spill = spill; w.ready = ready;
-  if (prizeAt.size < 3) { const id = next++; prizeAt.set(id, { day, at: dropped }); place(w, id); }
+  // Prize ids are reused like the server's, the smallest one free.
+  if (prizeAt.size < 3) { let id = 1; while (prizeAt.has(id)) id++; prizeAt.set(id, { day, at: dropped }); place(w, id); }
   wonToday = 0;
   for (let i = 0; i < DAY && dropped < total; i++) {
     const x = aim === "hole" && i % 4 === 0 ? HOLE.x + (rand() - 0.5) * 6 : FX0 + 6 + rand() * (FX1 - FX0 - 12);
