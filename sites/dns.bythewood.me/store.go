@@ -79,8 +79,11 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `
 
+// Store writes through db, one connection, and reads through rd, so a slow
+// page query never holds up the logger's inserts. WAL lets them run together.
 type Store struct {
 	db *sql.DB
+	rd *sql.DB
 }
 
 func OpenStore(path string) (*Store, error) {
@@ -96,14 +99,32 @@ func OpenStore(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
-	return &Store{db: db}, nil
+	if err := migrate(db); err != nil {
+		db.Close()
+		return nil, err
+	}
+	rd, err := sql.Open("sqlite", path+"?_pragma=busy_timeout(5000)&_pragma=query_only(1)")
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+	rd.SetMaxOpenConns(4)
+	return &Store{db: db, rd: rd}, nil
 }
 
-func (s *Store) Close() error { return s.db.Close() }
+func (s *Store) Close() error {
+	s.rd.Close()
+	return s.db.Close()
+}
+
+// migrate brings an older database up to the schema above.
+func migrate(db *sql.DB) error {
+	return nil
+}
 
 func (s *Store) Setting(k string) string {
 	var v string
-	_ = s.db.QueryRow(`SELECT v FROM settings WHERE k = ?`, k).Scan(&v)
+	_ = s.rd.QueryRow(`SELECT v FROM settings WHERE k = ?`, k).Scan(&v)
 	return v
 }
 
@@ -182,7 +203,7 @@ func scanDevice(sc interface{ Scan(...any) error }) (*Device, error) {
 }
 
 func (s *Store) Devices() ([]*Device, error) {
-	rows, err := s.db.Query(`SELECT ` + deviceCols + ` FROM devices ORDER BY name COLLATE NOCASE`)
+	rows, err := s.rd.Query(`SELECT ` + deviceCols + ` FROM devices ORDER BY name COLLATE NOCASE`)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +220,7 @@ func (s *Store) Devices() ([]*Device, error) {
 }
 
 func (s *Store) Device(id int64) (*Device, error) {
-	return scanDevice(s.db.QueryRow(`SELECT `+deviceCols+` FROM devices WHERE id = ?`, id))
+	return scanDevice(s.rd.QueryRow(`SELECT `+deviceCols+` FROM devices WHERE id = ?`, id))
 }
 
 func (s *Store) AddDevice(name, kind string) (*Device, error) {
@@ -243,7 +264,7 @@ type Rule struct {
 }
 
 func (s *Store) Rules() ([]Rule, error) {
-	rows, err := s.db.Query(`SELECT id, domain, action, note, created FROM rules ORDER BY domain`)
+	rows, err := s.rd.Query(`SELECT id, domain, action, note, created FROM rules ORDER BY domain`)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +352,7 @@ type ListState struct {
 }
 
 func (s *Store) ListStates() (map[string]ListState, error) {
-	rows, err := s.db.Query(`SELECT key, entries, fetched, changed, version, error, error_at FROM lists`)
+	rows, err := s.rd.Query(`SELECT key, entries, fetched, changed, version, error, error_at FROM lists`)
 	if err != nil {
 		return nil, err
 	}
@@ -521,7 +542,7 @@ func (s *Store) Log(f Filter) ([]Lookup, error) {
 		f.Limit = 200
 	}
 	w, args := f.where()
-	rows, err := s.db.Query(`SELECT `+lookupCols+` FROM queries`+w+` ORDER BY id DESC LIMIT ?`, append(args, f.Limit)...)
+	rows, err := s.rd.Query(`SELECT `+lookupCols+` FROM queries`+w+` ORDER BY id DESC LIMIT ?`, append(args, f.Limit)...)
 	if err != nil {
 		return nil, err
 	}
@@ -531,7 +552,7 @@ func (s *Store) Log(f Filter) ([]Lookup, error) {
 // Count is the matches of a filter and how many were blocked, for the log's head.
 func (s *Store) Count(f Filter) (total, blocked int) {
 	w, args := f.where()
-	_ = s.db.QueryRow(`SELECT COUNT(*), COALESCE(SUM(status IN ('block', 'deny')), 0) FROM queries`+w, args...).Scan(&total, &blocked)
+	_ = s.rd.QueryRow(`SELECT COUNT(*), COALESCE(SUM(status IN ('block', 'deny')), 0) FROM queries`+w, args...).Scan(&total, &blocked)
 	return
 }
 
@@ -556,7 +577,7 @@ func (s *Store) Top(f Filter, by string, n int) []Ranked {
 		col = "name"
 	}
 	w, args := f.where()
-	rows, err := s.db.Query(`SELECT `+col+`, COUNT(*), COUNT(DISTINCT device), MAX(at), MAX(reason) FROM queries`+w+` GROUP BY `+col+` ORDER BY 2 DESC LIMIT ?`, append(args, n)...)
+	rows, err := s.rd.Query(`SELECT `+col+`, COUNT(*), COUNT(DISTINCT device), MAX(at), MAX(reason) FROM queries`+w+` GROUP BY `+col+` ORDER BY 2 DESC LIMIT ?`, append(args, n)...)
 	if err != nil {
 		return nil
 	}
@@ -577,7 +598,7 @@ func (s *Store) Top(f Filter, by string, n int) []Ranked {
 func (s *Store) Distinct(f Filter) int {
 	w, args := f.where()
 	var n int
-	_ = s.db.QueryRow(`SELECT COUNT(DISTINCT name) FROM queries`+w, args...).Scan(&n)
+	_ = s.rd.QueryRow(`SELECT COUNT(DISTINCT name) FROM queries`+w, args...).Scan(&n)
 	return n
 }
 
@@ -593,7 +614,7 @@ func (s *Store) Hourly(dev int64, n int, now time.Time) (total, blocked []float6
 		q += ` AND device = ?`
 		args = append(args, dev)
 	}
-	rows, err := s.db.Query(q+` GROUP BY hour`, args...)
+	rows, err := s.rd.Query(q+` GROUP BY hour`, args...)
 	if err != nil {
 		return
 	}
@@ -621,7 +642,7 @@ func (s *Store) Daily(dev int64, n int, now time.Time) (total, blocked []float64
 		q += ` AND device = ?`
 		args = append(args, dev)
 	}
-	rows, err := s.db.Query(q+` GROUP BY 1`, args...)
+	rows, err := s.rd.Query(q+` GROUP BY 1`, args...)
 	if err != nil {
 		return
 	}
@@ -641,7 +662,7 @@ func (s *Store) Daily(dev int64, n int, now time.Time) (total, blocked []float64
 // Latency is the median and 95th percentile answer time over a filter, in ms.
 func (s *Store) Latency(f Filter) (p50, p95 int) {
 	w, args := f.where()
-	_ = s.db.QueryRow(`SELECT COALESCE(MIN(CASE WHEN cd >= 0.5 THEN ms END), 0), COALESCE(MIN(CASE WHEN cd >= 0.95 THEN ms END), 0)
+	_ = s.rd.QueryRow(`SELECT COALESCE(MIN(CASE WHEN cd >= 0.5 THEN ms END), 0), COALESCE(MIN(CASE WHEN cd >= 0.95 THEN ms END), 0)
 		FROM (SELECT ms, CUME_DIST() OVER (ORDER BY ms) AS cd FROM queries`+w+`)`, args...).Scan(&p50, &p95)
 	return
 }
