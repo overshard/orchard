@@ -1,0 +1,83 @@
+{{define "traffic.html"}}{{template "head" (dict "Title" "Traffic" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">gate &middot; traffic &middot; {{.Range}}</span>
+    <h1>{{comma .Day.Checked}} checked, <em {{if .Day.Refused}}class="bad"{{end}}>{{comma .Day.Refused}} refused</em>.</h1>
+    {{if .F.Any}}<p class="filters">Only
+      {{if .F.ASN}}<a class="o-chip brass" href="{{.F.With "asn" ""}}">AS{{.F.ASN}} &times;</a>{{end}}
+      {{if .F.Country}}<a class="o-chip brass" href="{{.F.With "country" ""}}">{{.F.Country}} &times;</a>{{end}}
+      {{if .F.Host}}<a class="o-chip brass" href="{{.F.With "host" ""}}">{{.F.Host}} &times;</a>{{end}}
+      {{if .F.IP}}<a class="o-chip brass" href="{{.F.With "ip" ""}}">{{.F.IP}} &times;</a>{{end}}
+      {{if .F.Rule}}<a class="o-chip brass" href="{{.F.With "rule" ""}}">rule {{.F.Rule}} &times;</a>{{end}}
+      {{if .F.Verdict}}<a class="o-chip brass" href="{{.F.With "verdict" ""}}">{{.F.Verdict}} &times;</a>{{end}}
+    </p>{{else}}<p>Every request by network, country and host. Pick one to narrow the rest.</p>{{end}}
+  </div>
+  <div class="o-acts">
+    <nav class="o-seg links">{{range .Ranges}}<a href="{{$.F.With "range" .}}" {{if eq . $.Range}}class="on"{{end}}>{{.}}</a>{{end}}</nav>
+    {{if .F.Draft}}<a class="o-btn o-btn-p o-btn-sm" href="/rules/new?when={{.F.Draft}}">Rule from this</a>{{end}}
+  </div>
+</div>
+
+<div class="o-tiles">
+  <div class="o-tile"><small>checked</small><b>{{comma .Day.Checked}}</b><span class="o-delta">{{comma .Day.Passed}} passed, {{comma .Day.Exempt}} orchard or signed in</span>{{spark "ok" .Day.ByHour}}</div>
+  <a class="o-tile" href="{{.F.With "verdict" "block"}}"><small>refused</small><b {{if .Day.Refused}}class="bad"{{end}}>{{comma .Day.Refused}}</b><span class="o-delta">{{comma .Day.Blocked}} blocked, {{comma .Day.Limited}} limited, {{comma .Day.Banned}} banned</span>{{spark "bad" .Day.BlockedByHour}}</a>
+  <a class="o-tile" href="{{.F.With "verdict" "challenge"}}"><small>challenged</small><b>{{comma .Day.Challenged}}</b><span class="o-delta">{{comma .Day.Solved}} came back solved</span>{{spark "warn" .Day.ChallengedByHour}}</a>
+  <div class="o-tile"><small>networks</small><b>{{len .Networks}}</b><span class="o-delta">busiest {{len .Networks}} shown</span><span class="o-ticks" aria-hidden="true">{{range .Networks}}<i style="height: {{printf "%.0f" .Share}}%" class="{{if .Refused}}bad{{end}}" data-tip="{{.Label}} &middot; {{.Total}}"></i>{{end}}</span></div>
+</div>
+
+<div class="o-cols even">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Busiest networks</h2><span class="o-lab">ASN &middot; all requests</span></div>
+    {{range .Networks}}<div class="o-hbar"><span class="k o-mono"><a href="{{$.F.With "asn" .Key}}">{{.Label}}</a></span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v {{if .Refused}}o-bad{{end}}" title="{{.Refused}} refused">{{comma .Total}}</span></div>
+    {{else}}<p class="o-empty"><b>Nothing checked.</b>Traffic shows here once Caddy starts asking.</p>{{end}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Refused most</h2><span class="o-lab">ASN</span></div>
+    {{range .Refusing}}<div class="o-hbar"><span class="k o-mono"><a href="{{$.F.With "asn" .Key}}">{{.Label}}</a></span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{comma .Refused}}</span></div>
+    {{else}}<p class="o-empty"><b>Nothing refused.</b></p>{{end}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Hosts</h2><span class="o-lab">all requests</span></div>
+    {{range .Hosts}}<div class="o-hbar"><span class="k o-mono"><a href="{{$.F.With "host" .Key}}">{{.Label}}</a></span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v {{if .Refused}}o-bad{{end}}" title="{{.Refused}} refused">{{comma .Total}}</span></div>
+    {{else}}<p class="o-empty"><b>Nothing checked.</b></p>{{end}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Countries</h2><span class="o-lab">all requests</span></div>
+    {{range .Countries}}<div class="o-hbar"><span class="k o-mono"><a href="{{$.F.With "country" .Key}}">{{.Label}}</a></span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v {{if .Refused}}o-bad{{end}}" title="{{.Refused}} refused">{{comma .Total}}</span></div>
+    {{else}}<p class="o-empty"><b>Nothing checked.</b></p>{{end}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Paths</h2><span class="o-lab">refused or watched &middot; sampled</span></div>
+    {{range .Paths}}<div class="o-hbar"><span class="k o-mono" title="{{.Label}}">{{.Label}}</span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{comma .Total}}</span></div>
+    {{else}}<p class="o-empty"><b>Nothing refused.</b></p>{{end}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Addresses</h2><span class="o-lab">refused or watched &middot; sampled</span></div>
+    {{range .IPs}}<div class="o-hbar"><span class="k o-mono"><a href="{{$.F.With "ip" .Key}}">{{.Label}}</a></span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{comma .Total}}</span></div>
+    {{else}}<p class="o-empty"><b>Nobody refused.</b></p>{{end}}
+  </section>
+</div>
+
+<section class="o-panel flush">
+  <div class="o-ph2"><h2>Requests</h2><span class="o-lab">refused or watched &middot; newest first</span></div>
+  <div class="o-scroll">
+  <table class="o-tbl stack">
+    <thead><tr><th>When</th><th>What</th><th>Request</th><th>From</th><th>Rule</th><th>User agent</th></tr></thead>
+    <tbody>
+    {{range .Events}}
+      <tr>
+        <td class="n o-muted" title="{{utc .At}}">{{ago .At}}</td>
+        <td class="nw">{{if .Watch}}<span class="o-chip">would {{.Verdict}}</span>{{else}}<span class="o-chip {{actionKind .Verdict}}">{{.Verdict}}</span>{{end}}</td>
+        <td class="lead clip mono" title="{{.Method}} {{.Host}}{{.Path}}">{{.Method}} {{.Host}}{{.Path}}</td>
+        <td class="nw mono small"><a href="{{$.F.With "ip" .IP}}">{{.IP}}</a> <span class="o-muted">{{.Country}} <a href="{{$.F.With "asn" (printf "%d" .ASN)}}">AS{{.ASN}}</a> {{short .Org 24}}</span></td>
+        <td class="nw mono small">{{.Rule}}</td>
+        <td class="clip o-muted small" title="{{.UA}}">{{.UA}}</td>
+      </tr>
+    {{else}}
+      <tr><td colspan="6"><p class="o-empty"><b>Nothing refused or watched.</b>Requests a rule acts on show here, sampled to a few hundred a minute.</p></td></tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+</section>
+{{template "foot" .}}{{end}}

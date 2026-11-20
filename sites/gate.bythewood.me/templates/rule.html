@@ -1,0 +1,134 @@
+{{define "rule.html"}}{{template "head" (dict "Title" (or .Rule.Name "New rule") "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">gate &middot; rules &middot; {{if .New}}new{{else}}{{.Rule.Name}}{{end}}</span>
+    {{if .New}}<h1>A new rule, <em>live on save</em>.</h1>
+    {{else if .Rule.Pending}}<h1>{{.Rule.Name}}, <em>proposed by {{.Rule.Author}}</em>.</h1>
+    {{else if .Rule.Watching}}<h1>{{.Rule.Name}}, <em>watching</em>.</h1>
+    {{else}}<h1>{{.Rule.Name}}, <em>{{comma .Use.Hits}} hits</em> this week.</h1>{{end}}
+    {{if .Rule.Note}}<p>{{.Rule.Note}}</p>{{end}}
+  </div>
+  {{if not .New}}
+  <div class="o-acts">
+    {{if .Rule.Watching}}<form method="post" action="/rules/{{.Rule.ID}}/on"><input type="hidden" name="back" value="/rules/{{.Rule.ID}}"><button class="o-btn o-btn-p o-btn-sm" type="submit">Turn on</button></form>
+    {{else}}<form method="post" action="/rules/{{.Rule.ID}}/watch"><input type="hidden" name="back" value="/rules/{{.Rule.ID}}"><button class="o-btn o-btn-sm" type="submit">Only watch</button></form>{{end}}
+    <a class="o-btn o-btn-sm" href="/traffic?rule={{.Rule.Name}}">Its traffic</a>
+  </div>
+  {{end}}
+</div>
+
+{{if .Error}}<div class="o-note bad"><span class="o-lab plain o-bad">not saved</span><span>{{.Error}}</span></div>{{end}}
+
+{{if not .New}}
+<div class="o-tiles">
+  <div class="o-tile"><small>hits &middot; 7d</small><b {{if .Use.Hits}}class="{{actionKind .Rule.Action}}"{{end}}>{{comma .Use.Hits}}</b><span class="o-delta">by the hour</span>{{spark (sparkKind .Rule.Action) .Use.ByHour}}</div>
+  <div class="o-tile"><small>watched &middot; 7d</small><b>{{comma .Use.Watched}}</b><span class="o-delta">would have acted</span><span class="o-nospark"></span></div>
+  <div class="o-tile"><small>last hit</small><b>{{ago .Use.Last}}</b><span class="o-delta">by {{.Rule.Author}}, {{ago .Rule.Created}}</span><span class="o-nospark"></span></div>
+  <div class="o-tile"><small>ends</small><b>{{until .Rule.Expires}}</b><span class="o-delta">{{if .Rule.Expires.IsZero}}stays until removed{{else}}{{utc .Rule.Expires}}{{end}}</span><span class="o-nospark"></span></div>
+</div>
+{{end}}
+
+<div class="o-cols">
+<form class="o-panel" method="post" action="{{if .New}}/rules{{else}}/rules/{{.Rule.ID}}{{end}}">
+  <div class="o-form">
+    <label class="o-field">
+      <span>Name <span class="hint">one word, like feed-hammer</span></span>
+      <input class="mono" type="text" name="name" value="{{.Rule.Name}}" required maxlength="60" spellcheck="false" autocomplete="off">
+    </label>
+    <label class="o-field">
+      <span>Ends</span>
+      <select name="ends">
+        {{if not .New}}<option value="keep">{{if .Rule.Expires.IsZero}}never, as it is{{else}}as it is, in {{until .Rule.Expires}}{{end}}</option>{{end}}
+        <option value="never" {{if eq .Ends "never"}}selected{{end}}>never</option>
+        <option value="1" {{if eq .Ends "1"}}selected{{end}}>in an hour</option>
+        <option value="24" {{if eq .Ends "24"}}selected{{end}}>in a day</option>
+        <option value="168" {{if eq .Ends "168"}}selected{{end}}>in a week</option>
+        <option value="720" {{if eq .Ends "720"}}selected{{end}}>in 30 days</option>
+      </select>
+    </label>
+    <label class="o-field full">
+      <span>When <span class="hint">one condition a line, every line has to hold</span></span>
+      <textarea class="mono" name="when" rows="5" required spellcheck="false" placeholder="host is blog.bythewood.me&#10;asn is 14061 16509&#10;not path prefix /feed">{{.Rule.When}}</textarea>
+      <span class="hint">field test values, with <code>not</code> in front to flip it. Fields are host, path, query, method, ip, asn, country, ua and header:Name. Tests are is, prefix, contains, suffix and regex. See <a href="/docs">the docs</a>.</span>
+    </label>
+    <fieldset class="o-field full">
+      <legend>Then</legend>
+      <div class="o-seg">
+        {{range $a := (list "allow" "block" "limit" "challenge")}}<label><input type="radio" name="action" value="{{$a}}" {{if eq $a $.Rule.Action}}checked{{end}}><span>{{$a}}</span></label>{{end}}
+      </div>
+    </fieldset>
+    <label class="o-field">
+      <span>Block answers <span class="hint">404 for noise, 403 when it should know</span></span>
+      <select name="status"><option value="403" {{if eq .Rule.Status 403}}selected{{end}}>403</option><option value="404" {{if eq .Rule.Status 404}}selected{{end}}>404</option></select>
+    </label>
+    <label class="o-field">
+      <span>Limit <span class="hint">requests a minute per address</span></span>
+      <input type="number" name="rate" min="0" max="10000" value="{{.Rule.Rate}}">
+    </label>
+    <label class="o-field full">
+      <span>Message <span class="hint">what a block says, optional</span></span>
+      <input type="text" name="message" value="{{.Rule.Message}}" maxlength="300">
+    </label>
+    <label class="o-field">
+      <span>Ban after <span class="hint">hits from one address in 10 minutes, 0 for never</span></span>
+      <input type="number" name="ban_after" min="0" max="1000" value="{{.Rule.BanAfter}}">
+    </label>
+    <label class="o-field">
+      <span>Ban for <span class="hint">hours</span></span>
+      <input type="number" name="ban_hours" min="0" max="8760" value="{{hoursOf .Rule.BanFor}}">
+    </label>
+    <label class="o-field full">
+      <span>Note <span class="hint">why it's here</span></span>
+      <input type="text" name="note" value="{{.Rule.Note}}" maxlength="300">
+    </label>
+    <div class="o-formbar full">
+      <label class="o-check"><input type="checkbox" name="watching" {{if or .Rule.Watching .New}}checked{{end}}> Only watch</label>
+      <label class="o-check"><input type="checkbox" name="quiet" {{if .Rule.Quiet}}checked{{end}}> Keep out of the access log</label>
+      <span class="o-sp"></span>
+      <a class="o-btn o-btn-sm" href="/rules">Cancel</a>
+      <button type="submit" class="o-btn o-btn-p">{{if .New}}Add rule{{else}}Save changes{{end}}</button>
+    </div>
+  </div>
+</form>
+
+<div class="side">
+{{if not .New}}
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Paths</h2><span class="o-lab">sampled &middot; 7d</span></div>
+    {{range .Paths}}<div class="o-hbar"><span class="k o-mono" title="{{.Label}}">{{.Label}}</span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{comma .Total}}</span></div>
+    {{else}}<p class="o-empty"><b>Nothing caught yet.</b>Paths this rule acts on show here.</p>{{end}}
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Addresses</h2><span class="o-lab">sampled &middot; 7d</span></div>
+    {{range .IPs}}<div class="o-hbar"><span class="k o-mono"><a href="/traffic?ip={{.Key}}">{{.Label}}</a></span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{comma .Total}}</span></div>
+    {{else}}<p class="o-empty"><b>Nobody yet.</b>The addresses it catches most show here.</p>{{end}}
+  </section>
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Latest</h2><span class="o-lab">newest first</span></div>
+    {{range .Events}}{{template "evrow" .}}{{else}}<p class="o-empty"><b>Nothing yet.</b></p>{{end}}
+  </section>
+  <div class="o-note">
+    <span class="o-lab plain o-bad">remove</span>
+    <div class="o-formbar"><span class="o-muted">Takes it out now, along with its counts.</span><span class="o-sp"></span>
+      <form method="post" action="/rules/{{.Rule.ID}}/delete" data-undo="Removed {{.Rule.Name}}"><input type="hidden" name="back" value="/rules"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Remove rule</button></form>
+    </div>
+  </div>
+{{else}}
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Examples</h2><span class="o-lab">one condition a line</span></div>
+    <h3 class="sub">A network hammering one site</h3>
+    <pre class="o-code">host is repos.bythewood.me
+asn is 14061</pre>
+    <h3 class="sub">A crawler by its user agent</h3>
+    <pre class="o-code">ua contains bytespider gptbot</pre>
+    <h3 class="sub">An address range</h3>
+    <pre class="o-code">ip is 203.0.113.0/24</pre>
+    <h3 class="sub">Posts from outside the US</h3>
+    <pre class="o-code">method is POST
+not country is US</pre>
+    <p class="o-muted small">New rules start watching, so you can see what they'd catch before you turn them on.</p>
+  </section>
+{{end}}
+</div>
+</div>
+{{template "foot" .}}{{end}}

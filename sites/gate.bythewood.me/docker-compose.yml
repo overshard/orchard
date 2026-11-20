@@ -1,0 +1,48 @@
+name: orchard-gate
+
+# No published ports. Caddy reaches this by container name on the shared network.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchard-gate
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      GATE_DATA: /data
+    volumes:
+      - data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 192M
+          pids: 64
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs: [/tmp]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge]
+
+volumes:
+  data:
+    name: orchard-gate-data
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true

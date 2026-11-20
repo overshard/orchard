@@ -1,0 +1,28 @@
+{{define "settings.html"}}{{template "head" (dict "Title" "Settings" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">gate &middot; settings</span>
+    <h1>{{if eq .Mode "on"}}Gate is <em>enforcing</em>.{{else if eq .Mode "watch"}}Gate is <em>only watching</em>.{{else}}Gate is <em class="bad">off</em>.{{end}}</h1>
+    <p>Watching runs every rule as if it were watching, and off lets everything through without looking. Either is for the day a rule refuses something it shouldn't.</p>
+  </div>
+</div>
+{{if .Saved}}<div data-toast="Saved"></div>{{end}}
+<form class="o-panel" method="post" action="/settings">
+  <div class="o-form">
+    <fieldset class="o-field full">
+      <legend>Mode</legend>
+      <div class="o-seg">
+        <label><input type="radio" name="mode" value="on" {{if eq .Mode "on"}}checked{{end}}><span>enforcing</span></label>
+        <label><input type="radio" name="mode" value="watch" {{if eq .Mode "watch"}}checked{{end}}><span>only watching</span></label>
+        <label><input type="radio" name="mode" value="off" {{if eq .Mode "off"}}checked{{end}}><span>off</span></label>
+      </div>
+    </fieldset>
+    <label class="o-field full">
+      <span>Orchard's own addresses <span class="hint">never checked, the box's public address goes here</span></span>
+      <textarea class="mono" name="self" rows="3" spellcheck="false" placeholder="203.0.113.10 2001:db8::/64">{{.Self}}</textarea>
+      <span class="hint">Private ranges and loopback are always skipped. Anyone signed in to orchard skips every rule too.</span>
+    </label>
+    <div class="o-formbar full"><span class="o-muted small">Country and network from DB-IP lite{{if .Built}}, built {{.Built}}{{else}}, not downloaded yet{{end}}.</span><span class="o-sp"></span><button class="o-btn o-btn-p" type="submit">Save</button></div>
+  </div>
+</form>
+{{template "foot" .}}{{end}}

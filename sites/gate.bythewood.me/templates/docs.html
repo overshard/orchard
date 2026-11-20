@@ -1,0 +1,81 @@
+{{define "docs.html"}}{{template "head" (dict "Title" "Docs" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">gate &middot; docs</span>
+    <h1>Rules in lines, <em>live on save</em>.</h1>
+    <p>Caddy asks gate about every request before a site sees it. Here's how a rule is written and what gate does with it.</p>
+  </div>
+</div>
+
+<div class="o-cols even">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Writing a rule</h2><span class="o-lab">one condition a line</span></div>
+    <p class="small">Each line is a field, a test and the values, and every line has to hold. Any one of the values on a line is enough, and <code>not</code> in front flips the line.</p>
+    <pre class="o-code">host is auth.bythewood.me
+path is /login /code /recovery
+not country is US</pre>
+    <h3 class="sub">Fields</h3>
+    <dl class="o-kv">
+      <dt>host</dt><dd>the hostname asked for</dd>
+      <dt>path</dt><dd>the path, without the query</dd>
+      <dt>query</dt><dd>everything after the ?</dd>
+      <dt>method</dt><dd>GET, POST and the rest</dd>
+      <dt>ip</dt><dd>addresses or ranges, <code>ip is 203.0.113.0/24</code>, only takes is</dd>
+      <dt>asn</dt><dd>the network's AS number, <code>asn is 14061 AS16509</code></dd>
+      <dt>country</dt><dd>two letters, from DB-IP, with Cloudflare's guess when DB-IP has none</dd>
+      <dt>ua</dt><dd>the user agent</dd>
+      <dt>header:Name</dt><dd>any request header, <code>header:Accept-Language is</code> with nothing sent is empty</dd>
+    </dl>
+    <h3 class="sub">Tests</h3>
+    <dl class="o-kv">
+      <dt>is</dt><dd>equals one of the values</dd>
+      <dt>prefix</dt><dd>starts with one of them</dd>
+      <dt>contains</dt><dd>has one of them anywhere</dd>
+      <dt>suffix</dt><dd>ends with one of them</dd>
+      <dt>regex</dt><dd>the rest of the line is one Go regex, add <code>(?i)</code> to ignore case</dd>
+    </dl>
+    <p class="o-muted small">Everything but regex ignores case. A field gate doesn't know, like the country of an address no database has, fails its line either way, so <code>not country is US</code> never catches an address with no country.</p>
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>What a rule does</h2><span class="o-lab">in this order</span></div>
+    <dl class="o-kv">
+      <dt>allow</dt><dd>lets it through and stops looking, so nothing below can refuse it</dd>
+      <dt>block</dt><dd>answers 403 or 404 with the message, and nothing reaches the site</dd>
+      <dt>limit</dt><dd>lets an address through so many times a minute, then answers 429</dd>
+      <dt>challenge</dt><dd>sends the proof of work page unless the visitor already solved one on that host this week</dd>
+    </dl>
+    <p class="small">A watching rule runs, counts and samples what it would have done, and doesn't act. Ban after counts one address's hits in ten minutes and bans it from every host for a while once it passes the number. Keep out of the access log is for noise like scanners, which gate still counts here.</p>
+    <h3 class="sub">Who never sees a rule</h3>
+    <ul class="steps">
+      <li>Requests from inside orchard, loopback and the box's own public address, set on the settings page.</li>
+      <li>Anyone signed in to orchard, asked of auth only once something would have refused them.</li>
+      <li>The challenge page's own <code>/__gate/</code> routes.</li>
+    </ul>
+    <h3 class="sub">When something goes wrong</h3>
+    <p class="small">Settings has a mode for only watching and one for off. If gate itself is down, Caddy can't ask, and every site answers 502 until it's back.</p>
+  </section>
+</div>
+
+<div class="o-cols even">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>From an agent</h2><span class="o-lab">the mcp connector</span></div>
+    <dl class="o-kv">
+      <dt>gate_report</dt><dd>the mode, the counts, every rule with its hits, who's being refused, bans and changes</dd>
+      <dt>gate_traffic</dt><dd>narrowed to a network, country, host, address, rule or verdict, with sampled requests</dd>
+      <dt>gate_propose</dt><dd>adds a rule that only watches and waits for you, and ends in 30 days unless it's turned on</dd>
+    </dl>
+    <p class="o-muted small">Proposals show first on the overview with what they would have caught, and the tab's dot goes amber until you turn each on, keep it watching or dismiss it.</p>
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>In Caddy</h2><span class="o-lab">one snippet</span></div>
+    <pre class="o-code">handle /__gate/* {
+  reverse_proxy orchard-gate:8000
+}
+forward_auth orchard-gate:8000 {
+  uri /check
+  header_up X-Gate-Ip {client_ip}
+}</pre>
+    <p class="o-muted small">A 2xx lets the request on to the site, and anything else gate answers goes back to the visitor as it is.</p>
+  </section>
+</div>
+{{template "foot" .}}{{end}}

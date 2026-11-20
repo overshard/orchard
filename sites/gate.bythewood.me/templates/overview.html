@@ -1,0 +1,107 @@
+{{define "overview.html"}}{{template "head" (dict "Title" "Overview" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">gate &middot; overview &middot; 24h</span>
+    <h1>{{.Headline}}</h1>
+    <p>Every request to every site is checked here first. {{comma .Day.Exempt}} came from orchard or someone signed in and skipped the rules.</p>
+  </div>
+  <div class="o-acts">
+    <a class="o-btn o-btn-sm" href="/traffic">Traffic</a>
+    <a class="o-btn o-btn-p o-btn-sm" href="/rules/new">New rule</a>
+  </div>
+</div>
+
+<div class="o-tiles">
+  <a class="o-tile" href="/traffic">
+    <small>checked &middot; 24h</small>
+    <b>{{comma .Day.Checked}}</b>
+    <span class="o-delta">by the hour</span>
+    {{spark "ok" .Day.ByHour}}
+  </a>
+  <a class="o-tile" href="/traffic?verdict=block">
+    <small>refused &middot; 24h</small>
+    <b {{if .Day.Refused}}class="bad"{{end}}>{{comma .Day.Refused}}</b>
+    <span class="o-delta">{{comma .Day.Blocked}} blocked, {{comma .Day.Limited}} limited, {{comma .Day.Banned}} banned</span>
+    {{spark "bad" .Day.BlockedByHour}}
+  </a>
+  <a class="o-tile" href="/traffic?verdict=challenge">
+    <small>challenged &middot; 24h</small>
+    <b {{if .Day.Challenged}}class="warn"{{end}}>{{comma .Day.Challenged}}</b>
+    <span class="o-delta">{{comma .Day.Solved}} passed with a solved cookie</span>
+    {{spark "warn" .Day.ChallengedByHour}}
+  </a>
+  <a class="o-tile" href="/rules">
+    <small>rules</small>
+    <b>{{len .Rules}}</b>
+    <span class="o-delta">hits each in the last 24h{{if .Bans}}, {{.Bans}} banned{{end}}</span>
+    <span class="o-ticks" aria-hidden="true">{{$top := .TopRule}}{{range .Rules}}<i class="{{if .Pending}}q{{else if eq .Action "block"}}bad{{else if or (eq .Action "limit") (eq .Action "challenge")}}warn{{end}}" style="height: {{pct (add .Hits .Watched) $top}}%" data-tip="{{.Name}} &middot; {{.Hits}} hits{{if .Watched}}, {{.Watched}} watched{{end}}"></i>{{else}}<i class="none" style="height: 8%"></i>{{end}}</span>
+  </a>
+</div>
+
+<div class="o-cols">
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Rules</h2><span class="o-lab">waiting first, then by hits</span></div>
+    {{template "ruletable" (dict "Rules" .Rules "Back" "/")}}
+    <div class="o-more"><a href="/rules">Every rule and what changed &rarr;</a></div>
+  </section>
+  <div class="side">
+    {{if .Waiting}}
+    <section class="o-panel flush waitp">
+      <div class="o-ph2"><h2>Waiting on you</h2><span class="o-lab">proposed, watching</span></div>
+      {{range .Waiting}}{{template "proposal" .}}{{end}}
+    </section>
+    {{end}}
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Refused by network</h2><span class="o-lab">ASN &middot; 24h</span></div>
+      {{range .Networks}}<div class="o-hbar"><span class="k o-mono"><a href="/traffic?asn={{.Key}}">{{.Label}}</a></span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{comma .Refused}}</span></div>
+      {{else}}<p class="o-empty"><b>Nothing refused yet.</b>Networks show here once a rule refuses something.</p>{{end}}
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Refused by host</h2><span class="o-lab">24h</span></div>
+      {{range .Hosts}}<div class="o-hbar"><span class="k o-mono"><a href="/traffic?host={{.Key}}">{{.Label}}</a></span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{comma .Refused}}</span></div>
+      {{else}}<p class="o-empty"><b>Nothing refused yet.</b>Each site shows here once something on it is refused.</p>{{end}}
+    </section>
+    <section class="o-panel flush">
+      <div class="o-ph2"><h2>Latest</h2><span class="o-lab">refused or watched</span></div>
+      {{range .Events}}{{template "evrow" .}}{{else}}<p class="o-empty"><b>Nothing yet.</b>Requests a rule acts on show here.</p>{{end}}
+    </section>
+  </div>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "proposal"}}<div class="prop">
+  <div class="ph"><span class="o-dot mute"></span><a class="o-mono" href="/rules/{{.ID}}">{{.Name}}</a><span class="o-chip {{actionKind .Action}}">{{.Then}}</span><span class="o-sp"></span><span class="o-mono o-muted small">{{ago .Created}}</span></div>
+  {{if .Note}}<p>{{.Note}}</p>{{end}}
+  <pre class="o-code when">{{.When}}</pre>
+  <p class="o-mono small">{{comma .Watched}} would have been {{if eq .Action "allow"}}allowed{{else if eq .Action "block"}}blocked{{else if eq .Action "limit"}}limited{{else}}challenged{{end}} in the last 24h</p>
+  <div class="crop-btns">
+    <form method="post" action="/rules/{{.ID}}/on"><input type="hidden" name="back" value="/"><button class="o-btn o-btn-p o-btn-sm" type="submit">Turn on</button></form>
+    <form method="post" action="/rules/{{.ID}}/keep"><input type="hidden" name="back" value="/"><button class="o-btn o-btn-sm" type="submit">Keep watching</button></form>
+    <form method="post" action="/rules/{{.ID}}/delete" data-undo="Dismissed {{.Name}}"><input type="hidden" name="back" value="/"><button class="o-btn o-btn-sm" type="submit">Dismiss</button></form>
+  </div>
+</div>{{end}}
+
+{{define "ruletable"}}
+<div class="o-scroll">
+<table class="o-tbl stack rules">
+  <thead><tr><th>Rule</th><th>When</th><th>Then</th><th class="r">Hits</th><th>Trend</th><th>By</th><th class="r">Ends</th></tr></thead>
+  <tbody>
+  {{range .Rules}}
+    <tr data-href="/rules/{{.ID}}" class="{{if .Pending}}wait{{else if .Watching}}off{{end}}">
+      <td class="lead n"><a href="/rules/{{.ID}}">{{.Name}}</a></td>
+      <td class="clip o-muted mono" title="{{oneLine .When}}">{{oneLine .When}}</td>
+      <td class="nw">{{if .Watching}}<span class="o-chip">watch</span> {{end}}<span class="o-chip {{actionKind .Action}}">{{.Then}}</span></td>
+      <td class="r n" data-l="hits">{{comma .Hits}}{{if .Watched}}<span class="sub">{{comma .Watched}} watched</span>{{end}}</td>
+      <td class="o-cell-spark">{{spark (sparkKind .Action) .ByHour}}</td>
+      <td class="nw">{{if eq .Author "claude"}}<span class="o-chip brass">claude</span>{{else}}<span class="o-muted">{{.Author}}</span>{{end}}</td>
+      <td class="r n o-muted" data-l="ends">{{until .Expires}}</td>
+    </tr>
+  {{else}}
+    <tr><td colspan="7"><p class="o-empty"><b>No rules.</b><a href="/rules/new">Write the first one</a>, every request passes until then.</p></td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}
+
+{{define "evrow"}}<div class="o-rw ev"><span class="o-dot {{if .Watch}}mute{{else}}{{actionKind .Verdict}}{{end}}"></span><span class="n o-mono">{{if .Watch}}would{{else}}{{.Verdict}}{{end}}</span><span class="m"><a href="/traffic?ip={{.IP}}">{{.IP}}</a> &middot; {{.Host}}{{short .Path 60}}{{if .Rule}} &middot; {{.Rule}}{{end}}</span><span class="w o-mono">{{ago .At}}</span></div>{{end}}

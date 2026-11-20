@@ -1,0 +1,105 @@
+{{define "landing.html"}}<!doctype html>
+<html lang="en">
+<head>
+{{template "suite-head"}}
+<title>gate &middot; the firewall in front of every site</title>
+<meta name="description" content="A firewall behind Caddy for every orchard site, with rules that change while it runs, a proof of work page for bots and proposals from an agent.">
+<link rel="stylesheet" href="{{asset "static/app.css"}}">
+</head>
+<body class="o-body">
+{{template "suite-top" .Suite}}
+
+<main>
+<div class="o-cw">
+  <section class="o-wrap o-hero">
+    <div>
+      <span class="o-lab">gate &middot; firewall &middot; self-hosted</span>
+      <h1>Every request, <em>checked first</em>.</h1>
+      <p class="o-lede">A firewall that sits behind Caddy and answers for every site. Rules change live from here or from an agent, can watch before they act, and count every hit. Bots that look like browsers get a proof of work page.</p>
+      <div class="o-ctas">
+        <a class="o-btn o-btn-p" href="/login">Access dashboard &rarr;</a>
+        <a class="o-btn" href="/docs">Docs</a>
+        <a class="o-btn" href="{{.Source}}" target="_blank" rel="noopener">Source</a>
+      </div>
+    </div>
+    <div class="o-win" aria-label="A staged picture of the overview">
+      <div class="o-win-bar"><i></i><i></i><i></i><span class="u">gate.example.com</span><span class="o-staged">STAGED</span></div>
+      <div class="o-win-body">
+        <span class="o-lab">overview &middot; 24h</span>
+        <div class="t" data-co>3,104 refused today, <em>1 proposal waiting</em>.</div>
+        <div data-co>
+          <div class="o-rw"><span class="o-dot bad"></span><span class="n o-mono">wp-probes</span><span class="m">path contains /wp- &middot; any host</span><span class="o-chip bad">1,982</span></div>
+          <div class="o-rw"><span class="o-dot warn"></span><span class="n o-mono">cloud-crawlers</span><span class="m">asn is 64500 &middot; shop.example.com</span><span class="o-chip warn">412</span></div>
+        </div>
+        <div data-co>
+          <div class="o-rw"><span class="o-dot mute"></span><span class="n o-mono">feed-hammer</span><span class="m">proposed by an agent &middot; watching</span><span class="o-chip">88 would</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="o-wrap o-legend">
+    <div><span class="o-pin">1</span><span>The title counts today's refusals and says when a rule is waiting on you.</span></div>
+    <div><span class="o-pin">2</span><span>Every rule with its own hit count, busiest first.</span></div>
+    <div><span class="o-pin">3</span><span>A rule an agent proposed watches until you turn it on.</span></div>
+  </div>
+  <div class="o-ov"></div>
+</div>
+
+<div class="o-wrap">
+{{template "suite-ways" .Ways}}
+
+<section class="o-hsec">
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">rules</span>
+      <h3>Rules that apply on the next request</h3>
+      <p>Add a rule and it's live, with nothing to reload. Each can end on its own, so a block for a noisy afternoon doesn't stay forever, and one that catches the same address too often can ban it everywhere for a while.</p>
+      <ul><li>Match on host, path, address, network, country, user agent or a header</li><li>Allow, block, limit or challenge</li></ul>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <span class="o-lab">new rule</span>
+      <pre class="o-code">host is shop.example.com
+asn is 64500 64501
+not path prefix /feed</pre>
+      <div class="crop-btns"><span class="o-chip">allow</span><span class="o-chip">block</span><span class="o-chip">limit</span><span class="o-chip warn">challenge</span></div>
+    </div>
+  </div>
+  <div class="o-frow flip">
+    <div class="o-ftxt">
+      <span class="o-lab">proof of work</span>
+      <h3>A page a browser solves and a scraper won't bother with</h3>
+      <p>A challenged visitor gets a small page that hashes for about a second, then a signed cookie good for a week on that host. Anything from orchard itself and anyone signed in never sees it.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <span class="o-lab">shop.example.com &middot; checking your browser</span>
+      <div class="crop-t">One second, <em>then you're through</em>.</div>
+      <div class="pow"><i></i></div>
+      <div class="o-mono small o-muted">41,220 hashes, 0.8s</div>
+    </div>
+  </div>
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">agents</span>
+      <h3>An agent proposes, you decide</h3>
+      <p>Through the mcp connector an agent reads what gate saw and proposes a rule. It starts watching, so what it would have caught is counted before you turn it on.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-rw"><span class="o-dot mute"></span><span class="n o-mono">feed-hammer</span><span class="m">ua contains python-requests</span><span class="o-chip">88 would</span></div>
+      <div class="o-rw"><span class="o-dot mute"></span><span class="n o-mono">login-spray</span><span class="m">not country is US</span><span class="o-chip">14 would</span></div>
+      <div class="crop-btns"><span class="o-btn o-btn-p o-btn-sm">Turn on</span><span class="o-btn o-btn-sm">Dismiss</span></div>
+    </div>
+  </div>
+</section>
+
+{{template "suite-run" .Ways}}
+</div>
+</main>
+
+{{template "suite-footer" .Footer}}
+{{template "suite-status" .Suite}}
+<script type="module" src="{{asset "static/guest.js"}}"></script>
+</body>
+</html>{{end}}

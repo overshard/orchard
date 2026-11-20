@@ -1,0 +1,42 @@
+/* gate's own pieces. Everything else comes from /suite/suite.css. */
+
+.small { font-size: 0.8rem; }
+.side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.o-cols.even { grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); }
+
+.o-seg.links { display: inline-flex; }
+.o-seg.links a { display: block; padding: 5px 11px; font: 500 0.74rem var(--o-mono); color: var(--o-muted); border-right: 1px solid var(--o-line-strong); }
+.o-seg.links a:last-child { border-right: 0; }
+.o-seg.links a.on { background: var(--o-panel2); color: var(--o-text); box-shadow: inset 0 -2px 0 var(--o-brass); }
+
+.rules td.clip { max-width: 30rem; }
+.o-tbl td.mono, .o-field textarea.mono { font-family: var(--o-mono); font-size: 0.74rem; }
+.o-tbl tr.wait td { background: rgba(217, 180, 90, 0.05); }
+.o-tbl td.clip.small { max-width: 18rem; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.o-note.bad { border-color: rgba(240, 107, 91, 0.45); }
+
+.ev { padding: 8px 14px; border-top: 1px solid var(--o-line-soft); }
+.ev:first-of-type { border-top: 0; }
+.ev .n { flex: none; font-size: 0.76rem; width: 4.4rem; }
+.ev .m { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--o-muted); }
+.ev .w { color: var(--o-muted); font-size: 0.7rem; white-space: nowrap; }
+
+.waitp { border-color: rgba(217, 180, 90, 0.45); }
+.prop { padding: 10px 14px 12px; border-top: 1px solid var(--o-line-soft); display: grid; gap: 8px; }
+.prop:first-of-type { border-top: 0; }
+.prop .ph { display: flex; align-items: center; gap: 6px; font-size: 0.84rem; }
+.prop p { margin: 0; color: var(--o-muted); font-size: 0.82rem; }
+.prop pre.when { margin: 0; font-size: 0.72rem; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 8rem; overflow: auto; }
+.crop-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.crop-btns form { display: inline; }
+.o-form.one { grid-template-columns: minmax(0, 1fr); }
+.o-hbar .k a { color: inherit; }
+
+.crop-t { font-size: 1.15rem; font-weight: 600; letter-spacing: -0.03em; margin: 6px 0 10px; }
+.pow { height: 5px; background: var(--o-panel2); margin: 6px 0 8px; }
+.pow i { display: block; height: 100%; width: 64%; background: var(--o-brass); }
+
+h3.sub { font-size: 0.86rem; margin: 14px 0 6px; }
+.steps { margin: 0 0 10px; padding-left: 20px; display: grid; gap: 6px; font-size: 0.84rem; }

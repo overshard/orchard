@@ -1,0 +1,40 @@
+{{define "bans.html"}}{{template "head" (dict "Title" "Bans" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">gate &middot; bans</span>
+    <h1>{{if .Bans}}{{len .Bans}} addresses, <em>refused everywhere</em>.{{else}}No bans, <em>nobody refused everywhere</em>.{{end}}</h1>
+    <p>A rule with ban after set bans an address that keeps tripping it. A ban refuses that address on every host until it runs out, unless it's signed in.</p>
+  </div>
+</div>
+{{if .Error}}<div class="o-note bad"><span class="o-lab plain o-bad">not banned</span><span>{{.Error}}</span></div>{{end}}
+<div class="o-cols">
+  <section class="o-panel flush">
+    <div class="o-scroll">
+    <table class="o-tbl stack">
+      <thead><tr><th>Address</th><th>By</th><th>Since</th><th class="r">Ends</th><th></th></tr></thead>
+      <tbody>
+      {{range .Bans}}
+        <tr>
+          <td class="lead n"><a href="/traffic?ip={{.IP}}">{{.IP}}</a></td>
+          <td class="nw mono small">{{.Rule}}</td>
+          <td class="n o-muted">{{ago .Created}}</td>
+          <td class="r n">{{until .Until}}</td>
+          <td class="act"><form method="post" action="/bans/lift" data-undo="Lifted {{.IP}}"><input type="hidden" name="ip" value="{{.IP}}"><button class="o-btn o-btn-sm" type="submit">Lift</button></form></td>
+        </tr>
+      {{else}}
+        <tr><td colspan="5"><p class="o-empty"><b>Nothing banned.</b>Set ban after on a rule, or ban an address by hand.</p></td></tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  <form class="o-panel" method="post" action="/bans">
+    <div class="o-ph2"><h2>Ban by hand</h2></div>
+    <div class="o-form one">
+      <label class="o-field"><span>Address</span><input class="mono" type="text" name="ip" required placeholder="203.0.113.7" spellcheck="false" autocomplete="off"></label>
+      <label class="o-field"><span>For <span class="hint">hours</span></span><input type="number" name="hours" min="1" max="8760" value="24"></label>
+      <div class="o-formbar"><span class="o-sp"></span><button class="o-btn o-btn-p" type="submit">Ban</button></div>
+    </div>
+  </form>
+</div>
+{{template "foot" .}}{{end}}

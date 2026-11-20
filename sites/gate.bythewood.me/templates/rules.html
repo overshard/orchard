@@ -1,0 +1,23 @@
+{{define "rules.html"}}{{template "head" (dict "Title" "Rules" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">gate &middot; rules &middot; {{.Range}}</span>
+    <h1>{{len .Rules}} rules, <em>{{.Version}} changes</em> since the first.</h1>
+    <p>Allow runs first, then block, limit and challenge. A watching rule only counts what it would have done.</p>
+  </div>
+  <div class="o-acts">
+    <nav class="o-seg links">{{range $r := (list "1h" "24h" "7d" "30d")}}<a href="/rules?range={{$r}}" {{if eq $r $.Range}}class="on"{{end}}>{{$r}}</a>{{end}}</nav>
+    <a class="o-btn o-btn-p o-btn-sm" href="/rules/new">New rule</a>
+  </div>
+</div>
+
+<section class="o-panel flush">
+  {{template "ruletable" (dict "Rules" .Rules "Back" "/rules")}}
+</section>
+
+<section class="o-panel flush">
+  <div class="o-ph2"><h2>Changes</h2><span class="o-lab">newest first</span></div>
+  {{range .Changes}}<div class="o-rw ev"><span class="o-dot {{if eq .Who "claude"}}warn{{else}}mute{{end}}"></span><span class="n o-mono">{{.Rule}}</span><span class="m">{{.What}} &middot; {{.Who}}</span><span class="w o-mono">{{ago .At}}</span></div>
+  {{else}}<p class="o-empty"><b>Nothing changed yet.</b>Every rule you or an agent adds, changes or removes shows here.</p>{{end}}
+</section>
+{{template "foot" .}}{{end}}

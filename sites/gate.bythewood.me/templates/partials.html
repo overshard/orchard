@@ -1,0 +1,20 @@
+{{define "head"}}<!doctype html>
+<html lang="en">
+<head>
+{{template "suite-head"}}
+<meta name="robots" content="noindex, nofollow">
+<title>{{.Title}} &middot; gate</title>
+<link rel="stylesheet" href="{{asset "static/app.css"}}">
+</head>
+<body class="o-body">
+{{template "suite-top" .Suite}}
+<main class="o-wrap o-main">
+{{end}}
+
+{{define "foot"}}
+</main>
+{{template "suite-foot" .Suite}}
+<script type="module" src="{{asset "static/guest.js"}}"></script>
+</body>
+</html>
+{{end}}

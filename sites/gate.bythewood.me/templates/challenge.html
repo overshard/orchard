@@ -1,0 +1,38 @@
+{{define "challenge.html"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="dark">
+<title>One second</title>
+<style>
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #111315; color: #e9ebee; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { width: min(28rem, calc(100% - 36px)); border: 1px solid #262a2f; background: #171a1d; padding: 22px 22px 18px; }
+small { font: 500 11px ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.1em; text-transform: uppercase; color: #979ca4; }
+h1 { font-size: 21px; font-weight: 600; letter-spacing: -0.03em; margin: 8px 0 8px; }
+em { font-style: italic; background: rgba(217, 180, 90, 0.22); padding: 0 0.18em; }
+p { margin: 0 0 14px; color: #979ca4; font-size: 14px; }
+.track { height: 4px; background: #1f2327; overflow: hidden; }
+#bar { height: 100%; background: #d9b45a; transform: scaleX(0.02); transform-origin: left; transition: transform 0.2s; }
+#took { display: block; margin-top: 10px; font: 12px ui-monospace, Menlo, Consolas, monospace; color: #979ca4; min-height: 1.2em; }
+@media (prefers-reduced-motion: reduce) { #bar { transition: none; } }
+</style>
+<script src="/__gate/pow.js" defer></script>
+</head>
+<body>
+<main>
+  <small>{{.Host}} &middot; checking your browser</small>
+  <h1>One second, <em>then you're through</em>.</h1>
+  <p>Your browser is doing a small sum to show it's a browser. It takes about a second and you won't see it again for a week.</p>
+  <div class="track"><div id="bar"></div></div>
+  <span id="took" aria-live="polite"></span>
+  <form id="pow" method="post" action="/__gate/solve" data-zeros="{{.Zeros}}">
+    <input type="hidden" name="seed" value="{{.Seed}}">
+    <input type="hidden" name="nonce" value="">
+    <input type="hidden" name="back" value="{{.Back}}">
+    <noscript><p>This needs JavaScript. A feed reader or a script reaching this page was caught by a rule here, so ask the owner to let it through.</p></noscript>
+  </form>
+</main>
+</body>
+</html>{{end}}
