@@ -221,7 +221,7 @@ export function arcade(game) {
     }
     used();
     if (e) { down = point(e); down.moved = false; }
-    if (e && game.press) game.press(down.x, down.y);
+    if (e && game.press) game.press(down.x, down.y, e.pointerId);
     if (e && game.drag) game.drag(down.x, down.y);
   }
 
@@ -239,7 +239,7 @@ export function arcade(game) {
   }
 
   function lift(e) {
-    if (game.release) game.release();
+    if (game.release) game.release(e.pointerId);
     if (A.state !== "play" || !down || !game.swipe) { down = null; return; }
     const p = point(e), moved = down.moved;
     down = null;
