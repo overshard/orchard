@@ -31,6 +31,14 @@ so do `resumed` and `restart`.
 tell ntfy, and `aggregate.go` is the counts dash shows. `queries.go`,
 `dashboard.go` and `report.go` read it all back.
 
+Search is `query.go`, which turns `timeout -healthz status:5xx order:A-1` into
+SQL, `scan.go`, one pass over the matches that counts the histogram, facets,
+patterns and percentiles together, and `search.go` and `searchpage.go` for the
+page, the context view and the live tail. A word looks in the message, path,
+host, component and attrs, `-word` hides it, `field:value` matches a column or
+any attrs key, a comma means any of, and `*` is a wildcard in `path:` and
+`msg:`. Every state of the page is a URL, so a search can go in a note.
+
 ## Things that will bite you
 
 - This site gives itself a local sink, since posting its own records to
@@ -41,3 +49,11 @@ tell ntfy, and `aggregate.go` is the counts dash shows. `queries.go`,
   and the hostnames nothing behind ships for, like the apex and ntfy.
 - A rollup row is an hour, so a window that doesn't start on the hour has to
   floor its start or it drops that first bucket whole.
+- Search counts come from raw rows and the overview's from rollups, and they
+  won't agree for caddy, since a caddy line for a shipping site only goes to
+  the rollups.
+- The search pass walks ids newest first instead of the ts index, which reads
+  the table in order. It stops after 300,000 matches or 7 seconds and the
+  page says how far back it reached.
+- The live tail is a two second poll of `/search/tail`, not a held stream,
+  so nothing outlives a request and a hidden tab stops asking.
