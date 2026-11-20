@@ -100,7 +100,10 @@ func migrate(db *sql.DB) error {
 			return err
 		}
 	}
-	_, err := db.Exec(`CREATE INDEX IF NOT EXISTS spend_call ON spend(call_id) WHERE call_id > 0`)
+	// The overview's hourly stats read only these, and from the index alone they
+	// skip the prompts stored in every row.
+	_, err := db.Exec(`CREATE INDEX IF NOT EXISTS spend_call ON spend(call_id) WHERE call_id > 0;
+		CREATE INDEX IF NOT EXISTS calls_stats ON calls(at, caller, ms, status, err)`)
 	return err
 }
 
