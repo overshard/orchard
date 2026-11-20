@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -109,26 +110,35 @@ func TestFreshDatabaseCanReclaim(t *testing.T) {
 	}
 }
 
-// One event a day for 90 days has to chart as full weeks, with no cliff at the
-// end where the newest bucket ran past the last day.
+func seedView(t *testing.T, db *sql.DB, id uuid.UUID, at int64, user string) {
+	t.Helper()
+	if _, err := db.Exec(`INSERT INTO events (property_id, event, created_at, user_id) VALUES (?,?,?,?)`,
+		id[:], "page_view", at, user); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// One visitor a day for 90 days has to chart as full weeks, with no cliff at
+// the end where the newest bucket ran past the last day.
 func TestAWeeklyGraphCountsEveryWeekInFull(t *testing.T) {
 	db, id := retentionTestDB(t)
 	end := time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC)
 	for i := range 90 {
-		seedEvent(t, db, "events", id, end.AddDate(0, 0, -i).Add(12*time.Hour).UnixMilli())
+		seedView(t, db, id, end.AddDate(0, 0, -i).Add(12*time.Hour).UnixMilli(), fmt.Sprint("u", i))
 	}
 	start := end.AddDate(0, 0, -89)
-	points := eventsGraph(context.Background(), db, id, start.UnixMilli(), end.Add(24*time.Hour).UnixMilli()-1, "", end, 90)
+	b := newBuckets(end, 90)
+	p := readPeriod(context.Background(), db, newScope(id, start.UnixMilli(), end.Add(24*time.Hour).UnixMilli()-1, nil), b)
 
-	if len(points) != 12 {
-		t.Fatalf("%d points, want 12 weeks", len(points))
+	if len(b.labels) != 12 {
+		t.Fatalf("%d buckets, want 12 weeks", len(b.labels))
 	}
-	for _, p := range points {
-		if p.Count != 7 {
-			t.Errorf("%s counted %d, want 7", p.Label, p.Count)
+	for i, v := range p.visitors {
+		if v != 7 {
+			t.Errorf("%s counted %v, want 7", b.labels[i], v)
 		}
 	}
-	if last := points[len(points)-1].Label; last != "Sep 30" {
+	if last := b.labels[len(b.labels)-1]; last != "Sep 30" {
 		t.Errorf("the newest week is labelled %q, want Sep 30", last)
 	}
 }
@@ -137,15 +147,16 @@ func TestAWeeklyGraphCountsEveryWeekInFull(t *testing.T) {
 func TestAnEveningVisitCountsOnTheEasternDay(t *testing.T) {
 	db, id := retentionTestDB(t)
 	evening := time.Date(2026, 9, 29, 21, 0, 0, 0, eastern)
-	seedEvent(t, db, "events", id, evening.UnixMilli())
+	seedView(t, db, id, evening.UnixMilli(), "u")
 
 	end := time.Date(2026, 9, 30, 0, 0, 0, 0, eastern)
 	startMS, _ := parseDateToMS("2026-09-29", false)
 	endMS, _ := parseDateToMS("2026-09-30", true)
-	points := eventsGraph(context.Background(), db, id, startMS, endMS, "", end, 2)
+	b := newBuckets(end, 2)
+	p := readPeriod(context.Background(), db, newScope(id, startMS, endMS, nil), b)
 
-	if len(points) != 2 || points[0].Label != "Sep 29" || points[0].Count != 1 || points[1].Count != 0 {
-		t.Errorf("got %+v, want the visit on Sep 29", points)
+	if len(b.labels) != 2 || b.labels[0] != "Sep 29" || p.visitors[0] != 1 || p.visitors[1] != 0 {
+		t.Errorf("got %v %v, want the visit on Sep 29", b.labels, p.visitors)
 	}
 }
 

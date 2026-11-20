@@ -127,10 +127,10 @@ panel heads, and a home page keeps 14px. The pieces that carry it:
 
 ### Charts
 
-Every Chart.js chart draws from `chart_theme.js`, which is duplicated byte for
-byte in analytics and logging the same way `shipper.go` is. status draws its
-phase chart as SVG with the same series colours and no Chart.js. Its ink is
-the suite's and its font is Geist Mono.
+Every Chart.js chart draws from `chart_theme.js`, which lives in logging.
+status draws its phase chart and analytics its visitors chart as SVG on the
+server, with the same series colours and no Chart.js. Their ink is the suite's
+and their font is Geist Mono.
 
 **Series colours are punchier than the UI palette.** Chrome can be
 muted because nothing depends on telling two borders apart, and a doughnut slice

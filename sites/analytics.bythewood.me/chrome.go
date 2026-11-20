@@ -73,7 +73,7 @@ func tileCols(n int) int {
 // before, since that's the number people open the page to see.
 func cardHeadline(cards []EventCard) template.HTML {
 	for _, c := range cards {
-		if c.Name != "Total page views" {
+		if c.Name != "page views" {
 			continue
 		}
 		views := template.HTMLEscapeString(c.Value) + " page views"
@@ -86,9 +86,4 @@ func cardHeadline(cards []EventCard) template.HTML {
 		return template.HTML(views + ", <em>steady</em>.")
 	}
 	return "Nothing collected in this window."
-}
-
-// cardName drops the Total that every card name starts with.
-func cardName(name string) string {
-	return strings.TrimPrefix(name, "Total ")
 }

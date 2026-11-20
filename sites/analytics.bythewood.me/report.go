@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"embed"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -19,6 +20,7 @@ var reportFuncs = texttemplate.FuncMap{
 	"typstMD":  typstMD,
 	"typstStr": typstStr,
 	"pct":      pct,
+	"permille": func(n int64) string { return fmt.Sprintf("%.1f%%", float64(n)/10) },
 	"add":      func(a, b int) int { return a + b },
 }
 

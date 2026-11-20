@@ -18,18 +18,6 @@
 .dates { display: flex; flex-wrap: wrap; gap: 8px; }
 .dates .o-field { width: 10rem; }
 
-.filterchip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 4px 4px 10px;
-  border: 1px solid rgba(217, 180, 90, 0.55);
-  font-size: 0.78rem;
-
-  button { background: none; border: 0; color: var(--o-muted); cursor: pointer; font-size: 1rem; padding: 0 6px; }
-  button:hover { color: var(--o-text); }
-}
-
 // A small menu that opens under its button.
 .menu { position: relative; }
 .menu summary { list-style: none; }
@@ -53,24 +41,10 @@
   pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 }
 
-.o-tiles.cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr)); }
-@media (min-width: 1100px) { .o-tiles.cards { grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr)); } }
-
-.colstack { display: grid; gap: 14px; min-width: 0; align-content: start; }
-.donuts { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; }
-@media (max-width: 560px) { .donuts { grid-template-columns: minmax(0, 1fr); } }
-
-.chartbox { position: relative; min-height: 170px; }
-.chartbox.tall { height: 320px; }
+.colstack { display: grid; gap: 10px; min-width: 0; align-content: start; }
 
 #map { position: relative; min-height: 340px; }
 #map svg path { transition: fill 80ms ease, stroke 80ms ease; }
-
-// Columns instead of a grid, so lists of different lengths pack without the
-// holes a short row leaves.
-.lists { columns: 4 20rem; column-gap: 14px; }
-.lists > * { break-inside: avoid; margin-bottom: 14px; }
-.lists > .o-panel { display: block; }
 
 // Public or private, one control. The checkbox drives which half is lit.
 .visibility { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
@@ -91,9 +65,59 @@
 .notfound h1 { font-size: 2rem; }
 .pond-lost { width: 216px; height: 180px; image-rendering: pixelated; }
 
-@media (max-width: 560px) {
-  .o-tiles.cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .o-tiles.cards .long { display: none; }
-}
 @media (max-width: 700px) { .o-acts:has(.filter) { width: 100%; } }
 .bots .sub { display: block; margin: 12px 0 4px; }
+
+// Filters sit as chips over the strip, and the right end says what the
+// numbers are compared with, or the date under the crosshair.
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-height: 26px; }
+.chips .hint, .chips .clear { font-size: 0.76rem; }
+.chips .when { font: 0.68rem var(--o-mono); color: var(--o-muted); }
+.chips .when b { color: var(--o-brass); font-weight: 500; }
+a.o-chip { text-decoration: none; }
+.o-chip.x::after { content: " \00d7"; }
+.o-chip.x:hover { color: var(--o-text); }
+
+// Pinned cards keep the strip's grid without its hairline fill, so a short
+// row doesn't leave a grey block where the missing tiles would be.
+.o-strip.pinned { background: none; border: 0; gap: 0; }
+.o-strip.pinned .o-tile { border: 1px solid var(--o-line); margin: 0 -1px -1px 0; }
+
+// Every bar row is a link that narrows the page to it.
+a.o-hbar.fl { color: inherit; text-decoration: none; }
+a.o-hbar.fl:hover .k, a.o-hbar.fl.on .k { color: var(--o-brass); }
+a.o-hbar.fl.on .bar i { background: var(--o-brass); }
+.o-hbar .d.o-warn { color: var(--o-warn); }
+
+.vchart { position: relative; height: 150px; margin-top: 4px; cursor: crosshair; overflow: hidden; }
+.vchart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.vchart path, .vchart line { vector-effect: non-scaling-stroke; }
+.vchart .gl { stroke: var(--o-line); }
+.vchart .mk { stroke: var(--o-muted); stroke-dasharray: 1 3; }
+.vchart .pv { fill: none; stroke: #979ca4; stroke-opacity: 0.5; stroke-width: 1.25; }
+.vchart .ca { fill: #63a9c9; fill-opacity: 0.09; stroke: none; }
+.vchart .cl { fill: none; stroke: #63a9c9; stroke-width: 1.5; }
+.vchart .mkl { position: absolute; top: 0; margin-left: 5px; font: 0.62rem var(--o-mono); color: var(--o-muted); white-space: nowrap; cursor: help; }
+.vchart .mkl.r { margin-left: -5px; transform: translateX(-100%); }
+.vchart .vl { position: absolute; top: 0; bottom: 0; left: 0; width: 1px; background: var(--o-text); opacity: 0.4; pointer-events: none; }
+.vchart .vl[hidden] { display: none; }
+.vchart .vtip { position: absolute; top: 0; left: 0; pointer-events: none; display: grid; white-space: nowrap; }
+.vchart .vtip[hidden] { display: none; }
+.vtip .t { color: var(--o-text); font-weight: 500; }
+.vtip .k { color: var(--o-muted); }
+.vtip .ok { color: var(--o-ok); }
+.vtip .warn { color: var(--o-warn); }
+.xax { display: flex; justify-content: space-between; margin-top: 4px; font: 0.62rem var(--o-mono); color: var(--o-muted); }
+.leg { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font: 0.66rem var(--o-mono); color: var(--o-muted); }
+.leg i { display: inline-block; width: 10px; height: 2px; margin-right: 6px; vertical-align: middle; }
+.leg i.cur { background: #63a9c9; }
+.leg i.prev { background: #979ca4; opacity: 0.5; }
+.leg i.mark { width: 0; height: 10px; border-left: 1px dotted #979ca4; }
+
+.o-ticks.live { height: 44px; margin: 4px 0 10px; }
+
+.evpick { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.evpick th { font: 0.62rem var(--o-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--o-muted); text-align: left; font-weight: 400; padding-bottom: 4px; }
+.evpick td { padding: 3px 0; border-top: 1px solid var(--o-line-soft); overflow-wrap: anywhere; }
+.evpick td + td, .evpick th + th { width: 3rem; text-align: center; }
+#event-menu { width: min(24rem, 90vw); max-height: 70vh; overflow-y: auto; }

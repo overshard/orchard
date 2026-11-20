@@ -86,10 +86,10 @@
   )
 ]
 
-{{ if $.Dash.FilterURL }}
+{{ if $.Dash.Filters }}
 #v(4pt)
 #box(stroke: 0.6pt + black, inset: (x: 6pt, y: 2pt))[
-  #text(size: 8pt)[*Filter · url:* #text(font: mono)[{{ typstMD $.Dash.FilterURL }}]]
+  #text(size: 8pt)[*Filtered to:* #text(font: mono)[{{ typstMD $.Dash.FilterText }}]]
 ]
 {{ end }}
 
@@ -115,7 +115,7 @@
   {{ end }}
 )
 
-== Events over time
+== Visitors over time
 
 {{ if $.Dash.ChartPolyline }}
 // Two-row grid: row 1 is Y-axis labels (peak count top, 0 bottom) next to
@@ -145,7 +145,7 @@
   ),
 )
 {{ else }}
-#text(size: 8pt, fill: muted, style: "italic")[No events in this range.]
+#text(size: 8pt, fill: muted, style: "italic")[No visitors in this range.]
 {{ end }}
 
 // breakable: false keeps each column's table atomic across pages -- a column
@@ -200,7 +200,7 @@
   [
     === Top referrers
     #label_count_table(
-      label_header: "Referrer", count_header: "Sessions",
+      label_header: "Referrer", count_header: "Visits",
       (
         {{ range $.Dash.SessionsByReferrer }}
         text(font: mono, size: 7pt)[{{ typstMD .Label }}], text(size: 7.5pt)[{{ .Count }}],
@@ -249,7 +249,7 @@
   [
     === Device
     #breakdown_table(
-      label_header: "Type", count_header: "Events",
+      label_header: "Type", count_header: "Visitors",
       (
         {{ range $.Dash.ByDevice }}
         text(size: 7.5pt)[{{ typstMD .Label }}], text(size: 7.5pt)[{{ .Count }}], text(size: 7.5pt, fill: dim)[{{ pct .Count $.Dash.BreakdownTotals.Device }}%],
@@ -262,7 +262,7 @@
   [
     === Browser
     #breakdown_table(
-      label_header: "Name", count_header: "Events",
+      label_header: "Name", count_header: "Visitors",
       (
         {{ range $.Dash.ByBrowser }}
         text(size: 7.5pt)[{{ typstMD .Label }}], text(size: 7.5pt)[{{ .Count }}], text(size: 7.5pt, fill: dim)[{{ pct .Count $.Dash.BreakdownTotals.Browser }}%],
@@ -275,7 +275,7 @@
   [
     === Platform
     #breakdown_table(
-      label_header: "Name", count_header: "Events",
+      label_header: "Name", count_header: "Visitors",
       (
         {{ range $.Dash.ByPlatform }}
         text(size: 7.5pt)[{{ typstMD .Label }}], text(size: 7.5pt)[{{ .Count }}], text(size: 7.5pt, fill: dim)[{{ pct .Count $.Dash.BreakdownTotals.Platform }}%],
@@ -288,7 +288,7 @@
   [
     === Screen size
     #breakdown_table(
-      label_header: "Size", count_header: "Events",
+      label_header: "Size", count_header: "Visitors",
       (
         {{ range $.Dash.ByScreenSize }}
         text(size: 7.5pt)[{{ typstMD .Label }}], text(size: 7.5pt)[{{ .Count }}], text(size: 7.5pt, fill: dim)[{{ pct .Count $.Dash.BreakdownTotals.ScreenSize }}%],
@@ -308,7 +308,7 @@
   [
     === Top countries
     #label_count_table(
-      label_header: "Country", count_header: "Sessions",
+      label_header: "Country", count_header: "Visitors",
       (
         {{ range $.Dash.TopCountries }}
         text(size: 7.5pt)[{{ typstMD .Label }}], text(size: 7.5pt)[{{ .Count }}],

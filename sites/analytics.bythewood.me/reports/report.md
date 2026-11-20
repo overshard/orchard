@@ -2,8 +2,8 @@
 
 **Property ID:** `{{ $.Property.ID }}`
 **Operator:** operator
-**Date range:** {{ $.Dash.DateStart }} → {{ $.Dash.DateEnd }} ({{ $.Dash.DateRange }} days){{ if $.Dash.FilterURL }}
-**Filter · url:** `{{ $.Dash.FilterURL }}`{{ end }}
+**Date range:** {{ $.Dash.DateStart }} → {{ $.Dash.DateEnd }} ({{ $.Dash.DateRange }} days){{ if $.Dash.Filters }}
+**Filtered to:** {{ $.Dash.FilterText }}{{ end }}
 **Generated:** {{ $.ReportedAt }}
 **Live users (last 30m):** {{ $.Dash.LiveUsers }}
 
@@ -16,11 +16,11 @@
 {{ range $.Dash.EventCards }}| {{ .Name }} | `{{ .Value }}` | {{ if gt .PercentChange 0 }}+{{ end }}{{ .PercentChange }}% |
 {{ end }}
 
-## Events over time
+## Visitors over time
 
-| Date | Count |
-|---|---|
-{{ range $.Dash.Graph }}| {{ .Label }} | {{ .Count }} |
+| Date | Visitors | Before | Visitors before |
+|---|---|---|---|
+{{ range $.Dash.Graph }}| {{ .Label }} | {{ .Count }} | {{ .PrevLabel }} | {{ .Prev }} |
 {{ end }}
 
 {{ if $.Dash.PageViewsByPageURL }}## Top pages · page views
@@ -39,9 +39,30 @@
 {{ end }}
 {{ if $.Dash.SessionsByReferrer }}## Top referrers
 
-| Referrer | Sessions |
+| Referrer | Visits |
 |---|---|
 {{ range $.Dash.SessionsByReferrer }}| `{{ .Label }}` | {{ .Count }} |
+{{ end }}
+{{ end }}
+{{ if $.Dash.EntryPages }}## Entry pages
+
+| URL | Visits | Bounce |
+|---|---|---|
+{{ range $.Dash.EntryPages }}| `{{ .Label }}` | {{ .Count }} | {{ .Rate }}% |
+{{ end }}
+{{ end }}
+{{ if $.Dash.ExitPages }}## Exit pages
+
+| URL | Visits |
+|---|---|
+{{ range $.Dash.ExitPages }}| `{{ .Label }}` | {{ .Count }} |
+{{ end }}
+{{ end }}
+{{ if $.Dash.Goals }}## Goals
+
+| Event | Visits | Rate |
+|---|---|---|
+{{ range $.Dash.Goals }}| `{{ .Label }}` | {{ .Count }} | {{ permille .Rate }} |
 {{ end }}
 {{ end }}
 {{ if $.Dash.ByCustomEvent }}## Top custom events
@@ -53,28 +74,28 @@
 {{ end }}
 {{ if $.Dash.ByDevice }}## Device
 
-| Device | Events |
+| Device | Visitors |
 |---|---|
 {{ range $.Dash.ByDevice }}| {{ .Label }} | {{ .Count }} |
 {{ end }}
 {{ end }}
 {{ if $.Dash.ByBrowser }}## Browser
 
-| Browser | Events |
+| Browser | Visitors |
 |---|---|
 {{ range $.Dash.ByBrowser }}| {{ .Label }} | {{ .Count }} |
 {{ end }}
 {{ end }}
 {{ if $.Dash.ByPlatform }}## Platform
 
-| Platform | Events |
+| Platform | Visitors |
 |---|---|
 {{ range $.Dash.ByPlatform }}| {{ .Label }} | {{ .Count }} |
 {{ end }}
 {{ end }}
 {{ if $.Dash.ByScreenSize }}## Screen size
 
-| Size | Events |
+| Size | Visitors |
 |---|---|
 {{ range $.Dash.ByScreenSize }}| {{ .Label }} | {{ .Count }} |
 {{ end }}

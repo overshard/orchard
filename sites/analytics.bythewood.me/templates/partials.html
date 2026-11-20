@@ -36,21 +36,22 @@
 
 {{ define "footer" }}{{ template "suite-foot" .Suite }}{{ end }}
 
-{{/* One ranked list. Bars are sized against the largest value, not the sum,
-     so one page that dominates still leaves the rest readable. */}}
-{{ define "rankList" }}
-{{ if .items }}
-<section class="o-panel">
-  <div class="o-ph2"><h2>{{ .title }}</h2><span class="o-lab">{{ .col }}</span></div>
-  {{ template "hbars" . }}
+{{/* A ranked panel whose rows are filters. Bars are sized against the largest
+     value, not the sum, so one page that dominates still leaves the rest
+     readable. share shows each row's part of the panel instead of its count,
+     rate adds the row's second percentage. */}}
+{{ define "fpanel" }}
+<section class="o-panel"{{ if .tip }} data-tip="{{ .tip }}"{{ end }}>
+  <div class="o-ph2"><h2>{{ .title }}</h2><span class="o-pm"><span>{{ .col }}</span></span></div>
+  {{ if .items }}{{ template "fbars" . }}{{ else }}<p class="o-empty">Nothing in this window.</p>{{ end }}
+  {{ if .foot }}<p class="o-foot">{{ .foot }}</p>{{ end }}
 </section>
 {{ end }}
-{{ end }}
 
-{{ define "hbars" }}
-{{ $pid := .filterFor }}
-{{ $top := topCount .items }}
+{{ define "fbars" }}
+{{ $d := .d }}{{ $key := .key }}{{ $share := .share }}{{ $rate := .rate }}
+{{ $top := topCount .items }}{{ $sum := sumCount .items }}
 {{ range .items }}
-<div class="o-hbar"><span class="k" title="{{ .Label }}">{{ if $pid }}<a href="/{{ $pid }}?filter_url={{ .Label }}">{{ .Label }}</a>{{ else }}{{ .Label }}{{ end }}</span><span class="bar"><i style="width: {{ pct .Count $top }}%"></i></span><span class="v">{{ num .Count }}</span></div>
+{{ if $key }}<a class="o-hbar fl{{ if $d.On $key .Label }} on{{ end }}" href="{{ $d.Toggle $key .Label }}" title="{{ .Label }}">{{ else }}<div class="o-hbar" title="{{ .Label }}">{{ end }}<span class="k">{{ .Label }}</span><span class="bar"><i style="width: {{ pct .Count $top }}%"></i></span>{{ if $share }}<span class="v" data-tip="{{ num .Count }}">{{ pct .Count $sum }}%</span>{{ else }}<span class="v">{{ num .Count }}</span>{{ end }}{{ if $rate }}<span class="d{{ if ge .Rate 60 }} o-warn{{ end }}">{{ .Rate }}%</span>{{ end }}{{ if $key }}</a>{{ else }}</div>{{ end }}
 {{ end }}
 {{ end }}

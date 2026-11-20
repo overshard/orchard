@@ -3,11 +3,13 @@ package main
 import (
 	"analytics.bythewood.me/suite"
 
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -81,25 +83,47 @@ type Dashboard struct {
 	DateStart string
 	DateEnd   string
 	DateRange int64
-	FilterURL string
 	LiveUsers int64
+	Authed    bool
 
+	Filters []Filter
+	query   url.Values
+
+	// EventCards is every tile, for the reports. Tiles and Pinned split it
+	// for the page.
 	EventCards   []EventCard
+	Tiles        []EventCard
+	Pinned       []EventCard
+	Labels       []string
 	CustomEvents []CustomEventDescriptor
+	GoalNames    []string
 
-	Graph                 []GraphPoint
-	GraphStep             string
+	Graph      []GraphPoint
+	GraphStep  string
+	GraphPeak  GraphPoint
+	GraphAvg   int64
+	PrevAvg    int64
+	Chart      template.HTML
+	ChartMarks []ChartMark
+	Alerts     []Alert
+	Live       Live
+
 	ByScreenSize          []LabelCount
 	ByDevice              []LabelCount
 	ByBrowser             []LabelCount
 	ByPlatform            []LabelCount
 	ByPageURL             []LabelCount
 	PageViewsByPageURL    []LabelCount
+	EntryPages            []LabelCount
+	ExitPages             []LabelCount
 	ByCustomEvent         []LabelCount
+	Goals                 []LabelCount
 	SessionsByReferrer    []LabelCount
 	PageViewsByUTMMedium  []LabelCount
 	PageViewsByUTMSource  []LabelCount
 	PageViewsByUTMCampaig []LabelCount
+	Regions               []LabelCount
+	RegionsOf             string
 
 	SessionsByCountry       map[string]int64
 	SessionsByCountryRegion map[string]map[string]int64
@@ -115,6 +139,24 @@ type Dashboard struct {
 	ChartPeakLabel  string
 	BreakdownTotals BreakdownTotals
 	TopCountries    []LabelCount
+}
+
+// FilterText is the filters as one line, for the reports.
+func (d *Dashboard) FilterText() string {
+	parts := make([]string, 0, len(d.Filters))
+	for _, f := range d.Filters {
+		parts = append(parts, f.Label+" "+f.Value)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// Hidden is the filters as form fields, so changing the dates keeps them.
+func (d *Dashboard) Hidden() map[string]string {
+	out := map[string]string{}
+	for _, f := range d.Filters {
+		out["f_"+f.Key] = f.Value
+	}
+	return out
 }
 
 // BreakdownTotals holds each breakdown's sum, floored at one so a template can
@@ -206,7 +248,6 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	// The period before is the same span of time ending where this one starts.
 	prevEndMS := startMS - 1
 	prevStartMS := prevEndMS - (endMS - startMS)
-	filterURL := q.Get("filter_url")
 
 	// Anchor the graph to the requested end date, stepping back from today
 	// charts a historical range as zeros beside real metric cards.
@@ -215,44 +256,70 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		graphEnd = today
 	}
 
+	filters := parseFilters(q, p.ID)
 	d := &Dashboard{
 		DateStart: dateStart,
 		DateEnd:   dateEnd,
 		DateRange: rangeDays,
-		FilterURL: filterURL,
-		LiveUsers: totalLiveUsers(ctx, s.db, p.ID),
+		Authed:    authed,
+		Filters:   filters,
+		query:     q,
+		Live:      readLive(ctx, s.db, p.ID, time.Now()),
 	}
-
-	d.EventCards = standardEventCards(ctx, s.db, p.ID, startMS, endMS, prevStartMS, prevEndMS, filterURL)
-	customCards, customEvents := customEventCards(ctx, s.db, p.ID, p.CustomCards, startMS, endMS, prevStartMS, prevEndMS, filterURL)
-	d.EventCards = append(d.EventCards, customCards...)
-	d.CustomEvents = customEvents
-
-	d.Graph = eventsGraph(ctx, s.db, p.ID, startMS, endMS, filterURL, graphEnd, rangeDays)
+	d.LiveUsers = d.Live.Users
+	cur := newScope(p.ID, startMS, endMS, filters)
+	prev := newScope(p.ID, prevStartMS, prevEndMS, filters)
+	// The window spans rangeDays+1 calendar days, so the period before ends
+	// that many days earlier.
+	curB := newBuckets(graphEnd, rangeDays)
+	prevB := newBuckets(graphEnd.AddDate(0, 0, -int(rangeDays+1)), rangeDays)
+	d.Labels = curB.labels
 	d.GraphStep = graphStep(rangeDays)
-	series := eventSeries(ctx, s.db, p.ID, startMS, endMS, filterURL, graphEnd, rangeDays)
-	for i, c := range d.EventCards {
-		if c.Event == "" {
-			continue
-		}
-		d.EventCards[i].Series = series[c.Event]
-		if d.EventCards[i].Series == nil {
-			d.EventCards[i].Series = make([]float64, len(series["*"]))
+
+	// Every panel reads the same cut rows, so they're cut once on one
+	// connection, whose temp tables are dropped before it goes back.
+	var db querier = s.db
+	if conn, err := s.db.Conn(ctx); err == nil {
+		defer conn.Close()
+		db = conn
+		for name, sc := range map[string]*scope{"cur": &cur, "prev": &prev} {
+			if err := sc.materialize(ctx, conn, name); err != nil {
+				slog.Info("materialize", slog.String("scope", name), slog.Any("err", err))
+			}
+			defer sc.drop(context.WithoutCancel(ctx), conn)
 		}
 	}
-	d.ByScreenSize = eventsByScreenSize(ctx, s.db, p.ID, startMS, endMS, filterURL, 7)
-	d.ByDevice = eventsByDevice(ctx, s.db, p.ID, startMS, endMS, filterURL, 7)
-	d.ByBrowser = eventsByBrowser(ctx, s.db, p.ID, startMS, endMS, filterURL, 7)
-	d.ByPlatform = eventsByPlatform(ctx, s.db, p.ID, startMS, endMS, filterURL, 7)
-	d.ByPageURL = eventsByPageURL(ctx, s.db, p.ID, startMS, endMS, filterURL, 10)
-	d.PageViewsByPageURL = pageViewsByPageURL(ctx, s.db, p.ID, startMS, endMS, filterURL, 10)
-	d.ByCustomEvent = eventsByCustomEvent(ctx, s.db, p.ID, startMS, endMS, filterURL, 10)
-	d.SessionsByReferrer = sessionStartsByReferrer(ctx, s.db, p.ID, startMS, endMS, filterURL, 10)
-	d.PageViewsByUTMMedium = pageViewsByUTM(ctx, s.db, p.ID, startMS, endMS, filterURL, "medium", 10)
-	d.PageViewsByUTMSource = pageViewsByUTM(ctx, s.db, p.ID, startMS, endMS, filterURL, "source", 10)
-	d.PageViewsByUTMCampaig = pageViewsByUTM(ctx, s.db, p.ID, startMS, endMS, filterURL, "campaign", 10)
-	d.SessionsByCountry = sessionStartsByCountry(ctx, s.db, p.ID, startMS, endMS, filterURL)
-	d.SessionsByCountryRegion = sessionStartsByCountryRegion(ctx, s.db, p.ID, startMS, endMS, filterURL)
+
+	d.GoalNames = goalEvents(ctx, s.db, p.ID)
+	s.fillTiles(ctx, db, d, p, cur, prev, curB, prevB)
+
+	var alerts []Alert
+	if authed {
+		alerts = readAlerts(ctx, s.db, p.ID, startMS, endMS, 50)
+		d.Alerts = readAlerts(ctx, s.db, p.ID, 0, time.Now().UnixMilli(), 5)
+	}
+	d.Chart, d.ChartMarks = visitorsChart(d.Graph, alerts, curB)
+
+	d.PageViewsByPageURL = cur.pageViewsBy(ctx, db, "url", 10)
+	d.ByPageURL = cur.top(ctx, db, "events_by_url", "url", "COUNT(*)", "", 10)
+	d.EntryPages = cur.visitsBy(ctx, db, "entry", 8)
+	d.ExitPages = cur.visitsBy(ctx, db, "exit", 8)
+	d.SessionsByReferrer = cur.visitsBy(ctx, db, "ref", 10)
+	d.ByScreenSize = cur.visitorsBy(ctx, db, screenExpr, 7)
+	d.ByDevice = cur.visitorsBy(ctx, db, "device", 7)
+	d.ByBrowser = cur.visitorsBy(ctx, db, "browser", 7)
+	d.ByPlatform = cur.visitorsBy(ctx, db, "platform", 7)
+	d.ByCustomEvent = cur.customEvents(ctx, db, 10)
+	d.PageViewsByUTMMedium = cur.pageViewsBy(ctx, db, "utm_medium", 10)
+	d.PageViewsByUTMSource = cur.pageViewsBy(ctx, db, "utm_source", 10)
+	d.PageViewsByUTMCampaig = cur.pageViewsBy(ctx, db, "utm_campaign", 10)
+	d.SessionsByCountry, d.SessionsByCountryRegion = cur.visitorsByPlace(ctx, db)
+	for _, f := range filters {
+		if f.Key == "country" {
+			d.RegionsOf = f.Value
+			d.Regions = topOf(d.SessionsByCountryRegion[f.Value], 8)
+		}
+	}
 	d.Bots = botTraffic(ctx, s.db, p.ID, startMS, endMS, 10)
 
 	d.fillReportExtras()

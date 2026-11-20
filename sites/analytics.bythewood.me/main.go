@@ -211,6 +211,7 @@ func realMain() error {
 	mux.HandleFunc("POST /properties/{id}/delete", s.auth.RequireAuth(s.propertyDelete))
 	mux.HandleFunc("POST /properties/{id}/cards", s.auth.RequireAuth(s.propertyCards))
 	mux.HandleFunc("POST /properties/{id}/public", s.auth.RequireAuth(s.propertyPublic))
+	mux.HandleFunc("POST /properties/{id}/goals", s.auth.RequireAuth(s.propertyGoals))
 
 	// /collect/ is an alias for embeds that hardcoded the trailing slash, those
 	// snippets live in other people's HTML.
@@ -228,6 +229,7 @@ func realMain() error {
 		"/properties/{id}/delete": "POST",
 		"/properties/{id}/cards":  "POST",
 		"/properties/{id}/public": "POST",
+		"/properties/{id}/goals":  "POST",
 	} {
 		mux.HandleFunc("GET "+path, methodNotAllowed(allow))
 	}

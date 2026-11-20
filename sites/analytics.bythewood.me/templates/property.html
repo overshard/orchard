@@ -2,11 +2,7 @@
 {{/* Chart data as inline JSON blocks, read by properties/index.js. The json
      helper escapes HTML, so a page URL holding "</script>" can't close one. */}}
 {{ with .Dash }}
-<script id="chart-total-events-data" type="application/json">{{ json .Graph }}</script>
-<script id="chart-total-events-by-browser-data" type="application/json">{{ json .ByBrowser }}</script>
-<script id="chart-total-events-by-screen-size-data" type="application/json">{{ json .ByScreenSize }}</script>
-<script id="chart-total-events-by-device-data" type="application/json">{{ json .ByDevice }}</script>
-<script id="chart-total-events-by-platform-data" type="application/json">{{ json .ByPlatform }}</script>
+<script id="chart-visitors-data" type="application/json">{{ json (dict "points" .Graph "marks" .ChartMarks) }}</script>
 <script id="map-session-starts-by-country" type="application/json">{{ json .SessionsByCountry }}</script>
 <script id="map-session-starts-by-country-region" type="application/json">{{ json .SessionsByCountryRegion }}</script>
 {{ end }}
@@ -18,24 +14,25 @@
 {{ $baseURL := .BaseURL }}
 {{ $p := .Property }}
 {{ with .Dash }}
-<main class="o-wrap o-main">
+{{ $d := . }}
+<main class="o-wrap o-main dash">
   <div class="o-ph">
     <div>
       <span class="o-lab">analytics &middot; {{ if $authed }}properties &middot; {{ end }}{{ $p.Name }}</span>
       <h1>{{ cardHeadline .EventCards }}</h1>
-      <p><span class="o-dot {{ if not .LiveUsers }}mute{{ end }}"></span>{{ .LiveUsers }} on the site now &middot; {{ .DateStart }} to {{ .DateEnd }}</p>
+      <div class="o-pm"><span>live<b class="{{ if .LiveUsers }}ok{{ end }}">{{ .LiveUsers }}</b></span><span>window<b>{{ .DateRange }}d</b></span><span>vs<b>prev {{ .DateRange }}d</b></span><span>from<b>{{ .DateStart }}</b></span><span>to<b>{{ .DateEnd }}</b></span><span>tz<b>Eastern</b></span></div>
     </div>
     {{ if $authed }}
     <div class="o-acts d-print-none">
       <form id="is-public-form" method="POST" action="/properties/{{ $p.ID }}/public" class="visibility">
-        <span class="o-muted small" title="Anyone with the link can see a public property, no sign in.">Visibility</span>
+        <span class="o-muted small" data-tip="Anyone with the link can see a public property, no sign in.">Visibility</span>
         <label class="o-seg">
           <input type="checkbox" name="is_public" id="is-public-switch" {{ if $p.IsPublic }}checked{{ end }}>
           <span class="seg-private">private</span><span class="seg-public">public</span>
         </label>
       </form>
-      <a href="/{{ $p.ID }}?report=md" target="_blank" class="o-btn o-btn-sm">Markdown</a>
-      <a href="/{{ $p.ID }}?report" target="_blank" class="o-btn o-btn-sm">PDF report</a>
+      <a href="/{{ $p.ID }}{{ .Report "md" }}" target="_blank" class="o-btn o-btn-sm" data-act="Markdown report">Markdown</a>
+      <a href="/{{ $p.ID }}{{ .Report "pdf" }}" target="_blank" class="o-btn o-btn-sm" data-act="PDF report">PDF report</a>
       {{ if not $p.IsProtected }}
       <form method="post" action="/properties/{{ $p.ID }}/delete" data-confirm="Delete {{ $p.Name }} and every event collected for it?">
         <button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete</button>
@@ -47,6 +44,7 @@
 
   <div class="toolbar d-print-none">
     <form method="GET" class="dates">
+      {{ range $k, $v := .Hidden }}<input type="hidden" name="{{ $k }}" value="{{ $v }}">{{ end }}
       <label class="o-field"><span>From</span><input type="date" name="date_start" id="date-start" value="{{ .DateStart }}"></label>
       <label class="o-field"><span>To</span><input type="date" name="date_end" id="date-end" value="{{ .DateEnd }}"></label>
       <label class="o-field"><span>Window</span>
@@ -62,13 +60,6 @@
         </select>
       </label>
     </form>
-    {{ if .FilterURL }}
-    <span class="filterchip">
-      <span class="o-lab plain o-muted">page</span>
-      <span class="o-mono">{{ .FilterURL }}</span>
-      <button type="button" class="btn-filter-clear" data-filter-key="filter_url" data-filter-value="{{ .FilterURL }}" aria-label="Clear the page filter">&times;</button>
-    </span>
-    {{ end }}
     <span class="o-sp"></span>
     {{ if $authed }}
     <details class="menu">
@@ -79,68 +70,150 @@
         <p class="o-muted small">Behind a Content-Security-Policy, add <code>{{ $baseURL }}</code> to <code>script-src</code> and <code>connect-src</code>.</p>
       </div>
     </details>
-    {{ if .CustomEvents }}
     <details class="menu">
-      <summary class="o-btn o-btn-sm">Custom cards</summary>
-      <div class="menu-body">
-        <form id="custom-card-form" method="POST" action="/properties/{{ $p.ID }}/cards">
+      <summary class="o-btn o-btn-sm" data-act="Cards and goals">Cards and goals</summary>
+      <div class="menu-body" id="event-menu">
+        <form id="custom-card-form" method="POST" action="/properties/{{ $p.ID }}/cards"></form>
+        <form id="goal-form" method="POST" action="/properties/{{ $p.ID }}/goals"><input type="hidden" name="back" value="{{ .QueryString }}"></form>
+        <p class="o-muted small">A card pins an event's count under the strip. A goal counts the visits that sent it and the share of all visits.</p>
+        <table class="evpick">
+          <thead><tr><th>event</th><th>card</th><th>goal</th></tr></thead>
+          <tbody>
           {{ range .CustomEvents }}
-          <label class="o-check"><input type="checkbox" name="{{ .Event }}" id="{{ .Event }}-switch" {{ if .Active }}checked{{ end }}> <span class="o-mono">{{ .Event }}</span></label>
+          <tr><td class="o-mono">{{ .Event }}</td>
+            <td><input type="checkbox" form="custom-card-form" name="{{ .Event }}" aria-label="Pin {{ .Event }} as a card" {{ if .Active }}checked{{ end }}></td>
+            <td>{{ if .Custom }}<input type="checkbox" form="goal-form" name="goal" value="{{ .Event }}" aria-label="Count {{ .Event }} as a goal" {{ if .Goal }}checked{{ end }}>{{ end }}</td></tr>
           {{ end }}
-        </form>
+          </tbody>
+        </table>
+        {{ if not .GoalNames }}{{ if not .ByCustomEvent }}<p class="o-muted small">Goals need a custom event. The docs say how to send one.</p>{{ end }}{{ end }}
       </div>
     </details>
     {{ end }}
-    {{ end }}
   </div>
 
-  <div class="o-tiles cards" style="--cols: {{ tileCols (len .EventCards) }}">
-    {{ range .EventCards }}
-    <div class="o-tile" {{ if .HelpText }}title="{{ .HelpText }}"{{ end }}>
-      <small>{{ cardName .Name }}</small>
+  <div class="chips">
+    {{ if .Filters }}
+    <span class="o-lab plain o-muted">filtered to</span>
+    {{ range .Filters }}<a class="o-chip brass x" href="{{ $d.Toggle .Key .Value }}" data-tip="Remove this filter">{{ .Label }} {{ .Value }}</a>{{ end }}
+    <a class="o-muted clear" href="{{ .Cleared }}">clear</a>
+    {{ else }}
+    <span class="o-muted hint">No filters. Click any row below to narrow every panel to it.</span>
+    {{ end }}
+    <span class="o-sp"></span>
+    <span class="when" data-xs-when>{{ .DateRange }} days &middot; against the {{ .DateRange }} before</span>
+  </div>
+
+  <div class="o-strip">
+    {{ range .Tiles }}
+    <div class="o-tile"{{ if .HelpText }} data-tip="{{ .HelpText }}"{{ end }}>
+      <small>{{ .Name }}</small>
       <b>{{ .Value }}</b>
-      <span class="o-delta {{ if gt .PercentChange 0 }}o-ok{{ else if lt .PercentChange 0 }}o-bad{{ end }}">{{ if eq .PercentChange 0 }}no change{{ else if gt .PercentChange 0 }}+{{ .PercentChange }}%{{ else }}{{ .PercentChange }}%{{ end }}<span class="long"> on the period before</span></span>
-      {{ if .Series }}{{ spark (or (and (lt .PercentChange 0) "bad") "ok") .Series }}{{ else }}<span class="o-nospark"></span>{{ end }}
+      <span class="o-delta {{ .DeltaClass }}">{{ .Delta }}</span>
+      {{ if .Series }}{{ sparkT .SparkKind .Series $d.Labels }}{{ else }}<span class="o-nospark"></span>{{ end }}
+    </div>
+    {{ end }}
+    <div class="o-tile" data-tip="Visitors with an event in the last half hour, one tick a minute.">
+      <small>live</small>
+      <b>{{ .Live.Users }}</b>
+      <span class="o-delta">last 30 min</span>
+      <div class="o-ticks">{{ range ticks .Live.Ticks }}<i style="height: {{ . }}%"></i>{{ end }}</div>
+    </div>
+  </div>
+
+  {{ if .Pinned }}
+  <div class="o-strip pinned">
+    {{ range .Pinned }}
+    <div class="o-tile">
+      <small>{{ .Name }}</small>
+      <b>{{ .Value }}</b>
+      <span class="o-delta {{ .DeltaClass }}">{{ .Delta }}</span>
+      {{ if .Series }}{{ sparkT .SparkKind .Series $d.Labels }}{{ else }}<span class="o-nospark"></span>{{ end }}
     </div>
     {{ end }}
   </div>
+  {{ end }}
 
-  <div class="o-cols">
-    <div class="colstack">
-      <section class="o-panel">
-        <div class="o-ph2"><h2>Events over time</h2><span class="o-lab">{{ .GraphStep }}</span></div>
-        <div class="chartbox tall"><canvas id="chart-total-events"></canvas></div>
-      </section>
-      <section class="o-panel">
-        <div class="o-ph2"><h2 id="map-title">sessions &middot; world</h2><button type="button" id="map-back" class="o-btn o-btn-sm" hidden>&larr; back to the world</button></div>
-        <div id="map"></div>
-      </section>
-    </div>
-    <div id="doughnut-graphs" class="donuts">
-      <section class="o-panel"><div class="o-ph2"><h2>Device</h2></div><div class="chartbox"><canvas id="chart-total-events-by-device"></canvas></div></section>
-      <section class="o-panel"><div class="o-ph2"><h2>Browser</h2></div><div class="chartbox"><canvas id="chart-total-events-by-browser"></canvas></div></section>
-      <section class="o-panel"><div class="o-ph2"><h2>Platform</h2></div><div class="chartbox"><canvas id="chart-total-events-by-platform"></canvas></div></section>
-      <section class="o-panel"><div class="o-ph2"><h2>Screen size</h2></div><div class="chartbox"><canvas id="chart-total-events-by-screen-size"></canvas></div></section>
-    </div>
-  </div>
-
-  <div id="top-lists" class="lists">
-    {{ template "rankList" dict "title" "Top pages" "col" "page views" "items" .PageViewsByPageURL "filterFor" $p.ID }}
-    {{ template "rankList" dict "title" "Referrers" "col" "sessions" "items" .SessionsByReferrer "filterFor" "" }}
-    {{ template "rankList" dict "title" "Pages by every event" "col" "events" "items" .ByPageURL "filterFor" $p.ID }}
-    {{ template "rankList" dict "title" "Custom events" "col" "count" "items" .ByCustomEvent "filterFor" "" }}
-    {{ template "rankList" dict "title" "utm medium" "col" "views" "items" .PageViewsByUTMMedium "filterFor" "" }}
-    {{ template "rankList" dict "title" "utm source" "col" "views" "items" .PageViewsByUTMSource "filterFor" "" }}
-    {{ template "rankList" dict "title" "utm campaign" "col" "views" "items" .PageViewsByUTMCampaig "filterFor" "" }}
-    <section class="o-panel bots" title="Crawlers and other bots, counted apart so they never inflate the numbers above.">
-      <div class="o-ph2"><h2>Bots</h2><span class="o-lab">{{ num .Bots.Total }} events &middot; kept apart</span></div>
-      {{ if .Bots.Total }}
-      {{ template "hbars" dict "items" .Bots.TopBots "filterFor" "" }}
-      {{ if .Bots.TopPages }}<span class="o-lab sub">pages they hit</span>{{ template "hbars" dict "items" .Bots.TopPages "filterFor" "" }}{{ end }}
+  <div class="o-band b2r">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Visitors over time</h2><span class="o-pm"><span>{{ .GraphStep }}</span><span>peak<b>{{ .GraphPeak.Label }} &middot; {{ num .GraphPeak.Count }}</b></span><span>avg<b>{{ num .GraphAvg }}</b></span><span>before<b>{{ num .PrevAvg }}</b></span>{{ if $authed }}<span>alerts<b>{{ len .ChartMarks }}</b></span>{{ end }}</span></div>
+      {{ if .Chart }}
+      <div class="vchart" id="visitors-chart">
+        {{ .Chart }}
+        {{ range .ChartMarks }}<span class="mkl{{ if .Right }} r{{ end }}" style="left: {{ .X }}%" data-tip="{{ .Tip }}">{{ .Label }}</span>{{ end }}
+        <i class="vl" hidden></i>
+      </div>
+      <div class="xax">{{ range axisLabels .Graph }}<span>{{ . }}</span>{{ end }}</div>
+      <div class="leg"><span><i class="cur"></i>visitors</span><span><i class="prev"></i>the {{ .DateRange }} days before</span>{{ if .ChartMarks }}<span><i class="mark"></i>alert pushed</span>{{ end }}</div>
       {{ else }}
-      <p class="o-empty">No bot events in this window.</p>
+      <p class="o-empty">Nothing collected in this window.</p>
       {{ end }}
     </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Live</h2><span class="o-pm"><span>on site<b class="{{ if .Live.Users }}ok{{ end }}">{{ .Live.Users }}</b></span></span></div>
+      <div class="o-ticks live">{{ range ticks .Live.Ticks }}<i style="height: {{ . }}%"></i>{{ end }}</div>
+      {{ if .Live.Pages }}{{ template "fbars" dict "d" $d "key" "page" "items" .Live.Pages }}{{ else }}<p class="o-empty">Nobody reading right now.</p>{{ end }}
+      {{ range .Alerts }}
+      <div class="o-ev"><span class="t">{{ .When }}</span><span class="x">{{ .Title }}<span>{{ .Body }}</span></span></div>
+      {{ end }}
+      <p class="o-foot">{{ .Live.Users }} visitors &middot; last 30 min{{ if .Alerts }} &middot; alerts newest first{{ end }}</p>
+    </section>
+  </div>
+
+  <div class="o-band b4">
+    {{ template "fpanel" dict "d" $d "title" "Top pages" "col" "views" "key" "page" "items" .PageViewsByPageURL }}
+    {{ template "fpanel" dict "d" $d "title" "Entry pages" "col" "visits · bounce" "key" "entry" "items" .EntryPages "rate" true "tip" "Where each visit started, and the share of those visits that left after one page." }}
+    {{ template "fpanel" dict "d" $d "title" "Exit pages" "col" "visits" "key" "page" "items" .ExitPages "tip" "The last page each visit saw." }}
+    {{ template "fpanel" dict "d" $d "title" "Referrers" "col" "visits" "key" "referrer" "items" .SessionsByReferrer "tip" "Where each visit came from, read off its first page view." }}
+  </div>
+
+  <div class="o-band b6">
+    {{ if .RegionsOf }}
+    {{ template "fpanel" dict "d" $d "title" (printf "Regions · %s" .RegionsOf) "col" "visitors" "key" "region" "items" .Regions }}
+    {{ else }}
+    {{ template "fpanel" dict "d" $d "title" "Countries" "col" "visitors" "key" "country" "items" .TopCountries "foot" (printf "%d of %d · map below" (len .TopCountries) (len .SessionsByCountry)) }}
+    {{ end }}
+    {{ template "fpanel" dict "d" $d "title" "Device" "col" "visitors" "key" "device" "items" .ByDevice "share" true }}
+    {{ template "fpanel" dict "d" $d "title" "Browser" "col" "visitors" "key" "browser" "items" .ByBrowser "share" true }}
+    {{ template "fpanel" dict "d" $d "title" "Platform" "col" "visitors" "key" "platform" "items" .ByPlatform "share" true }}
+    {{ template "fpanel" dict "d" $d "title" "Screen" "col" "visitors" "key" "screen" "items" .ByScreenSize "share" true }}
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Goals</h2><span class="o-pm"><span>visits &middot; rate</span></span></div>
+      {{ if .Goals }}
+      {{ $top := topCount .Goals }}
+      {{ range .Goals }}
+      <a class="o-hbar fl{{ if $d.On "goal" .Label }} on{{ end }}" href="{{ $d.Toggle "goal" .Label }}"><span class="k">{{ .Label }}</span><span class="bar"><i style="width: {{ pct .Count $top }}%"></i></span><span class="v">{{ num .Count }}</span><span class="d">{{ permille .Rate }}</span></a>
+      {{ end }}
+      {{ else }}
+      <p class="o-empty">{{ if $authed }}No goals yet. Mark a custom event as one under Cards and goals.{{ else }}No goals on this property.{{ end }}</p>
+      {{ end }}
+    </section>
+  </div>
+
+  <div class="o-band b4">
+    {{ template "fpanel" dict "d" $d "title" "utm source" "col" "views" "key" "source" "items" .PageViewsByUTMSource }}
+    {{ template "fpanel" dict "d" $d "title" "utm medium" "col" "views" "key" "medium" "items" .PageViewsByUTMMedium }}
+    {{ template "fpanel" dict "d" $d "title" "utm campaign" "col" "views" "key" "campaign" "items" .PageViewsByUTMCampaig }}
+    {{ template "fpanel" dict "d" $d "title" "Custom events" "col" "count" "key" "goal" "items" .ByCustomEvent "tip" "A row narrows the page to the visits that sent the event." }}
+  </div>
+
+  <div class="o-band b2">
+    <section class="o-panel">
+      <div class="o-ph2"><h2 id="map-title">visitors &middot; world</h2><button type="button" id="map-back" class="o-btn o-btn-sm" hidden>&larr; back to the world</button></div>
+      <div id="map"></div>
+    </section>
+    <div class="colstack">
+      {{ template "fpanel" dict "d" $d "title" "Pages by every event" "col" "events" "key" "page" "items" .ByPageURL }}
+      <section class="o-panel bots" data-tip="Crawlers and other bots, counted apart so they never inflate the numbers above.">
+        <div class="o-ph2"><h2>Bots</h2><span class="o-pm"><span>events<b>{{ num .Bots.Total }}</b></span><span>kept apart</span></span></div>
+        {{ if .Bots.Total }}
+        {{ template "fbars" dict "d" $d "key" "" "items" .Bots.TopBots }}
+        {{ if .Bots.TopPages }}<span class="o-lab sub">pages they hit</span>{{ template "fbars" dict "d" $d "key" "" "items" .Bots.TopPages }}{{ end }}
+        {{ else }}
+        <p class="o-empty">No bot events in this window.</p>
+        {{ end }}
+      </section>
+    </div>
   </div>
 </main>
 {{ end }}

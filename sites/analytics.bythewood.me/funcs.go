@@ -18,8 +18,11 @@ var templateFuncs = template.FuncMap{
 	"weekDelta":    weekDelta,
 	"tileCols":     tileCols,
 	"cardHeadline": cardHeadline,
-	"cardName":     cardName,
 	"seq":          func(n int) []struct{} { return make([]struct{}, n) },
+	"axisLabels":   axisLabels,
+	"permille":     func(n int64) string { return fmt.Sprintf("%.1f%%", float64(n)/10) },
+	"ticks":        ticks,
+	"sumCount":     sumCounts,
 	"topCount": func(items []LabelCount) int64 {
 		var top int64 = 1
 		for _, i := range items {
@@ -89,4 +92,20 @@ func formatNum(v any) string {
 		return "-" + b.String()
 	}
 	return b.String()
+}
+
+// ticks sizes each minute of the live panel against the busiest one.
+func ticks(vals []int64) []int64 {
+	var top int64 = 1
+	for _, v := range vals {
+		top = max(top, v)
+	}
+	out := make([]int64, len(vals))
+	for i, v := range vals {
+		out[i] = 4 + v*96/top
+		if v == 0 {
+			out[i] = 4
+		}
+	}
+	return out
 }

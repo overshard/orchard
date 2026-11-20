@@ -1,10 +1,17 @@
-// The form's `action` already holds /properties/{id}/cards, so it is posted to
-// directly rather than rebuilt from window.location.
+// The card and goal boxes sit in one table and belong to two forms by their
+// form attribute, so a change is caught on the table and sent to its own form.
 document.addEventListener("DOMContentLoaded", function () {
-  const form = document.getElementById("custom-card-form");
-  if (!form) return;
+  const menu = document.getElementById("event-menu");
+  if (!menu) return;
 
-  form.addEventListener("change", function () {
+  menu.addEventListener("change", function (e) {
+    const box = e.target;
+    if (!box.form) return;
+    if (box.form.id === "goal-form") {
+      box.form.requestSubmit();
+      return;
+    }
+    const form = box.form;
     const data = [];
     for (const [key, value] of new FormData(form).entries()) {
       data.push({ event: key, value: value === "on" });
