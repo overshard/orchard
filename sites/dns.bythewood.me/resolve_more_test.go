@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/miekg/dns"
 )
@@ -97,5 +98,19 @@ func TestSafeSearchOnlyWhenOn(t *testing.T) {
 	_ = s.reload()
 	if v := s.res.decide(s.res.device(d.Token), "www.google.com"); v.Status != "rewrite" || v.Target != "forcesafesearch.google.com" {
 		t.Fatalf("got %+v", v)
+	}
+}
+
+func TestNewNetsNeedASettledDevice(t *testing.T) {
+	now := time.Now()
+	ds := []*Device{{ID: 1}, {ID: 2}}
+	all := []Net{
+		{Device: 1, ASN: "20115", First: now.Add(-72 * time.Hour)},
+		{Device: 1, ASN: "21928", First: now.Add(-time.Hour)},
+		{Device: 2, ASN: "16276", First: now.Add(-time.Hour)},
+	}
+	got := newNets(all, ds, now)
+	if len(got) != 1 || got[0].ASN != "21928" {
+		t.Fatalf("got %+v", got)
 	}
 }

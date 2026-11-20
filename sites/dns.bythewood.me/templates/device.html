@@ -35,6 +35,12 @@
       </div>
     </section>
 
+    <section class="o-panel flush">
+      <div class="o-ph2"><h2>Networks</h2><span class="o-pm"><span>where it asked from</span></span></div>
+      {{range .Nets}}<div class="o-rw ev"><span class="o-dot {{if lt (since .First).Hours 24.0}}warn{{else}}ok{{end}}"></span><span class="n o-mono">AS{{.ASN}} {{.Org}}</span><span class="m">{{.Country}} &middot; first {{ago .First}}</span><span class="w o-mono">{{ago .Last}}</span></div>
+      {{else}}<p class="o-empty"><b>No networks yet.</b>Each network it asks from shows here, and a new one is flagged for a day.</p>{{end}}
+    </section>
+
     <section class="o-panel">
       <div class="o-ph2"><h2>Settings</h2></div>
       <form method="post" action="/devices/{{.D.ID}}" class="o-form one">

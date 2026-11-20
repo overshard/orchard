@@ -87,6 +87,7 @@ type resolver struct {
 	tcp      *dns.Client
 	fall     *dns.Client
 	fellBack atomic.Int64
+	counts   counts
 	// upOK is the last time unbound answered the health probe.
 	upOK   atomic.Int64
 	log    *logger
@@ -205,9 +206,22 @@ func (r *resolver) Explain(name string) (Verdict, []string) {
 	return v, in
 }
 
-// Answer resolves one query for a device and logs it. It always returns a
-// message to send back.
+// Client is where a query came from. The network is gate's answer for the
+// address, and empty when gate had none.
+type Client struct {
+	Proto, IP         string
+	ASN, Org, Country string
+}
+
+// Answer resolves one query for a device and logs it.
 func (r *resolver) Answer(d *Device, req *dns.Msg, proto, ip string) *dns.Msg {
+	return r.AnswerFor(d, req, Client{Proto: proto, IP: ip})
+}
+
+// AnswerFor resolves one query for a device and logs it. It always returns a
+// message to send back.
+func (r *resolver) AnswerFor(d *Device, req *dns.Msg, c Client) *dns.Msg {
+	proto, ip := c.Proto, c.IP
 	start := time.Now()
 	if len(req.Question) != 1 || req.Opcode != dns.OpcodeQuery {
 		m := new(dns.Msg)
@@ -216,10 +230,11 @@ func (r *resolver) Answer(d *Device, req *dns.Msg, proto, ip string) *dns.Msg {
 	}
 	q := req.Question[0]
 	name := strings.TrimSuffix(strings.ToLower(q.Name), ".")
-	l := Lookup{At: start, Device: d.ID, Name: name, Qtype: q.Qtype, Proto: proto, IP: ip}
+	l := Lookup{At: start, Device: d.ID, Name: name, Qtype: q.Qtype, Proto: proto, IP: ip, ASN: c.ASN, Org: c.Org, Country: c.Country}
 	resp := r.answer(d, req, name, &l)
 	l.Rcode = resp.Rcode
 	l.Ms = int(time.Since(start).Milliseconds())
+	r.counts.add(l.Status, proto)
 	if l.Answer == "" {
 		l.Answer = summary(resp)
 	}

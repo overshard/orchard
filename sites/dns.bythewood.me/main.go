@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -50,6 +51,7 @@ type site struct {
 
 	seenMu sync.Mutex
 	seen   map[int64]Lookup
+	nets   map[[2]string]Lookup
 }
 
 func env(k, def string) string {
@@ -145,6 +147,7 @@ func newSite(store *Store, dataDir, tlsDir string, auth *web.Authenticator) (*si
 		res:   newResolver(l, env("DNS_UPSTREAM", upstreamAddr), lg),
 		certs: newCerts(tlsDir, "", ""),
 		seen:  map[int64]Lookup{},
+		nets:  map[[2]string]Lookup{},
 	}
 	if err := s.reload(); err != nil {
 		return nil, err
@@ -171,16 +174,24 @@ func (s *site) reload() error {
 func (s *site) noteSeen(l Lookup) {
 	s.seenMu.Lock()
 	s.seen[l.Device] = l
+	if l.ASN != "" {
+		s.nets[[2]string{strconv.FormatInt(l.Device, 10), l.ASN}] = l
+	}
 	s.seenMu.Unlock()
 }
 
 func (s *site) flushSeen() {
 	s.seenMu.Lock()
-	seen := s.seen
-	s.seen = map[int64]Lookup{}
+	seen, nets := s.seen, s.nets
+	s.seen, s.nets = map[int64]Lookup{}, map[[2]string]Lookup{}
 	s.seenMu.Unlock()
 	for id, l := range seen {
 		_ = s.store.Seen(id, l.At, l.Proto, l.IP)
+	}
+	for _, l := range nets {
+		if first, err := s.store.SeenNet(l.Device, l.ASN, l.Org, l.Country, l.At); err == nil && first {
+			slog.Info("dns device on a new network", slog.Int64("device", l.Device), slog.String("asn", l.ASN), slog.String("org", l.Org), slog.String("country", l.Country))
+		}
 	}
 	if len(seen) > 0 {
 		_ = s.reload()
@@ -231,6 +242,7 @@ func (s *site) handler() http.Handler {
 	quiet.HandleFunc("POST /q/{token}", s.doh)
 	quiet.HandleFunc("POST /internal/query", s.internalQuery)
 	quiet.HandleFunc("GET /internal/token/{token}", s.internalToken)
+	quiet.HandleFunc("GET /internal/metrics", s.metrics)
 	bare := web.Chain(quiet, web.Recovered)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/q/") || strings.HasPrefix(r.URL.Path, "/internal/") {

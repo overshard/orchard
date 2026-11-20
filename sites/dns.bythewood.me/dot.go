@@ -70,6 +70,12 @@ type tokenSeen struct {
 type gateSeen struct {
 	ok bool
 	at time.Time
+	nw netInfo
+}
+
+// netInfo is the network gate placed an address on.
+type netInfo struct {
+	ASN, Org, Country string
 }
 
 func newFront(certDir, app, gate string) *front {
@@ -236,24 +242,29 @@ func (f *front) strike(ip netip.Addr, why string, tellGate bool) {
 	slog.Info("dot handshake refused", slog.String("ip", ip.String()), slog.String("why", why))
 }
 
-func (f *front) gateOK(ip netip.Addr) bool {
+func (f *front) gateOK(ip netip.Addr) (bool, netInfo) {
 	f.mu.Lock()
 	g, ok := f.gate[ip]
 	f.mu.Unlock()
 	if ok && time.Since(g.at) < time.Minute {
-		return g.ok
+		return g.ok, g.nw
 	}
-	allowed := f.askGate(ip, "/")
+	allowed, nw := f.askGateNet(ip, "/")
 	f.mu.Lock()
-	f.gate[ip] = gateSeen{ok: allowed, at: time.Now()}
+	f.gate[ip] = gateSeen{ok: allowed, at: time.Now(), nw: nw}
 	f.mu.Unlock()
-	return allowed
+	return allowed, nw
 }
 
 // askGate puts a connection to gate the way Caddy puts a request, under a
 // fixed host so no token reaches gate's records. With gate down it lets the
 // connection through, since a token still has to match after it.
 func (f *front) askGate(ip netip.Addr, path string) bool {
+	ok, _ := f.askGateNet(ip, path)
+	return ok
+}
+
+func (f *front) askGateNet(ip netip.Addr, path string) (bool, netInfo) {
 	req, _ := http.NewRequest(http.MethodGet, f.gateURL, nil)
 	req.Host = "dot." + dotZone
 	req.Header.Set("X-Gate-Ip", ip.String())
@@ -262,10 +273,10 @@ func (f *front) askGate(ip netip.Addr, path string) bool {
 	req.Header.Set("User-Agent", "dns-over-tls")
 	resp, err := f.http.Do(req)
 	if err != nil {
-		return true
+		return true, netInfo{}
 	}
 	resp.Body.Close()
-	return resp.StatusCode < 300
+	return resp.StatusCode < 300, netInfo{resp.Header.Get("Gate-Asn"), resp.Header.Get("Gate-Org"), resp.Header.Get("Gate-Country")}
 }
 
 // tokenOK says whether the app knows a token. sure is false when the app
@@ -321,7 +332,8 @@ func (f *front) serve(c net.Conn, base *tls.Config) {
 	defer f.release(ip)
 	defer c.Close()
 	_ = c.SetDeadline(time.Now().Add(handshakeLimit))
-	if !f.gateOK(ip) {
+	allowed, nw := f.gateOK(ip)
+	if !allowed {
 		return
 	}
 
@@ -380,7 +392,7 @@ func (f *front) serve(c net.Conn, base *tls.Config) {
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
-			out := f.ask(token, ip, msg)
+			out := f.ask(token, ip, nw, msg)
 			if out == nil {
 				return
 			}
@@ -397,8 +409,8 @@ func (f *front) serve(c net.Conn, base *tls.Config) {
 
 // ask hands a query to the app. When the app can't answer, the client gets a
 // SERVFAIL at once instead of waiting out its own timeout.
-func (f *front) ask(token string, ip netip.Addr, msg []byte) []byte {
-	out := f.askApp(token, ip, msg)
+func (f *front) ask(token string, ip netip.Addr, nw netInfo, msg []byte) []byte {
+	out := f.askApp(token, ip, nw, msg)
 	if out == nil {
 		return servfail(msg)
 	}
@@ -419,7 +431,7 @@ func servfail(msg []byte) []byte {
 	return out
 }
 
-func (f *front) askApp(token string, ip netip.Addr, msg []byte) []byte {
+func (f *front) askApp(token string, ip netip.Addr, nw netInfo, msg []byte) []byte {
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, f.appURL+"/internal/query", bytes.NewReader(msg))
@@ -427,6 +439,9 @@ func (f *front) askApp(token string, ip netip.Addr, msg []byte) []byte {
 	req.Header.Set("X-Dns-Token", token)
 	req.Header.Set("X-Dns-Ip", ip.String())
 	req.Header.Set("X-Dns-Key", bridgeKey)
+	req.Header.Set("X-Dns-Asn", nw.ASN)
+	req.Header.Set("X-Dns-Org", nw.Org)
+	req.Header.Set("X-Dns-Country", nw.Country)
 	resp, err := f.http.Do(req)
 	if err != nil {
 		return nil

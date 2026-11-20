@@ -42,7 +42,7 @@ func (s *site) doh(w http.ResponseWriter, r *http.Request) {
 		plainNoStore(w, http.StatusBadRequest, "no DNS message")
 		return
 	}
-	s.serveWire(w, d, raw, "doh", web.ClientIP(r))
+	s.serveWire(w, d, raw, Client{Proto: "doh", IP: web.ClientIP(r), ASN: r.Header.Get("Gate-Asn"), Org: r.Header.Get("Gate-Org"), Country: r.Header.Get("Gate-Country")})
 }
 
 // bridgeKey is shared by the app and the DoT front, so another container on
@@ -70,7 +70,7 @@ func (s *site) internalQuery(w http.ResponseWriter, r *http.Request) {
 		plainNoStore(w, http.StatusBadRequest, "no DNS message")
 		return
 	}
-	s.serveWire(w, d, raw, "dot", r.Header.Get("X-Dns-Ip"))
+	s.serveWire(w, d, raw, Client{Proto: "dot", IP: r.Header.Get("X-Dns-Ip"), ASN: r.Header.Get("X-Dns-Asn"), Org: r.Header.Get("X-Dns-Org"), Country: r.Header.Get("X-Dns-Country")})
 }
 
 func (s *site) internalToken(w http.ResponseWriter, r *http.Request) {
@@ -86,13 +86,13 @@ func (s *site) internalToken(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *site) serveWire(w http.ResponseWriter, d *Device, raw []byte, proto, ip string) {
+func (s *site) serveWire(w http.ResponseWriter, d *Device, raw []byte, c Client) {
 	req := new(dns.Msg)
 	if err := req.Unpack(raw); err != nil {
 		plainNoStore(w, http.StatusBadRequest, "that isn't a DNS message")
 		return
 	}
-	resp := s.res.Answer(d, req, proto, ip)
+	resp := s.res.AnswerFor(d, req, c)
 	pad(req, resp)
 	out, err := resp.Pack()
 	if err != nil {

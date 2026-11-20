@@ -58,6 +58,36 @@ type Health struct {
 	Failing   int
 	Asked     int
 	Quiet     []*Device
+	NewNets   []Net
+}
+
+// newNets is a device turning up on a network it hadn't asked from in the
+// last day, after it had settled on others. A token read off the wire and used
+// somewhere else looks like this, and so does a trip.
+func newNets(all []Net, ds []*Device, now time.Time) []Net {
+	byDev := map[int64][]Net{}
+	for _, n := range all {
+		byDev[n.Device] = append(byDev[n.Device], n)
+	}
+	var out []Net
+	for _, d := range ds {
+		ns := byDev[d.ID]
+		older := false
+		for _, n := range ns {
+			if now.Sub(n.First) > 24*time.Hour {
+				older = true
+			}
+		}
+		if !older {
+			continue
+		}
+		for _, n := range ns {
+			if now.Sub(n.First) <= 24*time.Hour {
+				out = append(out, n)
+			}
+		}
+	}
+	return out
 }
 
 // quietAfter is how long a device can go without asking before it looks like
@@ -94,6 +124,11 @@ func (s *site) health(now time.Time) Health {
 			h.Quiet = append(h.Quiet, d)
 		}
 	}
+	h.NewNets = newNets(s.store.Nets(0), ds, now)
+	names := map[int64]string{}
+	for _, d := range ds {
+		names[d.ID] = d.Name
+	}
 	var missing []string
 	if m := s.lists.missing.Load(); m != nil {
 		missing = *m
@@ -108,6 +143,13 @@ func (s *site) health(now time.Time) Health {
 	case len(missing) > 0:
 		h.Level, h.Word = "warn", "list missing"
 		h.Note = strings.Join(missing, ", ") + " couldn't be read off disk, so it blocks nothing until the next refresh"
+	case len(h.NewNets) > 0:
+		var parts []string
+		for _, n := range h.NewNets {
+			parts = append(parts, fmt.Sprintf("%s on AS%s %s (%s)", names[n.Device], n.ASN, n.Org, n.Country))
+		}
+		h.Level, h.Word = "warn", "new network"
+		h.Note = strings.Join(parts, ", ") + ", new in the last day, so make a new token if that wasn't me"
 	case len(h.Quiet) > 0:
 		var names []string
 		for _, d := range h.Quiet {
@@ -274,7 +316,22 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		"ListTicks": listTicks, "ListMax": maxTick(listTicks, func(t tick) int { return t.N }),
 		"Recent": s.rows(recent), "TopBlocked": topBlocked, "TopAsked": topAsked, "Reasons": reasons,
 		"Devices": devices, "Rules": len(rs), "Listed": listed, "Dropped": int(s.log.dropped.Load()),
+		"Cache": cachePct(), "FellBack": int(s.res.fellBack.Load()),
 	})
+}
+
+// cachePct is unbound's cache hit share as a percent, or empty when unbound
+// can't be asked.
+func cachePct() string {
+	st, err := unboundStats(unboundCtl)
+	if err != nil {
+		return ""
+	}
+	share, ok := cacheShare(st)
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf("%.0f%%", share*100)
 }
 
 func maxTick[T any](xs []T, n func(T) int) int {
@@ -485,7 +542,7 @@ func (s *site) devicePage(w http.ResponseWriter, r *http.Request) {
 		"Recent": s.rows(recent), "TopBlocked": topBlocked, "Lists": lo, "Kinds": kinds,
 		"DoT": d.Token + "." + dotZone, "DoH": baseURL + "/q/" + d.Token, "IPs": s.dohIPs(r.Context()),
 		"Toast": r.URL.Query().Get("toast"), "ProbeZone": probeZone, "BoxIP": publicIP,
-		"Primary": primary, "Rest": rest, "Quiet": isQuiet(d, now),
+		"Primary": primary, "Rest": rest, "Quiet": isQuiet(d, now), "Nets": s.store.Nets(d.ID),
 	})
 }
 

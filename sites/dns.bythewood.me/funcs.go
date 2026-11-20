@@ -33,6 +33,7 @@ func funcs() template.FuncMap {
 		"listName":   listName,
 		"parents":    parents,
 		"rcode":      func(c int) string { return dns.RcodeToString[c] },
+		"since":      time.Since,
 		"deviceName": func(names map[int64]string, id int64) string {
 			if id == 0 {
 				return "every device"

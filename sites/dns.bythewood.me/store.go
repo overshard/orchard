@@ -77,6 +77,15 @@ CREATE TABLE IF NOT EXISTS lists (
 	error TEXT NOT NULL DEFAULT '',
 	error_at INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS device_nets (
+	device INTEGER NOT NULL,
+	asn TEXT NOT NULL,
+	org TEXT NOT NULL DEFAULT '',
+	country TEXT NOT NULL DEFAULT '',
+	first INTEGER NOT NULL,
+	last INTEGER NOT NULL,
+	PRIMARY KEY (device, asn)
+);
 CREATE TABLE IF NOT EXISTS settings (
 	k TEXT PRIMARY KEY,
 	v TEXT NOT NULL
@@ -282,8 +291,10 @@ func (s *Store) RotateToken(id int64) error {
 // DeleteDevice keeps the device's lookups until they age out, since they're
 // still what happened, and only its token stops working. Its own rules go.
 func (s *Store) DeleteDevice(id int64) error {
-	if _, err := s.db.Exec(`DELETE FROM rules WHERE device = ?`, id); err != nil {
-		return err
+	for _, t := range []string{"rules", "device_nets"} {
+		if _, err := s.db.Exec(`DELETE FROM `+t+` WHERE device = ?`, id); err != nil {
+			return err
+		}
 	}
 	_, err := s.db.Exec(`DELETE FROM devices WHERE id = ?`, id)
 	return err
@@ -488,6 +499,9 @@ type Lookup struct {
 	Proto  string
 	IP     string
 	Answer string
+	// ASN, Org and Country are the network the lookup came from. They go to
+	// device_nets and aren't kept per lookup.
+	ASN, Org, Country string
 }
 
 func (l Lookup) Blocked() bool { return l.Status == "block" || l.Status == "deny" }
@@ -829,6 +843,55 @@ func (s *Store) LastByReason() map[string]time.Time {
 		var at int64
 		if rows.Scan(&r, &at) == nil {
 			out[r] = time.UnixMilli(at)
+		}
+	}
+	return out
+}
+
+// Net is a network a device has asked from.
+type Net struct {
+	Device      int64
+	ASN, Org    string
+	Country     string
+	First, Last time.Time
+}
+
+// SeenNet notes a device asking from a network, and says whether it's the
+// first time for that device.
+func (s *Store) SeenNet(dev int64, asn, org, country string, at time.Time) (bool, error) {
+	res, err := s.db.Exec(`INSERT INTO device_nets (device, asn, org, country, first, last) VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(device, asn) DO NOTHING`, dev, asn, org, country, at.Unix(), at.Unix())
+	if err != nil {
+		return false, err
+	}
+	if n, _ := res.RowsAffected(); n == 1 {
+		return true, nil
+	}
+	_, err = s.db.Exec(`UPDATE device_nets SET last = ?, org = ?, country = ? WHERE device = ? AND asn = ?`, at.Unix(), org, country, dev, asn)
+	return false, err
+}
+
+// Nets is every network a device has asked from, newest first, or every
+// device's when dev is 0.
+func (s *Store) Nets(dev int64) []Net {
+	q := `SELECT device, asn, org, country, first, last FROM device_nets`
+	var args []any
+	if dev != 0 {
+		q += ` WHERE device = ?`
+		args = append(args, dev)
+	}
+	rows, err := s.rd.Query(q+` ORDER BY last DESC`, args...)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []Net
+	for rows.Next() {
+		var n Net
+		var f, l int64
+		if rows.Scan(&n.Device, &n.ASN, &n.Org, &n.Country, &f, &l) == nil {
+			n.First, n.Last = time.Unix(f, 0), time.Unix(l, 0)
+			out = append(out, n)
 		}
 	}
 	return out
