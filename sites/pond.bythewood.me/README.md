@@ -288,6 +288,15 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   for drizzle, 2 for rain and 3 for thunder or a chance of 80 or more. Each
   poll writes its slot once while the reading is fresh, and a pinned dev day
   writes too.
+- `barrel.go` is the rain barrel by the old log. What the sieve holds is
+  dealt from the `rain` rows since the pond last tipped it, one roll per point
+  of wet off an HMAC of the pond and the slot under the pepper, then a dew
+  roll for each dry night hour, capped at 54 points with rain first. Nothing
+  is stored until `POST /api/barrel/tip {how}` empties it once a pond day,
+  `sieve` or `garden`, the second only on a dry day with a garden, which
+  puts the pond's garden clock ahead at one more second a second for three
+  hours. A pond with no `barrel` row counts from when it was made, so nobody
+  gets back pay. `frontend/src/barrel.js` draws it and the tip.
 - `mood.go` boils that day down to one mood, which tints the water and picks
   the line after the greeting, plus what the frog is watching or playing, Old
   Clover's forecast for tomorrow and the fortune lily. No number from dash
@@ -383,6 +392,8 @@ they have none, for other sites to draw.
 - Every garden grows off one clock in the `growth` table, wound every ten
   minutes at the rate the real day gives (rain doubles it, frost stops it). A
   plot is sown at a reading of that clock, so nothing walks every garden.
+  A pond reads it through `gardenClock`, which adds what the rain barrel
+  has watered, so anything touching plots has to use that and not `growth`.
 - A dish's kind is `dish_<a>_<b>` by position in `ingredients`, so a new
   ingredient only ever goes on the end of that list.
 - A round of fishing can be played all day, so the fish kept off it are
