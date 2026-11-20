@@ -121,6 +121,9 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   the pond is well rested and the next run pays a quarter more, still under
   that game's cap, with `ponds.played_at` keeping when.
   `frontend/src/arcade.js` is the frame round them, one file per game beside it.
+  A game with a `board` puts that up in place of the title card and takes its
+  own taps, with `begin` and `end` in place of the arcade run, which is how
+  the derby uses the frame.
   Pad putt's pool of holes, the deal of nine a round and its roll are in
   `frontend/src/course.js`, which never touches the page, so a script can
   play every hole through with bun.
@@ -157,6 +160,15 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   of the date with Rush second or better. The first run a day that finishes
   is the pond's place on the board, kept in `race`, and a podium place pays
   out of Dive's cap. Every run after it is practice.
+- `derby.go` is the snail derby, three races of four snails a day, each
+  snail a resident's. The card and odds are off an HMAC of the day under the
+  pepper, so every pond sees the same board, and the odds come from running
+  the same `runDerby` the race is rolled with 20,000 times.
+  `POST /api/derby/back` rolls today's next race with crypto rand, pays a
+  free 6 pebble slip at its odds through `payRun` with a cap of 150 a day,
+  and hands back where each snail is every quarter second, what it did and
+  the commentary. `frontend/src/derby.js` plays that back in the arcade frame
+  with the odds board as its title card. Nothing is staked from the purse.
 - `bugsweep.go` is bug sweep, a grid of lily pads with wasps under some. The
   day's grid is the same in every pond and pays once, and every go after it
   is a fresh grid that pays nothing. `POST /api/sweep/start` hands over a go
