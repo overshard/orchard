@@ -1,8 +1,7 @@
 /* cron's own pieces. Everything else comes from /suite/suite.css. */
 
-.job .preview { min-height: 1.2em; margin: -6px 0 0; color: var(--o-ok); }
-.job .preview.bad { color: var(--o-bad); }
-.jobs td:first-child { min-width: 14rem; }
+.jobs td:nth-child(2) { min-width: 14rem; }
+.jobs .pick { width: 24px; }
 .runs td.clip { max-width: 28rem; }
 .one-job .runs th:nth-child(2), .one-job .runs td:nth-child(2) { display: none; }
 .jobcols { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
@@ -11,4 +10,77 @@
 .small { font-size: 0.8rem; }
 .when .k { width: auto; }
 .when .v { width: auto; white-space: nowrap; }
+@media (max-width: 560px) { .when .v { white-space: normal; text-align: right; } }
 @media (max-width: 700px) { .o-tbl.stack.runs td.full { order: 2; } }
+
+/* A job's last runs, one tick each, in a row and in its drawer. */
+.o-ticks.jt { height: 14px; margin: 0; width: 98px; }
+.o-drawer .o-ticks.jt { height: 26px; width: 100%; margin-top: 6px; }
+.o-ph2 .o-ticks.jt { margin-left: auto; margin-right: 12px; }
+.o-drawer .drawer { gap: 16px; }
+.o-drawer .o-acts { justify-content: flex-end; align-items: start; }
+.jobs + .o-hint, .o-scroll + .jobhint { padding: 8px 12px; border-top: 1px solid var(--o-line-soft); }
+#bulk { margin: 0 12px 8px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 8px; }
+.chips a.o-chip { text-decoration: none; }
+.runfilter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px 8px; }
+.runfilter .chips { padding: 0; }
+.jobpick { display: flex; align-items: center; gap: 8px; }
+.jobpick select { font: 0.78rem var(--o-sans); background: var(--o-panel2); color: var(--o-text); border: 1px solid var(--o-line-strong); padding: 3px 6px; max-width: 16rem; }
+
+/* The week ahead, a column a day, which turns into a list on a phone. */
+.wk { display: grid; gap: 1px; background: var(--o-line); border: 1px solid var(--o-line); grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.wk > div { background: var(--o-panel); padding: 6px 8px; min-height: 92px; min-width: 0; }
+.wk h4 { font: 500 0.62rem var(--o-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--o-muted); margin: 0 0 4px; }
+.wk .today h4 { color: var(--o-brass); }
+.wk .card { display: flex; gap: 6px; align-items: baseline; padding: 3px 5px; margin: 2px -3px; border: 1px solid transparent; font-size: 0.74rem; min-width: 0; color: var(--o-text); text-decoration: none; }
+.wk .card.once { background: var(--o-panel2); cursor: grab; }
+.wk .card:hover { border-color: var(--o-line-strong); }
+.wk .card.drag { opacity: 0.4; }
+.wk .card .t { font: 0.64rem var(--o-mono); color: var(--o-muted); flex: none; }
+.wk .card .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
+.wk .card .rep { font-size: 0.7rem; }
+.wk > div.over { background: rgba(217, 180, 90, 0.08); box-shadow: inset 0 0 0 1px var(--o-brass); }
+.wk .none { color: var(--o-muted); font-size: 0.72rem; margin: 0; }
+.wkhint { margin-top: 8px; }
+@media (max-width: 900px) {
+  .wk { grid-template-columns: minmax(0, 1fr); }
+  .wk > div { min-height: 0; }
+  .wkhint { display: none; }
+}
+
+/* The When box and what it understood. */
+.whenbox { display: grid; gap: 8px; }
+.nl { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 860px) { .nl { grid-template-columns: minmax(0, 1fr); } }
+.nlin { display: grid; gap: 10px; align-content: start; }
+.nl .o-in { font-size: 1rem; padding: 10px 12px; }
+.nlout { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.nlout .say { font-size: 0.9rem; margin-top: 2px; }
+.nlout .o-ev .t { width: auto; }
+.ex { display: flex; flex-wrap: wrap; gap: 6px; }
+.ex[hidden] { display: none; }
+.ex button { background: none; border: 1px solid var(--o-line-strong); color: var(--o-muted); font: 0.7rem var(--o-mono); padding: 2px 7px; cursor: pointer; }
+.ex button:hover, .ex button:focus-visible { color: var(--o-brass); border-color: var(--o-brass); }
+.cronout { font: 600 1.05rem var(--o-mono); color: var(--o-brass); overflow-wrap: anywhere; }
+.cal { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 1px; background: var(--o-line); border: 1px solid var(--o-line); }
+.cal:empty { display: none; }
+.cal > div { background: var(--o-panel); padding: 4px 2px; text-align: center; font: 0.58rem var(--o-mono); color: var(--o-muted); min-height: 42px; min-width: 0; overflow: hidden; }
+.cal > div b { display: block; font-size: 0.66rem; color: var(--o-text); font-weight: 500; white-space: nowrap; }
+.cal .dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--o-brass); margin: 1px; }
+.cal .today b { color: var(--o-brass); }
+@media (max-width: 560px) { .cal { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+.adv summary { cursor: pointer; font-size: 0.8rem; color: var(--o-muted); }
+.adv[open] summary { margin-bottom: 10px; }
+.advin { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.advin .full { grid-column: 1 / -1; margin: 0; }
+@media (max-width: 700px) { .advin { grid-template-columns: minmax(0, 1fr); } }
+
+/* Try it, with a bar that runs while the model is out. */
+.try .o-formbar { margin: 8px 0; }
+.runbar { height: 3px; background: var(--o-panel2); overflow: hidden; margin-bottom: 10px; }
+.runbar i { display: block; height: 100%; background: var(--o-brass); transform: scaleX(0); transform-origin: left; }
+.runbar i.go { transform: scaleX(0.9); transition: transform 20s cubic-bezier(0.1, 0.7, 0.3, 1); }
+.runbar i.done { transform: scaleX(1); transition: transform 0.2s linear; }
+.try .o-kv { margin: 0 0 12px; }
