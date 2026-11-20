@@ -278,15 +278,23 @@ http://dns.bythewood.me {
 		respond "not here" 404
 	}
 
+	# gate's network for the address is copied onto the request, after any
+	# a client sent itself is dropped, so dns can see a token on a new network.
 	handle /q/* {
-		forward_auth orchard-gate:8000 {
-			uri /check
-			header_up X-Gate-Ip {client_ip}
-			header_up X-Forwarded-Uri /q/
-			import hold
-		}
-		reverse_proxy orchard-dns:8000 {
-			import hold
+		route {
+			request_header -Gate-Asn
+			request_header -Gate-Org
+			request_header -Gate-Country
+			forward_auth orchard-gate:8000 {
+				uri /check
+				header_up X-Gate-Ip {client_ip}
+				header_up X-Forwarded-Uri /q/
+				copy_headers Gate-Asn Gate-Org Gate-Country
+				import hold
+			}
+			reverse_proxy orchard-dns:8000 {
+				import hold
+			}
 		}
 	}
 
