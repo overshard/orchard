@@ -17,6 +17,9 @@ services:
       DNS_DATA: /data
       DNS_TLS: /tls
       DNS_BRIDGE_PASSWORD: ${DNS_BRIDGE_PASSWORD:?run make env}
+      # A list rebuild holds the old and new tables at once, so GC harder
+      # before the 320M limit and not after.
+      GOMEMLIMIT: 240MiB
     volumes:
       - data:/data
       - tls:/tls:ro
