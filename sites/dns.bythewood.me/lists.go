@@ -28,7 +28,7 @@ type List struct {
 // lists is every blocklist, in the order a block is credited to. No more than
 // eight, since a table entry carries them as the bits of one byte.
 var lists = []List{
-	{"pro", "hagezi Pro", "ads, trackers, telemetry and metrics", hagezi("pro")},
+	{"pro", "hagezi Pro++", "ads, trackers, telemetry and metrics, sponsored search results included", hagezi("pro.plus")},
 	{"tif", "hagezi Threat Intelligence, medium", "malware, phishing, scams and cryptojacking", hagezi("tif.medium")},
 	{"winoffice", "hagezi native, Windows and Office", "Windows and Office telemetry", hagezi("native.winoffice")},
 	{"doh", "hagezi encrypted DNS", "DNS servers an app could use to go around this one", hagezi("doh")},
