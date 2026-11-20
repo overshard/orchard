@@ -8,6 +8,7 @@ import { finger, unseen, sawIt } from "./feel.js";
 // A game with a feel gets its freezes and shake run from here, and one with a
 // demo gets a ghost finger doing it the first time it's opened. A game's
 // report goes up with its score, and its card is its own part of the results.
+// A bare game has no title or results card and runs from the moment it opens.
 const LOCK = 900, QUICK = 300;
 
 export function arcade(game) {
@@ -82,7 +83,7 @@ export function arcade(game) {
   }
 
   function showCard(now) {
-    card.hidden = A.state === "play" || (first && A.state === "idle");
+    card.hidden = game.bare || A.state === "play" || (first && A.state === "idle");
     if (card.hidden) return;
     card.classList.toggle("quick", A.state === "over" && A.quick);
     if (A.state === "over" && A.quick) {
@@ -281,11 +282,15 @@ export function arcade(game) {
     const dir = { ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right" }[e.code];
     if (dir && game.hold) game.hold(dir, false);
   });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) pause();
+    else if (game.bare && A.state === "paused" && !view.hidden) resume();
+  });
   watch(() => {
     note();
     if (A.state === "play" || view.hidden) return;
     if (A.state === "idle") game.reset(state.g, state.pond);
+    if (game.bare && A.state === "idle") { start(); return; }
     paint(performance.now());
   });
   onResize(() => {
@@ -302,7 +307,9 @@ export function arcade(game) {
       if (F && A.state === "idle") F.reset();
       fit();
       if (A.state === "idle" && state.pond) game.reset(state.g, state.pond);
-      note(); paint(performance.now());
+      note();
+      if (game.bare && A.state === "idle" && state.pond) { start(); return; }
+      paint(performance.now());
       requestAnimationFrame(demo);
     },
     // Leaving mid run ends it, so the points still count.
