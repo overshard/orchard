@@ -22,7 +22,12 @@
 
 {{define "kind"}}<span class="o-chip {{if eq . "prompt"}}brass{{end}}">{{kindName .}}</span>{{end}}
 
-{{define "runchip"}}{{if .Err}}<span class="o-chip bad">failed</span>{{else if .Pushed}}<span class="o-chip ok">pushed</span>{{else}}<span class="o-chip">quiet</span>{{end}}{{end}}
+{{define "runchip"}}{{if eq .Missed "dropped"}}<span class="o-chip bad">dropped</span>{{else if .Missed}}<span class="o-chip warn">missed</span>{{else if .Err}}<span class="o-chip bad">failed</span>{{else if .Pushed}}<span class="o-chip ok">pushed</span>{{else}}<span class="o-chip">quiet</span>{{end}}{{end}}
+
+{{define "ticks"}}<span class="o-ticks jt" aria-hidden="true">{{range .}}<i class="{{.Class}}" data-tip="{{.Tip}}"></i>{{end}}</span>{{end}}
+
+{{/* A row's last state, where a snooze pressed on the phone wins since it's what happens next. */}}
+{{define "lastchip"}}{{if .Of}}<span class="o-chip warn" data-tip="a snooze of {{.Of}}">snoozed till {{snoozeTime .NextRun}}</span>{{else if not .Snoozed.IsZero}}<span class="o-chip warn" data-tip="snoozed from the phone">snoozed till {{snoozeTime .Snoozed}}</span>{{else if not .Enabled}}<span class="o-chip">paused</span>{{else if eq .Last "failed"}}<span class="o-chip bad">failed</span>{{else if eq .Last "missed"}}<span class="o-chip warn">missed</span>{{else if eq .Last "pushed"}}<span class="o-chip ok">pushed</span>{{else if .Last}}<span class="o-chip">{{.Last}}</span>{{else}}<span class="o-muted">never ran</span>{{end}}{{end}}
 
 {{define "runs"}}
 {{if .}}
@@ -31,12 +36,12 @@
   <thead><tr><th>When</th><th>Job</th><th>Result</th><th>What went out</th><th class="r">Took</th></tr></thead>
   <tbody>
   {{range .}}
-    <tr data-href="/jobs/{{.JobID}}" {{if .Err}}class="hot"{{end}}>
-      <td class="n" title="{{eastern .At}}">{{ago .At}}</td>
+    <tr data-href="/jobs/{{.JobID}}" {{if and .Err (ne .Missed "down")}}class="hot"{{end}}>
+      <td class="n" data-tip="{{eastern .At}}">{{ago .At}}</td>
       <td class="nw lead"><a href="/jobs/{{.JobID}}">{{.Name}}</a></td>
       <td>{{template "runchip" .}}</td>
-      <td class="clip full {{if .Err}}o-bad{{else}}o-muted{{end}}" title="{{if .Err}}{{.Err}}{{else}}{{.Title}}: {{.Body}}{{end}}">{{if .Err}}{{.Err}}{{else if .Pushed}}{{.Title}} &middot; {{.Body}}{{else}}{{.Body}}{{end}}</td>
-      <td class="r n">{{ms .MS}}</td>
+      <td class="clip full {{if eq .Missed "down"}}o-warn{{else if .Err}}o-bad{{else}}o-muted{{end}}" data-tip="{{if .Err}}{{.Err}}{{else}}{{.Title}}: {{.Body}}{{end}}">{{if .Err}}{{.Err}}{{else if .Pushed}}{{.Title}} &middot; {{.Body}}{{else}}{{.Body}}{{end}}</td>
+      <td class="r n">{{if eq .Missed "down"}}<span class="o-muted">down</span>{{else}}{{ms .MS}}{{end}}</td>
     </tr>
   {{end}}
   </tbody>

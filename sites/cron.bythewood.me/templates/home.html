@@ -1,79 +1,159 @@
 {{template "head" .}}
+{{if .Toast}}<span hidden data-toast="{{.Toast}}"></span>{{end}}
 
 <div class="o-ph">
   <div>
     <span class="o-lab">cron &middot; jobs</span>
     <h1>{{.Headline}}</h1>
+    <div class="o-pm"><span>on<b>{{.Sum.Active}}</b></span><span>paused<b>{{.Sum.Paused}}</b></span><span>failing<b {{if .Sum.Failing}}class="bad"{{end}}>{{.Sum.Failing}}</b></span><span>snoozed<b>{{.Snoozed}}</b></span><span>tz<b>Eastern</b></span></div>
   </div>
   <div class="o-acts">
-    <a class="o-btn o-btn-sm" href="/jobs/new?kind=prompt">New check</a>
-    <a class="o-btn o-btn-p o-btn-sm" href="/jobs/new">New reminder</a>
+    <a class="o-btn o-btn-sm" href="/jobs/new?kind=prompt" data-act="new check">New check</a>
+    <a class="o-btn o-btn-p o-btn-sm" href="/jobs/new" data-act="new reminder">New reminder</a>
   </div>
 </div>
 
-<div class="o-tiles">
-  <a class="o-tile" href="/runs">
+<div>
+<div class="o-strip">
+  <a class="o-tile" href="/runs?result=pushed">
     <small>pushes &middot; 7d</small>
     <b>{{.Act.PushedWeek}}</b>
     <span class="o-delta">{{.Act.PushDelta}}</span>
-    {{spark "ok" .Act.Pushed}}
+    {{sparkT "ok" .Act.Pushed .Act.Labels}}
   </a>
-  <a class="o-tile" href="/runs">
+  <a class="o-tile" href="/runs?result=failed">
     <small>failed &middot; 7d</small>
     <b {{if .Act.FailedWeek}}class="bad"{{end}}>{{.Act.FailedWeek}}</b>
     <span class="o-delta {{if .Act.FailedWeek}}o-bad{{end}}">{{if .Act.FailedWeek}}of {{.Act.RunsWeek}} runs{{else}}{{plural .Act.RunsWeek "run" "runs"}}, none failed{{end}}</span>
-    {{spark (or (and .Act.FailedWeek "bad") "flat") .Act.Failed}}
+    {{sparkT (or (and .Act.FailedWeek "bad") "flat") .Act.Failed .Act.Labels}}
+  </a>
+  <a class="o-tile" href="/runs?result=quiet">
+    <small>quiet &middot; 7d</small>
+    <b>{{.Act.QuietWeek}}</b>
+    <span class="o-delta">checks with nothing new</span>
+    {{sparkT "flat" .Act.Quiet .Act.Labels}}
   </a>
   {{with .Sum.Next}}
   <a class="o-tile" href="/jobs/{{.ID}}">
     <small>next to fire</small>
     <b>{{clock .NextRun}}</b>
-    <span class="o-delta">{{until .NextRun}} &middot; {{.Name}}</span>
+    <span class="o-delta">{{.Name}} &middot; {{until .NextRun}}</span>
     {{template "ahead" $.Ahead}}
   </a>
   {{else}}
   <div class="o-tile"><small>next to fire</small><b>none</b><span class="o-delta">nothing scheduled</span>{{template "ahead" $.Ahead}}</div>
   {{end}}
   <div class="o-tile">
+    <small>this week</small>
+    <b>{{.Week.Fires}}</b>
+    <span class="o-delta">fires ahead</span>
+    <span class="o-ticks" aria-hidden="true">{{range .Week.FireTicks}}<i {{if not .N}}class="none" style="height: 6%"{{else}}style="height: {{.Pct}}%"{{end}} data-tip="{{.Label}} · {{plural .N "fire" "fires"}}"></i>{{end}}</span>
+  </div>
+  <div class="o-tile">
     <small>runs &middot; 14d</small>
     <b>{{.Act.Total}}</b>
-    <span class="o-delta">{{plural .Sum.Active "job" "jobs"}} on{{if .Sum.Paused}}, {{.Sum.Paused}} paused{{end}}</span>
-    {{spark "flat" .Act.RunsSeries}}
+    <span class="o-delta">{{plural .Sum.Active "job" "jobs"}} on</span>
+    {{sparkT "flat" .Act.RunsSeries .Act.Labels}}
   </div>
+  <a class="o-tile" href="/runs?result=quiet">
+    <small>median took</small>
+    <b>{{printf "%.1f" .Act.TookWeek}}s</b>
+    <span class="o-delta">checks only, 7d</span>
+    {{sparkT "flat" .Act.Took .Act.Labels}}
+  </a>
+  <a class="o-tile" href="/runs?result=missed">
+    <small>missed &middot; 14d</small>
+    <b {{if .Act.MissedAll}}class="warn"{{end}}>{{.Act.MissedAll}}</b>
+    <span class="o-delta">{{if .Act.MissedAll}}skipped or dropped{{else}}none skipped{{end}}</span>
+    {{sparkT (or (and .Act.MissedAll "warn") "flat") .Act.Missed .Act.Labels}}
+  </a>
+</div>
+<p class="o-foot"><span data-xs-when>sparks are the last 14 days by Eastern day</span></p>
 </div>
 
+<section class="o-panel">
+  <div class="o-ph2"><h2>This week</h2><span class="o-pm"><span>fires<b>{{.Week.Fires}}</b></span><span>reminders<b>{{.Week.Reminders}}</b></span><span>checks<b>{{.Week.Check}}</b></span><span>Eastern</span></span></div>
+  <div class="wk" data-week>
+    {{range .Week.Days}}
+    <div data-day="{{.Day.Format "2006-01-02"}}" {{if .Today}}class="today"{{end}}>
+      <h4>{{.Day.Format "Mon 2"}}{{if .Today}} &middot; today{{end}}</h4>
+      {{range .Items}}
+      <a class="card{{if .Once}} once{{end}}" href="/jobs/{{.JobID}}" data-min="{{minuteOf .At}}" {{if .Once}}draggable="true" data-id="{{.JobID}}" data-name="{{.Name}}" data-tip="Drag to another day"{{else}}draggable="false" data-tip="Repeats, edit the job to change its days"{{end}}>
+        <span class="t">{{short .At}}</span><span class="n">{{.Name}}</span>
+        {{if .Count}}<span class="o-muted">&times;{{.Count}}</span>{{end}}
+        {{if and (not .Once) (not .Count)}}<span class="o-muted rep" aria-label="repeats">&#8635;</span>{{end}}
+        {{if .Snooze}}<span class="o-chip warn">snoozed</span>{{end}}
+        {{if eq .Kind "prompt"}}<span class="o-chip {{if .Failing}}bad{{end}}">check</span>{{end}}
+      </a>
+      {{else}}
+      <p class="none">nothing</p>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+  <p class="o-hint wkhint">Drag a one-off to another day to move it, same time. Repeating ones stay put.</p>
+</section>
+
 <section class="o-panel flush">
-  <div class="o-ph2"><h2>Jobs</h2><span class="o-lab">{{if .Sum.Failing}}failing first{{else}}soonest first{{end}}</span></div>
+  <div class="o-ph2"><h2>Jobs</h2><span class="o-pm"><span>{{if .Sum.Failing}}failing first{{else}}soonest first{{end}}</span></span></div>
   {{if .Jobs}}
+  <form id="bulk" method="post" action="/jobs/bulk" data-undo="Updated the picked jobs" hidden>
+    <button type="submit" class="o-btn o-btn-sm" name="do" value="pause">Pause</button>
+    <button type="submit" class="o-btn o-btn-sm" name="do" value="resume">Resume</button>
+  </form>
   <div class="o-scroll">
-  <table class="o-tbl jobs stack">
-    <thead><tr><th>Job</th><th>Kind</th><th>When</th><th>Next</th><th>Last run</th><th></th></tr></thead>
+  <table class="o-tbl jobs stack" data-keys data-bulk="bulk">
+    <thead><tr><th class="pick"><input type="checkbox" aria-label="Pick every job"></th><th>Job</th><th>Kind</th><th>When</th><th>Last 14</th><th>Next</th><th>Last</th><th></th></tr></thead>
     <tbody>
     {{range .Jobs}}
-      <tr data-href="/jobs/{{.ID}}" class="{{if not .Enabled}}off{{else if .LastErr}}hot{{end}}">
+      <tr data-id="{{.ID}}" class="{{if not .Enabled}}off{{else if .LastErr}}hot{{end}}">
+        <td class="pick"><input type="checkbox" value="{{.ID}}" aria-label="Pick {{.Name}}"></td>
         <td class="lead">
           <span class="o-dot {{if not .Enabled}}mute{{else if .LastErr}}bad{{end}}"></span><a class="name" href="/jobs/{{.ID}}">{{.Name}}</a>
-          {{if .LastErr}}<span class="sub bad" title="{{.LastErr}}">{{clip .LastErr 90}}</span>{{end}}
+          {{if .LastErr}}<span class="sub bad" data-tip="{{.LastErr}}">{{clip .LastErr 90}}</span>{{else if eq .Kind "prompt"}}<span class="sub">{{clip .Message 70}}</span>{{end}}
         </td>
-        <td>{{template "kind" .Kind}}</td>
-        <td class="nw hide" {{if .Cron}}title="{{.Cron}}"{{end}}>{{describe .}}</td>
-        <td class="n">{{if .Enabled}}{{eastern .NextRun}} <span class="o-muted">{{until .NextRun}}</span>{{else}}<span class="o-chip">paused</span>{{end}}</td>
-        <td class="n">{{if .LastRun.IsZero}}<span class="o-muted">never</span>{{else}}{{if .LastErr}}<span class="o-chip bad">failed</span>{{else}}<span class="o-chip ok">ok</span>{{end}} <span class="o-muted">{{ago .LastRun}}</span>{{end}}</td>
+        <td data-l="kind">{{template "kind" .Kind}}</td>
+        <td class="nw" data-l="when" {{if .Cron}}data-tip="{{.Cron}}"{{end}}>{{describe .Job}}</td>
+        <td data-l="last 14">{{template "ticks" .Ticks}}</td>
+        <td class="n" data-l="next">{{if .Enabled}}<span data-tip="{{eastern .NextRun}}">{{until .NextRun}}</span>{{else}}&ndash;{{end}}</td>
+        <td data-l="last">{{template "lastchip" .}}</td>
         <td class="act">
-          <form method="post" action="/jobs/{{.ID}}/toggle"><button type="submit" class="o-btn o-btn-sm">{{if .Enabled}}Pause{{else}}Resume{{end}}</button></form>
+          {{if eq .Kind "prompt"}}<a class="o-btn o-btn-sm" href="/jobs/{{.ID}}#try">Try it</a>{{end}}
+          <form method="post" action="/jobs/{{.ID}}/{{if .Enabled}}pause{{else}}resume{{end}}"><button type="submit" class="o-btn o-btn-sm">{{if .Enabled}}Pause{{else}}Resume{{end}}</button></form>
+        </td>
+      </tr>
+      <tr class="o-drawer">
+        <td></td>
+        <td colspan="7">
+          <div class="o-band b3e drawer">
+            <dl class="o-kv">
+              <dt>next</dt><dd>{{if .Enabled}}{{eastern .NextRun}}{{if .Cron}}, then on schedule{{end}}{{else}}paused{{end}}</dd>
+              <dt>when</dt><dd>{{describe .Job}}</dd>
+              <dt>sends</dt><dd>{{if eq .Kind "prompt"}}only when the model finds something{{else if eq .Kind "quote"}}the price, at most every five minutes{{else}}every time{{end}}</dd>
+              {{if not .Snoozed.IsZero}}<dt>snoozed</dt><dd>till {{eastern .Snoozed}}</dd>{{end}}
+            </dl>
+            <div><span class="o-lab plain o-muted">last 14 runs</span>{{template "ticks" .Ticks}}</div>
+            <div class="o-acts">
+              <a class="o-btn o-btn-sm" href="/jobs/{{.ID}}">Edit</a>
+              <a class="o-btn o-btn-sm" href="/runs?job={{.ID}}">Runs</a>
+              {{if eq .Kind "prompt"}}<a class="o-btn o-btn-sm" href="/jobs/{{.ID}}#try">Try it</a>{{end}}
+            </div>
+          </div>
         </td>
       </tr>
     {{end}}
     </tbody>
   </table>
   </div>
+  <p class="o-hint jobhint"><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>enter</kbd>open</span><span><kbd>x</kbd>pick, then pause or resume</span><span><kbd>?</kbd>every key</span></p>
   {{else}}
   <p class="o-empty"><b>Nothing scheduled.</b>A reminder pushes fixed text at a time, and a check asks the model to look something up and only pushes when it matters.</p>
   {{end}}
 </section>
 
 <section class="o-panel flush">
-  <div class="o-ph2"><h2>Recent runs</h2><span class="o-lab">newest first</span></div>
+  <div class="o-ph2"><h2>Recent runs</h2><span class="o-pm"><span>7d<b>{{.Act.RunsWeek}}</b></span><span>failed<b {{if .Act.FailedWeek}}class="bad"{{end}}>{{.Act.FailedWeek}}</b></span><span>quiet<b>{{.Act.QuietWeek}}</b></span></span></div>
+  <nav class="chips"><a class="o-chip brass" href="/runs">all</a><a class="o-chip" href="/runs?result=failed">failed</a><a class="o-chip" href="/runs?result=pushed">pushed</a><a class="o-chip" href="/runs?result=quiet">quiet</a><a class="o-chip" href="/runs?result=missed">missed</a></nav>
   {{template "runs" .Runs}}
   {{if .Runs}}<div class="o-more"><a href="/runs">Every run &rarr;</a></div>{{end}}
 </section>

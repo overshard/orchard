@@ -3,10 +3,26 @@
   <div>
     <span class="o-lab">cron &middot; runs</span>
     <h1>{{.Headline}}</h1>
-    <p>The last {{len .Runs}} runs, newest first. Each one is kept for a year.</p>
+    <p>{{if .JobName}}{{.JobName}}, {{end}}{{if .Filter.Result}}{{.Filter.Result}} runs, {{end}}the last {{len .Runs}} newest first. Each one is kept for a year, and a fire missed while cron was down or a push it gave up on is a run of its own.</p>
   </div>
 </div>
 <section class="o-panel flush">
+  <form class="runfilter" method="get" action="/runs" data-autosubmit>
+    <nav class="chips" aria-label="Result">
+      <a class="o-chip {{if not .Filter.Result}}brass{{end}}" href="/runs{{if .Filter.Job}}?job={{.Filter.Job}}{{end}}">all</a>
+      {{range .Results}}<a class="o-chip {{if eq . $.Filter.Result}}brass{{end}}" href="/runs?result={{.}}{{if $.Filter.Job}}&amp;job={{$.Filter.Job}}{{end}}">{{.}}</a>{{end}}
+    </nav>
+    <span class="o-sp"></span>
+    {{if .Filter.Result}}<input type="hidden" name="result" value="{{.Filter.Result}}">{{end}}
+    <label class="jobpick"><span class="o-lab plain o-muted">job</span>
+      <select name="job" aria-label="Job">
+        <option value="">every job</option>
+        {{range .Jobs}}<option value="{{.ID}}" {{if eq .ID $.Filter.Job}}selected{{end}}>{{.Name}}</option>{{end}}
+        {{if and .Filter.Job .JobName}}{{if not (jobListed .Jobs .Filter.Job)}}<option value="{{.Filter.Job}}" selected>{{.JobName}}</option>{{end}}{{end}}
+      </select>
+    </label>
+    <noscript><button type="submit" class="o-btn o-btn-sm">Show</button></noscript>
+  </form>
   {{template "runs" .Runs}}
 </section>
 {{template "foot" .}}

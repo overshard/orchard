@@ -238,11 +238,12 @@ type runJSON struct {
 	Title  string `json:"title,omitempty"`
 	Body   string `json:"body,omitempty"`
 	Err    string `json:"err,omitempty"`
+	Result string `json:"result"`
 }
 
 func (s *site) runToJSON(r Run) runJSON {
 	return runJSON{ID: r.ID, JobID: r.JobID, Name: r.Name, At: s.rfc(r.At), MS: r.MS, OK: r.OK,
-		Pushed: r.Pushed, Title: r.Title, Body: r.Body, Err: r.Err}
+		Pushed: r.Pushed, Title: r.Title, Body: r.Body, Err: r.Err, Result: r.Result()}
 }
 
 func (s *site) jobFromPath(w http.ResponseWriter, r *http.Request) (Job, bool) {
@@ -340,7 +341,7 @@ func (s *site) apiRuns(w http.ResponseWriter, r *http.Request, _ string) {
 	if err != nil || limit < 1 || limit > 500 {
 		limit = 50
 	}
-	runs, err := s.store.Runs(job, limit)
+	runs, err := s.store.FindRuns(RunFilter{Job: job, Limit: limit, Result: r.URL.Query().Get("result")})
 	if err != nil {
 		fail(w, 500, err)
 		return

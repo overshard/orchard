@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -92,44 +94,82 @@ func spellNumber(n int) string {
 // activity buckets two weeks of runs by Eastern day, oldest first, for the
 // tiles on the jobs page.
 type activity struct {
-	Pushed, Failed, Quiet       []float64
-	PushedWeek, PushedPrev      int
-	FailedWeek, RunsWeek, Total int
+	Pushed, Failed, Quiet, Missed, Took []float64
+	Labels                              []string
+	PushedWeek, PushedPrev, QuietWeek   int
+	FailedWeek, RunsWeek, Total         int
+	MissedAll                           int
+	// TookWeek is the median seconds a check took this week, checks only
+	// since a reminder takes no time worth showing.
+	TookWeek float64
 }
 
 func (s *site) activity(runs []Run) activity {
 	const days = 14
-	now := time.Now().In(s.loc)
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, s.loc)
-	a := activity{Pushed: make([]float64, days), Failed: make([]float64, days), Quiet: make([]float64, days)}
+	today := midnight(time.Now().In(s.loc))
+	a := activity{Pushed: make([]float64, days), Failed: make([]float64, days), Quiet: make([]float64, days),
+		Missed: make([]float64, days), Took: make([]float64, days)}
+	took := make([][]float64, days)
+	var week []float64
+	for i := range days {
+		a.Labels = append(a.Labels, today.AddDate(0, 0, i-days+1).Format("Mon Jan 2"))
+	}
 	for _, r := range runs {
-		at := r.At.In(s.loc)
-		day := time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, s.loc)
-		i := days - 1 - int(today.Sub(day).Hours()/24+0.5)
+		i := days - 1 - dayIndexFrom(midnight(r.At.In(s.loc)), today)
 		if i < 0 || i >= days {
 			continue
 		}
 		a.Total++
-		switch {
-		case r.Err != "":
+		res := r.Result()
+		switch res {
+		case "failed":
 			a.Failed[i]++
-		case r.Pushed:
+		case "pushed":
 			a.Pushed[i]++
-		default:
+		case "quiet":
 			a.Quiet[i]++
+		case "missed":
+			a.Missed[i]++
+			a.MissedAll++
+		}
+		if r.Kind == "prompt" && res != "missed" {
+			took[i] = append(took[i], float64(r.MS)/1000)
 		}
 		if i >= days-7 {
 			a.RunsWeek++
-			if r.Err != "" {
+			switch res {
+			case "failed":
 				a.FailedWeek++
-			} else if r.Pushed {
+			case "pushed":
 				a.PushedWeek++
+			case "quiet":
+				a.QuietWeek++
 			}
-		} else if r.Pushed && r.Err == "" {
+			if r.Kind == "prompt" && res != "missed" {
+				week = append(week, float64(r.MS)/1000)
+			}
+		} else if res == "pushed" {
 			a.PushedPrev++
 		}
 	}
+	for i, t := range took {
+		a.Took[i] = median(t)
+	}
+	a.TookWeek = median(week)
 	return a
+}
+
+func median(v []float64) float64 {
+	if len(v) == 0 {
+		return 0
+	}
+	v = slices.Clone(v)
+	slices.Sort(v)
+	m := v[len(v)/2]
+	if len(v)%2 == 0 {
+		m = (v[len(v)/2-1] + m) / 2
+	}
+	return math.Round(m*10) / 10
 }
 
 func (a activity) PushDelta() string {
@@ -146,7 +186,7 @@ func (a activity) PushDelta() string {
 func (a activity) RunsSeries() []float64 {
 	out := make([]float64, len(a.Pushed))
 	for i := range out {
-		out[i] = a.Pushed[i] + a.Failed[i] + a.Quiet[i]
+		out[i] = a.Pushed[i] + a.Failed[i] + a.Quiet[i] + a.Missed[i]
 	}
 	return out
 }
@@ -167,6 +207,18 @@ func humanCron(expr string) string {
 	f := strings.Fields(expr)
 	if len(f) != 5 {
 		return expr
+	}
+	if f[2] == "*" && f[3] == "*" && f[4] == "*" {
+		switch {
+		case f[0] == "*" && f[1] == "*":
+			return "every minute"
+		case strings.HasPrefix(f[0], "*/") && f[1] == "*":
+			return "every " + f[0][2:] + " minutes"
+		case f[0] == "0" && f[1] == "*":
+			return "hourly"
+		case f[0] == "0" && strings.HasPrefix(f[1], "*/"):
+			return "every " + f[1][2:] + " hours"
+		}
 	}
 	min, errM := strconv.Atoi(f[0])
 	hour, errH := strconv.Atoi(f[1])

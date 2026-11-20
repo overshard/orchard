@@ -385,7 +385,9 @@ func TestHumanCron(t *testing.T) {
 		"0 9 * * 1,4": "Mon, Thu 9:00am",
 		"0 10 1 * *":  "monthly on the 1st 10:00am",
 		"0 9 3 3 *":   "every Mar 3 9:00am",
-		"*/5 * * * *": "*/5 * * * *",
+		"*/5 * * * *": "every 5 minutes",
+		"0 */4 * * *": "every 4 hours",
+		"0 9 1 */3 *": "on the 1st every 3 months 9:00am",
 		"0 9 1-7 * 1": "0 9 1-7 * 1",
 	} {
 		if got := humanCron(in); got != want {

@@ -31,6 +31,17 @@ func (s *site) loadTemplates() error {
 		"plural":   plural,
 		"clip":     clip,
 		"ms":       ms,
+		"short":    s.short,
+		"minuteOf": func(t time.Time) int { t = t.In(s.loc); return t.Hour()*60 + t.Minute() },
+		"jobListed": func(jobs []Job, id int64) bool {
+			return slices.ContainsFunc(jobs, func(j Job) bool { return j.ID == id })
+		},
+		"snoozeTime": func(t time.Time) string {
+			if sameDay(t.In(s.loc), time.Now().In(s.loc)) {
+				return s.clock(t)
+			}
+			return s.eastern(t)
+		},
 	}).ParseFS(assets(), "templates/*.html")
 	if err != nil {
 		return err
@@ -129,6 +140,9 @@ func (s *site) schedule(j Job) string {
 }
 
 func (s *site) describe(j Job) string {
+	if j.Once() && j.CreatedBy == "snooze" {
+		return "once, snoozed"
+	}
 	if j.Once() {
 		return "once"
 	}
@@ -210,8 +224,9 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sortForAttention(jobs)
+	now := time.Now()
 	runs, _ := s.store.Runs(0, 12)
-	recent, _ := s.store.RunsSince(time.Now().AddDate(0, 0, -15))
+	recent, _ := s.store.RunsSince(now.AddDate(0, 0, -15))
 	sum := summarize(jobs)
 	head := template.HTML(template.HTMLEscapeString(spellNumber(sum.Active)) + " " + map[bool]string{true: "job", false: "jobs"}[sum.Active == 1])
 	switch {
@@ -224,8 +239,19 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	default:
 		head += "."
 	}
-	s.render(w, 200, "home.html", map[string]any{"Title": "Jobs", "Jobs": jobs, "Runs": runs, "Headline": head,
-		"Sum": sum, "Act": s.activity(recent), "Ahead": s.ahead(jobs, time.Now()), "Suite": s.chrome("jobs", jobs)})
+	toast := ""
+	for _, did := range []string{"paused", "resumed"} {
+		if id, err := strconv.ParseInt(r.URL.Query().Get(did), 10, 64); err == nil {
+			for _, j := range jobs {
+				if j.ID == id {
+					toast = capital(did) + " " + j.Name
+				}
+			}
+		}
+	}
+	s.render(w, 200, "home.html", map[string]any{"Title": "Jobs", "Jobs": s.rows(jobs), "Runs": runs, "Headline": head,
+		"Sum": sum, "Snoozed": len(snoozes(jobs)), "Act": s.activity(recent), "Ahead": s.ahead(jobs, now),
+		"Week": s.week(jobs, now), "Toast": toast, "Suite": s.chrome("jobs", jobs)})
 }
 
 // sortForAttention puts a failing job first and a paused one last, and keeps
@@ -248,26 +274,48 @@ func sortForAttention(jobs []Job) {
 	})
 }
 
+var results = []string{"failed", "pushed", "quiet", "missed"}
+
 func (s *site) runsPage(w http.ResponseWriter, r *http.Request) {
-	runs, err := s.store.Runs(0, 200)
+	f := RunFilter{Limit: 200, Result: r.URL.Query().Get("result")}
+	f.Job, _ = strconv.ParseInt(r.URL.Query().Get("job"), 10, 64)
+	if !slices.Contains(results, f.Result) {
+		f.Result = ""
+	}
+	runs, err := s.store.FindRuns(f)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
 	jobs, _ := s.store.Jobs()
+	jobName := ""
+	for _, j := range jobs {
+		if j.ID == f.Job {
+			jobName = j.Name
+		}
+	}
+	if jobName == "" && f.Job > 0 && len(runs) > 0 {
+		jobName = runs[0].Name
+	}
 	failed := 0
 	for _, r := range runs {
-		if r.Err != "" {
+		if res := r.Result(); res == "failed" || res == "missed" {
 			failed++
 		}
 	}
 	head := template.HTML(template.HTMLEscapeString(plural(len(runs), "run", "runs")))
-	if failed > 0 {
-		head += template.HTML(`, <em class="bad">` + template.HTMLEscapeString(plural(failed, "failure", "failures")) + `</em>.`)
-	} else if len(runs) > 0 {
+	switch {
+	case f.Result != "" || f.Job > 0:
+		head += "."
+	case failed > 0:
+		head += template.HTML(`, <em class="bad">` + template.HTMLEscapeString(plural(failed, "failed or missed", "failed or missed")) + `</em>.`)
+	case len(runs) > 0:
 		head += ", none failed."
+	default:
+		head += "."
 	}
-	s.render(w, 200, "runs.html", map[string]any{"Title": "Runs", "Runs": runs, "Headline": head, "Suite": s.chrome("runs", jobs)})
+	s.render(w, 200, "runs.html", map[string]any{"Title": "Runs", "Runs": runs, "Headline": head, "Filter": f,
+		"Results": results, "JobName": jobName, "Jobs": jobs, "Suite": s.chrome("runs", jobs)})
 }
 
 // form reads the job form into an Input. Plain words in When win, and
@@ -291,10 +339,22 @@ func form(r *http.Request) Input {
 	return in
 }
 
-func (s *site) jobForm(w http.ResponseWriter, code int, j Job, errText string) {
+var examples = []string{"every weekday at 7:30am", "sat 8am", "every 4 hours", "on the 1st every 3 months at 9am",
+	"mon and thu at 8pm", "tomorrow at 3pm", "in 2 hours", "dec 24 at 9am", "every evening"}
+
+// jobForm renders the form. when is what was typed in the When box, kept so a
+// refused save doesn't lose it.
+func (s *site) jobForm(w http.ResponseWriter, code int, j Job, errText string, when ...string) {
 	var runs []Run
+	var ticks []tick
 	if j.ID > 0 {
 		runs, _ = s.store.Runs(j.ID, 30)
+		last := runs[:min(len(runs), tickCount)]
+		rev := make([]Run, len(last))
+		for i, r := range last {
+			rev[len(last)-1-i] = r
+		}
+		ticks = s.ticks(rev)
 	}
 	title := "New job"
 	if j.ID > 0 {
@@ -307,7 +367,8 @@ func (s *site) jobForm(w http.ResponseWriter, code int, j Job, errText string) {
 	}
 	s.render(w, code, "job.html", map[string]any{
 		"Title": title, "Job": j, "Runs": runs, "Error": errText, "Priorities": priorities, "Upcoming": s.upcoming(j, 8),
-		"Repeat": j.Cron != "", "Kind": j.Kind, "Suite": s.chrome(on, jobs),
+		"Repeat": j.Cron != "", "Kind": j.Kind, "Suite": s.chrome(on, jobs), "Ticks": ticks,
+		"Snoozed": snoozes(jobs)[j.ID], "When": strings.Join(when, ""), "Examples": examples, "Now": time.Now().In(s.loc),
 	})
 }
 
@@ -339,7 +400,7 @@ func (s *site) jobPage(w http.ResponseWriter, r *http.Request) {
 func (s *site) jobCreate(w http.ResponseWriter, r *http.Request) {
 	j, err := s.create(form(r), "web")
 	if err != nil {
-		s.jobForm(w, 400, j, err.Error())
+		s.jobForm(w, 400, j, err.Error(), r.FormValue("when"))
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -351,7 +412,7 @@ func (s *site) jobSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if j, err := s.save(j, form(r)); err != nil {
-		s.jobForm(w, 400, j, err.Error())
+		s.jobForm(w, 400, j, err.Error(), r.FormValue("when"))
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
