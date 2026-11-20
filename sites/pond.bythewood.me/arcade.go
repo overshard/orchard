@@ -42,6 +42,7 @@ var arcadeGames = []arcadeGame{
 	{"swarm", "Swarm season", 40, 20, swarmMost, 40},
 	{"whirl", "Whirlpool", 40, 150, whirlMost, 50},
 	{"sling", "Cattail sling", 40, 100, slingMost, 80},
+	{"pin", "Lily pinball", 40, pinRate, pinMost, 60},
 }
 
 // Every note of a chorus song right on time with the run at its height is all
@@ -67,6 +68,11 @@ const whirlMost = 12000
 // Every acorn and every piece of the biggest level in each of cattail sling's
 // slots, the golden acorn and every spare frog come to under this.
 const slingMost = 7000
+
+// Lily pinball goes on as long as a ball stays up, so its rate holds it, set
+// half again over a player who saves every ball, and its most only stops a
+// number no game could reach.
+const pinRate, pinMost = 140, 150000
 
 // A game with no rate is played out on the server a tap at a time, so it
 // never takes a score from the page. It pays once a day and is never the

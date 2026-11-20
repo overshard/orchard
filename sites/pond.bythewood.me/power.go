@@ -36,7 +36,7 @@ var powerWeights = []struct {
 	{"cookbook", "Cookbook", "finds", 4000},
 	{"furniture", "Furniture", "finds", 1500},
 	{"sets", "Sets", "finds", 2700},
-	{"badges", "Badges", "finds", 5800},
+	{"badges", "Badges", "finds", 4800},
 	{"frogs", "Frogs", "frogs", 3000},
 	{"rarity", "Rarest frog", "frogs", 3000},
 	{"bond", "Bond", "frogs", 2000},
@@ -420,6 +420,7 @@ var refFloor = map[string]int{
 	"swarm":  1300,
 	"whirl":  3000,
 	"sling":  3000,
+	"pin":    1000,
 }
 
 // gameRefs reads the references the hourly sweep kept.

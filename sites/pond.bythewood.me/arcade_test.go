@@ -554,3 +554,43 @@ func TestCattailSlingIsBounded(t *testing.T) {
 		t.Errorf("a day of rounds paid %d against a cap of %d", v.Pebbles-start, g.cap)
 	}
 }
+
+// Lily pinball's game is played out on the page, so the server holds it to
+// its rate and its most, and a day of it to the cap.
+func TestLilyPinballIsBounded(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	g, _ := arcadeOf("pin")
+	play := func(score int, secs time.Duration) *arcadeDone {
+		t.Helper()
+		st, err := s.arcadeStart(id, "pin")
+		if err != nil {
+			t.Fatal(err)
+		}
+		*clock = clock.Add(secs * time.Second)
+		d, err := s.arcadeFinish(id, "pin", st.Run, score, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	if d := play(pinMost+1, 7200); d.Paid != 0 {
+		t.Errorf("more than a game can score paid: %+v", d)
+	}
+	if d := play(3000, 10); d.Paid != 0 {
+		t.Errorf("3000 in ten seconds paid: %+v", d)
+	}
+	start := play(0, 60).Pond.Pebbles
+	if d := play(1200, 66); d.Paid != 1200/g.per {
+		t.Errorf("a frog's game paid %d, want %d", d.Paid, 1200/g.per)
+	}
+	if d := play(8000, 200); d.Paid == 0 {
+		t.Errorf("a long multiball game paid nothing: %+v", d)
+	}
+	for range 10 {
+		play(8000, 200)
+	}
+	if v, _ := s.view(id); v.Pebbles-start != g.cap {
+		t.Errorf("a day of games paid %d against a cap of %d", v.Pebbles-start, g.cap)
+	}
+}

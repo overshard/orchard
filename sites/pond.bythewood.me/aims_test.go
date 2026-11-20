@@ -113,3 +113,38 @@ func TestAGoalNeedsItsNoneAtNought(t *testing.T) {
 		t.Error("counts past the score fit")
 	}
 }
+
+// Lily pinball's counts come from the page, so each is held to what it's
+// worth in points, and a game that earned them meets the day's two.
+func TestPinballGoalsAreHeldToTheScore(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	run := func(score int, counts map[string]int) *arcadeDone {
+		t.Helper()
+		st, err := s.arcadeStart(id, "pin")
+		if err != nil {
+			t.Fatal(err)
+		}
+		*clock = clock.Add(3 * time.Minute)
+		d, err := s.arcadeFinish(id, "pin", st.Run, score, nil, counts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	all := map[string]int{"lights": 1, "mouth": 3, "multi": 1, "long": 45}
+	for _, c := range []map[string]int{{"mouth": 3}, {"lights": 2}, {"multi": 2}, {"long": 500}} {
+		if !countsFit("pin", 900, all) || countsFit("pin", 300, c) {
+			t.Errorf("%v at 300 fits, or a whole game at 900 doesn't", c)
+		}
+	}
+	if d := run(300, all); len(d.Aims) != 0 {
+		t.Errorf("three mouths in 300 points met %v", d.Aims)
+	}
+	if d := run(900, all); len(d.Aims) != aimsADay {
+		t.Errorf("a game that did it all met %v", d.Aims)
+	}
+	if len(aimsOf(dayOf(*clock), "pin")) != aimsADay {
+		t.Error("lily pinball hasn't two goals today")
+	}
+}

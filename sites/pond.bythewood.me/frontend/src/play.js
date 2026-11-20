@@ -23,6 +23,7 @@ import { lash, lashArt } from "./lash.js";
 import { swarm, swarmArt } from "./swarm.js";
 import { whirl, whirlArt } from "./whirl.js";
 import { sling, slingArt } from "./sling.js";
+import { pin, pinArt } from "./pin.js";
 
 // Every game on Play. A game is a key, a name, one line, the picture on its
 // title card and the game the frame runs. A new game is one line on its
@@ -35,6 +36,7 @@ export const SHELVES = [
     { key: "lash", name: "Tongue lash", line: "Snap bugs out of the dusk, lots to a gulp.", art: lashArt, game: lash },
     { key: "whirl", name: "Whirlpool", line: "Swallow the pond, duckweed first and the jetty last.", art: whirlArt, game: whirl },
     { key: "sling", name: "Cattail sling", line: "Fling frogs at acorns stacked out on the pond.", art: slingArt, game: sling },
+    { key: "pin", name: "Lily pinball", line: "The frog plays, grab a flipper if you like.", art: pinArt, game: pin },
     { key: "dive", name: "Dive", line: "Race nine frogs to the bottom.", art: diveArt },
     { key: "cross", name: "Crossing", line: "Hop the lane and the stream home.", art: crossArt, game: cross },
     { key: "raft", name: "Raft run", line: "Steer a leaf down the river.", art: raftArt, game: raft },

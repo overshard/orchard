@@ -120,6 +120,11 @@ var aimList = []aim{
 	{"cs_pond", "sling", "Knock eight pieces into the pond", map[string]int{"splashed": 8}, nil, 0},
 	{"cs_gold", "sling", "Knock the golden acorn off", map[string]int{"golden": 1}, nil, 0},
 	{"cs_spare", "sling", "Keep five frogs spare in a round", map[string]int{"spare": 5}, nil, 0},
+
+	{"lp_lights", "pin", "Light every firefly", map[string]int{"lights": 1}, nil, 0},
+	{"lp_mouth", "pin", "Sink the frog's mouth three times", map[string]int{"mouth": 3}, nil, 0},
+	{"lp_multi", "pin", "Start a multiball", map[string]int{"multi": 1}, nil, 0},
+	{"lp_long", "pin", "Keep one ball up 45 seconds", map[string]int{"long": 45}, nil, 0},
 }
 
 // The least score each count says a run made, so a page can't report more of
@@ -142,6 +147,7 @@ var aimWorth = map[string]map[string]int{
 	"lash":   {"combo": 2, "golden": 10, "dragonflies": 3, "bugs": 1},
 	"swarm":  {"wasps": 3, "beetles": 6, "dew": 1, "bugs": 1, "combos": 60, "level": 8},
 	"whirl":  {"band": 12, "things": 1, "kinds": 1, "rares": 15, "swirled": 2, "log": 150, "jetty": 300, "isle": 350, "banks": 150, "whole": 800},
+	"pin":    {"lights": 200, "mouth": 250, "multi": 200, "long": 1},
 	"sling":  {"acorns": 50, "golden": 150, "blocks": 5, "stones": 25, "pots": 20, "barrels": 30, "splashed": 10, "spare": 100, "cleared": 100, "stars": 30, "three": 300, "oneshot": 250},
 }
 
