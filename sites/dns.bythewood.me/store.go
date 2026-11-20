@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,10 +35,13 @@ CREATE TABLE IF NOT EXISTS devices (
 );
 CREATE TABLE IF NOT EXISTS rules (
 	id INTEGER PRIMARY KEY,
-	domain TEXT NOT NULL UNIQUE,
+	domain TEXT NOT NULL,
 	action TEXT NOT NULL,
 	note TEXT NOT NULL DEFAULT '',
-	created INTEGER NOT NULL
+	created INTEGER NOT NULL,
+	device INTEGER NOT NULL DEFAULT 0,
+	target TEXT NOT NULL DEFAULT '',
+	UNIQUE (domain, device)
 );
 CREATE TABLE IF NOT EXISTS queries (
 	id INTEGER PRIMARY KEY,
@@ -117,9 +121,40 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-// migrate brings an older database up to the schema above.
+// migrate brings an older database up to the schema above. rules lost its
+// UNIQUE on domain alone when rules could be for one device, which SQLite can
+// only change by copying the table.
 func migrate(db *sql.DB) error {
-	return nil
+	has := func(table, col string) bool {
+		var n int
+		_ = db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = ?`, table, col).Scan(&n)
+		return n > 0
+	}
+	if !has("devices", "safe") {
+		if _, err := db.Exec(`ALTER TABLE devices ADD COLUMN safe INTEGER NOT NULL DEFAULT 0`); err != nil {
+			return err
+		}
+	}
+	if has("rules", "device") {
+		return nil
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, q := range []string{
+		`CREATE TABLE rules_new (id INTEGER PRIMARY KEY, domain TEXT NOT NULL, action TEXT NOT NULL, note TEXT NOT NULL DEFAULT '',
+			created INTEGER NOT NULL, device INTEGER NOT NULL DEFAULT 0, target TEXT NOT NULL DEFAULT '', UNIQUE (domain, device))`,
+		`INSERT INTO rules_new (id, domain, action, note, created) SELECT id, domain, action, note, created FROM rules`,
+		`DROP TABLE rules`,
+		`ALTER TABLE rules_new RENAME TO rules`,
+	} {
+		if _, err := tx.Exec(q); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (s *Store) Setting(k string) string {
@@ -144,6 +179,8 @@ type Device struct {
 	LastSeen  time.Time
 	LastProto string
 	LastIP    string
+	// Safe turns on SafeSearch and YouTube's restricted mode for this device.
+	Safe bool
 }
 
 // Off says whether this device skips a list.
@@ -183,13 +220,13 @@ func validToken(t string) bool {
 	return true
 }
 
-const deviceCols = `id, name, kind, token, off_lists, created, last_seen, last_proto, last_ip`
+const deviceCols = `id, name, kind, token, off_lists, created, last_seen, last_proto, last_ip, safe`
 
 func scanDevice(sc interface{ Scan(...any) error }) (*Device, error) {
 	var d Device
 	var off string
 	var created, seen int64
-	if err := sc.Scan(&d.ID, &d.Name, &d.Kind, &d.Token, &off, &created, &seen, &d.LastProto, &d.LastIP); err != nil {
+	if err := sc.Scan(&d.ID, &d.Name, &d.Kind, &d.Token, &off, &created, &seen, &d.LastProto, &d.LastIP, &d.Safe); err != nil {
 		return nil, err
 	}
 	if off != "" {
@@ -232,8 +269,8 @@ func (s *Store) AddDevice(name, kind string) (*Device, error) {
 	return s.Device(id)
 }
 
-func (s *Store) UpdateDevice(id int64, name, kind string, off []string) error {
-	_, err := s.db.Exec(`UPDATE devices SET name = ?, kind = ?, off_lists = ? WHERE id = ?`, name, kind, strings.Join(off, ","), id)
+func (s *Store) UpdateDevice(id int64, name, kind string, off []string, safe bool) error {
+	_, err := s.db.Exec(`UPDATE devices SET name = ?, kind = ?, off_lists = ?, safe = ? WHERE id = ?`, name, kind, strings.Join(off, ","), safe, id)
 	return err
 }
 
@@ -243,8 +280,11 @@ func (s *Store) RotateToken(id int64) error {
 }
 
 // DeleteDevice keeps the device's lookups until they age out, since they're
-// still what happened, and only its token stops working.
+// still what happened, and only its token stops working. Its own rules go.
 func (s *Store) DeleteDevice(id int64) error {
+	if _, err := s.db.Exec(`DELETE FROM rules WHERE device = ?`, id); err != nil {
+		return err
+	}
 	_, err := s.db.Exec(`DELETE FROM devices WHERE id = ?`, id)
 	return err
 }
@@ -254,57 +294,93 @@ func (s *Store) Seen(id int64, at time.Time, proto, ip string) error {
 	return err
 }
 
-// Rule is one domain I allowed or blocked by hand. It covers every subdomain.
+// Rule is one domain I allowed, blocked or rewrote by hand. It covers every
+// subdomain. Device 0 is every device, and Target is where a rewrite points,
+// an address or a name.
 type Rule struct {
 	ID      int64
 	Domain  string
 	Action  string
 	Note    string
 	Created time.Time
+	Device  int64
+	Target  string
+}
+
+const ruleCols = `id, domain, action, note, created, device, target`
+
+func scanRule(sc interface{ Scan(...any) error }) (Rule, error) {
+	var r Rule
+	var c int64
+	err := sc.Scan(&r.ID, &r.Domain, &r.Action, &r.Note, &c, &r.Device, &r.Target)
+	r.Created = time.Unix(c, 0)
+	return r, err
 }
 
 func (s *Store) Rules() ([]Rule, error) {
-	rows, err := s.rd.Query(`SELECT id, domain, action, note, created FROM rules ORDER BY domain`)
+	rows, err := s.rd.Query(`SELECT ` + ruleCols + ` FROM rules ORDER BY domain, device`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []Rule
 	for rows.Next() {
-		var r Rule
-		var c int64
-		if err := rows.Scan(&r.ID, &r.Domain, &r.Action, &r.Note, &c); err != nil {
+		r, err := scanRule(rows)
+		if err != nil {
 			return nil, err
 		}
-		r.Created = time.Unix(c, 0)
 		out = append(out, r)
 	}
 	return out, rows.Err()
 }
 
-var errBadDomain = errors.New("that isn't a domain")
+var (
+	errBadDomain = errors.New("that isn't a domain")
+	errBadTarget = errors.New("a rewrite needs an address or a domain to point at")
+)
 
-// PutRule allows or blocks a domain, replacing whatever rule it had.
+// PutRule allows or blocks a domain for every device.
 func (s *Store) PutRule(domain, action, note string) error {
+	return s.PutRuleFor(domain, action, note, 0, "")
+}
+
+// PutRuleFor writes a rule for one device, or every device when device is 0,
+// replacing whatever rule that domain had for it.
+func (s *Store) PutRuleFor(domain, action, note string, device int64, target string) error {
 	domain = cleanName(domain)
 	if !looksLikeDomain(domain) {
 		return errBadDomain
 	}
-	if action != "allow" && action != "block" {
+	switch action {
+	case "allow", "block":
+		target = ""
+	case "rewrite":
+		target = strings.TrimSpace(target)
+		if net.ParseIP(target) == nil {
+			target = cleanName(target)
+			if !looksLikeDomain(target) {
+				return errBadTarget
+			}
+		}
+	default:
 		return fmt.Errorf("unknown action %q", action)
 	}
-	_, err := s.db.Exec(`INSERT INTO rules (domain, action, note, created) VALUES (?, ?, ?, ?)
-		ON CONFLICT(domain) DO UPDATE SET action = excluded.action, note = excluded.note`, domain, action, note, time.Now().Unix())
+	_, err := s.db.Exec(`INSERT INTO rules (domain, action, note, created, device, target) VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(domain, device) DO UPDATE SET action = excluded.action, note = excluded.note, target = excluded.target`,
+		domain, action, note, time.Now().Unix(), device, target)
 	return err
 }
 
+func (s *Store) Rule(id int64) (Rule, error) {
+	return scanRule(s.db.QueryRow(`SELECT `+ruleCols+` FROM rules WHERE id = ?`, id))
+}
+
 func (s *Store) DeleteRule(id int64) (Rule, error) {
-	var r Rule
-	var c int64
-	if err := s.db.QueryRow(`SELECT id, domain, action, note, created FROM rules WHERE id = ?`, id).Scan(&r.ID, &r.Domain, &r.Action, &r.Note, &c); err != nil {
+	r, err := s.Rule(id)
+	if err != nil {
 		return r, err
 	}
-	_, err := s.db.Exec(`DELETE FROM rules WHERE id = ?`, id)
+	_, err = s.db.Exec(`DELETE FROM rules WHERE id = ?`, id)
 	return r, err
 }
 
@@ -665,4 +741,95 @@ func (s *Store) Latency(f Filter) (p50, p95 int) {
 	_ = s.rd.QueryRow(`SELECT COALESCE(MIN(CASE WHEN cd >= 0.5 THEN ms END), 0), COALESCE(MIN(CASE WHEN cd >= 0.95 THEN ms END), 0)
 		FROM (SELECT ms, CUME_DIST() OVER (ORDER BY ms) AS cd FROM queries`+w+`)`, args...).Scan(&p50, &p95)
 	return
+}
+
+// HourlyOf is the last n hours of lookups matching a filter's status, oldest
+// first. It reads the raw rows, so it only reaches back keepDays.
+func (s *Store) HourlyOf(status string, n int, now time.Time) []float64 {
+	end := now.Unix() / 3600 * 3600
+	start := end - int64(n-1)*3600
+	out := make([]float64, n)
+	f := Filter{Status: status, Since: time.Unix(start, 0)}
+	w, args := f.where()
+	rows, err := s.rd.Query(`SELECT at / 3600000, COUNT(*) FROM queries`+w+` GROUP BY 1`, args...)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var h int64
+		var c float64
+		if rows.Scan(&h, &c) == nil {
+			if i := h - start/3600; i >= 0 && i < int64(n) {
+				out[i] = c
+			}
+		}
+	}
+	return out
+}
+
+// HourlyMs is the mean answer time of passed lookups by hour, oldest first.
+func (s *Store) HourlyMs(n int, now time.Time) []float64 {
+	end := now.Unix() / 3600 * 3600
+	start := end - int64(n-1)*3600
+	out := make([]float64, n)
+	rows, err := s.rd.Query(`SELECT at / 3600000, AVG(ms) FROM queries WHERE status = 'pass' AND at >= ? GROUP BY 1`, start*1000)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var h int64
+		var ms float64
+		if rows.Scan(&h, &ms) == nil {
+			if i := h - start/3600; i >= 0 && i < int64(n) {
+				out[i] = ms
+			}
+		}
+	}
+	return out
+}
+
+// DailyByReason is the last n days of blocks for each reason, oldest first.
+func (s *Store) DailyByReason(n int, now time.Time) map[string][]int {
+	end := now.Unix() / 86400 * 86400
+	start := end - int64(n-1)*86400
+	out := map[string][]int{}
+	rows, err := s.rd.Query(`SELECT at / 86400000, reason, COUNT(*) FROM queries WHERE status IN ('block', 'deny') AND at >= ? GROUP BY 1, 2`, start*1000)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var d int64
+		var reason string
+		var c int
+		if rows.Scan(&d, &reason, &c) == nil {
+			if i := d - start/86400; i >= 0 && i < int64(n) {
+				if out[reason] == nil {
+					out[reason] = make([]int, n)
+				}
+				out[reason][i] = c
+			}
+		}
+	}
+	return out
+}
+
+// LastByReason is when each block reason last fired, over the raw rows.
+func (s *Store) LastByReason() map[string]time.Time {
+	out := map[string]time.Time{}
+	rows, err := s.rd.Query(`SELECT reason, MAX(at) FROM queries WHERE status IN ('deny', 'rewrite') GROUP BY 1`)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var r string
+		var at int64
+		if rows.Scan(&r, &at) == nil {
+			out[r] = time.UnixMilli(at)
+		}
+	}
+	return out
 }

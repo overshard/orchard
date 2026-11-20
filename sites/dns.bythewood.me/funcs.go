@@ -33,6 +33,15 @@ func funcs() template.FuncMap {
 		"listName":   listName,
 		"parents":    parents,
 		"rcode":      func(c int) string { return dns.RcodeToString[c] },
+		"deviceName": func(names map[int64]string, id int64) string {
+			if id == 0 {
+				return "every device"
+			}
+			if n := names[id]; n != "" {
+				return n
+			}
+			return "a removed device"
+		},
 		"days": func(d time.Duration) int {
 			return int(d.Hours() / 24)
 		},
@@ -112,6 +121,8 @@ func statusWord(s string) string {
 		return "failed"
 	case "local":
 		return "local"
+	case "rewrite":
+		return "rewritten"
 	}
 	return "answered"
 }

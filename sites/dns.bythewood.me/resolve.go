@@ -34,23 +34,46 @@ const (
 // cached the block.
 const blockTTL = 60
 
-// rules is the hand written allows and blocks, swapped whole on every change.
+// rules is the hand written allows, blocks and rewrites, swapped whole on
+// every change. Each maps a domain to the rules on it, one per device at most,
+// with device 0 standing for every device.
 type rules struct {
-	allow map[string]bool
-	block map[string]bool
+	allow   map[string][]Rule
+	block   map[string][]Rule
+	rewrite map[string][]Rule
 }
 
-func (r *rules) match(name string, m map[string]bool) string {
+// match walks name and each parent of it and gives the first rule there for
+// device d, where 0 is the rules for every device.
+func (r *rules) match(name string, m map[string][]Rule, d int64) (Rule, bool) {
 	for n := name; ; {
-		if m[n] {
-			return n
+		for _, x := range m[n] {
+			if x.Device == d {
+				return x, true
+			}
 		}
 		i := strings.IndexByte(n, '.')
 		if i < 0 {
-			return ""
+			return Rule{}, false
 		}
 		n = n[i+1:]
 	}
+}
+
+// safeSearch points the big search engines and YouTube at the names they
+// keep for filtered results, for a device with Safe on.
+var safeSearch = map[string]string{
+	"google.com":               "forcesafesearch.google.com",
+	"www.google.com":           "forcesafesearch.google.com",
+	"bing.com":                 "strict.bing.com",
+	"www.bing.com":             "strict.bing.com",
+	"duckduckgo.com":           "safe.duckduckgo.com",
+	"www.duckduckgo.com":       "safe.duckduckgo.com",
+	"www.youtube.com":          "restrictmoderate.youtube.com",
+	"m.youtube.com":            "restrictmoderate.youtube.com",
+	"youtubei.googleapis.com":  "restrictmoderate.youtube.com",
+	"youtube.googleapis.com":   "restrictmoderate.youtube.com",
+	"www.youtube-nocookie.com": "restrictmoderate.youtube.com",
 }
 
 // resolver answers for every device. Lists and rules are read through atomic
@@ -84,12 +107,15 @@ func newResolver(l *lister, upstream string, log *logger) *resolver {
 }
 
 func (r *resolver) setRules(rs []Rule) {
-	n := &rules{allow: map[string]bool{}, block: map[string]bool{}}
+	n := &rules{allow: map[string][]Rule{}, block: map[string][]Rule{}, rewrite: map[string][]Rule{}}
 	for _, x := range rs {
-		if x.Action == "allow" {
-			n.allow[x.Domain] = true
-		} else {
-			n.block[x.Domain] = true
+		switch x.Action {
+		case "allow":
+			n.allow[x.Domain] = append(n.allow[x.Domain], x)
+		case "block":
+			n.block[x.Domain] = append(n.block[x.Domain], x)
+		case "rewrite":
+			n.rewrite[x.Domain] = append(n.rewrite[x.Domain], x)
 		}
 	}
 	r.rules.Store(n)
@@ -107,22 +133,39 @@ func (r *resolver) device(token string) *Device {
 	return (*r.devices.Load())[token]
 }
 
-// Verdict is what the lists and rules say about one name.
+// Verdict is what the lists and rules say about one name. Rule is the id of
+// my rule that decided it, if one did.
 type Verdict struct {
 	Status string
 	Reason string
 	Domain string
+	Target string
+	Rule   int64
 }
 
 // decide says what a device gets for a name before anything is asked
-// upstream. Allow beats block, and my own rules beat any list.
+// upstream. A rewrite comes first, then allow beats block, and my own rules
+// beat any list.
 func (r *resolver) decide(d *Device, name string) Verdict {
+	rs := r.rules.Load()
+	// A device's own rules come before the rules for every device.
+	scopes := []int64{0}
+	if d.ID != 0 {
+		scopes = []int64{d.ID, 0}
+	}
+	for _, sc := range scopes {
+		if x, ok := rs.match(name, rs.rewrite, sc); ok {
+			return Verdict{Status: "rewrite", Reason: "rule " + x.Domain, Domain: x.Domain, Target: x.Target, Rule: x.ID}
+		}
+	}
+	if t, ok := safeSearch[name]; ok && d.Safe {
+		return Verdict{Status: "rewrite", Reason: "safe search", Domain: name, Target: t}
+	}
 	for _, own := range neverBlock {
 		if name == own || strings.HasSuffix(name, "."+own) {
 			return Verdict{Status: "pass"}
 		}
 	}
-	rs := r.rules.Load()
 	listed, mask := r.lists.tab.Load().match(name)
 	key := ""
 	for i, li := range lists {
@@ -131,14 +174,16 @@ func (r *resolver) decide(d *Device, name string) Verdict {
 			break
 		}
 	}
-	if a := rs.match(name, rs.allow); a != "" {
-		if key != "" {
-			return Verdict{Status: "allow", Reason: key, Domain: a}
+	for _, sc := range scopes {
+		if a, ok := rs.match(name, rs.allow, sc); ok {
+			if key != "" {
+				return Verdict{Status: "allow", Reason: key, Domain: a.Domain, Rule: a.ID}
+			}
+			return Verdict{Status: "pass", Rule: a.ID}
 		}
-		return Verdict{Status: "pass"}
-	}
-	if b := rs.match(name, rs.block); b != "" {
-		return Verdict{Status: "deny", Reason: "rule", Domain: b}
+		if b, ok := rs.match(name, rs.block, sc); ok {
+			return Verdict{Status: "deny", Reason: "rule", Domain: b.Domain, Rule: b.ID}
+		}
 	}
 	if key != "" {
 		return Verdict{Status: "block", Reason: key, Domain: listed}
@@ -200,7 +245,10 @@ func (r *resolver) answer(d *Device, req *dns.Msg, name string, l *Lookup) *dns.
 		m.SetRcode(req, dns.RcodeNameError)
 		return m
 	}
-	if v := r.decide(d, name); v.Status == "block" || v.Status == "deny" {
+	if v := r.decide(d, name); v.Status == "rewrite" {
+		l.Status, l.Reason = "rewrite", v.Reason
+		return r.rewritten(req, v.Target)
+	} else if v.Status == "block" || v.Status == "deny" {
 		l.Status, l.Reason = v.Status, v.Reason
 		if v.Status == "deny" {
 			l.Reason = "rule " + v.Domain
@@ -304,6 +352,45 @@ func (r *resolver) upstreamDown(now time.Time) bool {
 	return last != 0 && now.Unix()-last > 60
 }
 
+// rewritten answers with my own address for a name, or a CNAME to another name
+// and whatever that name answers.
+func (r *resolver) rewritten(req *dns.Msg, target string) *dns.Msg {
+	q := req.Question[0]
+	m := new(dns.Msg)
+	m.SetReply(req)
+	m.RecursionAvailable = true
+	hdr := dns.RR_Header{Name: q.Name, Class: dns.ClassINET, Ttl: 300}
+	if ip := net.ParseIP(target); ip != nil {
+		switch {
+		case q.Qtype == dns.TypeA && ip.To4() != nil:
+			hdr.Rrtype = dns.TypeA
+			m.Answer = []dns.RR{&dns.A{Hdr: hdr, A: ip.To4()}}
+		case q.Qtype == dns.TypeAAAA && ip.To4() == nil:
+			hdr.Rrtype = dns.TypeAAAA
+			m.Answer = []dns.RR{&dns.AAAA{Hdr: hdr, AAAA: ip}}
+		}
+		return m
+	}
+	hdr.Rrtype = dns.TypeCNAME
+	m.Answer = []dns.RR{&dns.CNAME{Hdr: hdr, Target: dns.Fqdn(target)}}
+	if q.Qtype == dns.TypeCNAME {
+		return m
+	}
+	sub := new(dns.Msg)
+	sub.SetQuestion(dns.Fqdn(target), q.Qtype)
+	sub.RecursionDesired = true
+	resp, err := r.forward(sub)
+	if err != nil {
+		if resp, err = r.fallback(sub); err != nil {
+			m.Rcode = dns.RcodeServerFailure
+			return m
+		}
+	}
+	m.Answer = append(m.Answer, resp.Answer...)
+	m.Rcode = resp.Rcode
+	return m
+}
+
 // fallback asks Quad9 over TLS, with no ECS since forward's copy is reused.
 func (r *resolver) fallback(req *dns.Msg) (*dns.Msg, error) {
 	up := req.Copy()
@@ -389,10 +476,9 @@ func stripOPT(m *dns.Msg) {
 	m.Extra = kept
 }
 
-// blocked answers 0.0.0.0 or :: for an address and nothing for anything else,
-// so an app fails at once instead of retrying, and says why in an Extended
-// DNS Error when the client speaks EDNS. The SOA lets a client cache an empty
-// answer for blockTTL instead of asking again straight away.
+// blocked answers 0.0.0.0 or :: for an address and nothing with an SOA for
+// anything else, so an app fails at once and caches it, and says why in an
+// Extended DNS Error when the client speaks EDNS.
 func blocked(req *dns.Msg, why string) *dns.Msg {
 	m := new(dns.Msg)
 	m.SetReply(req)

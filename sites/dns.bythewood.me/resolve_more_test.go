@@ -66,3 +66,36 @@ func TestSafeBack(t *testing.T) {
 		}
 	}
 }
+
+func TestDeviceRulesAndRewrites(t *testing.T) {
+	s, d := testSite(t)
+	other, _ := s.store.AddDevice("laptop", "computer")
+	_ = s.store.PutRule("tracker.example", "allow", "")
+	_ = s.store.PutRuleFor("tracker.example", "block", "", d.ID, "")
+	_ = s.store.PutRuleFor("nas.home.example", "rewrite", "", 0, "192.168.1.20")
+	_ = s.reload()
+	if v := s.res.decide(s.res.device(d.Token), "tracker.example"); v.Status != "deny" {
+		t.Errorf("the device's own block wins for it: %+v", v)
+	}
+	if v := s.res.decide(s.res.device(other.Token), "tracker.example"); v.Status != "allow" {
+		t.Errorf("every device's allow holds for the rest: %+v", v)
+	}
+	req := new(dns.Msg)
+	req.SetQuestion("nas.home.example.", dns.TypeA)
+	m := s.res.Answer(s.res.device(d.Token), req, "dot", "")
+	if len(m.Answer) != 1 || m.Answer[0].(*dns.A).A.String() != "192.168.1.20" {
+		t.Errorf("rewrite answered %v", m.Answer)
+	}
+}
+
+func TestSafeSearchOnlyWhenOn(t *testing.T) {
+	s, d := testSite(t)
+	if v := s.res.decide(d, "www.google.com"); v.Status == "rewrite" {
+		t.Fatal("safe search is off by default")
+	}
+	_ = s.store.UpdateDevice(d.ID, d.Name, d.Kind, nil, true)
+	_ = s.reload()
+	if v := s.res.decide(s.res.device(d.Token), "www.google.com"); v.Status != "rewrite" || v.Target != "forcesafesearch.google.com" {
+		t.Fatalf("got %+v", v)
+	}
+}
