@@ -26,7 +26,7 @@ var arcadeGames = []arcadeGame{
 	// A classic, still played but paying nothing, its goals and records kept.
 	{"flick", "Tongue flick", 0, 6, 400, 1},
 	{"cross", "Crossing", 60, 8, 1500, 2},
-	{"raft", "Raft run", 40, 4, 600, 1},
+	{"raft", "Raft run", 40, 4, raftMost, 1},
 	{"leap", "Lily leap", 40, 20, 3000, 4},
 	{"school", "Tadpoles", 40, 6, 600, 1},
 	{"fish", "Fishing", 80, 8, 900, 2},
@@ -68,6 +68,10 @@ const whirlMost = 12000
 // Every acorn and every piece of the biggest level in each of cattail sling's
 // slots, the golden acorn and every spare frog come to under this.
 const slingMost = 7000
+
+// Raft run goes on while the leaf stays up, so its rate holds it, and its
+// most only stops a number no run could reach.
+const raftMost = 5000
 
 // Lily pinball goes on as long as a ball stays up, so its rate holds it, set
 // half again over a player who saves every ball, and its most only stops a

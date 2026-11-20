@@ -404,7 +404,7 @@ var refFloor = map[string]int{
 	"dive":   25,
 	"flick":  40,
 	"cross":  80,
-	"raft":   60,
+	"raft":   100,
 	"leap":   60,
 	"school": 30,
 	"fish":   100,
