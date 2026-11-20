@@ -24,8 +24,11 @@ remote, and push with the token as the password. The first push creates it.
 ## Layout
 
 `wire.go` is clone, fetch and push through `git http-backend`, `git.go` every
-read the pages make, `mirror.go` the GitHub lane, and `throttle.go` the rate
-limit on the routes a crawler could walk forever. Repositories live in
+read the pages make, `history.go` the reads kept in memory between views,
+`mirror.go` the GitHub lane, and `throttle.go` the rate limit on the routes a
+crawler could walk forever. A repository page opens on the suite strip, `t`
+jumps to any file at the branch, and a line number picks a line or, with shift,
+a range for a `#L10-L24` link. Repositories live in
 `build/repos`, or the `orchard-repos-data` volume in production.
 
 ## Things that will bite you
@@ -40,4 +43,8 @@ limit on the routes a crawler could walk forever. Repositories live in
 - Signed out, pages are only served at a branch or tag name, and history,
   diffs and anything at a commit SHA answer a signed in only 404. Every SHA is
   another copy of the tree for a crawler, so a signed out page must never link
-  to one.
+  to one. The commit tiles, recent commits, the last commit column and `y`
+  pinning a line link to its commit are all signed in only for that reason.
+- The last commit column is a second request after the page paints, one
+  `git log` that stops once every entry has a commit, after 2,000 commits or
+  after five seconds, whichever comes first.
