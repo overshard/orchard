@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -142,6 +143,13 @@ func (e *engine) check(w http.ResponseWriter, r *http.Request) {
 
 	switch v.kind {
 	case vPass, vExempt, vSolved:
+		// dns copies these onto a lookup, to notice a device's token turning
+		// up on a network it hasn't been on.
+		if q.ASN != 0 {
+			w.Header().Set("Gate-Asn", strconv.Itoa(q.ASN))
+			w.Header().Set("Gate-Org", asciiOnly(q.Org))
+			w.Header().Set("Gate-Country", q.Country)
+		}
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -166,6 +174,16 @@ func (e *engine) check(w http.ResponseWriter, r *http.Request) {
 		}
 		plain(w, v.rule.Status, msg)
 	}
+}
+
+func asciiOnly(s string) string {
+	b := make([]byte, 0, len(s))
+	for i := 0; i < len(s) && len(b) < 60; i++ {
+		if c := s[i]; c >= 0x20 && c < 0x7f {
+			b = append(b, c)
+		}
+	}
+	return string(b)
 }
 
 func plain(w http.ResponseWriter, code int, msg string) {
