@@ -1,36 +1,50 @@
 {{ define "main" }}
+{{ $ov := .Overview }}
 <main class="o-wrap o-main">
   <div class="o-ph">
     <div>
       <span class="o-lab">auth &middot; sessions</span>
-      <h1>Signed in on <em>{{ len .Sessions }} {{ if eq (len .Sessions) 1 }}browser{{ else }}browsers{{ end }}</em>.</h1>
-      <p>Every tool checks this list on each request, so revoking one takes effect everywhere at once.</p>
+      <h1>{{ len $ov.Browsers }} {{ if eq (len $ov.Browsers) 1 }}browser{{ else }}browsers{{ end }} and {{ len $ov.Connectors }} {{ if eq (len $ov.Connectors) 1 }}connector{{ else }}connectors{{ end }}{{ with $ov.NewPlaces }}, <em class="bad">{{ if eq (len .) 1 }}one new place{{ else }}{{ len . }} new places{{ end }}</em>{{ end }}.</h1>
+      <div class="o-pm"><span>browsers<b>{{ len $ov.Browsers }}</b></span><span>connectors<b>{{ len $ov.Connectors }}</b></span>{{ with $ov.NewPlaces }}<span>new place<b class="warn">{{ (index . 0).Where }}</b></span>{{ end }}<span>codes left<b class="{{ if lt $ov.Remaining 3 }}warn{{ end }}">{{ $ov.Remaining }}</b></span></div>
     </div>
-    {{ if gt (len .Sessions) 1 }}<div class="o-acts">
-      <form method="POST" action="/sessions/revoke-others" data-confirm="Sign out every other browser?"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Sign out everywhere else</button></form>
+    {{ if gt (len $ov.Browsers) 1 }}<div class="o-acts">
+      <form method="POST" action="/sessions/revoke-others" data-confirm="Sign out every other browser and connector?"><button type="submit" class="o-btn o-btn-sm o-btn-bad" data-act="sign out everywhere else">Sign out everywhere else</button></form>
     </div>{{ end }}
   </div>
 
   {{ template "alerts" . }}
 
+  {{ template "checkup" $ov.Checkup }}
+
   <section class="o-panel flush">
-    {{ if .Sessions }}
+    <div class="o-ph2"><h2>Browsers <span class="o-muted">{{ len $ov.Browsers }}</span></h2><span class="o-pm"><span>trouble first</span>{{ with $ov.NewPlaces }}<span>new place<b class="warn">{{ len . }}</b></span>{{ end }}</span></div>
+    {{ if $ov.Browsers }}
     <div class="o-scroll">
     <table class="o-tbl stack">
-      <thead><tr><th>Browser</th><th>Where</th><th>Address</th><th>Started</th><th>Last seen</th><th></th></tr></thead>
+      <thead><tr><th>Browser</th><th>Where</th><th>Address</th><th>Signed in with</th><th>Started</th><th>Last seen</th><th>Expires</th><th>14d</th><th></th></tr></thead>
       <tbody>
-      {{ range .Sessions }}
-        <tr>
-          <td class="lead"><span class="o-dot {{ if not .Current }}mute{{ end }}"></span>{{ browser .UA }}{{ if .Current }} <span class="o-chip brass">this browser</span>{{ end }}</td>
-          <td>{{ if .City }}{{ .City }}, {{ end }}{{ if .Country }}{{ .Country }}{{ else }}<span class="o-muted">unknown</span>{{ end }}</td>
+      {{ range $ov.Browsers }}
+        <tr class="{{ if .NewPlace }}newplace{{ end }}">
+          <td class="lead"><span class="o-dot {{ if not .Current }}mute{{ end }}"></span>{{ .Name }}{{ if .Current }} <span class="o-chip brass">this browser</span>{{ end }}{{ if .NewPlace }} <span class="o-chip warn" data-tip="Nobody signed in from here in the 30 days before this one">new place</span>{{ end }}</td>
+          <td>{{ with .Where }}{{ . }}{{ else }}<span class="o-muted">unknown</span>{{ end }}</td>
           <td class="n o-muted">{{ .IP }}</td>
-          <td class="n o-muted" title="{{ when .Created }}">{{ ago .Created }}</td>
+          <td>{{ with method .Method }}{{ if eq . "recovery code" }}<span class="o-chip warn">{{ . }}</span>{{ else }}{{ . }}{{ end }}{{ else }}<span class="o-muted" data-tip="Signed in before auth kept this">unknown</span>{{ end }}</td>
+          <td class="n o-muted" data-tip="{{ when .Created }}">{{ ago .Created }}</td>
           <td class="n">{{ ago .LastSeen }}</td>
+          <td class="n o-muted" data-tip="{{ when .Expires }}">{{ until .Expires }}</td>
+          <td>{{ template "days" . }}</td>
           <td class="act">
-            <form method="POST" action="/sessions/revoke" {{ if .Current }}data-confirm="This signs you out here. Carry on?"{{ end }}>
+            {{ if .Current }}
+            <form method="POST" action="/sessions/revoke" data-confirm="This signs you out here. Carry on?">
               <input type="hidden" name="id" value="{{ .ID }}">
-              <button type="submit" class="o-btn o-btn-sm o-btn-bad">{{ if .Current }}Sign out{{ else }}Revoke{{ end }}</button>
+              <button type="submit" class="o-btn o-btn-sm">Sign out</button>
             </form>
+            {{ else }}
+            <form method="POST" action="/sessions/revoke" data-undo="Revoked {{ .Name }}{{ with .Where }} in {{ . }}{{ end }}">
+              <input type="hidden" name="id" value="{{ .ID }}">
+              <button type="submit" class="o-btn o-btn-sm o-btn-bad">Revoke</button>
+            </form>
+            {{ end }}
           </td>
         </tr>
       {{ end }}
@@ -38,8 +52,65 @@
     </table>
     </div>
     {{ else }}
-    <p class="o-empty"><b>No live sessions.</b></p>
+    <p class="o-empty"><b>No live browsers.</b></p>
     {{ end }}
   </section>
+
+  <section class="o-panel flush" id="connectors">
+    <div class="o-ph2"><h2>Connectors <span class="o-muted">{{ len $ov.Connectors }}</span></h2><span class="o-pm"><span>read only through mcp</span><span><a href="https://mcp.bythewood.me/calls">calls on mcp &rarr;</a></span></span></div>
+    {{ if $ov.Connectors }}
+    <div class="o-scroll">
+    <table class="o-tbl stack">
+      <thead><tr><th>Connector</th><th>Allowed</th><th>Expires</th><th>Days used 7d</th><th>Last call</th><th>14d</th><th></th></tr></thead>
+      <tbody>
+      {{ range $ov.Connectors }}
+        <tr>
+          <td class="lead"><span class="o-dot {{ if .Idle }}mute{{ end }}"></span>{{ .Name }}{{ if .Idle }} <span class="o-chip warn" data-tip="No call in over a week">idle {{ ago .LastSeen }}</span>{{ end }}</td>
+          <td class="n o-muted" data-tip="{{ when .Created }}{{ with .Where }}&#10;from {{ . }}{{ end }}">{{ ago .Created }}</td>
+          <td class="n o-muted" data-tip="{{ when .Expires }}">{{ until .Expires }}</td>
+          <td class="n">{{ .Active7 }} of 7</td>
+          <td class="n" data-tip="To within five minutes, from when auth last checked its session">{{ ago .LastSeen }}</td>
+          <td>{{ template "days" . }}</td>
+          <td class="act">
+            <form method="POST" action="/sessions/revoke" data-undo="Revoked {{ .Name }}">
+              <input type="hidden" name="id" value="{{ .ID }}">
+              <a class="o-btn o-btn-sm" href="https://mcp.bythewood.me/calls?client={{ .Name }}">Calls</a>
+              <button type="submit" class="o-btn o-btn-sm o-btn-bad">Revoke</button>
+            </form>
+          </td>
+        </tr>
+      {{ end }}
+      </tbody>
+    </table>
+    </div>
+    <p class="o-muted small connector-note">auth sees a connector's session and the days it was used, and mcp keeps the calls themselves.</p>
+    {{ else }}
+    <p class="o-empty"><b>No connectors.</b> Adding orchard to Claude through mcp.bythewood.me puts one here.</p>
+    {{ end }}
+  </section>
+
+  <div class="o-band b3e">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Recent sign ins</h2><span class="o-pm"><span>30d<b>{{ len $ov.Recent }}</b></span></span></div>
+      {{ range $ov.Recent }}
+      <div class="o-ev"><span class="t" data-tip="{{ when .TS }}">{{ ago .TS }}</span><span class="x">{{ browser .UA }} &middot; {{ if eq .Detail "a recovery code" }}recovery code{{ else }}phone code{{ end }}<span>{{ with .Where }}{{ . }}{{ else }}unknown{{ end }}{{ if .NewPlace }} &middot; <b class="o-warn">new place</b>{{ end }}</span></span></div>
+      {{ else }}
+      <p class="o-muted small">No sign ins in 30 days.</p>
+      {{ end }}
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Places &middot; 30d <span class="o-muted">{{ len $ov.Places }}</span></h2></div>
+      {{ range $ov.Places }}
+      <div class="o-hbar"><span class="k">{{ .Where }}</span><span class="bar"><i class="{{ if .New }}warn{{ end }}" style="width:{{ .Width }}%"></i></span><span class="v">{{ .N }}</span></div>
+      {{ else }}
+      <p class="o-muted small">Nowhere yet.</p>
+      {{ end }}
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>What revoking does</h2></div>
+      <p class="o-muted small">Every tool checks the session on its next request, so a revoked browser is signed out everywhere within a page load. A revoked connector's next call is refused and it has to ask again.</p>
+      <p class="o-muted small">Revoke waits five seconds with an undo before it goes through.</p>
+    </section>
+  </div>
 </main>
 {{ end }}

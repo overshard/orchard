@@ -106,6 +106,7 @@ func sweepEvents(db *sql.DB) error {
 // day each, oldest first, for the tiles over the table.
 type eventStats struct {
 	SignIns, Codes, Refused, Places   int
+	Recovery                          int
 	SignInDays, CodeDays, RefusedDays []float64
 	// Last is the newest events as tick classes, oldest first.
 	Last []string
@@ -130,7 +131,9 @@ func activityStats(db *sql.DB, now time.Time, events []Event) eventStats {
 			continue
 		}
 		switch kind {
-		case evLogin, evRecoveryUsed:
+		case evRecoveryUsed:
+			st.Recovery++
+		case evLogin:
 			st.SignIns++
 			st.SignInDays[i]++
 			if country != "" {

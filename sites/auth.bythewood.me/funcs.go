@@ -15,6 +15,8 @@ var templateFuncs = template.FuncMap{
 	"browser":    browser,
 	"pips":       pips,
 	"dict":       dict,
+	"until":      until,
+	"method":     methodLabel,
 }
 
 // dict builds a map inline, so a partial can take named arguments instead of
@@ -86,7 +88,7 @@ func eventLabel(kind string) string {
 	case evCodeExpired:
 		return "code expired"
 	case evLogin:
-		return "signed in"
+		return "signed in with"
 	case evLogout:
 		return "signed out"
 	case evSessionRevoked:

@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -47,6 +48,12 @@ type PageData struct {
 	User      User
 	Connect   connectRequest
 	Refresh   string
+	Overview  overview
+	Rows      []eventRow
+	Filter    string
+	Filters   []activityFilter
+	Tiles     []tile
+	Consent   consent
 
 	Suite  suite.Page
 	Ways   suite.Ways
@@ -164,21 +171,29 @@ func (s *site) account(w http.ResponseWriter, r *http.Request, l live) {
 		return
 	}
 
+	ov, err := buildOverview(s.db, l.Hash, time.Now())
+	if err != nil {
+		s.fail(w, r, "reading the checkup", err)
+		return
+	}
+
 	data := s.page(r, "Account", "")
 	data.User = user
 	data.Remaining = remaining
 	data.InSudo = l.inSudo()
+	data.Overview = ov
 	s.renderer.Render(w, http.StatusOK, "account.html", data)
 }
 
 func (s *site) sessions(w http.ResponseWriter, r *http.Request, l live) {
-	list, err := listSessions(s.db, l.Hash)
+	ov, err := buildOverview(s.db, l.Hash, time.Now())
 	if err != nil {
 		s.fail(w, r, "listing sessions", err)
 		return
 	}
 	data := s.page(r, "Sessions", "Where this account is signed in.")
-	data.Sessions = list
+	data.Overview = ov
+	data.Remaining = ov.Remaining
 	s.renderer.Render(w, http.StatusOK, "sessions.html", data)
 }
 
@@ -192,11 +207,12 @@ func (s *site) revoke(w http.ResponseWriter, r *http.Request, l live) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	what := sessionLabel(s.db, id)
 	if err := revokeSession(s.db, id); err != nil {
 		s.fail(w, r, "revoking a session", err)
 		return
 	}
-	audit(s.db, r, evSessionRevoked, "one")
+	audit(s.db, r, evSessionRevoked, what)
 
 	// Revoking your own is a logout, and leaving the cookie in place would
 	// leave the browser holding one this site no longer honours.
@@ -274,6 +290,7 @@ func (s *site) changeUsername(w http.ResponseWriter, r *http.Request, l live) {
 		data.User = user
 		data.Remaining = remaining
 		data.InSudo = true
+		data.Overview, _ = buildOverview(s.db, l.Hash, time.Now())
 		data.Error = err.Error()
 		s.renderer.Render(w, http.StatusBadRequest, "account.html", data)
 		return
@@ -299,9 +316,25 @@ func (s *site) activity(w http.ResponseWriter, r *http.Request, l live) {
 		})
 		return
 	}
+	all, err := allEvents(s.db)
+	if err != nil {
+		s.fail(w, r, "reading the activity log", err)
+		return
+	}
+	ov, err := buildOverview(s.db, l.Hash, time.Now())
+	if err != nil {
+		s.fail(w, r, "reading the activity log", err)
+		return
+	}
+	key := r.URL.Query().Get("f")
+	if !slices.ContainsFunc(activityFilters, func(f activityFilter) bool { return f.Key == key }) {
+		key = ""
+	}
 	data := s.page(r, "Activity", "Every authentication event, newest first.")
 	data.Events = events
-	data.Stats = activityStats(s.db, time.Now(), events)
+	data.Stats = activityStats(s.db, time.Now(), all)
+	data.Rows, data.Filters, data.Tiles = activityView(all, key, 200, data.Stats, ov, time.Now())
+	data.Filter = key
 	s.renderer.Render(w, http.StatusOK, "activity.html", data)
 }
 

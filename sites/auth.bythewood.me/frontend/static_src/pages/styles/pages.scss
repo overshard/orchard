@@ -107,7 +107,6 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-// Seven tools in rows of four, so the last one takes the gap.
 @media (max-width: 1200px) { .tools { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .tools { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .tools { grid-template-columns: minmax(0, 1fr); } }
@@ -136,6 +135,27 @@
 
 .tool:hover .tool-name span { color: var(--o-brass); }
 .tool-desc { color: var(--o-muted); font-size: 0.8rem; }
+
+// The tool's level and note from the merged state, filled in by tools.js.
+.tool-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font: 0.7rem var(--o-mono);
+  color: var(--o-muted);
+
+  &[hidden] { display: none; }
+  i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--o-line-strong); }
+  b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  &.ok i { background: var(--o-ok); }
+  &.warn { color: var(--o-warn); }
+  &.warn i { background: var(--o-warn); }
+  &.bad { color: var(--o-bad); }
+  &.bad i { background: var(--o-bad); box-shadow: 0 0 0 3px rgba(240, 107, 91, 0.18); }
+}
+.tool.is-warn { border-color: rgba(240, 144, 75, 0.45); }
+.tool.is-bad { border-color: rgba(240, 107, 91, 0.6); }
 .tool-host { color: var(--o-muted); font-size: 0.68rem; margin-top: 4px; }
 
 // The new recovery codes, and the staged ones on the home page.
@@ -165,3 +185,12 @@
 .pond-lost { width: 216px; height: 180px; image-rendering: pixelated; }
 
 .connectlist { margin: 0 0 12px; padding-left: 18px; display: grid; gap: 6px; font-size: 0.86rem; }
+
+// A sign in from a city or country not seen in the 30 days before it.
+.o-tbl tr.newplace td { background: rgba(240, 144, 75, 0.07); }
+
+.o-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 12px 0; }
+.o-filters .o-chip { font-size: 0.72rem; padding: 3px 9px; }
+.o-filters .o-chip .o-muted { margin-left: 4px; }
+
+.connector-note { margin: 0; padding: 8px 14px 10px; border-top: 1px solid var(--o-line-soft); }

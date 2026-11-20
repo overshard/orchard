@@ -31,3 +31,19 @@
 {{ end }}
 
 {{ define "pips" }}<span class="pips" aria-hidden="true">{{ range pips . }}<span class="pip {{ if . }}on{{ end }}"></span>{{ end }}</span>{{ end }}
+
+{{/* The checkup tiles, each one a link to where its problem is fixed. */}}
+{{ define "checkup" }}
+<nav class="o-strip{{ if eq (len .) 6 }} six{{ end }}" aria-label="Checkup">
+  {{ range . }}
+  {{ if .Href }}<a class="o-tile" href="{{ .Href }}">{{ else }}<div class="o-tile">{{ end }}
+    <small>{{ .Label }}</small>
+    <b class="{{ .Kind }}">{{ .Value }}</b>
+    <span class="o-delta">{{ .Delta }}</span>
+    {{ if .Spark }}{{ .Spark }}{{ else if .Ticks }}<span class="o-ticks" aria-hidden="true">{{ range .Ticks }}<i class="{{ . }}"></i>{{ end }}</span>{{ else }}<span class="o-nospark"></span>{{ end }}
+  {{ if .Href }}</a>{{ else }}</div>{{ end }}
+  {{ end }}
+</nav>
+{{ end }}
+
+{{ define "days" }}<span class="o-ds" data-tip="Days used, the last 14, today on the right">{{ range .Days }}<i class="{{ . }}"></i>{{ end }}</span>{{ end }}

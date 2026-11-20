@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -224,4 +225,19 @@ func sweepSessions(db *sql.DB) error {
 	_, err := db.Exec(`DELETE FROM session_days WHERE day < ? OR session_id NOT IN (SELECT id FROM sessions)`,
 		time.Now().Add(-30*24*time.Hour).Unix()/86400)
 	return err
+}
+
+// sessionLabel names a session for the audit log, as the sessions page did.
+func sessionLabel(db *sql.DB, id int64) string {
+	var ua, country, city string
+	if db.QueryRow(`SELECT ua, country, city FROM sessions WHERE id = ?`, id).Scan(&ua, &country, &city) != nil {
+		return "one"
+	}
+	if strings.HasPrefix(ua, connectorUA) {
+		return ua
+	}
+	if p := place(city, country); p != "" {
+		return browser(ua) + " in " + p
+	}
+	return browser(ua)
 }

@@ -92,7 +92,43 @@ func (s *site) connectForm(w http.ResponseWriter, r *http.Request, l live) {
 	}
 	data := s.page(r, "Connect an agent", "")
 	data.Connect = c
+	data.Consent = consentFor(s.db, c.Client, time.Now())
 	s.renderer.Render(w, http.StatusOK, "connect.html", data)
+}
+
+// consentTool is one thing a connector can read, as the consent page names it.
+type consentTool struct{ Name, What string }
+
+// connectorReads is what mcp's tools reach, by the tool they read.
+var connectorReads = []consentTool{
+	{"status", "uptime, Lighthouse and the crawl"},
+	{"logging", "the overview and a search of every site's records"},
+	{"analytics", "each property's traffic report"},
+	{"cron", "the jobs and their runs"},
+	{"llm", "spend and calls"},
+	{"repos", "a repository's README"},
+	{"gate", "rules, traffic and what it refused, and proposing a rule"},
+	{"dash", "the briefs and advisories"},
+	{"auth", "the sign ins and sessions on the activity page"},
+}
+
+type consent struct {
+	Expires  time.Time
+	Tools    []consentTool
+	Existing []Session
+}
+
+// consentFor names what allowing gives, when it ends, and any connector already
+// allowed under the same name, which allowing again doesn't replace.
+func consentFor(db *sql.DB, client string, now time.Time) consent {
+	c := consent{Expires: now.Add(connectorTTL), Tools: connectorReads}
+	list, _ := listSessions(db, nil)
+	for _, s := range list {
+		if s.UA == connectorUA+client {
+			c.Existing = append(c.Existing, s)
+		}
+	}
+	return c
 }
 
 func (s *site) connectSubmit(w http.ResponseWriter, r *http.Request, l live) {
