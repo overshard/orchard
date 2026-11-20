@@ -440,6 +440,21 @@ CREATE TABLE IF NOT EXISTS barrel (
     water_at INTEGER NOT NULL DEFAULT 0,
     watered  REAL NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS pusher (
+    pond_id       INTEGER PRIMARY KEY REFERENCES ponds(id) ON DELETE CASCADE,
+    held          INTEGER NOT NULL,
+    spill         INTEGER NOT NULL,
+    drops         INTEGER NOT NULL,
+    allowance_day TEXT NOT NULL,
+    dropped       INTEGER NOT NULL DEFAULT 0,
+    won           INTEGER NOT NULL DEFAULT 0,
+    prizes        TEXT NOT NULL DEFAULT '[]',
+    prize_day     TEXT NOT NULL DEFAULT '',
+    layout        BLOB NOT NULL DEFAULT x'',
+    run           TEXT NOT NULL DEFAULT '',
+    saved_at      INTEGER NOT NULL DEFAULT 0
+);
 `
 
 // Columns added since the first deploy. CREATE TABLE IF NOT EXISTS leaves a
@@ -1030,6 +1045,7 @@ type view struct {
 	} `json:"dive"`
 	Derby  derbyView  `json:"derby"`
 	Barrel barrelView `json:"barrel"`
+	Pusher pushTable  `json:"pusher"`
 	Box    struct {
 		Cost int            `json:"cost"`
 		Odds [tierCount]int `json:"odds"`
@@ -1333,6 +1349,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		return err
 	}
 	if v.Barrel, err = s.barrelOf(q, p, now); err != nil {
+		return err
+	}
+	if v.Pusher, err = pusherOf(q, p, now); err != nil {
 		return err
 	}
 	if v.Barrel.Watering > 0 && v.Bank.Garden.Rate > 0 {

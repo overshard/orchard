@@ -35,6 +35,9 @@ func todoOf(v *view) []todo {
 	if v.Open.Works && v.Barrel.worth() {
 		add("barrel", "barrel", "Tip the rain barrel", "play")
 	}
+	if v.Open.Works && v.Pusher.Full {
+		add("pusher", "g_push", fmt.Sprintf("%d pusher drops waiting", v.Pusher.Drops), "pusher")
+	}
 	if b.Gravel.Held >= 1 {
 		add("gravel", "peb", fmt.Sprintf("%d on the gravel bar", b.Gravel.Held), "bank")
 	}

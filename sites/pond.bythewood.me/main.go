@@ -223,6 +223,8 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /api/wheel/spin", s.played(s.apiSpin))
 	mux.HandleFunc("POST /api/log", s.played(s.apiLog))
 	mux.HandleFunc("POST /api/barrel/tip", s.played(s.apiBarrel))
+	mux.HandleFunc("POST /api/pusher/start", s.played(s.apiPushStart))
+	mux.HandleFunc("POST /api/pusher/save", s.played(s.apiPushSave))
 	mux.HandleFunc("POST /api/starter", s.played(s.apiStarter))
 	mux.HandleFunc("POST /api/geode", s.played(s.apiCrack))
 	mux.HandleFunc("POST /api/hats/box", s.played(s.apiBox))

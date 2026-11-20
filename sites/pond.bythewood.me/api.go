@@ -199,6 +199,18 @@ func (s *site) apiBarrel(id int64, r *http.Request, w http.ResponseWriter) (any,
 	return s.store.tipBarrel(id, in.How)
 }
 
+func (s *site) apiPushStart(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.pushStartRun(id)
+}
+
+func (s *site) apiPushSave(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in pushReport
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.pushSave(id, in)
+}
+
 func (s *site) apiBox(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	return s.store.box(id)
 }
