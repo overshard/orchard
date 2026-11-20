@@ -297,6 +297,20 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   puts the pond's garden clock ahead at one more second a second for three
   hours. A pond with no `barrel` row counts from when it was made, so nobody
   gets back pay. `frontend/src/barrel.js` draws it and the tip.
+- `pusher.go` is the pebble pusher, a table and pile each pond keeps for
+  good with 20 drops a day kept up to 60, counted from when the pond was
+  made. The page plays the pile out in `frontend/src/pushworld.js`, which
+  never touches the page, and `frontend/src/pusher.js` draws it.
+  `POST /api/pusher/start` tops up the drops, puts the day's prize on the
+  pile and hands back a run, and `POST /api/pusher/save` takes what was
+  dropped, won, spilled into the spill jar and showered back, the prizes
+  that went over and the layout, three bytes a body. A save only takes if
+  every pebble adds up, the table keeps 40, a save wins no more than three a
+  drop plus 12 and a prize has sat 30 drops, and one that doesn't spends the
+  run and keeps nothing. So the pusher can never pay more than the 90 it
+  starts with, the 10 in its jar and the drops it's given. `bun pushsim.js`
+  in `frontend/` drops 20,000 pebbles through the world and says where they
+  went, how long the prizes took and whether a pile left alone holds still.
 - `mood.go` boils that day down to one mood, which tints the water and picks
   the line after the greeting, plus what the frog is watching or playing, Old
   Clover's forecast for tomorrow and the fortune lily. No number from dash
@@ -498,6 +512,10 @@ they have none, for other sites to draw.
 - Tap to reel is `pond-tapreel` in localStorage, read by `fish.js`. With it
   on a press toggles the reel and a release does nothing, so anything that
   lifts the finger for the player, like a pause, leaves the reel as it was.
+- The pusher's layout is quantised across and down the table in
+  `pushworld.js`, so changing the table's size, `WALL` or `LIP` moves every
+  saved pile. Pay goes through `award` and not `payRun`, since a rested
+  bonus would pay pebbles the table never held.
 - A change that lets a game score faster needs its `rate` in `arcade.go`
   checked against a bot, since a run past `rate` points a second pays nothing.
 - Bug sweep's day grid is dealt from the pepper and the date, so it can't be
