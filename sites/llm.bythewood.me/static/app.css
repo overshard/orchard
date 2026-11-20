@@ -3,17 +3,58 @@
 .o-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .o-filters .o-chip { font-size: 0.72rem; padding: 3px 9px; }
 .o-filters .o-sep { width: 1px; height: 16px; background: var(--o-line-strong); margin: 0 4px; }
+.callsearch .o-in { display: inline-block; width: auto; }
+.callsearch [type="search"] { flex: 1 1 18rem; min-width: 0; }
+.callsearch [type="date"] { flex: 0 0 auto; }
 
-.calllist { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 40rem), 1fr)); align-items: start; }
-.calllist > *, .call > * { min-width: 0; }
-.call { display: grid; gap: 6px; scroll-margin-top: 16px; }
-.call:target { border-color: var(--o-brass); }
-.call.bad { border-color: rgba(240, 107, 91, 0.45); }
-.call header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 0.78rem; }
-.call header .o-dot { margin-right: 0; }
-.call .callerr { margin: 0; font-size: 0.76rem; }
-.call summary { cursor: pointer; font: 500 0.66rem var(--o-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--o-muted); padding: 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.call summary span { text-transform: none; letter-spacing: 0; font-family: var(--o-sans); font-size: 0.76rem; margin-left: 8px; }
-.call details[open] summary span { display: none; }
-.call pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 26rem; overflow: auto; margin-top: 4px; }
 .calls td.clip { max-width: 30rem; }
+.calls tr[id] { scroll-margin-top: 16px; }
+
+/* The token mix colours, the same in the bars, the swatches and a call's drawer. */
+.mix.out, .sw.out { background: var(--o-brass); }
+.mix.in, .sw.in { background: #7d93ad; }
+.mix.search, .sw.search { background: var(--o-warn); }
+.mix.read, .sw.read { background: var(--o-ok); }
+.mix.write, .sw.write { background: #b49bd6; }
+.o-hbar .bar i.mix { opacity: 0.85; }
+.o-hbar .bar i.brass { background: var(--o-brass); }
+.sw { display: inline-block; width: 8px; height: 8px; margin-right: 6px; vertical-align: 1px; }
+.o-hbar .bar u.q { background: var(--o-muted); }
+.o-hbar a.k { color: inherit; text-decoration: none; }
+.o-hbar a.k:hover { color: var(--o-brass); }
+.o-hbar.budget .bar { height: 10px; }
+
+.o-ticks.days i[data-href] { cursor: pointer; }
+.o-ticks.days i[data-href]:hover { opacity: 1; }
+
+.o-pm.alerts { margin-top: 10px; }
+.alertlog { list-style: none; margin: 8px 0 0; padding: 0; font-size: 0.78rem; }
+.alertlog li { display: flex; gap: 10px; padding: 3px 0; border-top: 1px solid var(--o-line-soft); }
+.alertlog li:first-child { border-top: 0; }
+.alertnone { margin: 8px 0 0; font-size: 0.78rem; }
+
+/* A call's drawer: where the money went and the time, then what was asked and
+   what came back. */
+.drawer { gap: 18px; }
+.drawer + .drawer { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--o-line-soft); }
+.drw { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.drw .o-hbar .k { width: auto; flex: 1; }
+.drw .o-hbar .v { width: auto; }
+.drw .nothing { margin: 0; font-size: 0.8rem; }
+.tokbar { display: flex; height: 10px; background: var(--o-panel2); }
+.tokbar i { display: block; height: 100%; }
+.wf { display: grid; grid-template-columns: 84px minmax(0, 1fr) 60px; gap: 4px 8px; font: 0.68rem var(--o-mono); color: var(--o-muted); align-items: center; }
+.wf > span:nth-child(3n) { text-align: right; }
+.wf .tr { position: relative; height: 8px; background: var(--o-panel2); }
+.wf .tr i { position: absolute; top: 0; bottom: 0; }
+.wf i.first { background: var(--o-warn); }
+.wf i.gen { background: #7d93ad; }
+.wf i.bad { background: var(--o-bad); }
+.drwacts { display: flex; flex-wrap: wrap; gap: 6px; }
+.drw .prose { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 22rem; overflow: auto; font-size: 0.82rem; line-height: 1.5; }
+.drw details summary { cursor: pointer; font-size: 0.74rem; }
+.drw pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 22rem; overflow: auto; margin-top: 4px; }
+
+.capf { display: flex; gap: 4px; align-items: center; }
+.capf .o-in { width: 6.5em; padding: 3px 6px; }
+.parts .o-hbar { padding: 3px 0; }

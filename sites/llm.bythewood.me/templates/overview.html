@@ -2,59 +2,90 @@
 
 <div class="o-ph">
   <div>
-    <span class="o-lab">llm &middot; overview{{if .Claude}} &middot; {{.Month.Start.Format "January"}}{{end}}</span>
+    <span class="o-lab">llm &middot; overview &middot; {{.Month.Start.Format "January"}}</span>
     <h1>{{.Headline}}</h1>
+    <div class="o-pm">
+      <span>spent<b>${{printf "%.2f" .Month.Spent}}</b></span>
+      <span>day<b>{{.DayOfMonth}} of {{.DaysInMonth}}</b></span>
+      <span>alerts<b class="{{if .Alerts}}warn{{end}}">{{if .Alerts}}{{len .Alerts}}{{else}}none yet{{end}}</b></span>
+      <span>answering<b>{{.Upstream}}</b></span>
+    </div>
   </div>
   <div class="o-acts">
-    <a class="o-btn o-btn-sm" href="/calls?failed=1">Failed calls</a>
+    <a class="o-btn o-btn-sm" href="/calls?failed=1&amp;range=24h">Failed calls</a>
     <a class="o-btn o-btn-sm" href="/keys">Keys</a>
   </div>
 </div>
 
-<div class="o-tiles">
-  {{if .Claude}}
+<div class="o-strip">
   <div class="o-tile">
-    <small>spent &middot; this month</small>
+    <small>spent &middot; month</small>
     <b>${{printf "%.2f" .Month.Spent}}</b>
-    <span class="o-delta">{{if gt .Month.Budget 0.0}}{{printf "%.0f" (pct .Month.Spent .Month.Budget)}}% of ${{printf "%.0f" .Month.Budget}}{{end}}</span>
-    {{spark (or (and (gt .Month.Projected .Month.Budget) "warn") "flat") .SpendDays}}
+    <span class="o-delta">{{if gt .Month.Budget 0.0}}{{printf "%.0f" (pct .Month.Spent .Month.Budget)}}% of ${{printf "%.0f" .Month.Budget}}{{else}}no budget set{{end}}</span>
+    <span class="o-ticks days" aria-hidden="true">{{range .Ticks}}<i class="{{.Kind}}" style="height:{{printf "%.0f" .Height}}%" data-tip="{{.Tip}}" data-href="{{.Href}}"></i>{{end}}</span>
   </div>
-  {{end}}
-  <a class="o-tile" href="/calls">
+  <div class="o-tile">
+    <small>projected</small>
+    <b class="{{if gt .Month.Projected .Month.Budget}}bad{{end}}">{{usd .Month.Projected}}</b>
+    <span class="o-delta {{if gt .Month.Projected .Month.Budget}}o-bad{{end}}">{{if le .Month.Budget 0.0}}no budget set{{else if gt .Month.Projected .Month.Budget}}over by {{usd (sub .Month.Projected .Month.Budget)}}{{else}}under budget{{end}}</span>
+    <span class="o-nospark"></span>
+  </div>
+  <div class="o-tile">
+    <small>spent &middot; 24h</small>
+    <b data-f="$0.000">{{usd .Day.Spent}}</b>
+    <span class="o-delta">by the hour</span>
+    {{sparkT "flat" .Day.SpendByHour .Day.Labels}}
+  </div>
+  <a class="o-tile" href="/calls?range=24h">
     <small>calls &middot; 24h</small>
     <b>{{comma .Day.Calls}}</b>
-    <span class="o-delta">by the hour</span>
-    {{spark "flat" .Day.CallsByHour}}
+    <span class="o-delta">{{or .CallsDelta "by the hour"}}</span>
+    {{sparkT "flat" .Day.CallsByHour .Day.Labels}}
   </a>
-  <a class="o-tile" href="/calls?failed=1">
+  <a class="o-tile" href="/calls?failed=1&amp;range=24h">
     <small>failed &middot; 24h</small>
     <b {{if .Day.Errors}}class="bad"{{end}}>{{.Day.Errors}}</b>
-    <span class="o-delta {{if .Day.Errors}}o-bad{{end}}">{{if .Day.Errors}}see which{{else}}none failed{{end}}</span>
-    {{spark (or (and .Day.Errors "bad") "flat") .Day.ErrorsByHour}}
+    <span class="o-delta {{if .Day.Errors}}o-bad{{end}}">{{or .Day.ErrorKinds "none failed"}}</span>
+    {{sparkT (or (and .Day.Errors "bad") "flat") .Day.ErrorsByHour .Day.Labels}}
   </a>
   <div class="o-tile">
-    <small>median time &middot; 24h</small>
-    <b>{{secs .Day.P50}}</b>
-    <span class="o-delta">average by the hour</span>
-    {{spark "flat" .Day.MSByHour}}
+    <small>p50 &middot; 24h</small>
+    <b data-f="0ms">{{secs .Day.P50}}</b>
+    <span class="o-delta">{{or .P50Delta "half of calls are quicker"}}</span>
+    {{sparkT "flat" .Day.P50ByHour .Day.Labels}}
+  </div>
+  <div class="o-tile">
+    <small>p95 &middot; 24h</small>
+    <b data-f="0ms">{{secs .Day.P95}}</b>
+    <span class="o-delta">{{if .Day.Slowest}}{{.Day.Slowest}} is slowest{{else}}1 in 20 is slower{{end}}</span>
+    {{sparkT "flat" .Day.P95ByHour .Day.Labels}}
+  </div>
+  <div class="o-tile">
+    <small>cache hit &middot; 24h</small>
+    <b data-f="0%">{{if ge .Day.CacheHit 0.0}}{{printf "%.0f" .Day.CacheHit}}%{{else}}&mdash;{{end}}</b>
+    <span class="o-delta">of input tokens</span>
+    {{sparkT "ok" .Day.CacheByHour .Day.Labels}}
   </div>
 </div>
+<p class="o-foot"><span data-xs-when>sparks are the last 24 hours by the hour &middot; days open their calls &middot; times are Eastern</span></p>
 
-<div class="o-cols">
+<div class="o-band b2">
   <section class="o-panel flush">
-    <div class="o-ph2"><h2>By caller</h2><span class="o-lab">last 24 hours</span></div>
-    {{if .Usage}}
+    <div class="o-ph2"><h2>By caller</h2><span class="o-pm"><span>callers<b>{{len .Day.Callers}}</b></span><span>last<b>24h</b></span></span></div>
+    {{if .Day.Callers}}
     <div class="o-scroll">
     <table class="o-tbl stack">
-      <thead><tr><th>Caller</th><th class="r">Calls</th><th class="r">In</th><th class="r">Out</th><th class="r">Failed</th></tr></thead>
+      <thead><tr><th>Caller</th><th>24h</th><th class="r">Calls</th><th class="r">p50</th><th class="r">p95</th><th class="r">$</th><th class="r">Fail</th></tr></thead>
       <tbody>
-      {{range .Usage}}
-        <tr data-href="/calls?caller={{.Caller}}" {{if .Errors}}class="hot"{{end}}>
-          <td class="lead n"><span class="o-dot {{if .Errors}}bad{{end}}"></span><a href="/calls?caller={{.Caller}}">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</a></td>
-          <td class="r n">{{comma .Calls}}</td>
-          <td class="r n o-muted">{{comma .PromptTok}}</td>
-          <td class="r n o-muted">{{comma .OutputTok}}</td>
-          <td class="r n {{if .Errors}}o-bad{{else}}o-muted{{end}}">{{.Errors}}</td>
+      {{range .Day.Callers}}
+        <tr data-href="/calls?caller={{.Caller}}&amp;range=24h" {{if .Errors}}class="hot"{{end}}>
+          <td class="lead n"><span class="o-dot {{if .Errors}}bad{{end}}"></span><a href="/calls?caller={{.Caller}}&amp;range=24h">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</a></td>
+          <td class="o-cell-spark">{{sparkT (or (and .Errors "warn") "ok") .Hours $.Day.Labels}}</td>
+          <td class="r n" data-l="calls">{{comma .Calls}}</td>
+          <td class="r n" data-l="p50">{{secs .P50}}</td>
+          <td class="r n" data-l="p95">{{secs .P95}}</td>
+          <td class="r n" data-l="spent">{{usd .Spent}}</td>
+          <td class="r n {{if .Errors}}o-bad{{else}}o-muted{{end}}" data-l="failed">{{.Errors}}</td>
         </tr>
       {{end}}
       </tbody>
@@ -66,20 +97,49 @@
   </section>
 
   <section class="o-panel">
-    <div class="o-ph2"><h2>Spend by caller</h2><span class="o-lab">this month</span></div>
-    {{if .ByCaller}}
-      {{range .ByCaller}}
-      <div class="o-hbar"><span class="k o-mono">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</span><span class="bar"><i style="width:{{printf "%.0f" .Share}}%;background:var(--o-brass)"></i></span><span class="v">${{printf "%.2f" .Spent}}</span></div>
+    <div class="o-ph2"><h2>Spend by caller</h2><span class="o-pm"><span>this<b>month</b></span><span>caps<b>{{if .Caps}}{{.Caps}} set{{else}}none{{end}}</b></span></span></div>
+    {{if .Keys}}
+      {{range .Keys}}
+      <div class="o-hbar"><a class="k o-mono" href="/calls?caller={{.Name}}&amp;range=30d">{{if .Name}}{{.Name}}{{else}}unknown{{end}}{{if .Revoked}} <span class="o-muted">revoked</span>{{end}}</a><span class="bar"><i class="{{if and (gt .Cap 0.0) (ge .Spent .Cap)}}bad{{else if and (gt .Cap 0.0) (ge .Spent (mul .Cap 0.8))}}warn{{else}}brass{{end}}" style="width:{{printf "%.1f" .Bar}}%"></i>{{if gt .Cap 0.0}}<u style="left:{{printf "%.1f" .Mark}}%" data-tip="monthly cap ${{printf "%.2f" .Cap}}"></u>{{end}}</span><span class="v">{{usd .Spent}}</span></div>
       {{end}}
-      {{if .Claude}}<p class="o-muted" style="font-size:.76rem;margin:10px 0 0">An estimate from usage, not the bill. On pace for ${{printf "%.2f" .Month.Projected}} by the end of the month.</p>{{end}}
+      <p class="o-foot">{{if .Caps}}the white rule is the key's monthly cap &middot; {{end}}an estimate from usage, not the bill</p>
     {{else}}
     <p class="o-empty"><b>Nothing spent this month.</b>Each call is priced as it comes back.</p>
     {{end}}
   </section>
 </div>
 
+<div class="o-band b2">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Token mix</h2><span class="o-pm"><span>this<b>month</b></span></span></div>
+    {{range .Mix}}
+    <div class="o-hbar"><span class="k"><i class="sw {{.Kind}}"></i>{{.Name}}</span><span class="bar"><i class="mix {{.Kind}}" style="width:{{if gt $.MixTop 0.0}}{{printf "%.1f" (pct .Spent $.MixTop)}}{{else}}0{{end}}%"></i></span><span class="v">{{usd .Spent}}</span><span class="d">{{if eq .Kind "search"}}{{.Tokens}}{{else}}{{compact .Tokens}}{{end}}</span></div>
+    {{end}}
+    <p class="o-foot">{{if gt .Unsplit 0.0}}{{usd .Unsplit}} spent before the split was kept isn't in these{{else}}every call this month, incognito ones too{{end}}</p>
+  </section>
+
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Budget</h2><span class="o-pm"><span>spent<b>${{printf "%.2f" .Month.Spent}}</b></span><span>projected<b class="{{if gt .Month.Projected .Month.Budget}}bad{{end}}">{{usd .Month.Projected}}</b></span><span>budget<b>${{printf "%.0f" .Month.Budget}}</b></span></span></div>
+    {{if gt .Month.Budget 0.0}}
+    <div class="o-hbar budget"><span class="k">{{.Month.Start.Format "January"}}</span><span class="bar"><i class="{{if ge .Month.Spent .Month.Budget}}bad{{else if gt .Month.Projected .Month.Budget}}warn{{else}}ok{{end}}" style="width:{{printf "%.1f" .SpentPct}}%"></i><u class="q" style="left:50%" data-tip="50% alert"></u><u class="q" style="left:80%" data-tip="80% alert"></u><u style="left:{{printf "%.1f" .ProjPct}}%" data-tip="projected {{usd .Month.Projected}}"></u></span><span class="v">{{printf "%.0f" .SpentPct}}%</span></div>
+    <p class="o-foot">white is the projection &middot; grey rules are the 50% and 80% alerts &middot; calls stop at 100%</p>
+    {{end}}
+    <div class="o-pm alerts">
+      <span>50%<b class="{{if index .Sent "50"}}warn{{end}}">{{or (index .Sent "50") "not yet"}}</b></span>
+      <span>80%<b class="{{if index .Sent "80"}}warn{{end}}">{{or (index .Sent "80") "not yet"}}</b></span>
+      <span>over<b class="{{if index .Sent "over"}}bad{{end}}">{{or (index .Sent "over") "no"}}</b></span>
+      <span>running hot<b class="{{if index .Sent "pace"}}bad{{end}}">{{or (index .Sent "pace") "no"}}</b></span>
+    </div>
+    {{if .Alerts}}
+    <ul class="alertlog">{{range .Alerts}}<li><span class="o-mono o-muted">{{clockday .At}}</span>{{.What}}</li>{{end}}</ul>
+    {{else}}
+    <p class="o-muted alertnone">No alert has gone out this month.</p>
+    {{end}}
+  </section>
+</div>
+
 <section class="o-panel flush">
-  <div class="o-ph2"><h2>Recent calls</h2><span class="o-lab">newest first</span></div>
+  <div class="o-ph2"><h2>Recent calls</h2><span class="o-pm"><span>last 1h<b>{{printf "%.0f" (index .Day.CallsByHour 23)}} calls</b></span><span>cost<b>{{usd (index .Day.SpendByHour 23)}}</b></span><span>p95<b>{{secs (int64 (index .Day.P95ByHour 23))}}</b></span></span></div>
   {{if .Recent}}{{template "callrows" .Recent}}<div class="o-more"><a href="/calls">Every call &rarr;</a></div>
   {{else}}<p class="o-empty"><b>No calls yet.</b>Make a key and point a client at the gateway.</p>{{end}}
 </section>

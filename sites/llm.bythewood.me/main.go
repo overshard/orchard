@@ -13,7 +13,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -189,6 +188,7 @@ func realMain() error {
 	})
 	mux.HandleFunc("POST /keys", s.auth.RequireAuth(s.keyCreate))
 	mux.HandleFunc("POST /keys/{id}/revoke", s.auth.RequireAuth(s.keyRevoke))
+	mux.HandleFunc("POST /keys/{id}/cap", s.auth.RequireAuth(s.keyCap))
 	mux.HandleFunc("POST /keys/{id}/delete", s.auth.RequireAuth(s.keyDelete))
 
 	// The gateway. A key, not a cookie, because the callers are containers.
@@ -251,14 +251,23 @@ func (s *site) loadTemplates() error {
 		resetAssetVersions()
 	}
 	t, err := template.New("").Funcs(suite.Funcs()).Funcs(template.FuncMap{
-		"when":  fmtWhen,
-		"short": short,
-		"comma": comma,
-		"num":   num,
-		"asset": assetURL,
-		"secs":  secs,
-		"count": count,
-		"pct":   func(a, b float64) float64 { return 100 * a / b },
+		"when":     fmtWhen,
+		"short":    short,
+		"comma":    comma,
+		"num":      num,
+		"asset":    assetURL,
+		"secs":     secs,
+		"count":    count,
+		"pct":      func(a, b float64) float64 { return 100 * a / b },
+		"usd":      usd,
+		"clock":    clock,
+		"clockday": func(t time.Time) string { return t.In(budgetZone).Format("Jan 2 15:04") },
+		"sub":      func(a, b float64) float64 { return a - b },
+		"mul":      func(a, b float64) float64 { return a * b },
+		"int64":    func(v float64) int64 { return int64(v) },
+		"compact":  compact,
+		"asked":    asked,
+		"dollars":  func(micros int64) float64 { return float64(micros) / 1e6 },
 	}).ParseFS(assets(), "templates/*.html")
 	if err != nil {
 		return err
@@ -319,86 +328,6 @@ func (s *site) root(w http.ResponseWriter, r *http.Request) {
 		"Footer": suite.Footer{Tool: "llm", About: "Sits in front of every model call my services make, with a key for each, a budget and a record of every call.",
 			Source: sourceURL, Author: author, Year: time.Now().Year(), Pages: []suite.Tab{{Name: "Home", Href: "/"}}},
 	})
-}
-
-func (s *site) overview(w http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	usage, _ := s.store.Usage(now.Add(-24 * time.Hour))
-	recent, _ := s.store.Calls("", 8)
-	month, _ := s.month(now)
-	day := s.dayStats(now)
-	spendDays := s.spendByDay(month, now)
-	s.render(w, "overview.html", map[string]any{
-		"Title": "Overview", "Usage": usage, "Recent": recent, "Month": month, "Claude": s.claude != nil,
-		"Day": day, "SpendDays": spendDays, "ByCaller": s.spendByCaller(month), "Headline": s.headline(day, month),
-		"Upstream": s.upstream, "Suite": s.chrome("overview", day, month),
-	})
-}
-
-func (s *site) keysPage(w http.ResponseWriter, r *http.Request) {
-	keys, err := s.store.Keys()
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	// A key is shown once, on the redirect straight after it's made, because
-	// nothing here can produce it again.
-	fresh := ""
-	if c, err := r.Cookie(newKeyCookie); err == nil {
-		fresh = c.Value
-		http.SetCookie(w, &http.Cookie{
-			Name: newKeyCookie, Value: "", Path: "/",
-			Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: -1,
-		})
-	}
-	live := 0
-	for _, k := range keys {
-		if !k.Revoked {
-			live++
-		}
-	}
-	month, _ := s.month(time.Now())
-	head := template.HTML(template.HTMLEscapeString(count(live, "live key", "live keys")) + ", <em>one per caller</em>.")
-	s.render(w, "keys.html", map[string]any{"Title": "Keys", "Keys": keys, "Fresh": fresh, "Headline": head, "Use": s.keyUses(month, time.Now()),
-		"Suite": s.chrome("keys", s.dayStats(time.Now()), month)})
-}
-
-func (s *site) callsPage(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	caller, failed := q.Get("caller"), q.Get("failed") == "1"
-	limit := 100
-	if n, err := strconv.Atoi(q.Get("limit")); err == nil && n > 0 && n <= 500 {
-		limit = n
-	}
-	calls, err := s.store.Calls(caller, limit)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	if failed {
-		calls = slices.DeleteFunc(calls, func(c Call) bool { return c.Status < 400 && c.Err == "" })
-	}
-	usage, _ := s.store.Usage(time.Now().Add(-30 * 24 * time.Hour))
-	day := s.dayStats(time.Now())
-	month, _ := s.month(time.Now())
-	if q.Get("format") == "json" {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"day":   map[string]any{"calls": day.Calls, "errors": day.Errors, "p50_ms": day.P50},
-			"month": map[string]any{"spent": month.Spent, "budget": month.Budget, "projected": month.Projected},
-			"usage": usage, "calls": calls,
-		})
-		return
-	}
-	head := template.HTML(template.HTMLEscapeString(count(day.Calls, "call", "calls")) + " today")
-	if day.Errors > 0 {
-		head += template.HTML(`, <em class="bad">` + count(day.Errors, "failed", "failed") + `</em>.`)
-	} else {
-		head += "."
-	}
-	s.render(w, "calls.html", map[string]any{"Calls": calls, "Caller": caller, "Failed": failed, "Limit": limit,
-		"Title": "Calls", "Callers": usage, "Headline": head, "Suite": s.chrome("calls", day, month)})
 }
 
 func (s *site) keyCreate(w http.ResponseWriter, r *http.Request) {
