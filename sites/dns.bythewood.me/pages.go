@@ -54,6 +54,20 @@ type Health struct {
 	Stale     []string
 	Failing   int
 	Asked     int
+	Quiet     []*Device
+}
+
+// quietAfter is how long a device can go without asking before it looks like
+// it fell off the resolver. A phone asks all day, a computer can sleep a weekend.
+func quietAfter(kind string) time.Duration {
+	if kind == "phone" {
+		return 6 * time.Hour
+	}
+	return 72 * time.Hour
+}
+
+func isQuiet(d *Device, now time.Time) bool {
+	return !d.LastSeen.IsZero() && now.Sub(d.Created) > 24*time.Hour && now.Sub(d.LastSeen) > quietAfter(d.Kind)
 }
 
 func (s *site) health(now time.Time) Health {
@@ -71,10 +85,33 @@ func (s *site) health(now time.Time) Health {
 	h.Asked, _ = s.store.Count(Filter{Since: now.Add(-time.Hour)})
 	h.Failing, _ = s.store.Count(Filter{Since: now.Add(-time.Hour), Status: "fail"})
 	notAfter, _, _ := s.certs.State()
+	ds, _ := s.store.Devices()
+	for _, d := range ds {
+		if isQuiet(d, now) {
+			h.Quiet = append(h.Quiet, d)
+		}
+	}
+	var missing []string
+	if m := s.lists.missing.Load(); m != nil {
+		missing = *m
+	}
 	switch {
 	case h.Asked >= 20 && h.Failing*10 >= h.Asked:
 		h.Level, h.Word = "bad", "failing"
 		h.Note = fmt.Sprintf("%s of %s lookups failed in the last hour", comma(h.Failing), comma(h.Asked))
+	case s.res.upstreamDown(now):
+		h.Level, h.Word = "bad", "unbound down"
+		h.Note = "unbound isn't answering, so lookups are going to Quad9 until it's back"
+	case len(missing) > 0:
+		h.Level, h.Word = "warn", "list missing"
+		h.Note = strings.Join(missing, ", ") + " couldn't be read off disk, so it blocks nothing until the next refresh"
+	case len(h.Quiet) > 0:
+		var names []string
+		for _, d := range h.Quiet {
+			names = append(names, d.Name+" "+ago(d.LastSeen))
+		}
+		h.Level, h.Word = "warn", "device quiet"
+		h.Note = "last asked: " + strings.Join(names, ", ") + ", so check it's still set up"
 	case len(h.Stale) > 0:
 		h.Level, h.Word = "warn", "lists stale"
 		h.Note = strings.Join(h.Stale, ", ") + " hasn't refreshed in three days"
@@ -107,6 +144,7 @@ func dayLabels(n int, now time.Time) []string {
 type DeviceRow struct {
 	*Device
 	Total, Blocked int
+	Quiet          bool
 	ByHour         []float64
 	Days           []string
 	DayTips        []string
@@ -119,18 +157,26 @@ func (s *site) deviceRows(now time.Time) []DeviceRow {
 		t, b := s.store.Count(Filter{Device: d.ID, Since: now.Add(-24 * time.Hour)})
 		hourly, _ := s.store.Hourly(d.ID, 24, now)
 		dt, db := s.store.Daily(d.ID, 14, now)
-		row := DeviceRow{Device: d, Total: t, Blocked: b, ByHour: hourly}
+		row := DeviceRow{Device: d, Total: t, Blocked: b, ByHour: hourly, Quiet: isQuiet(d, now)}
 		for i := range dt {
 			kind := ""
 			if dt[i] == 0 {
 				kind = "n"
+				if day := now.UTC().Truncate(24 * time.Hour).Add(-time.Duration(13-i) * 24 * time.Hour); !d.LastSeen.IsZero() && day.After(d.Created) && d.Kind == "phone" {
+					kind = "w"
+				}
 			}
 			row.Days = append(row.Days, kind)
 			row.DayTips = append(row.DayTips, fmt.Sprintf("%s: %s lookups, %s blocked", dayLabels(14, now)[i], comma(int(dt[i])), comma(int(db[i]))))
 		}
 		out = append(out, row)
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Total > out[j].Total })
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Quiet != out[j].Quiet {
+			return out[i].Quiet
+		}
+		return out[i].Total > out[j].Total
+	})
 	return out
 }
 
@@ -532,10 +578,7 @@ func (s *site) refreshLists(w http.ResponseWriter, r *http.Request) {
 
 func (s *site) addRule(w http.ResponseWriter, r *http.Request) {
 	domain, action := r.FormValue("domain"), r.FormValue("action")
-	back := r.FormValue("back")
-	if !strings.HasPrefix(back, "/") || strings.HasPrefix(back, "//") {
-		back = "/lists"
-	}
+	back := safeBack(r.FormValue("back"), "/lists")
 	sep := "?"
 	if strings.Contains(back, "?") {
 		sep = "&"
@@ -550,6 +593,16 @@ func (s *site) addRule(w http.ResponseWriter, r *http.Request) {
 		word = "Blocked"
 	}
 	http.Redirect(w, r, back+sep+"toast="+url.QueryEscape(word+" "+cleanName(domain)), http.StatusSeeOther)
+}
+
+// safeBack keeps a redirect on this site. A backslash is refused since
+// browsers read /\evil.com as //evil.com.
+func safeBack(back, def string) string {
+	u, err := url.Parse(back)
+	if err != nil || u.Scheme != "" || u.Host != "" || !strings.HasPrefix(back, "/") || strings.HasPrefix(back, "//") || strings.ContainsAny(back, "\\\r\n") {
+		return def
+	}
+	return back
 }
 
 func (s *site) deleteRule(w http.ResponseWriter, r *http.Request) {
