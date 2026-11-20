@@ -470,7 +470,7 @@ func TestABoxCostsMoreThanItsSparesSellFor(t *testing.T) {
 func TestNinetyDaysDoNotRunAway(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
-	minted, barrel := 0, 0
+	minted, barrel, pusher := 0, 0, 0
 	for day := range 90 {
 		*clock = clock.Add(20 * time.Hour)
 		before, _ := s.view(id)
@@ -494,6 +494,7 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 		playMarket(t, s, id)
 		playDerby(t, s, id)
 		barrel += playBarrel(t, s, clock, id, day)
+		pusher += playPusher(t, s, clock, id)
 		after, _ := s.view(id)
 		minted += after.Pebbles - before.Pebbles
 
@@ -516,6 +517,7 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 	perDay := minted / 90
 	t.Logf("about %d pebbles a day earned, %d in the purse and %d hats found at day 90", perDay, v.Pebbles, countFound(v))
 	t.Logf("the rain barrel paid about %d a day of that", barrel/90)
+	t.Logf("the pebble pusher paid about %d a day of that", pusher/90)
 	if perDay > 250 {
 		t.Errorf("a casual player earns %d pebbles a day, which is more than six boxes", perDay)
 	}
@@ -600,6 +602,28 @@ func playBarrel(t *testing.T, s *store, clock *time.Time, id int64, day int) int
 		}
 	}
 	return 0
+}
+
+// playPusher drops the day's allowance and wins about what it drops, which is
+// what a pile that has filled the table pays, and takes any prize that's ripe.
+func playPusher(t *testing.T, s *store, clock *time.Time, id int64) int {
+	t.Helper()
+	st, err := s.pushStartRun(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(30 * time.Second)
+	var claim []int
+	for _, z := range st.Prizes {
+		if z.Ripe <= st.Drops {
+			claim = append(claim, z.ID)
+		}
+	}
+	d, err := s.pushSave(id, pushIn(*st, st.Drops, st.Drops, 0, 0, claim...))
+	if err != nil || !d.OK {
+		t.Fatalf("a day at the pusher didn't save, %v %s", err, d.Why)
+	}
+	return d.Paid
 }
 
 func countFound(v *view) int {
