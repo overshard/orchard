@@ -70,6 +70,24 @@ CREATE TABLE IF NOT EXISTS bot_events (
 );
 CREATE INDEX IF NOT EXISTS bot_events_property_created ON bot_events(property_id, created_at);
 
+CREATE TABLE IF NOT EXISTS alerts (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    property_id  BLOB NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    kind         TEXT NOT NULL,
+    key          TEXT NOT NULL,
+    title        TEXT NOT NULL,
+    body         TEXT NOT NULL,
+    created_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS alerts_property_created ON alerts(property_id, created_at);
+
+CREATE TABLE IF NOT EXISTS goals (
+    property_id  BLOB NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    event        TEXT NOT NULL,
+    created_at   INTEGER NOT NULL,
+    PRIMARY KEY (property_id, event)
+);
+
 `
 
 // openDB opens the SQLite database and applies the schema. modernc.org/sqlite is
