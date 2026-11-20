@@ -594,9 +594,10 @@ below live as tokens at the top of `frontend/src/index.css`.
   desktop, on an Arcade shelf for the quick games with the deepest first, a
   Puzzles shelf for the slower thinking ones, and a Classics shelf for retired
   games that still play but pay nothing, each under a section head. Under the
-  jars, Every day has the race, the wheel and the old log as rows like the
-  Next strip's, with a green edge and a lamp key while there's something to
-  do, and the three logs to pick from inside the log's row.
+  jars, Every day has the race, the snail derby, the wheel and the old log
+  as rows like the Next strip's, with a green edge and a lamp key while
+  there's something to do, and the three logs to pick from inside the log's
+  row. The derby's row names the race and whose snail is the favourite.
 - **A side game fills a tall phone.** The field sits in the middle and the
   room over and under it is a flat colour the game names, or its top and
   bottom rows stretched where that carries the scene on. Crossing takes more
@@ -699,6 +700,19 @@ below live as tokens at the top of `frontend/src/index.css`.
   with a slight zoom on the frog, which reduced motion doesn't get. The ball
   save is a lily pad across the drain that blinks and sinks as it runs out,
   and an outlane on each side past the cattails is where a ball is lost.
+- **The snail derby is four snails on a mossy log at night**, seen from the
+  side under a string of lanterns, with the four residents who own them on
+  the bank above, each with a pennant in its snail's shell colour. Its title
+  card is the odds board, a key a snail with its shell, owner, way and odds,
+  and a lamp key that backs the pick or the favourite. Each snail's name
+  rides over its shell and the one you backed is lamp yellow with a ticket.
+  A nap is a tucked snail with z's rising, a leaf shrinks as it's eaten, a
+  bird drops onto the log and the snails hide, and a dash sweeps the eye
+  stalks back with lines behind. The call types itself into a box under the
+  log, and an owner hops when its snail hits the front. A photo finish goes
+  slow with a slight zoom on the line and a white flash, which reduced
+  motion doesn't get, and the results are the finishing order with your
+  slip marked.
 - **Tongue lash is dusk over the far bank**, the frog on a pad between two
   reed beds and bugs tossed up out of the reeds in arcs. A swipe drags the
   tongue along the finger, a fat pink line from the mouth through every spot
