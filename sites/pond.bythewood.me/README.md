@@ -114,7 +114,7 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   as a pebble.
 - `arcade.go` is the side games, fishing, tongue flick, crossing, raft run,
   lily leap, tadpoles, lily stack, the shell game, pebble skip, pebble
-  drop, chorus, pad putt, the spawn jar, tongue lash, swarm season, whirlpool and cattail sling, which pay into the purse like Dive with a cap a day each. A score over a game's `most`
+  drop, chorus, pad putt, the spawn jar, tongue lash, swarm season, whirlpool, cattail sling and lily pinball, which pay into the purse like Dive with a cap a day each. A score over a game's `most`
   pays nothing, so keep it well past what a person could reach. One game a
   day, off a hash of the date, is the game of the day and pays in full a
   fourth time under the same cap. Eight hours after the last run of any game
@@ -130,6 +130,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   whole round plays with bun. Cattail sling's physics and its levels are
   `frontend/src/slingworld.js`, so `slingMost` in `arcade.go` is kept over
   the most the biggest level in each slot can score.
+  Lily pinball's table, its balls and the frog working the flippers are
+  `frontend/src/pinworld.js`, and `bun pinsim.js` in `frontend/` plays 500
+  games with the frog alone and 500 with a player, which is what `pinRate`
+  and `pinMost` in `arcade.go` are set from.
   `frontend/src/play.js` is the shelves on Play. A game is one line on its
   shelf there with its title card picture and its game, and the page makes
   the jar, the game's view and its place in the tabs from that line. A jar is
@@ -462,7 +466,8 @@ they have none, for other sites to draw.
   timer of its own.
 - The tap that starts a run is handed to the game's `drag` and not to its
   `press`, so a held finger steers from the first frame and a tap game doesn't
-  act on it.
+  act on it. `press` and `release` get the pointer's id, so a game held by two
+  fingers, like the pinball's flippers, lets go of the right one.
 - The Badge key is `pond-badge` in localStorage, read by
   `frontend/src/badge.js`, which sets the installed icon's count off the
   Next strip's waiting rows whenever it's drawn. With no push and no service
