@@ -190,6 +190,13 @@ func humanCron(expr string) string {
 			return expr
 		}
 		return "monthly on the " + ordinal(d) + " " + at
+	case dow == "*" && strings.HasPrefix(mon, "*/"):
+		d, errD := strconv.Atoi(dom)
+		n, errN := strconv.Atoi(mon[2:])
+		if errD != nil || errN != nil || d < 1 || d > 31 {
+			return expr
+		}
+		return "on the " + ordinal(d) + " every " + strconv.Itoa(n) + " months " + at
 	case dow == "*":
 		d, errD := strconv.Atoi(dom)
 		m, errMo := strconv.Atoi(mon)

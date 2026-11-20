@@ -270,13 +270,15 @@ func (s *site) runsPage(w http.ResponseWriter, r *http.Request) {
 	s.render(w, 200, "runs.html", map[string]any{"Title": "Runs", "Runs": runs, "Headline": head, "Suite": s.chrome("runs", jobs)})
 }
 
-// form reads the job form into an Input. The schedule radio decides which of
-// the two time fields counts, so a stale value in the hidden one is ignored.
+// form reads the job form into an Input. Plain words in When win, and
+// otherwise the schedule radio decides which of the two advanced fields counts.
 func form(r *http.Request) Input {
 	str := func(k string) *string { v := r.FormValue(k); return &v }
 	in := Input{Name: str("name"), Kind: str("kind"), Title: str("title"), Message: str("message"),
 		Priority: str("priority"), Link: str("link")}
-	if r.FormValue("schedule") == "repeat" {
+	if strings.TrimSpace(r.FormValue("when")) != "" {
+		in.When = str("when")
+	} else if r.FormValue("schedule") == "repeat" {
 		in.Cron = str("cron")
 		if strings.TrimSpace(*in.Cron) == "" {
 			in.At = new(string)

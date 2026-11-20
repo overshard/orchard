@@ -16,6 +16,7 @@ import (
 type Input struct {
 	Name     *string `json:"name"`
 	Kind     *string `json:"kind"`
+	When     *string `json:"when"`
 	Cron     *string `json:"cron"`
 	At       *string `json:"at"`
 	Title    *string `json:"title"`
@@ -62,7 +63,13 @@ func (s *site) apply(j *Job, in Input) error {
 	if in.Enabled != nil {
 		j.Enabled = *in.Enabled
 	}
-	if in.Cron != nil && strings.TrimSpace(*in.Cron) != "" {
+	if in.When != nil && strings.TrimSpace(*in.When) != "" {
+		w, err := ParseWhen(*in.When, time.Now(), s.loc)
+		if err != nil {
+			return err
+		}
+		j.Cron, j.At = w.Cron, w.At.Truncate(time.Minute)
+	} else if in.Cron != nil && strings.TrimSpace(*in.Cron) != "" {
 		j.Cron, j.At = strings.TrimSpace(*in.Cron), time.Time{}
 	} else if in.At != nil && strings.TrimSpace(*in.At) != "" {
 		at, err := s.parseAt(*in.At)
@@ -345,38 +352,110 @@ func (s *site) apiRuns(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, 200, map[string]any{"runs": out})
 }
 
-// apiPreview says when a cron line or a time would fire without saving
-// anything, for the form and for checking a line before it's stored.
+// apiPreview says when plain words, a cron line or a time would fire without
+// saving anything, for the form and for checking a schedule before it's stored.
 func (s *site) apiPreview(w http.ResponseWriter, r *http.Request, _ string) {
 	q := r.URL.Query()
-	var times []time.Time
-	if c := strings.TrimSpace(q.Get("cron")); c != "" {
-		e, err := ParseCron(c)
-		if err != nil {
-			fail(w, 400, err)
-			return
-		}
-		t := time.Now()
-		for range 3 {
-			next, ok := e.Next(t, s.loc)
-			if !ok {
-				break
+	now := time.Now()
+	var when When
+	var err error
+	switch {
+	case strings.TrimSpace(q.Get("when")) != "":
+		when, err = ParseWhen(q.Get("when"), now, s.loc)
+	case strings.TrimSpace(q.Get("cron")) != "":
+		var e Expr
+		if e, err = ParseCron(q.Get("cron")); err == nil {
+			when.Cron = strings.Join(strings.Fields(q.Get("cron")), " ")
+			when.Say = capital(humanCron(when.Cron))
+			if _, ok := e.Next(now, s.loc); !ok {
+				err = errors.New("that cron line never matches")
 			}
-			times, t = append(times, next), next
 		}
-	} else {
-		at, err := s.parseAt(q.Get("at"))
-		if err != nil {
-			fail(w, 400, err)
-			return
+	default:
+		if when.At, err = s.parseAt(q.Get("at")); err == nil {
+			when, err = once(when.At, now.In(s.loc))
 		}
-		times = append(times, at)
 	}
-	out := []map[string]string{}
-	for _, t := range times {
-		out = append(out, map[string]string{"at": s.rfc(t), "text": s.eastern(t)})
+	if err != nil {
+		fail(w, 400, err)
+		return
 	}
-	writeJSON(w, 200, map[string]any{"next": out})
+	writeJSON(w, 200, s.preview(when, now))
+}
+
+type previewJSON struct {
+	Kind string     `json:"kind"`
+	Cron string     `json:"cron,omitempty"`
+	At   string     `json:"at,omitempty"`
+	Say  string     `json:"say"`
+	Next []fireJSON `json:"next"`
+	Days []dayJSON  `json:"days"`
+}
+
+type fireJSON struct {
+	At   string `json:"at"`
+	Text string `json:"text"`
+	In   string `json:"in"`
+}
+
+type dayJSON struct {
+	Day   string `json:"day"`
+	Fires int    `json:"fires"`
+}
+
+// preview is the next five fires and a count for each of the next fourteen
+// Eastern days, so a strip can show the shape of a schedule.
+func (s *site) preview(w When, now time.Time) previewJSON {
+	out := previewJSON{Kind: "cron", Cron: w.Cron, Say: w.Say, Next: []fireJSON{}}
+	j := Job{Cron: w.Cron, At: w.At}
+	if w.Once() {
+		out.Kind, out.At = "once", s.local(w.At)
+	}
+	today := midnight(now.In(s.loc))
+	end := today.AddDate(0, 0, 14)
+	counts := make([]int, 14)
+	t := now
+	if w.Once() {
+		t = w.At.Add(-time.Second)
+	}
+	// Two weeks of every minute is the most a line can fire, so this is bounded.
+	for range 14 * 24 * 60 {
+		next, err := s.sched.NextRun(j, t)
+		if err != nil || !next.After(t) {
+			break
+		}
+		if len(out.Next) < 5 {
+			out.Next = append(out.Next, fireJSON{At: s.rfc(next), Text: s.eastern(next), In: until(next)})
+		}
+		if next.Before(end) {
+			counts[dayIndexFrom(today, next.In(s.loc))]++
+		} else if len(out.Next) == 5 {
+			break
+		}
+		if w.Once() {
+			break
+		}
+		t = next
+	}
+	for i, n := range counts {
+		out.Days = append(out.Days, dayJSON{Day: today.AddDate(0, 0, i).Format("Mon 2"), Fires: n})
+	}
+	return out
+}
+
+func midnight(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
+// dayIndexFrom counts calendar days, which a duration can't across a clock change.
+func dayIndexFrom(day0, t time.Time) int {
+	d := midnight(t)
+	n := 0
+	for day0.Before(d) && n < 400 {
+		day0 = day0.AddDate(0, 0, 1)
+		n++
+	}
+	return n
 }
 
 func (s *site) snooze(w http.ResponseWriter, r *http.Request) {

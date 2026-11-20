@@ -261,8 +261,28 @@ func TestAPI(t *testing.T) {
 	if w := call("POST", id+"/run", "", key); w.Code != 200 || push.count() != 1 {
 		t.Errorf("run %d, pushed %d", w.Code, push.count())
 	}
-	if w := call("GET", "/api/preview?cron=0+9+3+3+*", "", key); w.Code != 200 || strings.Count(w.Body.String(), `"at"`) != 3 {
+	if w := call("GET", "/api/preview?cron=0+9+3+3+*", "", key); w.Code != 200 || strings.Count(w.Body.String(), `"at"`) != 5 {
 		t.Errorf("preview %d %s", w.Code, w.Body)
+	}
+	w = call("GET", "/api/preview?when=every+weekday+at+7:30am", "", key)
+	var p previewJSON
+	_ = json.Unmarshal(w.Body.Bytes(), &p)
+	if w.Code != 200 || p.Cron != "30 7 * * 1-5" || len(p.Next) != 5 || len(p.Days) != 14 {
+		t.Errorf("preview of plain words %d %s", w.Code, w.Body)
+	}
+	fires := 0
+	for _, d := range p.Days {
+		fires += d.Fires
+	}
+	if fires != 10 && fires != 9 && fires != 11 {
+		t.Errorf("two weeks of weekdays came to %d fires", fires)
+	}
+	if w := call("GET", "/api/preview?when=whenever", "", key); w.Code != 400 || !strings.Contains(w.Body.String(), "couldn't read") {
+		t.Errorf("unreadable words %d %s", w.Code, w.Body)
+	}
+	w = call("POST", "/api/jobs", `{"name":"Plants","when":"saturdays at 8am","message":"water"}`, key)
+	if w.Code != 201 || !strings.Contains(w.Body.String(), `"cron": "0 8 * * 6"`) {
+		t.Errorf("create from plain words %d %s", w.Code, w.Body)
 	}
 	if w := call("POST", "/api/jobs", `{"name":"x","nope":1}`, key); w.Code != 400 {
 		t.Errorf("an unknown field got %d", w.Code)
