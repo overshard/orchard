@@ -32,6 +32,9 @@ func todoOf(v *view) []todo {
 	if v.Log.Ready {
 		add("log", "log", "Turn the old log", "play")
 	}
+	if v.Open.Works && v.Barrel.worth() {
+		add("barrel", "barrel", "Tip the rain barrel", "play")
+	}
 	if b.Gravel.Held >= 1 {
 		add("gravel", "peb", fmt.Sprintf("%d on the gravel bar", b.Gravel.Held), "bank")
 	}

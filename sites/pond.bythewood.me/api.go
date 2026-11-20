@@ -185,6 +185,20 @@ func (s *site) apiLog(id int64, r *http.Request, w http.ResponseWriter) (any, er
 	return s.store.turnLog(id, in.Pick)
 }
 
+func (s *site) apiBarrel(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		How string `json:"how"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	if in.How != tipSieve && in.How != tipGarden {
+		writeError(w, http.StatusBadRequest, "tip it through the sieve or on the garden")
+		return nil, nil
+	}
+	return s.store.tipBarrel(id, in.How)
+}
+
 func (s *site) apiBox(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	return s.store.box(id)
 }

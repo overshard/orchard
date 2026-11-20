@@ -432,6 +432,14 @@ CREATE TABLE IF NOT EXISTS rain (
     slot INTEGER PRIMARY KEY,
     wet  INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS barrel (
+    pond_id  INTEGER PRIMARY KEY REFERENCES ponds(id) ON DELETE CASCADE,
+    at       INTEGER NOT NULL,
+    day      TEXT NOT NULL,
+    water_at INTEGER NOT NULL DEFAULT 0,
+    watered  REAL NOT NULL DEFAULT 0
+);
 `
 
 // Columns added since the first deploy. CREATE TABLE IF NOT EXISTS leaves a
@@ -1020,8 +1028,9 @@ type view struct {
 		Aims   []aimView `json:"aims"`
 		Race   raceView  `json:"race"`
 	} `json:"dive"`
-	Derby derbyView `json:"derby"`
-	Box   struct {
+	Derby  derbyView  `json:"derby"`
+	Barrel barrelView `json:"barrel"`
+	Box    struct {
 		Cost int            `json:"cost"`
 		Odds [tierCount]int `json:"odds"`
 		Pity pityView       `json:"pity"`
@@ -1322,6 +1331,15 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	v.Bank, v.Kitchen, err = s.bankOf(q, p, now, v.held)
 	if err != nil {
 		return err
+	}
+	if v.Barrel, err = s.barrelOf(q, p, now); err != nil {
+		return err
+	}
+	if v.Barrel.Watering > 0 && v.Bank.Garden.Rate > 0 {
+		v.Bank.Garden.Rate++
+		if v.Bank.Garden.Why == "" {
+			v.Bank.Garden.Why = "barrel"
+		}
 	}
 	if v.Shops, err = s.shopsOf(q, p.ID, v.Want, now); err != nil {
 		return err

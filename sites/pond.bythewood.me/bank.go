@@ -234,7 +234,7 @@ func (s *store) build(id int64, what string) (*view, error) {
 			if err := payMats(tx, p.ID, "garden", p.GardenLevel); err != nil {
 				return err
 			}
-			clock, err := s.growth(tx, now)
+			clock, err := s.gardenClock(tx, p.ID, now)
 			if err != nil {
 				return err
 			}
@@ -308,7 +308,7 @@ type picked struct {
 func (s *store) pick(id int64) (*picked, error) {
 	out := &picked{Got: []string{}}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		clock, err := s.growth(tx, now)
+		clock, err := s.gardenClock(tx, p.ID, now)
 		if err != nil {
 			return err
 		}
@@ -351,7 +351,7 @@ func (s *store) water(id int64) (*view, error) {
 		if rate, _ := growRate(s.day.reading(now), now); rate != 1 {
 			return errNotYet
 		}
-		clock, err := s.growth(tx, now)
+		clock, err := s.gardenClock(tx, p.ID, now)
 		if err != nil {
 			return err
 		}
@@ -557,7 +557,7 @@ func (s *store) bankOf(q querier, p *pond, now time.Time, held map[string]int) (
 	gd.Rate, gd.Why = growRate(s.day.reading(now), now)
 	gd.Plots = []plotView{}
 	if gd.Level > 0 {
-		clock, err := s.growth(q, now)
+		clock, err := s.gardenClock(q, p.ID, now)
 		if err != nil {
 			return b, k, err
 		}
@@ -623,7 +623,7 @@ func (s *store) bankOf(q querier, p *pond, now time.Time, held map[string]int) (
 }
 
 func (s *store) readyPlots(q querier, id int64, now time.Time) (int, error) {
-	clock, err := s.growth(q, now)
+	clock, err := s.gardenClock(q, id, now)
 	if err != nil {
 		return 0, err
 	}
