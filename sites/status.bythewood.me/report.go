@@ -5,6 +5,7 @@ import (
 	"embed"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	texttemplate "text/template"
 	"time"
@@ -26,6 +27,7 @@ var reportFuncs = texttemplate.FuncMap{
 	"urlPath":     urlPath,
 	"pct":         pct,
 	"pct1":        pct1,
+	"pct2":        func(v *float64) string { return strconv.FormatFloat(*v, 'f', 2, 64) },
 	"add":         func(a, b int) int { return a + b },
 }
 

@@ -105,9 +105,9 @@
     #text(size: 14pt, weight: "bold")[{{ .AvgResponseTime }} ms]
   ],
   rect(width: 100%, stroke: 0.6pt + black, inset: 6pt)[
-    #text(size: 7.5pt, tracking: 0.4pt, fill: dim)[UPTIME]
+    #text(size: 7.5pt, tracking: 0.4pt, fill: dim)[UPTIME · 30D]
     #v(2pt)
-    #text(size: 14pt, weight: "bold")[{{ if .RecentUptimePct }}{{ pct1 .RecentUptimePct }}%{{ else }}—{{ end }}]
+    #text(size: 14pt, weight: "bold")[{{ if .H.Up30 }}{{ pct2 .H.Up30 }}%{{ else if .RecentUptimePct }}{{ pct1 .RecentUptimePct }}%{{ else }}—{{ end }}]
   ],
   rect(width: 100%, stroke: 0.6pt + black, inset: 6pt)[
     #text(size: 7.5pt, tracking: 0.4pt, fill: dim)[CHECKS]
@@ -115,6 +115,26 @@
     #text(size: 14pt, weight: "bold")[{{ .TotalChecks }}]
   ],
 )
+
+{{ if .H.Incidents }}
+== Incidents
+
+#block(breakable: true, table(
+  columns: (auto, auto, 1fr, auto),
+  align: (left + top, right + top, left + top, right + top),
+  inset: (x: 3pt, y: 2pt),
+  stroke: (x, y) => if y == 0 { (bottom: 0.8pt + black) } else { (bottom: 0.3pt + rgb("#ddd")) },
+  table.header(
+    text(size: 6.5pt, tracking: 0.3pt, fill: dim, weight: "bold", upper("Started")),
+    text(size: 6.5pt, tracking: 0.3pt, fill: dim, weight: "bold", upper("For")),
+    text(size: 6.5pt, tracking: 0.3pt, fill: dim, weight: "bold", upper("Cause")),
+    text(size: 6.5pt, tracking: 0.3pt, fill: dim, weight: "bold", upper("Fails")),
+  ),
+{{- range .H.Incidents }}
+  text(size: 7.5pt)[{{ .Start.Format "2006-01-02 15:04" }}], text(size: 7.5pt)[{{ .Length }}{{ if not .End }}+{{ end }}], text(size: 7.5pt)[{{ .Code }} {{ typstMD .Cause }}], text(size: 7.5pt)[{{ .Fails }}],
+{{- end }}
+))
+{{ end }}
 
 == Lighthouse
 {{ with .LighthouseScores }}

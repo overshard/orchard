@@ -99,6 +99,9 @@ func fullPageData(t *testing.T) PageData {
 			AlertState: "up",
 			CreatedAt:  now,
 			UpdatedAt:  now,
+			CertDays:   new(9),
+			CertIssuer: "R11",
+			H:          sampleHistory(now),
 
 			IsHTTPS:                   true,
 			HasMIMEType:               true,
@@ -125,8 +128,7 @@ func fullPageData(t *testing.T) PageData {
 			{Label: now.Format(time.RFC3339), Total: 142, DNS: &avg, TCP: &avg, TLS: &avg, TTFB: &avg},
 			{Label: now.Format(time.RFC3339), Total: 138},
 		},
-		StatusCodes:  []LabelCount{{Label: 200, Count: 1400}, {Label: 526, Count: 40}},
-		UptimeSlices: []LabelPercent{{Label: "Uptime", Count: 97.2}, {Label: "Downtime", Count: 2.8}},
+		StatusCodes: []CodeBar{{Code: 200, Count: 1400, Pct: 97.2, Width: 100}, {Code: 526, Count: 40, Pct: 2.8, Width: 3}},
 	}
 }
 
@@ -144,8 +146,40 @@ func emptyPageData() PageData {
 			Name:          "example.com",
 			CurrentStatus: 200,
 			CrawlState:    "idle",
+			H:             &History{},
 		},
 	}
+}
+
+// sampleHistory runs the fill steps over a few made up days, an open incident
+// and a day of checks, so a render reaches every branch that reads one.
+func sampleHistory(now time.Time) *History {
+	today := now.UTC().Truncate(24 * time.Hour)
+	first := today.AddDate(0, 0, -(historyDays - 1))
+	p50 := int64(120)
+	var days []dayRow
+	for i := 3; i >= 0; i-- {
+		days = append(days, dayRow{day: today.AddDate(0, 0, -i).Format(dayLayout), checks: 480, failed: int64(i % 2),
+			p50: &p50, p95: &p50, dns: &p50, tcp: &p50, tls: &p50, f: &p50, hours: "[[20,0,120]]"})
+	}
+	sent := true
+	h := &History{HasSince: true, Since: "Nov 16", Incidents: []IncidentView{
+		{Start: now.Add(-20 * time.Minute), DownAt: now.Add(-17 * time.Minute), Code: 502, Cause: causeText(502), Fails: 7, PushedDown: &sent, dur: 20 * time.Minute, Length: "20m"},
+	}}
+	h.fillDays(days, first, today, now, now.AddDate(0, 0, -10))
+	h.fillIncidents(now)
+	h.fillBudget()
+	var rows []recentRow
+	for i := range 200 {
+		code := int64(200)
+		if i < 7 {
+			code = 502
+		}
+		rows = append(rows, recentRow{code: code, ms: 100 + int64(i), at: now.Add(-time.Duration(i) * 3 * time.Minute).UnixMilli(), ttfb: &p50, dns: &p50, tcp: &p50, tls: &p50})
+	}
+	h.fillHourly(rows, now)
+	h.fillPhases(rows[:100], days)
+	return h
 }
 
 func TestTemplatesExecute(t *testing.T) {

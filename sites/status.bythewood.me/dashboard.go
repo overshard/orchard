@@ -55,6 +55,13 @@ type PropertyView struct {
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 
+	// The leaf certificate's days left, nil until a check has seen one.
+	CertDays    *int
+	CertIssuer  string
+	CertExpires string
+
+	H *History
+
 	// Security posture, read off the most recent response's headers.
 	IsHTTPS                   bool
 	InvalidCert               bool
@@ -76,6 +83,7 @@ type InsightGroup struct {
 // pointers because rows written before those columns existed have none.
 type ResponseTimePoint struct {
 	Label string `json:"label"`
+	Code  int64  `json:"code"`
 	Total int64  `json:"total"`
 	DNS   *int64 `json:"dns"`
 	TCP   *int64 `json:"tcp"`
@@ -83,14 +91,12 @@ type ResponseTimePoint struct {
 	TTFB  *int64 `json:"ttfb"`
 }
 
-type LabelCount struct {
-	Label int64 `json:"label"`
-	Count int64 `json:"count"`
-}
-
-type LabelPercent struct {
-	Label string  `json:"label"`
-	Count float64 `json:"count"`
+// CodeBar is one status code as an hbar.
+type CodeBar struct {
+	Code  int64
+	Count int64
+	Pct   float64
+	Width float64
 }
 
 func msToTime(ms *int64) *time.Time {
@@ -107,6 +113,9 @@ func deref(s *string) string {
 	}
 	return *s
 }
+
+// phaseChecks is six hours of checks, the span of the phase chart.
+const phaseChecks = 120
 
 // buildPropertyView computes everything the dashboard shows for one property,
 // over one 100-check window so every figure on it covers the same span.
@@ -195,6 +204,11 @@ func (s *site) buildPropertyView(ctx context.Context, p *Property) (*PropertyVie
 
 	v.applySecurityPosture(recent)
 	v.applyStoredJSON(p)
+	if p.CertNotAfter != nil {
+		exp := time.UnixMilli(*p.CertNotAfter).UTC()
+		days := int(math.Floor(time.Until(exp).Hours() / 24))
+		v.CertDays, v.CertIssuer, v.CertExpires = &days, deref(p.CertIssuer), exp.Format("2 Jan")
+	}
 
 	return v, nil
 }
@@ -351,9 +365,21 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		return
 	}
 
+	hist, err := loadHistories(r.Context(), s.db, []*Property{p}, time.Now())
+	if err != nil {
+		slog.Info("dashboard history", slog.Any("id", id), slog.Any("err", err))
+		hist = map[uuid.UUID]*History{}
+	}
+	view.H = hist[p.ID]
+	if view.H == nil {
+		view.H = &History{}
+	}
+
 	data := s.page(r, view.Name, "Status for "+view.Name)
 	data.Property = view
-	data.InsightGroups = groupInsights(view.CrawlerInsights)
+	if authed {
+		data.InsightGroups = groupInsights(view.CrawlerInsights)
+	}
 
 	// Report export is operator-only even for a public property, since the PDF
 	// path spawns a Typst compile for anyone who finds the URL.
@@ -370,15 +396,18 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		return
 	}
 
-	recent, err := recentChecks(r.Context(), s.db, id, 31)
+	recent, err := recentChecks(r.Context(), s.db, id, phaseChecks)
 	if err != nil {
 		slog.Info("dashboard charts", slog.Any("id", id), slog.Any("err", err))
 	}
+	for _, c := range recent[:min(len(recent), 20)] {
+		data.RecentChecks = append(data.RecentChecks, c)
+	}
 	// Oldest first, so the time axis reads left to right.
 	for _, c := range slices.Backward(recent) {
-
 		data.ResponseTimes = append(data.ResponseTimes, ResponseTimePoint{
 			Label: time.UnixMilli(c.CreatedAt).UTC().Format(time.RFC3339),
+			Code:  c.StatusCode,
 			Total: c.ResponseMS,
 			DNS:   c.DNSMS,
 			TCP:   c.TCPMS,
@@ -391,23 +420,14 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	if err != nil {
 		slog.Info("dashboard status codes", slog.Any("id", id), slog.Any("err", err))
 	}
+	slices.SortStableFunc(codes, func(a, b StatusCount) int { return int(b.Count - a.Count) })
+	var all int64
 	for _, c := range codes {
-		data.StatusCodes = append(data.StatusCodes, LabelCount{Label: c.Code, Count: c.Count})
+		all += c.Count
 	}
-
-	up, down, err := countUptime(r.Context(), s.db, id)
-	if err != nil {
-		slog.Info("dashboard uptime", slog.Any("id", id), slog.Any("err", err))
-	}
-	pct := func(n int64) float64 {
-		if total := up + down; total > 0 {
-			return math.Round(float64(n)/float64(total)*10000) / 100
-		}
-		return 0
-	}
-	data.UptimeSlices = []LabelPercent{
-		{Label: "Uptime", Count: pct(up)},
-		{Label: "Downtime", Count: pct(down)},
+	for _, c := range codes {
+		data.StatusCodes = append(data.StatusCodes, CodeBar{Code: c.Code, Count: c.Count,
+			Pct: float64(c.Count) / float64(all) * 100, Width: float64(c.Count) / float64(codes[0].Count) * 100})
 	}
 
 	data.PageScript = s.propsScript

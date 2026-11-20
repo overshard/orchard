@@ -16,7 +16,32 @@
 - Average response: **{{ .AvgResponseTime }} ms**
 - Recent uptime: {{ if .RecentUptimePct }}**{{ pct1 .RecentUptimePct }}%**{{ else }}n/a{{ end }}
 - Total checks logged: **{{ .TotalChecks }}**
+{{- with .CertDays }}
+- TLS certificate: **{{ . }} days** left
+{{- end }}
 
+## Uptime
+
+| Window | Uptime |
+|---|---|
+| 24h | {{ if .H.Up24 }}{{ pct2 .H.Up24 }}%{{ else }}n/a{{ end }} |
+| 7d | {{ if .H.Up7 }}{{ pct2 .H.Up7 }}%{{ else }}n/a{{ end }} |
+| 30d | {{ if .H.Up30 }}{{ pct2 .H.Up30 }}%{{ else }}n/a{{ end }} |
+| 90d | {{ if .H.Up90 }}{{ pct2 .H.Up90 }}%{{ else }}n/a{{ end }} |
+{{ if .H.HasSince }}
+History is kept from {{ .H.Since }}.
+{{- end }}
+
+## Incidents
+
+{{ if .H.Incidents -}}
+| Started (UTC) | For | Cause | Failed checks |
+|---|---|---|---|
+{{ range .H.Incidents }}| {{ .Start.Format "2006-01-02 15:04" }} | {{ .Length }}{{ if not .End }}+{{ end }} | {{ .Code }}, {{ .Cause }} | {{ .Fails }} |
+{{ end }}
+{{- else -}}
+_No incidents on record._
+{{ end }}
 ## Lighthouse
 
 {{ with .LighthouseScores -}}

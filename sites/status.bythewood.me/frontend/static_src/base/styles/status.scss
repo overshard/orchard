@@ -29,14 +29,60 @@
 .props td.lead { min-width: 13rem; }
 .props td.lead .o-chip { margin-left: 6px; }
 
-.side { display: grid; gap: 14px; align-content: start; min-width: 0; }
-.four-up { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@media (max-width: 1400px) { .four-up { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 700px) { .four-up { grid-template-columns: minmax(0, 1fr); } }
+.side { display: grid; gap: 10px; align-content: start; min-width: 0; }
 .o-chip:empty { display: none; }
+.stripfoot { margin: 6px 0 0; }
+.o-main > .o-panel, .o-main > .o-band, .o-main > div { min-width: 0; }
 
-.chartbox { position: relative; height: 220px; }
-.chartbox.tall { height: 260px; }
+// The 90 day bar, one tick a day, and the 30 day cut hides the first sixty.
+.days { display: flex; gap: 2px; height: 44px; align-items: stretch; margin-top: 4px; }
+.days i { flex: 1 1 0; min-width: 2px; background: var(--o-ok); opacity: 0.55; cursor: pointer; }
+.days i.warn { background: var(--o-warn); opacity: 0.9; }
+.days i.bad { background: var(--o-bad); opacity: 1; }
+.days i.none { background: var(--o-line-strong); opacity: 1; cursor: default; }
+.days i:hover { opacity: 1; outline: 1px solid var(--o-text); }
+.days i.pick { outline: 1px solid var(--o-brass); opacity: 1; }
+.days.r30 i:nth-child(-n + 60) { display: none; }
+.dayrange { margin-bottom: 8px; }
+.dayrange label span { padding: 3px 10px; font-size: 0.72rem; }
+.daydet { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 10px; margin-top: 10px; }
+.daydet[hidden] { display: none; }
+.daydet .o-panel { background: var(--o-bg); }
+@media (max-width: 760px) { .daydet { grid-template-columns: minmax(0, 1fr); } }
+.hrs { display: flex; gap: 2px; height: 30px; align-items: flex-end; margin-top: 4px; }
+.hrs i { flex: 1; background: var(--o-ok); opacity: 0.55; }
+.hrs i.bad { background: var(--o-bad); opacity: 1; }
+.hrs i.warn { background: var(--o-warn); opacity: 0.9; }
+.hrs i.none { background: var(--o-line-strong); opacity: 1; height: 100%; }
+.tl { display: grid; font-size: 0.8rem; }
+.tl > div { display: grid; grid-template-columns: 56px 10px minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 4px 0; }
+.tl .t { font: 0.7rem var(--o-mono); color: var(--o-muted); }
+.tl .p { width: 8px; height: 8px; border-radius: 50%; align-self: center; }
+.tl .p.bad { background: var(--o-bad); }
+.tl .p.ok { background: var(--o-ok); }
+.tl .p.warn { background: var(--o-warn); }
+
+// The phase chart. Each check has a full height transparent rect on top that
+// carries its tooltip.
+.chart-wrap { position: relative; }
+.chart-wrap svg.ch { display: block; width: 100%; height: 170px; }
+.chart-wrap .grid { stroke: var(--o-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.chart-wrap .hit { fill: transparent; }
+.chart-wrap .vl { position: absolute; top: 0; left: 0; height: 170px; width: 1px; background: var(--o-text); opacity: 0.4; pointer-events: none; display: none; }
+.chart-wrap .axis { display: flex; justify-content: space-between; font: 0.62rem var(--o-mono); color: var(--o-muted); margin-top: 2px; }
+.leg { display: flex; flex-wrap: wrap; gap: 4px 14px; font: 0.62rem var(--o-mono); color: var(--o-muted); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+.leg i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; vertical-align: -1px; }
+.leg button { background: none; border: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; padding: 0; }
+.leg button.off { opacity: 0.35; text-decoration: line-through; }
+.checks td { white-space: nowrap; }
+@media (max-width: 700px) { .checks tbody tr:nth-child(n + 9) { display: none; } }
+
+// Beside the taller recent checks table the chart grows to the panel's height.
+.o-band.fill { align-items: stretch; }
+.fill .phases { display: flex; flex-direction: column; }
+.fill .phases .chart-wrap { flex: 1; min-height: 170px; display: flex; flex-direction: column; }
+.fill .phases .chart-wrap svg.ch { flex: 1; height: auto; min-height: 170px; }
+.fill .phases .chart-wrap .vl { height: calc(100% - 16px); }
 
 // A Lighthouse score as a dial, coloured by its band.
 .rings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; justify-items: center; padding: 6px 0; }

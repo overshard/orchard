@@ -1,35 +1,42 @@
 {{ define "extra_js" }}
 {{/* Chart data as inline JSON blocks. property_crawl_status.js takes the
      property id from #monitoring-status[data-property-id]. */}}
-<script id="chart-status-response-times-data" type="application/json">{{ json .ResponseTimes }}</script>
-<script id="chart-status-codes-data" type="application/json">{{ json .StatusCodes }}</script>
-<script id="chart-uptime-data" type="application/json">{{ json .UptimeSlices }}</script>
+<script id="phase-data" type="application/json">{{ json .ResponseTimes }}</script>
+<script id="days-data" type="application/json">{{ json .Property.H.Drill }}</script>
 {{ end }}
 
 {{ define "main" }}
 {{ $authed := .Authenticated }}
+{{ $recent := .RecentChecks }}
+{{ $codes := .StatusCodes }}
 {{ with .Property }}
+{{ $h := .H }}
 <main class="o-wrap o-main"{{ if $authed }} id="monitoring-status" data-property-id="{{ .ID }}"{{ end }}>
   <div class="o-ph">
     <div>
       <span class="o-lab">status &middot; {{ if $authed }}properties &middot; {{ end }}{{ .Name }}</span>
-      <h1>{{ .Name }} is {{ if eq .CurrentStatus 200 }}<em>up</em>{{ else }}<em class="bad">down</em>{{ end }}.</h1>
-      <p><a href="{{ .URL }}" target="_blank" rel="noopener" class="o-mono o-muted">{{ .URL }} &nearr;</a>
-        &middot; {{ num .TotalChecks }} checks{{ if .RecentUptimePct }}, {{ pct1 .RecentUptimePct }}% up over the last 100{{ end }}</p>
+      <h1>{{ .Name }} is {{ if eq .CurrentStatus 200 }}<em>up</em>.{{ else }}<em class="bad">down</em>{{ with $h.Open }}, {{ .Length }} so far{{ end }}.{{ end }}</h1>
+      <div class="o-pm">
+        <span>url<b><a href="{{ .URL }}" target="_blank" rel="noopener">{{ .Name }} &nearr;</a></b></span>
+        {{ with $h.Open }}<span>since<b class="bad">{{ .Start.Format "15:04" }} UTC</b></span>{{ end }}
+        {{ if $h.Up30 }}<span>30d<b>{{ pct2 $h.Up30 }}%</b></span>{{ end }}
+        <span>checks<b>{{ num .TotalChecks }} / 3d</b></span>
+        {{ if $h.HasSince }}<span>history from<b>{{ $h.Since }}</b></span>{{ end }}
+      </div>
     </div>
     {{ if $authed }}
     <div class="o-acts d-print-none">
       <span id="is-public-form" class="visibility" data-property-id="{{ .ID }}">
-        <span class="o-muted small" title="A public property can be seen by anyone with the link, no sign in.">Visibility</span>
+        <span class="o-muted small" data-tip="A public property can be seen by anyone with the link, no sign in.">Visibility</span>
         <label class="o-seg">
-          <input type="checkbox" name="is_public" id="is-public-switch"{{ if .IsPublic }} checked{{ end }}>
+          <input type="checkbox" name="is_public" id="is-public-switch"{{ if .IsPublic }} checked{{ end }} data-act="{{ if .IsPublic }}make status page private{{ else }}make status page public{{ end }}">
           <span class="seg-private">private</span><span class="seg-public">public</span>
         </label>
       </span>
-      <a href="/{{ .ID }}?report=md" target="_blank" class="o-btn o-btn-sm">Markdown</a>
-      <a href="/{{ .ID }}?report=pdf" target="_blank" class="o-btn o-btn-sm">PDF report</a>
+      <button type="button" class="o-btn o-btn-sm" id="copy-md" data-md="/{{ .ID }}?report=md" data-act="copy status report as markdown">Copy markdown</button>
+      <a href="/{{ .ID }}?report=pdf" target="_blank" class="o-btn o-btn-sm" data-act="open the PDF report">PDF report</a>
       {{ if not .IsProtected }}
-      <form method="POST" action="/properties/{{ .ID }}/delete" data-confirm="Stop watching {{ .URL }} and delete its checks?">
+      <form method="POST" action="/properties/{{ .ID }}/delete" data-confirm="Stop watching {{ .URL }} and delete its checks and history?">
         <button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete</button>
       </form>
       {{ end }}
@@ -37,91 +44,209 @@
     {{ end }}
   </div>
 
-  <div class="o-tiles">
+  <div class="o-strip{{ if not $authed }} six{{ end }}">
     <div class="o-tile">
-      <small>http status</small>
+      <small>http</small>
       <b class="{{ if ne .CurrentStatus 200 }}bad{{ end }}">{{ .CurrentStatus }}</b>
-      <span class="o-delta {{ if ne .CurrentStatus 200 }}o-bad{{ end }}">{{ if eq .CurrentStatus 200 }}answering{{ else }}failing now{{ end }}</span>
+      <span class="o-delta {{ if ne .CurrentStatus 200 }}o-bad{{ end }}">{{ if eq .CurrentStatus 200 }}answering{{ else if $h.Open }}failing since {{ $h.Open.Start.Format "15:04" }}{{ else }}failing now{{ end }}</span>
       <span class="o-ticks" aria-hidden="true">{{ if .RecentTickStream }}{{ range .RecentTickStream }}<i class="{{ . }}"></i>{{ end }}{{ else }}{{ range seq 30 }}<i class="none"></i>{{ end }}{{ end }}</span>
     </div>
     <div class="o-tile">
-      <small>response &middot; avg</small>
-      <b class="{{ if gt .AvgResponseTime 500 }}warn{{ end }}">{{ .AvgResponseTime }}ms</b>
-      <span class="o-delta">last 31 checks</span>
-      {{ spark (or (and (gt .AvgResponseTime 500) "warn") "ok") .ResponseSeries }}
+      <small>uptime &middot; 24h</small>
+      <b class="{{ if $h.Up24 }}{{ if lt (deref64f $h.Up24) 99.9 }}warn{{ end }}{{ end }}">{{ if $h.Up24 }}{{ pct2 $h.Up24 }}%{{ else }}&mdash;{{ end }}</b>
+      <span class="o-delta">{{ if $h.Up24 }}{{ count $h.Inc30 "incident" "incidents" }} in 30d{{ else }}no checks yet{{ end }}</span>
+      {{ if $h.HourUp }}{{ sparkT "ok" $h.HourUp $h.HourLabels }}{{ else }}<span class="o-nospark"></span>{{ end }}
+    </div>
+    <div class="o-tile">
+      <small>uptime &middot; 30d</small>
+      <b class="{{ if $h.Up30 }}{{ if lt (deref64f $h.Up30) 99.9 }}warn{{ end }}{{ end }}">{{ if $h.Up30 }}{{ pct2 $h.Up30 }}%{{ else }}&mdash;{{ end }}</b>
+      <span class="o-delta">{{ if $h.Up30 }}down {{ $h.Down30 }}{{ if lt $h.Covered30 30 }} &middot; {{ $h.Covered30 }}d kept{{ end }}{{ else }}waiting on the rollup{{ end }}</span>
+      <span class="o-ticks" aria-hidden="true">{{ range $h.Ticks30 }}<i class="{{ .Kind }}" data-tip="{{ .Tip }}"></i>{{ end }}</span>
+    </div>
+    {{ if $authed }}
+    <div class="o-tile">
+      <small>error budget</small>
+      <b class="{{ if $h.BudgetLeft }}{{ if ne $h.BudgetKind "ok" }}{{ $h.BudgetKind }}{{ end }}{{ end }}">{{ if $h.BudgetLeft }}{{ printf "%.0f" (deref64f $h.BudgetLeft) }}%{{ else }}&mdash;{{ end }}</b>
+      <span class="o-delta">{{ if $h.BudgetLeft }}of {{ $h.BudgetMins }} &middot; {{ $h.Burn24 }}{{ else }}waiting on the rollup{{ end }}</span>
+      <span class="o-ticks" aria-hidden="true">{{ range $h.BudgetTicks }}<i class="{{ .Kind }}" style="height: {{ .Height }}%" data-tip="{{ .Tip }}"></i>{{ end }}</span>
+    </div>
+    {{ end }}
+    <div class="o-tile">
+      <small>p95 &middot; 24h</small>
+      <b class="{{ if $h.P95 }}{{ if gt (deref64 $h.P95) 1000 }}warn{{ end }}{{ end }}">{{ if $h.P95 }}{{ $h.P95 }}ms{{ else }}&mdash;{{ end }}</b>
+      <span class="o-delta">{{ if $h.P50 }}p50 {{ $h.P50 }}ms{{ else }}no checks yet{{ end }}</span>
+      {{ if $h.HourP95 }}{{ sparkT "" $h.HourP95 $h.HourLabels }}{{ else }}<span class="o-nospark"></span>{{ end }}
+    </div>
+    <div class="o-tile">
+      <small>first byte &middot; p50</small>
+      <b>{{ if $h.TTFB }}{{ $h.TTFB }}ms{{ else }}&mdash;{{ end }}</b>
+      <span class="o-delta">{{ $h.TTFBNote }}</span>
+      {{ if $h.HourTTFB }}{{ sparkT "" $h.HourTTFB $h.HourLabels }}{{ else }}<span class="o-nospark"></span>{{ end }}
     </div>
     <div class="o-tile">
       <small>tls cert</small>
-      <b class="{{ if .InvalidCert }}bad{{ end }}">{{ if .InvalidCert }}invalid{{ else }}valid{{ end }}</b>
-      <span class="o-delta">chain and trust</span>
+      {{ if .CertDays }}
+      <b class="{{ certKindP .CertDays }}">{{ .CertDays }} days</b>
+      <span class="o-delta">{{ if .CertIssuer }}{{ .CertIssuer }} &middot; {{ end }}{{ .CertExpires }}</span>
+      {{ else }}
+      <b class="{{ if .InvalidCert }}bad{{ end }}">{{ if .InvalidCert }}invalid{{ else }}&mdash;{{ end }}</b>
+      <span class="o-delta">{{ if .InvalidCert }}chain and trust{{ else }}read on the next check{{ end }}</span>
+      {{ end }}
       <span class="o-nospark"></span>
     </div>
+    {{ if $authed }}
     <div class="o-tile">
-      <small>security headers</small>
-      <b class="{{ if .HasSecurityIssue }}warn{{ end }}">{{ if .HasSecurityIssue }}issues{{ else }}pass{{ end }}</b>
-      <span class="o-delta">{{ secPass . }} of {{ len (secChecks .) }} pass</span>
-      <span class="o-ticks" aria-hidden="true">{{ range secChecks . }}<i class="{{ if not .OK }}bad{{ end }}" title="{{ .Name }}"></i>{{ end }}</span>
+      <small>headers</small>
+      <b class="{{ if .HasSecurityIssue }}warn{{ end }}">{{ secPass . }}/{{ len (secChecks .) }}</b>
+      <span class="o-delta">{{ with secFirstFail . }}fails {{ . }}{{ else }}every check passes{{ end }}</span>
+      <span class="o-ticks" aria-hidden="true">{{ range secChecks . }}<i class="{{ if not .OK }}bad{{ end }}" data-tip="{{ .Name }}{{ if not .OK }} · missing{{ end }}"></i>{{ end }}</span>
     </div>
+    {{ end }}
   </div>
+  <p class="o-foot stripfoot"><span data-xs-when>sparks are the last 24 hours by hour &middot; times are UTC</span></p>
 
-  <div class="o-cols">
-    <section class="o-panel">
-      <div class="o-ph2"><h2>Response time</h2><span class="o-lab">last 31 checks</span></div>
-      <div class="chartbox tall"><canvas id="chart-response-times"></canvas></div>
+  <section class="o-panel">
+    <div class="o-ph2">
+      <h2>Uptime by day</h2>
+      <span class="o-pm">
+        <span>24h<b class="{{ if $h.Up24 }}{{ if lt (deref64f $h.Up24) 99.9 }}warn{{ end }}{{ end }}">{{ if $h.Up24 }}{{ pct2 $h.Up24 }}{{ else }}&mdash;{{ end }}</b></span>
+        <span>7d<b>{{ if $h.Up7 }}{{ pct2 $h.Up7 }}{{ else }}&mdash;{{ end }}</b></span>
+        <span>30d<b>{{ if $h.Up30 }}{{ pct2 $h.Up30 }}{{ else }}&mdash;{{ end }}</b></span>
+        <span>90d<b>{{ if $h.Up90 }}{{ pct2 $h.Up90 }}{{ else }}&mdash;{{ end }}</b></span>
+      </span>
+    </div>
+    <div class="o-seg seg-sm dayrange d-none" id="day-range">
+      <label><input type="radio" name="dr" value="30"><span>30d</span></label>
+      <label><input type="radio" name="dr" value="90" checked><span>90d</span></label>
+    </div>
+    <div class="days" id="days">{{ range $h.Days }}<i class="{{ .Kind }}" data-day="{{ .Day }}" data-tip="{{ .Tip }}"></i>{{ end }}</div>
+    <p class="o-foot">90 days &middot; red is an outage over 5 minutes &middot; amber is under 99.9%{{ if $h.HasSince }} &middot; history kept from {{ $h.Since }}{{ end }}<span class="drill-hint d-none"> &middot; click a day for its hours</span></p>
+    <div class="daydet" id="day-detail" hidden></div>
+  </section>
+
+  <div class="o-band {{ if $authed }}b3{{ else }}b2{{ end }}">
+    <section class="o-panel flush">
+      <div class="o-ph2">
+        <h2>Incidents</h2>
+        <span class="o-pm"><span>30d<b class="{{ if $h.Inc30 }}warn{{ end }}">{{ $h.Inc30 }}</b></span><span>down<b>{{ $h.Down30 }}</b></span><span>mttr<b>{{ $h.MTTR }}</b></span></span>
+      </div>
+      {{ if $h.Incidents }}
+      <div class="o-scroll">
+      <table class="o-tbl stack">
+        <thead><tr><th>Started</th><th class="r">For</th><th>Cause</th><th class="r">Fails</th>{{ if $authed }}<th>Push</th>{{ end }}</tr></thead>
+        <tbody>
+        {{ range $h.Incidents }}
+          <tr class="{{ if not .End }}hot{{ end }}">
+            <td class="lead n">{{ .Start.Format "01-02 15:04" }}</td>
+            <td class="r n" data-l="for">{{ .Length }}{{ if not .End }}+{{ end }}</td>
+            <td data-l="cause"><code>{{ .Code }}</code> <span class="o-muted">{{ .Cause }}</span></td>
+            <td class="r n" data-l="fails">{{ .Fails }}</td>
+            {{ if $authed }}<td class="n" data-l="push">{{ if .Backfilled }}<span class="o-muted" data-tip="Read back out of the stored checks, so whether a push went out isn't known">unknown</span>{{ else }}{{ pushText .PushedDown }}{{ if .End }} / {{ pushText .PushedUp }}{{ end }}{{ end }}</td>{{ end }}
+          </tr>
+        {{ end }}
+        </tbody>
+      </table>
+      </div>
+      {{ else }}
+      <p class="o-empty"><b>No incidents{{ if $h.HasSince }} since {{ $h.Since }}{{ end }}.</b>One opens when two checks in a row fail and closes on the next 200.</p>
+      {{ end }}
     </section>
+
     <div class="side">
       <section class="o-panel">
-        <div class="o-ph2"><h2>Lighthouse</h2><span class="o-lab">{{ if .LastLighthouseSuccessAt }}{{ naturaltime .LastLighthouseSuccessAt }}{{ else }}not run yet{{ end }}</span></div>
-        {{ with .LighthouseScores }}
-        <div class="rings">{{ range .Pairs }}{{ ring (lower .Label) .Score }}{{ end }}</div>
+        <div class="o-ph2"><h2>Where the time goes</h2><span class="o-pm"><span>vs<b>{{ if $h.BaseDays }}{{ $h.BaseDays }}d median{{ else }}nothing yet{{ end }}</b></span></span></div>
+        {{ if $h.Phases }}
+        {{ range $h.Phases }}
+        <div class="o-hbar"><span class="k">{{ .Name }}</span><span class="bar"><i class="{{ if and $h.BaseDays (gt .Delta (slowBy .Base)) }}warn{{ else }}ok{{ end }}" style="width: {{ printf "%.0f" ($h.PhaseWidth .) }}%"></i></span><span class="v">{{ .Now }}ms</span><span class="d">{{ if $h.BaseDays }}{{ signed .Delta }}{{ end }}</span></div>
+        {{ end }}
+        <p class="o-foot">median of the last 100 checks that answered 200</p>
         {{ else }}
-        <p class="o-empty"><b>No audit yet.</b>Lighthouse runs on a schedule, or from the button further down.</p>
+        <p class="o-empty"><b>No timings yet.</b>Every check records its DNS, TCP, TLS and first byte times.</p>
         {{ end }}
       </section>
-      {{ if $authed }}
-      <section class="o-panel d-print-none">
-        <div class="o-ph2">
-          <h2>Lighthouse runs</h2>
-          <span class="monitor-acts">
-            <span class="o-chip" data-field="lighthouse.state_badge"></span>
-            <button type="button" id="rerun-lighthouse-btn" class="o-btn o-btn-sm">
-              <span class="rerun-lh-label">Rerun</span>
-              <span class="rerun-lh-spinner spinner d-none" role="status" aria-hidden="true"></span>
-            </button>
-          </span>
-        </div>
-        <div class="o-note bad d-none" data-field="lighthouse.error_box" role="alert">Last run failed: <code data-field="lighthouse.error_text"></code></div>
-        <dl class="o-kv">
-          <dt>last success</dt><dd class="o-mono" data-field="lighthouse.last_success">&mdash;</dd>
-          <dt>last attempt</dt><dd class="o-mono" data-field="lighthouse.last_attempt">&mdash;</dd>
-          <dt>took</dt><dd class="o-mono" data-field="lighthouse.duration">&mdash;</dd>
-          <dt>next run</dt><dd class="o-mono" data-field="lighthouse.next_run">&mdash;</dd>
-        </dl>
+      <section class="o-panel">
+        <div class="o-ph2"><h2>Status codes</h2><span class="o-pm"><span>last<b>3d</b></span></span></div>
+        {{ range $codes }}
+        <div class="o-hbar"><span class="k"><code>{{ .Code }}</code></span><span class="bar"><i class="{{ if eq .Code 200 }}ok{{ else }}bad{{ end }}" style="width: {{ printf "%.1f" .Width }}%"></i></span><span class="v">{{ num .Count }}</span><span class="d">{{ printf "%.1f" .Pct }}%</span></div>
+        {{ else }}
+        <p class="o-empty"><b>No checks yet.</b>The first one runs within three minutes of adding a property.</p>
+        {{ end }}
       </section>
-      {{ end }}
     </div>
+
+    {{ if $authed }}
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Lighthouse</h2><span class="o-lab">{{ if .LastLighthouseSuccessAt }}{{ naturaltime .LastLighthouseSuccessAt }}{{ else }}not run yet{{ end }}</span></div>
+      {{ with .LighthouseScores }}
+      <div class="rings">{{ range .Pairs }}{{ ring (lower .Label) .Score }}{{ end }}</div>
+      {{ else }}
+      <p class="o-empty"><b>No audit yet.</b>Lighthouse runs daily, or from Rerun further down.</p>
+      {{ end }}
+    </section>
+    {{ end }}
   </div>
 
-  <div class="o-cols four-up">
-    <section class="o-panel">
-      <div class="o-ph2"><h2>Status codes</h2><span class="o-lab">last 100</span></div>
-      <div class="chartbox"><canvas id="chart-status-codes"></canvas></div>
+  <div class="{{ if $authed }}o-band b2 fill{{ end }}">
+    <section class="o-panel phases">
+      <div class="o-ph2"><h2>Response, stacked by phase</h2><span class="o-pm"><span>6h<b>{{ len $.ResponseTimes }} checks</b></span></span></div>
+      <div class="chart-wrap" id="ph"><p class="o-empty"><b>No checks yet.</b>Each bar is one check split into DNS, TCP, TLS and first byte.</p></div>
+      <div class="leg" id="ph-leg"></div>
     </section>
-    <section class="o-panel">
-      <div class="o-ph2"><h2>Uptime split</h2><span class="o-lab">last 100</span></div>
-      <div class="chartbox"><canvas id="chart-uptime"></canvas></div>
-    </section>
-    <section class="o-panel">
-      <div class="o-ph2"><h2>Security headers</h2><span class="o-lab">latest response</span></div>
-      {{ range secChecks . }}{{ template "check" dict "name" .Name "ok" .OK }}{{ end }}
-    </section>
+
     {{ if $authed }}
-    <section class="o-panel d-print-none">
+    <section class="o-panel flush">
+      <div class="o-ph2"><h2>Recent checks</h2><span class="o-pm"><span>last<b>{{ len $recent }}</b></span></span></div>
+      {{ if $recent }}
+      <div class="o-scroll">
+      <table class="o-tbl stack checks">
+        <thead><tr><th>Time</th><th>Code</th><th class="r">Total</th><th class="r">dns/tcp/tls/ttfb</th><th>Edge</th></tr></thead>
+        <tbody>
+        {{ range $recent }}
+          <tr class="{{ if ne .StatusCode 200 }}hot{{ end }}">
+            <td class="lead n">{{ msClock .CreatedAt }}</td>
+            <td class="n" data-l="code"><span class="{{ if ne .StatusCode 200 }}o-bad{{ end }}">{{ .StatusCode }}</span></td>
+            <td class="r n" data-l="total">{{ .ResponseMS }}ms</td>
+            <td class="r n o-muted" data-l="phases">{{ phaseText . }}</td>
+            <td class="n o-muted" data-l="edge">{{ if .CacheState }}{{ .CacheState }}{{ else }}&mdash;{{ end }}</td>
+          </tr>
+        {{ end }}
+        </tbody>
+      </table>
+      </div>
+      {{ else }}
+      <p class="o-empty"><b>No checks yet.</b>The first one runs within three minutes of adding a property.</p>
+      {{ end }}
+    </section>
+    {{ end }}
+  </div>
+
+  {{ if $authed }}
+  <div class="o-band b3e d-print-none">
+    <section class="o-panel">
+      <div class="o-ph2">
+        <h2>Lighthouse runs</h2>
+        <span class="monitor-acts">
+          <span class="o-chip" data-field="lighthouse.state_badge"></span>
+          <button type="button" id="rerun-lighthouse-btn" class="o-btn o-btn-sm" data-act="rerun lighthouse">
+            <span class="rerun-lh-label">Rerun</span>
+            <span class="rerun-lh-spinner spinner d-none" role="status" aria-hidden="true"></span>
+          </button>
+        </span>
+      </div>
+      <div class="o-note bad d-none" data-field="lighthouse.error_box" role="alert">Last run failed: <code data-field="lighthouse.error_text"></code></div>
+      <dl class="o-kv">
+        <dt>last success</dt><dd class="o-mono" data-field="lighthouse.last_success">&mdash;</dd>
+        <dt>last attempt</dt><dd class="o-mono" data-field="lighthouse.last_attempt">&mdash;</dd>
+        <dt>took</dt><dd class="o-mono" data-field="lighthouse.duration">&mdash;</dd>
+        <dt>next run</dt><dd class="o-mono" data-field="lighthouse.next_run">&mdash;</dd>
+      </dl>
+    </section>
+    <section class="o-panel">
       <div class="o-ph2">
         <h2>SEO crawl</h2>
         <span class="monitor-acts">
           <span class="o-chip" data-field="crawler.state_badge"></span>
-          <button type="button" id="recrawl-btn" class="o-btn o-btn-sm">
+          <button type="button" id="recrawl-btn" class="o-btn o-btn-sm" data-act="recrawl for seo">
             <span class="recrawl-btn-label">Recrawl</span>
             <span class="recrawl-btn-spinner spinner d-none" role="status" aria-hidden="true"></span>
           </button>
@@ -138,7 +263,10 @@
         <dt>next run</dt><dd class="o-mono" data-field="crawler.next_run">&mdash;</dd>
       </dl>
     </section>
-    {{ end }}
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Security headers</h2><span class="o-lab">latest response</span></div>
+      {{ range secChecks . }}{{ template "check" dict "name" .Name "ok" .OK }}{{ end }}
+    </section>
   </div>
 
   {{ with .LighthouseDetails }}
@@ -147,7 +275,7 @@
     {{ if .Metrics }}
     <div class="metrics">
       {{ range .Metrics }}
-      <div class="metric {{ metricClass .Score }}" title="{{ .Title }}">
+      <div class="metric {{ metricClass .Score }}" data-tip="{{ .Title }}">
         <small class="o-mono">{{ .Acronym }} &middot; {{ .Weight }}%</small>
         <b class="o-mono">{{ if .DisplayValue }}{{ .DisplayValue }}{{ else }}&mdash;{{ end }}</b>
       </div>
@@ -173,6 +301,7 @@
     <p class="o-empty"><b>Nothing to fix.</b>Every audit with a saving passes at this URL.</p>
     {{ end }}
   </section>
+  {{ end }}
   {{ end }}
 </main>
 {{ end }}
@@ -200,7 +329,7 @@
   </div>
   {{ end }}
 </section>
-{{ else if .Property.LastCrawlError }}
+{{ else if and .Authenticated .Property.LastCrawlError }}
 <section class="o-wrap o-main"><div class="o-note bad">Last crawl failed: <code>{{ .Property.LastCrawlError }}</code></div></section>
 {{ end }}
 {{ end }}

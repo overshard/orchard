@@ -455,13 +455,3 @@ func countChecks(ctx context.Context, db *sql.DB, id uuid.UUID) (int64, error) {
 		"SELECT COUNT(*) FROM checks WHERE property_id = ?", id[:]).Scan(&n)
 	return n, err
 }
-
-// countUptime returns the all-time up and down counts. The COALESCE is needed
-// since SUM over zero rows is NULL and a never-checked property would fail the scan.
-func countUptime(ctx context.Context, db *sql.DB, id uuid.UUID) (up, down int64, err error) {
-	err = db.QueryRowContext(ctx,
-		`SELECT COALESCE(SUM(CASE WHEN status_code = 200 THEN 1 ELSE 0 END), 0),
-		        COALESCE(SUM(CASE WHEN status_code <> 200 THEN 1 ELSE 0 END), 0)
-		 FROM checks WHERE property_id = ?`, id[:]).Scan(&up, &down)
-	return up, down, err
-}

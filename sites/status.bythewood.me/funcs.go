@@ -36,6 +36,28 @@ var templateFuncs = template.FuncMap{
 	"lower":           strings.ToLower,
 	"ints":            ints,
 	"ring":            ring,
+	"uptimeCell":      uptimeCell,
+	"deref64f": func(p *float64) float64 {
+		if p == nil {
+			return 0
+		}
+		return *p
+	},
+	"certKindP": func(d *int) string {
+		if d == nil {
+			return ""
+		}
+		return certKind(*d)
+	},
+	"secFirstFail": secFirstFail,
+	"pushText":     pushText,
+	"slowBy":       func(base int64) int64 { return max(20, base/2) },
+	"signed":       func(n int64) string { return fmt.Sprintf("%+d", n) },
+	"msClock":      func(ms int64) string { return time.UnixMilli(ms).UTC().Format("15:04:05") },
+	"phaseText":    phaseText,
+	"certClass":    certClass,
+	"tickHeight":   func(v float64) int { return max(6, min(100, int(math.Round(v)))) },
+	"pct2":         func(v *float64) string { return strconv.FormatFloat(*v, 'f', 2, 64) },
 	"deref64": func(p *int64) int64 {
 		if p == nil {
 			return 0
@@ -326,4 +348,54 @@ func ring(label string, score int64) template.HTML {
 		`<circle cx="29" cy="29" r="24" class="track"/><circle cx="29" cy="29" r="24" class="arc" stroke-dasharray="%.1f %.1f" transform="rotate(-90 29 29)"/>`+
 		`<text x="29" y="34" text-anchor="middle">%d</text></svg><span>%s</span></div>`,
 		kind, float64(score)/100*c, c, score, template.HTMLEscapeString(label)))
+}
+
+// uptimeCell is a percentage in a table cell, amber under the target.
+func uptimeCell(v *float64) template.HTML {
+	if v == nil {
+		return `<span class="o-muted">&mdash;</span>`
+	}
+	cls := ""
+	if *v < sloTarget*100 {
+		cls = "o-warn"
+	}
+	return template.HTML(fmt.Sprintf(`<span class="%s">%.2f%%</span>`, cls, *v))
+}
+
+// certClass colours a cert's days left, amber under two weeks and red under one.
+func certClass(days *int) string {
+	if days == nil {
+		return "o-muted"
+	}
+	switch certKind(*days) {
+	case "bad":
+		return "o-bad"
+	case "warn":
+		return "o-warn"
+	}
+	return ""
+}
+
+// pushText says whether ntfy took an incident's alert.
+func pushText(sent *bool) string {
+	switch {
+	case sent == nil:
+		return "pending"
+	case *sent:
+		return "sent"
+	}
+	return "failed"
+}
+
+// phaseText is a check's four phases in one cell, a dash for any that never ran.
+func phaseText(c Check) string {
+	parts := make([]string, 0, 4)
+	for _, v := range []*int64{c.DNSMS, c.TCPMS, c.TLSMS, c.TTFBMS} {
+		if v == nil {
+			parts = append(parts, "-")
+			continue
+		}
+		parts = append(parts, strconv.FormatInt(*v, 10))
+	}
+	return strings.Join(parts, "/")
 }

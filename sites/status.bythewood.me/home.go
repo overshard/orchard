@@ -41,8 +41,8 @@ type PageData struct {
 	Property      *PropertyView
 	InsightGroups []InsightGroup
 	ResponseTimes []ResponseTimePoint
-	StatusCodes   []LabelCount
-	UptimeSlices  []LabelPercent
+	StatusCodes   []CodeBar
+	RecentChecks  []Check
 	GeneratedAt   string
 
 	Suite   suite.Page

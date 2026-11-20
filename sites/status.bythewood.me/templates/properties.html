@@ -13,7 +13,7 @@
   </div>
 
   <details class="o-panel addprop" {{ if not .Properties }}{{ if not .Query }}open{{ end }}{{ end }}>
-    <summary><span class="o-btn o-btn-p o-btn-sm">+ new property</span><span class="o-muted small">Any public https:// URL. The first check runs within three minutes.</span></summary>
+    <summary data-act="add a property"><span class="o-btn o-btn-p o-btn-sm">+ new property</span><span class="o-muted small">Any public https:// URL. The first check runs within three minutes.</span></summary>
     {{/* https:// is not a preference. The checker speaks HTTP/2 over TLS and
          nothing else, so an http:// property could never pass a check. */}}
     <form method="POST" action="/properties" class="o-formbar">
@@ -27,40 +27,65 @@
 
   {{ if .Properties }}
   {{ with .Summary }}
-  <div class="o-tiles">
+  <div class="o-strip">
     <div class="o-tile">
-      <small>uptime &middot; last 100</small>
-      <b>{{ if .HasUptime }}{{ printf "%.2f" .Uptime }}%{{ else }}&mdash;{{ end }}</b>
-      <span class="o-delta">averaged across every site</span>
-      {{ spark (or (and .HasUptime (lt .Uptime 100.0) "warn") "ok") .UpShare }}
+      <small>up now</small>
+      <b class="{{ if lt .Up .Total }}bad{{ end }}">{{ .Up }}/{{ .Total }}</b>
+      <span class="o-delta {{ if .DownName }}o-bad{{ end }}">{{ if .DownName }}{{ .DownName }} down{{ else }}every site answering{{ end }}</span>
+      <span class="o-ticks" aria-hidden="true">{{ range .Sites }}<i class="{{ if .Down }}bad{{ end }}" data-tip="{{ .Name }}{{ if .Down }} · down{{ end }}"></i>{{ end }}</span>
     </div>
     <div class="o-tile">
-      <small>down now</small>
-      <b {{ if $.Down }}class="bad"{{ end }}>{{ $.Down }}</b>
-      <span class="o-delta {{ if $.Down }}o-bad{{ end }}">{{ if $.Down }}see the top of the list{{ else }}nothing down{{ end }}</span>
-      <span class="o-ticks" aria-hidden="true">{{ range .Sites }}<i class="{{ if .Down }}down{{ end }}" title="{{ .Name }}"></i>{{ end }}</span>
+      <small>uptime &middot; 24h</small>
+      <b class="{{ if and .HasUp24 (lt .Up24 99.9) }}warn{{ end }}">{{ if .HasUp24 }}{{ printf "%.2f" .Up24 }}%{{ else }}&mdash;{{ end }}</b>
+      <span class="o-delta">{{ if .Up24Delta }}{{ .Up24Delta }}{{ else }}averaged across sites{{ end }}</span>
+      {{ if .HourUp }}{{ sparkT (or (and (lt .Up24 99.9) "warn") "ok") .HourUp .HourLabels }}{{ else }}<span class="o-nospark"></span>{{ end }}
     </div>
     <div class="o-tile">
-      <small>response &middot; avg</small>
-      <b>{{ .AvgMS }}ms</b>
-      <span class="o-delta">last 30 checks</span>
-      {{ spark "ok" .Response }}
+      <small>uptime &middot; 30d</small>
+      <b class="{{ if and .HasUp30 (lt .Up30 99.9) }}warn{{ end }}">{{ if .HasUp30 }}{{ printf "%.2f" .Up30 }}%{{ else }}&mdash;{{ end }}</b>
+      <span class="o-delta">{{ .BadDays }} bad {{ if eq .BadDays 1 }}day{{ else }}days{{ end }}</span>
+      <span class="o-ticks" aria-hidden="true">{{ range .Days30 }}<i class="{{ .Kind }}" data-tip="{{ .Label }}{{ if eq .Kind "none" }} · no data{{ else if eq .Kind "bad" }} · an outage{{ else if eq .Kind "warn" }} · under 99.9%{{ end }}"></i>{{ end }}</span>
+    </div>
+    <div class="o-tile">
+      <small>error budget</small>
+      <b class="{{ if .HasBudget }}{{ if ne .BudgetKind "ok" }}{{ .BudgetKind }}{{ end }}{{ end }}">{{ if .HasBudget }}{{ printf "%.0f" .Budget }}%{{ else }}&mdash;{{ end }}</b>
+      <span class="o-delta">{{ if .HasBudget }}of 43m, lowest {{ .BudgetName }}{{ else }}waiting on the rollup{{ end }}</span>
+      <span class="o-ticks" aria-hidden="true">{{ range .Sites }}<i class="{{ if ne .BudgetK "ok" }}{{ .BudgetK }}{{ end }}" style="height: {{ tickHeight .Budget }}%" data-tip="{{ .Name }} · {{ printf "%.0f" .Budget }}% left"></i>{{ end }}</span>
+    </div>
+    <div class="o-tile">
+      <small>p95 &middot; 24h</small>
+      <b>{{ if .HasP95 }}{{ .P95 }}ms{{ else }}&mdash;{{ end }}</b>
+      <span class="o-delta">{{ if .HasP95 }}p50 {{ .P50 }}ms{{ else }}no checks yet{{ end }}</span>
+      {{ if .HourP95 }}{{ sparkT "" .HourP95 .HourLabels }}{{ else }}<span class="o-nospark"></span>{{ end }}
+    </div>
+    <div class="o-tile">
+      <small>incidents &middot; 30d</small>
+      <b class="{{ if .Inc30 }}warn{{ end }}">{{ .Inc30 }}</b>
+      <span class="o-delta">mttr {{ .MTTR }}</span>
+      <span class="o-ticks" aria-hidden="true">{{ range .Days30 }}<i class="{{ if eq .Kind "bad" }}bad{{ else if eq .Kind "none" }}none{{ end }}" data-tip="{{ .Label }}"></i>{{ end }}</span>
+    </div>
+    <div class="o-tile">
+      <small>certs &lt; 14d</small>
+      <b class="{{ if .CertsSoon }}warn{{ end }}">{{ .CertsSoon }}</b>
+      <span class="o-delta">{{ if .CertNote }}next, {{ .CertNote }}{{ else }}not read yet{{ end }}</span>
+      <span class="o-ticks" aria-hidden="true">{{ range .Sites }}{{ if .HasCert }}<i class="{{ .CertKind }}" style="height: {{ .CertHeight }}%" data-tip="{{ .Name }} · {{ .CertDays }} days"></i>{{ else }}<i class="none" style="height: 8%" data-tip="{{ .Name }} · not read yet"></i>{{ end }}{{ end }}</span>
     </div>
     <div class="o-tile">
       <small>lighthouse &middot; avg</small>
       <b>{{ if .HasLH }}{{ .Lighthouse }}{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ .SEOIssues }} seo issues &middot; {{ .SecIssues }} header</span>
-      <span class="o-ticks" aria-hidden="true">{{ range .Sites }}{{ if .HasLH }}<i class="{{ if lt .Score 50 }}bad{{ else if lt .Score 90 }}warn{{ end }}" style="height: {{ .Score }}%" title="{{ .Name }} &middot; {{ .Score }}"></i>{{ else }}<i class="none" style="height: 8%" title="{{ .Name }} &middot; not run"></i>{{ end }}{{ end }}</span>
+      <span class="o-ticks" aria-hidden="true">{{ range .Sites }}{{ if .HasLH }}<i class="{{ if lt .Score 50 }}bad{{ else if lt .Score 90 }}warn{{ end }}" style="height: {{ .Score }}%" data-tip="{{ .Name }} · {{ .Score }}"></i>{{ else }}<i class="none" style="height: 8%" data-tip="{{ .Name }} · not run"></i>{{ end }}{{ end }}</span>
     </div>
   </div>
+  <p class="o-foot stripfoot"><span data-xs-when>sparks are the last 24 hours by hour, uptime and budget from the daily rollup</span></p>
   {{ end }}
   {{ end }}
 
   <section class="o-panel flush">
     {{ if .Properties }}
     <div class="o-scroll">
-    <table class="o-tbl stack props">
-      <thead><tr><th>Property</th><th>Last 30 checks</th><th>State</th><th class="r">Uptime</th><th class="r">Response</th><th class="r">LH</th><th class="r">SEO</th><th>Headers</th><th></th></tr></thead>
+    <table class="o-tbl stack props" data-keys>
+      <thead><tr><th>Property</th><th>Last 30 checks</th><th>30 days</th><th>State</th><th class="r">24h</th><th class="r">30d</th><th>Response &middot; 24h</th><th class="r">Cert</th><th class="r">LH</th><th class="r">SEO</th><th>Headers</th><th></th></tr></thead>
       <tbody>
       {{ range .Properties }}
         <tr data-href="/{{ .ID }}" class="{{ if ne .CurrentStatus 200 }}hot{{ end }}">
@@ -68,16 +93,19 @@
             <span class="o-dot {{ if ne .CurrentStatus 200 }}bad{{ end }}"></span><a class="name" href="/{{ .ID }}">{{ .Name }}</a>
             {{ if .IsPublic }}<span class="o-chip">public</span>{{ end }}
           </td>
-          <td>{{ template "uptimeStrip" . }}</td>
-          <td>{{ template "stateChip" . }}</td>
-          <td class="r n">{{ if .RecentUptimePct }}{{ pct1 .RecentUptimePct }}%{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
-          <td class="r n {{ if gt .AvgResponseTime 500 }}o-warn{{ end }}">{{ .AvgResponseTime }}ms</td>
-          <td class="r n">{{ if .AvgLighthouseScore }}<span class="{{ if lt (deref64 .AvgLighthouseScore) 90 }}o-warn{{ end }}">{{ .AvgLighthouseScore }}</span>{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
-          <td class="r n {{ if gt (len .CrawlerInsights) 25 }}o-warn{{ else if not .CrawlerInsights }}o-muted{{ end }}">{{ len .CrawlerInsights }}</td>
-          <td>{{ if .HasSecurityIssue }}<span class="o-chip warn">issues</span>{{ else }}<span class="o-chip">clean</span>{{ end }}</td>
+          <td data-l="last 30">{{ template "uptimeStrip" . }}</td>
+          <td data-l="30 days"><span class="o-ds" aria-label="Last 30 days">{{ range .H.Ticks30 }}<i class="{{ .Kind }}" data-tip="{{ .Tip }}"></i>{{ end }}</span></td>
+          <td data-l="state">{{ template "stateChip" . }}</td>
+          <td class="r n" data-l="24h">{{ uptimeCell .H.Up24 }}</td>
+          <td class="r n" data-l="30d">{{ uptimeCell .H.Up30 }}</td>
+          <td class="o-cell-spark n" data-l="response">{{ sparkT (or (and (gt .AvgResponseTime 500) "warn") "") .H.HourP50 .H.HourLabels }} {{ if .H.P50 }}{{ .H.P50 }}ms{{ else }}{{ .AvgResponseTime }}ms{{ end }}</td>
+          <td class="r n" data-l="cert">{{ if .CertDays }}<span class="{{ certClass .CertDays }}" data-tip="{{ .CertIssuer }} · expires {{ .CertExpires }}">{{ .CertDays }}d</span>{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
+          <td class="r n" data-l="lighthouse">{{ if .AvgLighthouseScore }}<span class="{{ if lt (deref64 .AvgLighthouseScore) 90 }}o-warn{{ end }}">{{ .AvgLighthouseScore }}</span>{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
+          <td class="r n {{ if gt (len .CrawlerInsights) 25 }}o-warn{{ else if not .CrawlerInsights }}o-muted{{ end }}" data-l="seo">{{ len .CrawlerInsights }}</td>
+          <td data-l="headers">{{ if .HasSecurityIssue }}<span class="o-chip warn">issues</span>{{ else }}<span class="o-chip">clean</span>{{ end }}</td>
           <td class="act">
             {{ if not .IsProtected }}
-            <form method="POST" action="/properties/{{ .ID }}/delete" data-confirm="Stop watching {{ .URL }} and delete its checks?">
+            <form method="POST" action="/properties/{{ .ID }}/delete" data-confirm="Stop watching {{ .URL }} and delete its checks and history?">
               <button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete</button>
             </form>
             {{ end }}

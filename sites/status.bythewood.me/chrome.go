@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -84,90 +85,202 @@ func spell(n int) string {
 	return fmt.Sprint(n)
 }
 
-// listSummary is the tiles over the property list, each with the trend the
-// properties share, averaged check by check.
+// listSummary is the strip over the property list.
 type listSummary struct {
-	Uptime     float64
-	HasUptime  bool
-	AvgMS      int64
-	Response   []float64
+	Total, Up int
+	DownName  string
+	Sites     []siteMark
+
+	Up24, Up30       float64
+	HasUp24, HasUp30 bool
+	Up24Delta        string
+	HourLabels       []string
+	HourUp, HourP95  []float64
+	Days30           []DayView
+	BadDays          int
+
+	Budget     float64
+	HasBudget  bool
+	BudgetKind string
+	BudgetName string
+
+	P95, P50 int64
+	HasP95   bool
+
+	Inc30 int
+	MTTR  string
+
+	CertsSoon int
+	CertNote  string
+
 	Lighthouse int64
 	HasLH      bool
 	SEOIssues  int
 	SecIssues  int
-	// UpShare is the share of sites up at each of the last 30 checks.
-	UpShare []float64
-	Sites   []siteMark
 }
 
 // siteMark is one site as a tick in a tile.
 type siteMark struct {
-	Name  string
-	Down  bool
-	Score int64
-	HasLH bool
+	Name     string
+	Down     bool
+	Score    int64
+	HasLH    bool
+	Budget   float64
+	BudgetK  string
+	CertDays int
+	HasCert  bool
+}
+
+// CertHeight scales days left against 90 so a tick reads as a gauge.
+func (m siteMark) CertHeight() int { return max(6, min(100, m.CertDays*100/90)) }
+
+// CertKind is amber under two weeks and red under one.
+func (m siteMark) CertKind() string { return certKind(m.CertDays) }
+
+func certKind(days int) string {
+	switch {
+	case days < 7:
+		return "bad"
+	case days < 14:
+		return "warn"
+	}
+	return ""
 }
 
 func summarize(views []*PropertyView) listSummary {
-	var out listSummary
-	var upSum float64
-	var upN, lhN int
-	var lhSum, msSum int64
-	sums := make([]float64, 30)
-	counts := make([]float64, 30)
-	ups := make([]float64, 30)
-	seen := make([]float64, 30)
+	out := listSummary{Total: len(views), MTTR: "none"}
+	var up24, up30, lhSum, p95, p50, yday float64
+	var n24, n30, lhN, nP, nY int
+	var mttrSum time.Duration
+	var mttrN int
+	hourSum := make([]float64, 24)
+	p95Sum := make([]float64, 24)
+	hourN := 0
+	soonest := -1
+	out.Budget = 101
 	for _, v := range views {
+		h := v.H
 		m := siteMark{Name: v.Name, Down: v.CurrentStatus != 200}
+		if !m.Down {
+			out.Up++
+		} else if out.DownName == "" {
+			out.DownName = v.Name
+		}
 		if v.AvgLighthouseScore != nil {
 			m.Score, m.HasLH = *v.AvgLighthouseScore, true
-		}
-		out.Sites = append(out.Sites, m)
-		toff := 30 - len(v.RecentTickStream)
-		for i, t := range v.RecentTickStream {
-			seen[toff+i]++
-			if t == "up" {
-				ups[toff+i]++
-			}
-		}
-		if v.RecentUptimePct != nil {
-			upSum += *v.RecentUptimePct
-			upN++
-		}
-		if v.AvgLighthouseScore != nil {
-			lhSum += *v.AvgLighthouseScore
+			lhSum += float64(*v.AvgLighthouseScore)
 			lhN++
 		}
-		msSum += v.AvgResponseTime
+		if v.CertDays != nil {
+			m.CertDays, m.HasCert = *v.CertDays, true
+			if *v.CertDays < 14 {
+				out.CertsSoon++
+			}
+			if soonest < 0 || *v.CertDays < soonest {
+				soonest = *v.CertDays
+				out.CertNote = fmt.Sprintf("%s in %d days", v.Name, *v.CertDays)
+			}
+		}
 		out.SEOIssues += len(v.CrawlerInsights)
 		if v.HasSecurityIssue {
 			out.SecIssues++
 		}
-		// Right aligned, so the newest check of every property lines up.
-		off := 30 - len(v.ResponseSeries)
-		for i, ms := range v.ResponseSeries {
-			sums[off+i] += ms
-			counts[off+i]++
+		if h.BudgetLeft != nil {
+			m.Budget, m.BudgetK = *h.BudgetLeft, h.BudgetKind
+			if *h.BudgetLeft < out.Budget {
+				out.Budget, out.BudgetKind, out.BudgetName, out.HasBudget = *h.BudgetLeft, h.BudgetKind, v.Name, true
+			}
+		}
+		if h.Up24 != nil {
+			up24 += *h.Up24
+			n24++
+		}
+		if h.Up30 != nil {
+			up30 += *h.Up30
+			n30++
+		}
+		if len(h.Days) >= 2 && h.Days[len(h.Days)-2].Kind != "none" {
+			yday += h.Days[len(h.Days)-2].Uptime
+			nY++
+		}
+		if h.P95 != nil {
+			p95 += float64(*h.P95)
+			p50 += float64(*h.P50)
+			nP++
+		}
+		if len(h.HourUp) == 24 {
+			hourN++
+			out.HourLabels = h.HourLabels
+			for i := range 24 {
+				hourSum[i] += h.HourUp[i]
+				p95Sum[i] += h.HourP95[i]
+			}
+		}
+		out.Inc30 += h.Inc30
+		for _, inc := range h.Incidents {
+			if inc.End != nil {
+				mttrSum += inc.dur
+				mttrN++
+			}
+		}
+		// Worst day across every site, so one red day anywhere shows.
+		for i, d := range h.Ticks30() {
+			if i >= len(out.Days30) {
+				out.Days30 = append(out.Days30, DayView{Label: d.Label, Kind: d.Kind})
+				continue
+			}
+			if rank(d.Kind) > rank(out.Days30[i].Kind) {
+				out.Days30[i].Kind = d.Kind
+			}
+		}
+		out.Sites = append(out.Sites, m)
+	}
+	for _, d := range out.Days30 {
+		if d.Kind == "bad" || d.Kind == "warn" {
+			out.BadDays++
 		}
 	}
-	if upN > 0 {
-		out.Uptime, out.HasUptime = upSum/float64(upN), true
+	if n24 > 0 {
+		out.Up24, out.HasUp24 = up24/float64(n24), true
+		if nY > 0 {
+			d := out.Up24 - yday/float64(nY)
+			out.Up24Delta = fmt.Sprintf("%+.2f on yesterday", d)
+			if math.Abs(d) < 0.005 {
+				out.Up24Delta = "level with yesterday"
+			}
+		}
+	}
+	if n30 > 0 {
+		out.Up30, out.HasUp30 = up30/float64(n30), true
+	}
+	if nP > 0 {
+		out.P95, out.P50, out.HasP95 = int64(p95/float64(nP)), int64(p50/float64(nP)), true
 	}
 	if lhN > 0 {
-		out.Lighthouse, out.HasLH = lhSum/int64(lhN), true
+		out.Lighthouse, out.HasLH = int64(lhSum/float64(lhN)), true
 	}
-	if len(views) > 0 {
-		out.AvgMS = msSum / int64(len(views))
+	if mttrN > 0 {
+		out.MTTR = shortDur(mttrSum / time.Duration(mttrN))
 	}
-	for i := range sums {
-		if counts[i] > 0 {
-			out.Response = append(out.Response, sums[i]/counts[i])
-		}
-		if seen[i] > 0 {
-			out.UpShare = append(out.UpShare, ups[i]/seen[i]*100)
+	if hourN > 0 {
+		for i := range 24 {
+			out.HourUp = append(out.HourUp, hourSum[i]/float64(hourN))
+			out.HourP95 = append(out.HourP95, p95Sum[i]/float64(hourN))
 		}
 	}
 	return out
+}
+
+func rank(kind string) int {
+	switch kind {
+	case "bad":
+		return 3
+	case "warn":
+		return 2
+	case "":
+		return 1
+	}
+	return 0
 }
 
 type secCheck struct {
@@ -186,6 +299,17 @@ func secChecks(v *PropertyView) []secCheck {
 		{"HSTS", v.HasHSTS},
 		{"HSTS preload", v.HasHSTSPreload},
 	}
+}
+
+// secFirstFail names the first header check that fails, for a tile's note.
+func secFirstFail(v *PropertyView) string {
+	short := []string{"https", "content type", "nosniff", "frame options", "server header", "hsts", "hsts preload"}
+	for i, c := range secChecks(v) {
+		if !c.OK {
+			return short[i]
+		}
+	}
+	return ""
 }
 
 func secPass(v *PropertyView) int {

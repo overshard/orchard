@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -24,12 +25,21 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 	data := s.page(r, "Properties", "Manage your properties.")
 	data.Query = query
 
+	hist, err := loadHistories(r.Context(), s.db, rows, time.Now())
+	if err != nil {
+		slog.Info("properties list: history", slog.Any("err", err))
+		hist = map[uuid.UUID]*History{}
+	}
 	for _, p := range rows {
 		view, err := s.buildPropertyView(r.Context(), p)
 		if err != nil {
 			// One property failing to summarise must not blank the list.
 			slog.Info("properties list: building view", slog.Any("url", p.URL), slog.Any("err", err))
 			continue
+		}
+		view.H = hist[p.ID]
+		if view.H == nil {
+			view.H = &History{}
 		}
 		data.Properties = append(data.Properties, view)
 	}
