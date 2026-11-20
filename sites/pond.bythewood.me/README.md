@@ -223,25 +223,33 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   each visitor and each stamp handed over at a greeting, twelve to a
   painting, and the away list says when they brought one. The four are drawn
   in `company.js`.
-- `market.go` is the pond market, in three sorts. Shares in the town's
-  businesses, each moved by one line of work across every pond, goods that are
-  bought into the bag and sold out of it by the lot, and Glowworm Coin. A
-  pond's shares and coin are in `shares` at what it paid, each day's open,
-  close and dividend a share in `market_days`, and dividends are paid from
-  `ponds.div_day` on.
+- `market.go` is the night market, six things on one board. Reeds, clay,
+  fish and sticks are bought into the bag and sold out of it by the lot, glow
+  coin swings, and the moonmelon lasts a week. A pond's coin is in `shares`
+  at what it paid and each day's open, close, push and why in `market_days`.
+  The board carried shares in the town's businesses once, and `payShares`
+  bought every one back at its last price with dividends owed, once, behind a
+  row in `migrations`, leaving a line in `away` for the next greeting.
+- `melon.go` is the moonmelon, bought on Sunday only, up to twenty a week, and
+  sold any day till Saturday is over, when what's left spoils. A pond's
+  melons are in `melons` with the Sunday they came in.
+- `traders.go` is the residents on the board. Each hour each of them may
+  trade, dealt off an HMAC of the pepper and the day, with a lean of its own
+  off the day's push, and their trades in a good move its price and show on
+  the tape. They never move the coin or the melon.
 - `stores.go` is Sedge's bait and Marsh's postcard frames, two small shops
   that run through `shop.go` like the others. A bait is used up by the next
-  round of fishing and only changes what bites, and each shop moves a share
-  through a `shop:` flow on every sale.
+  round of fishing and only changes what bites, and each shop counts its sales
+  in a `shop:` flow.
 - `black.go` is the market's back door, open 4pm to 8:30pm
   pond time. Three deals a window, the same for every pond, priced in coin
   and dealt with what each really is off an HMAC of the pepper. What a pond
   bought is in `black_buys`, and `black.js` draws the hooded frog over any
   frog's cells instead of a sprite of its own.
-- `news.go` is the paper's Business story. A line of work whose day before
-  was well over or under its week makes the paper, and the same full day of
-  flow moves its share through the morning, so the story never leads a move
-  nobody could have read.
+- `news.go` is what pushes a good on a day, the real weather, the season and
+  the paper's story, a good whose supply the day before was well over or
+  under its week. The push is worked out once the day has a reason and kept,
+  and it comes in over the first six hours.
 - `prices.go` is how a price moves. Every ten minute slot of the day is a
   step off an HMAC of the pepper, and what every pond did is counted by the
   hour in `market_flow` by `addFlow` and weighed against the week before.
@@ -415,17 +423,19 @@ they have none, for other sites to draw.
   the pond with everything out after moving any of it.
 - A reveal that comes while another is up waits in a queue in `ui.js`, so
   nothing should hide `#reveal` itself.
-- Nothing in the market reads dash. The first eight keys in `assets` once
-  followed its markets, and a `market_days` row with no open is a real close,
+- Nothing in the market reads dash's markets, only its weather. The coin's key
+  is still `bitcoin` and a `market_days` row with no open is a real close,
   which is carried on from and never worked out again. Keys are kept for good
-  since holdings are kept by them.
+  since holdings are kept by them. The market keepsakes and Big Bean's sale
+  read the real S&P off dash and not the board.
 - Each step of a price is worth what it cost on average, so nobody can buy
   ahead of a move, and that's why the coin drifts down in the middle while
   its average holds. A good is held to a band round its base so two of it
   always cost more than any dish made only of goods, and the market pays for
-  goods through `payOut` with a room of its own. `TestMarketStrategies`
-  plays five ways of trading for 90 days, so run it after touching a fee, the
-  yield or a tune.
+  goods through `payOut` with a room of its own. A push is capped under the
+  fee there and back, and the residents' trades are only seen after they're
+  in the price. `TestMarketStrategies` plays six ways of trading for 90 days
+  with the weather changing, so run it after touching a fee, a push or a tune.
 - A back door deal's outcome must never be in the view before it's bought,
   and `TestDealsAreTheSameForEveryPondAndHidden` reads the JSON for it. Its
   hints only lean, and `TestTheBackDoorCostsInTheLongRun` holds every way of
