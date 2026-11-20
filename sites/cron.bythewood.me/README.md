@@ -30,18 +30,22 @@ curl -H "Authorization: Bearer $CRON_KEY" https://cron.bythewood.me/api/jobs \
 ```
 
 `GET /api/jobs`, `POST /api/jobs`, `GET`, `PATCH` and `DELETE /api/jobs/{id}`,
-`POST /api/jobs/{id}/run`, `GET /api/runs?job=&limit=` and
-`GET /api/preview?cron=` or `?at=`. A job is `name`, `kind` (`notify` or
-`prompt`), `at` or `cron`, `message`, and optionally `title`, `priority` (ntfy's
-min to urgent) and `link`.
+`POST /api/jobs/{id}/run`, `POST /api/jobs/{id}/try`,
+`GET /api/runs?job=&result=&limit=` and `GET /api/preview?when=`, `?cron=` or
+`?at=`. A job is `name`, `kind` (`notify` or `prompt`), `when`, `at` or `cron`,
+`message`, and optionally `title`, `priority` (ntfy's min to urgent) and `link`.
+`when` takes plain words like `every weekday at 7:30am`, `mon and thu 8pm`,
+`on the 1st every 3 months`, `in 2 hours` or `dec 24 at 9am`, and a cron line or
+a timestamp too. A run's `result` is pushed, quiet, failed or missed.
 
 ## Layout
 
 `cronexpr.go` parses a cron line and finds its next time on a wall clock,
-`scheduler.go` is one goroutine that sleeps until the soonest job, fires it and
+`when.go` reads plain words into a cron line or a one-off, `scheduler.go` is one goroutine that sleeps until the soonest job, fires it and
 writes the run, `model.go` asks llm for a check, `api.go` is the JSON API and
-the validation the form shares, `pages.go` the pages, and `db.go` the jobs,
-runs, keys and snooze tokens. Templates and `static/` are written by hand, with
+the validation the form shares, `pages.go` and `view.go` the pages and the week,
+`actions.go` try, move and bulk pause, and `db.go` the jobs, runs, keys and
+snooze tokens. Templates and `static/` are written by hand, with
 no Vite.
 
 ## Things that will bite you
@@ -50,7 +54,13 @@ no Vite.
   that can't reach ntfy is tried every five minutes, six times, and then
   dropped with an error in the log.
 - A repeating job missed by over an hour while the container was down skips to
-  its next time instead of firing late.
+  its next time instead of firing late, and writes a missed run for each fire
+  it skipped, at most twelve a job. A push given up on is a dropped run.
+- Try it runs a job without sending it. It's built on a type with no publisher,
+  so it can't reach ntfy, write a run or mint a snooze, and a test holds it to
+  that.
+- Only a one-off can be dragged to another day in the week. A repeating job's
+  days are its cron line.
 - Each push carries a snooze button that posts back to
   `https://cron.bythewood.me/snooze/<token>` from the phone. The token is the
   only credential, so it's single use and gone in a week.
