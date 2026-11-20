@@ -33,7 +33,8 @@ llm's volume is lost.
 
 `proxy.go` checks the key and forwards OpenAI style calls upstream,
 `anthropic.go` translates them to the Messages API and back, `db.go`
-holds the keys and the log, `images.go` the picture calls and `gpu.go` asks the
+holds the keys and the log, `spend.go` the prices and the ledger, `stats.go`
+and `pages.go` the overview, calls and keys pages, `images.go` the picture calls and `gpu.go` asks the
 probe whether the desktop is using the card and turns away calls marked
 `X-Background: 1` while it is. `modelserver/` builds llama.cpp,
 stable-diffusion.cpp and llama-swap, and `gpuprobe/` is the `nvidia-smi`
@@ -51,6 +52,14 @@ sidecar. Templates and `static/` are written by hand, with no Vite.
   until the budget is raised in `.env` and the site redeployed. Each key also
   gets a burst of 10 calls and 1 a second after that, and `max_tokens` is
   clamped to 16384.
+- A key can have a monthly cap on the keys page. Once that key's spend this
+  month reaches it, its calls get a 422 with `insufficient_quota` until the
+  1st. No cap means no limit, which is how dash, cron and pond run.
+- Each spend row points at the call it paid for, so a call's cost is exact.
+  Calls from before that link existed are priced from their token counts with
+  the whole prompt as uncached input, and show with a `~`. Time to first token
+  is only known for streamed calls, and a call that didn't stream shows its
+  total alone.
 
 - The model server and the probe sit on a private network with no auth of
   their own, and only the gateway joins the edge.
