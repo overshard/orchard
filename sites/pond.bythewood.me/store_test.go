@@ -492,6 +492,7 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 			playForAims(t, s, clock, id, aimedGames[k%len(aimedGames)])
 		}
 		playMarket(t, s, id)
+		playDerby(t, s, id)
 		after, _ := s.view(id)
 		minted += after.Pebbles - before.Pebbles
 
