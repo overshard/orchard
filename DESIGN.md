@@ -548,7 +548,7 @@ below live as tokens at the top of `frontend/src/index.css`.
   the residents out on it, a different three each day. Shops is a shopfront
   with a striped awning and its keeper, one over every shop, Sell is the
   stall with the frog behind the counter and what's up on it, Market is the
-  boardwalk with a chalk board of how the goods moved, Play is a jetty with a
+  boardwalk with a chalk board of how the goods and the coin moved, Play is a jetty with a
   row of firefly jars, and the bag is the satchel on a table by a lamp with
   the pond's own things spilled round it. The kitchen pot and the garden are
   smaller pictures in a dark frame in the same night look.
@@ -559,8 +559,16 @@ below live as tokens at the top of `frontend/src/index.css`.
   empty spot you can fill, like a stall spot, is a key with a dashed edge and a
   plus.
 - **What's coming.** The frogs in the scenes get a warm rim on the side the
-  nearest lantern is on. After that comes the market as a night market
-  board.
+  nearest lantern is on.
+- **The market is a night market board.** Under the boardwalk scene, whose
+  chalk board shows three goods and the coin, comes the moonmelon cart as a
+  row like the Next strip's, lit with a lamp Buy key on a Sunday and green
+  edged on the Saturday they spoil. Then the board, a card a thing with its
+  12 by 12 icon, its name over one muted line saying why it's moving, a spark
+  line in green or red and the price in plain text over its change. Then the
+  tape, the neighbours' latest trades in a dark well, each a small lit face,
+  the name in bold and the time on the right. What's held is a row of tiles,
+  and the back door is a row whose key opens the hooded frog under it.
 - **Colour lives in the pictures, the icons and rarity.** The frog, the water,
   the wheel, Dive, the stall and the wizard are colour pixel art. Past that
   the colour is the 12 by 12 pixel icons, a thing's tier, lamp yellow on keys,
