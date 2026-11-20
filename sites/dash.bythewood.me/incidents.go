@@ -55,8 +55,15 @@ type Incident struct {
 	URL   string `json:"url,omitempty"`
 
 	// One per day, oldest first and today last: 0 quiet, 1 an incident
-	// elsewhere at the provider, 2 one that touched this setup.
-	Days []int `json:"days"`
+	// elsewhere at the provider, 2 one that touched this setup. Notes is the
+	// same days as a line each for the cell's tooltip.
+	Days  []int    `json:"days"`
+	Notes []string `json:"notes,omitempty"`
+
+	// Hits is how many of the days touched this setup and LastHit how many days
+	// ago the newest was, -1 for none, so a CLEAR row with an amber strip says why.
+	Hits    int `json:"hits"`
+	LastHit int `json:"last_hit"`
 
 	id, impact string
 }
@@ -89,13 +96,25 @@ func (p provider) touches(inc statuspageIncident) bool {
 	return p.relevant.MatchString(text) || (severe && p.broad != nil && p.broad.MatchString(text))
 }
 
+// incidentHistory is one provider's last historyDays New York days.
+type incidentHistory struct {
+	days  []int
+	notes []string
+}
+
+// Past this many names a day's note says how many more there were.
+const notesPerDay = 3
+
 // historyDaysFor lays a provider's recent incidents over the last historyDays
-// New York days, each day keeping the worst thing that happened on it.
-func historyDaysFor(p provider, incidents []statuspageIncident, now time.Time) []int {
+// New York days, each day keeping the worst thing that happened on it and
+// naming what happened, the ones that touched this setup first.
+func historyDaysFor(p provider, incidents []statuspageIncident, now time.Time) incidentHistory {
 	loc := easternTime()
 	today := time.Date(now.In(loc).Year(), now.In(loc).Month(), now.In(loc).Day(), 0, 0, 0, 0, loc)
 	first := today.AddDate(0, 0, -(historyDays - 1))
 	days := make([]int, historyDays)
+	hit := make([][]string, historyDays)
+	other := make([][]string, historyDays)
 	for _, inc := range incidents {
 		end := now
 		if inc.ResolvedAt != nil {
@@ -107,59 +126,91 @@ func historyDaysFor(p provider, incidents []statuspageIncident, now time.Time) [
 		}
 		for i := range days {
 			start := first.AddDate(0, 0, i)
-			if inc.CreatedAt.Before(start.AddDate(0, 0, 1)) && !end.Before(start) && level > days[i] {
-				days[i] = level
+			if !inc.CreatedAt.Before(start.AddDate(0, 0, 1)) || end.Before(start) {
+				continue
+			}
+			days[i] = max(days[i], level)
+			if level == 2 {
+				hit[i] = append(hit[i], inc.Name)
+			} else {
+				other[i] = append(other[i], inc.Name)
 			}
 		}
 	}
-	return days
+	notes := make([]string, historyDays)
+	for i := range notes {
+		label := strings.ToUpper(first.AddDate(0, 0, i).Format("Mon Jan 2"))
+		names := append(hit[i], other[i]...)
+		switch {
+		case len(names) == 0:
+			notes[i] = label + ", NO INCIDENTS"
+		case len(names) > notesPerDay:
+			notes[i] = fmt.Sprintf("%s\n%s\nand %d more", label, strings.Join(names[:notesPerDay], "\n"), len(names)-notesPerDay)
+		default:
+			notes[i] = label + "\n" + strings.Join(names, "\n")
+		}
+	}
+	return incidentHistory{days, notes}
+}
+
+// hitCount says how many days touched this setup and how many days ago the
+// newest of them was, -1 when none did.
+func hitCount(days []int) (hits, last int) {
+	last = -1
+	for i, d := range days {
+		if d == 2 {
+			hits++
+			last = len(days) - 1 - i
+		}
+	}
+	return hits, last
 }
 
 var historyCache = struct {
 	sync.Mutex
 	at   map[string]time.Time
-	days map[string][]int
-}{at: map[string]time.Time{}, days: map[string][]int{}}
+	hist map[string]incidentHistory
+}{at: map[string]time.Time{}, hist: map[string]incidentHistory{}}
 
 // providerHistory is read at most hourly, and a failed read keeps the last one.
-func providerHistory(ctx context.Context, g *Guard, p provider, now time.Time) []int {
+func providerHistory(ctx context.Context, g *Guard, p provider, now time.Time) incidentHistory {
 	historyCache.Lock()
-	at, days := historyCache.at[p.label], historyCache.days[p.label]
+	at, h := historyCache.at[p.label], historyCache.hist[p.label]
 	historyCache.Unlock()
-	if days != nil && now.Sub(at) < historyEvery {
-		return days
+	if h.days != nil && now.Sub(at) < historyEvery {
+		return h
 	}
 	var all []statuspageIncident
 	for _, page := range p.pages {
 		var s statuspageIncidents
 		if err := getJSONHeaders(ctx, g, "statushistory", page+"/api/v2/incidents.json", politeAgent, &s); err != nil {
 			pollFailed(ctx, "status history", "security", err)
-			return days
+			return h
 		}
 		all = append(all, s.Incidents...)
 	}
-	days = historyDaysFor(p, all, now)
+	h = historyDaysFor(p, all, now)
 	historyCache.Lock()
-	historyCache.at[p.label], historyCache.days[p.label] = now, days
+	historyCache.at[p.label], historyCache.hist[p.label] = now, h
 	historyCache.Unlock()
-	return days
+	return h
 }
 
 func fetchIncidents(ctx context.Context, g *Guard, prev []Incident) []Incident {
 	var out []Incident
 	for i, p := range providers {
 		row, err := providerIncidents(ctx, g, p)
-		row.Days = providerHistory(ctx, g, p, time.Now())
 		if err != nil {
 			pollFailed(ctx, "statuspage", "security", err)
-			days := row.Days
 			if i < len(prev) && prev[i].Name == p.label {
 				row = prev[i]
 			} else {
 				row = Incident{Name: p.label, State: "unknown", Text: "NO ANSWER"}
 			}
-			row.Days = days
 		}
+		h := providerHistory(ctx, g, p, time.Now())
+		row.Days, row.Notes = h.days, h.notes
+		row.Hits, row.LastHit = hitCount(h.days)
 		out = append(out, row)
 	}
 	return out
@@ -212,4 +263,32 @@ func incidentNotices(rows []Incident) []Notice {
 		})
 	}
 	return out
+}
+
+// incidentChip is a row's state in a word, CLEAR when nothing open touches
+// this setup even if the provider has incidents elsewhere.
+func incidentChip(r Incident) string {
+	switch r.State {
+	case "hit":
+		return "AFFECTED"
+	case "unknown":
+		return "NO ANSWER"
+	}
+	return "CLEAR"
+}
+
+func incidentHistoryLine(r Incident) string {
+	if len(r.Days) == 0 {
+		return ""
+	}
+	var last string
+	switch r.LastHit {
+	case -1:
+		return fmt.Sprintf("NO HITS IN %dD", len(r.Days))
+	case 0:
+		last = "LAST HIT TODAY"
+	default:
+		last = fmt.Sprintf("LAST HIT %dD AGO", r.LastHit)
+	}
+	return fmt.Sprintf("%s / %d OF %d DAYS", last, r.Hits, len(r.Days))
 }
