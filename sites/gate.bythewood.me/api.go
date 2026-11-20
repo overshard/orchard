@@ -197,3 +197,96 @@ func (s *site) apiPropose(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{"id": rule.ID, "name": rule.Name, "url": fmt.Sprintf("%s/rules/%d", baseURL, rule.ID),
 		"state": "watching, waiting on Isaac", "ends": rule.Expires.Format(time.RFC3339)})
 }
+
+type edit struct {
+	Name     string  `json:"name"`
+	Why      string  `json:"why"`
+	When     *string `json:"when"`
+	Then     *string `json:"then"`
+	Status   *int    `json:"status"`
+	Rate     *int    `json:"rate"`
+	Message  *string `json:"message"`
+	Note     *string `json:"note"`
+	BanAfter *int    `json:"ban_after"`
+	BanHours *int    `json:"ban_hours"`
+	Watching *bool   `json:"watching"`
+}
+
+// apiEdit changes the fields the connector sends on an existing rule. It can't
+// turn a proposal on, touch an allow rule or save one that catches signing in,
+// since those could let in or lock out more than it meant to.
+func (s *site) apiEdit(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	fail := func(code int, msg string) {
+		w.WriteHeader(code)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	}
+	var e edit
+	if err := json.NewDecoder(io.LimitReader(r.Body, 16<<10)).Decode(&e); err != nil {
+		fail(http.StatusBadRequest, "the body has to be a JSON object")
+		return
+	}
+	if strings.TrimSpace(e.Why) == "" {
+		fail(http.StatusBadRequest, "say why in why")
+		return
+	}
+	old, err := s.store.RuleNamed(e.Name)
+	if err != nil {
+		fail(http.StatusNotFound, "no rule named "+e.Name)
+		return
+	}
+	rule := old
+	if e.When != nil {
+		rule.When = strings.TrimSpace(*e.When)
+	}
+	if e.Then != nil {
+		rule.Action = *e.Then
+	}
+	if e.Status != nil {
+		rule.Status = *e.Status
+	}
+	if e.Rate != nil {
+		rule.Rate = *e.Rate
+	}
+	if e.Message != nil {
+		rule.Message = strings.TrimSpace(*e.Message)
+	}
+	if e.Note != nil {
+		rule.Note = strings.TrimSpace(*e.Note)
+	}
+	if e.BanAfter != nil {
+		rule.BanAfter = *e.BanAfter
+	}
+	if e.BanHours != nil {
+		rule.BanFor = time.Duration(*e.BanHours) * time.Hour
+	}
+	if e.Watching != nil {
+		rule.Watching = *e.Watching
+	}
+	switch {
+	case old.Action == actAllow || rule.Action == actAllow:
+		fail(http.StatusForbidden, "allow rules are only changed from gate's page")
+		return
+	case old.Pending && !rule.Watching:
+		fail(http.StatusForbidden, "a proposal is turned on by Isaac from gate's page")
+		return
+	}
+	if err := rule.validate(); err != nil {
+		fail(http.StatusBadRequest, err.Error())
+		return
+	}
+	if !rule.Watching {
+		if lock := s.lockoutFor(&rule); len(lock) > 0 {
+			fail(http.StatusForbidden, "it would catch signing in ("+strings.Join(lock, ", ")+"), so only Isaac can save it")
+			return
+		}
+	}
+	if err := s.store.UpdateRuleWhy(&rule, "claude", strings.Join(strings.Fields(e.Why), " ")); err != nil {
+		fail(http.StatusBadRequest, err.Error())
+		return
+	}
+	_ = s.reload()
+	_ = json.NewEncoder(w).Encode(map[string]any{"id": rule.ID, "name": rule.Name, "url": fmt.Sprintf("%s/rules/%d", baseURL, rule.ID),
+		"state": describe(rule), "when": rule.When, "ban_after": rule.BanAfter, "ban_hours": int(rule.BanFor / time.Hour)})
+}

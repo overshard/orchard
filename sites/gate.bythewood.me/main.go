@@ -196,6 +196,7 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("GET /api/report", s.auth.RequireAuthJSON(s.apiReport))
 	mux.HandleFunc("GET /api/traffic", s.auth.RequireAuthJSON(s.apiTraffic))
 	mux.HandleFunc("POST /api/propose", s.auth.RequireAuthJSON(s.apiPropose))
+	mux.HandleFunc("POST /api/edit", s.auth.RequireAuthJSON(s.apiEdit))
 	mux.Handle("GET /static/", static())
 	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
 	mux.Handle("GET /suite/", suite.Handler())

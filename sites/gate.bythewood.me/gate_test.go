@@ -370,3 +370,42 @@ func work(seed string) string {
 }
 
 func mustAddr(s string) netip.Addr { return netip.MustParseAddr(s) }
+
+func TestAPIEdit(t *testing.T) {
+	s := testSite(t)
+	post := func(body string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		s.signedInHandler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/edit", strings.NewReader(body)))
+		return w
+	}
+	if w := post(`{"name":"scanners","why":"repeat probers","ban_after":20}`); w.Code != 200 {
+		t.Fatalf("edit = %d %s", w.Code, w.Body.String())
+	}
+	r, _ := s.store.RuleNamed("scanners")
+	if r.BanAfter != 20 || r.BanFor != 24*time.Hour || r.Watching {
+		t.Fatalf("edit stored wrong: %+v", r)
+	}
+	if c, _, _ := s.store.Changes(1); len(c) != 1 || c[0].Who != "claude" || !strings.Contains(c[0].What, "why: repeat probers") || c[0].Before == "" {
+		t.Fatalf("change not logged: %+v", c)
+	}
+	for body, code := range map[string]int{
+		`{"name":"scanners","ban_after":5}`:                           400,
+		`{"name":"nope","why":"x","ban_after":5}`:                     404,
+		`{"name":"claude-connector","why":"x","watching":true}`:       403,
+		`{"name":"scanners","why":"x","then":"allow"}`:                403,
+		`{"name":"sign-in-rate","why":"x","then":"block"}`:            403,
+		`{"name":"scanners","why":"x","when":"bad line here at all"}`: 400,
+	} {
+		if w := post(body); w.Code != code {
+			t.Errorf("%s = %d, want %d %s", body, w.Code, code, w.Body.String())
+		}
+	}
+	w := httptest.NewRecorder()
+	s.signedInHandler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/propose", strings.NewReader(`{"name":"cloud-crawl","when":"asn is 14061","then":"challenge","note":"x"}`)))
+	if w := post(`{"name":"cloud-crawl","why":"x","watching":false}`); w.Code != 403 {
+		t.Errorf("a proposal was turned on, %d", w.Code)
+	}
+	if w := post(`{"name":"cloud-crawl","why":"x","when":"asn is 14061 16509"}`); w.Code != 200 {
+		t.Errorf("a proposal's condition wasn't editable, %d %s", w.Code, w.Body.String())
+	}
+}

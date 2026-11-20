@@ -247,7 +247,10 @@ func (s *Store) AddRule(r *Rule, who string) error {
 	return nil
 }
 
-func (s *Store) UpdateRule(r *Rule, who string) error {
+func (s *Store) UpdateRule(r *Rule, who string) error { return s.UpdateRuleWhy(r, who, "") }
+
+// UpdateRuleWhy keeps the reason with the change, for edits from the connector.
+func (s *Store) UpdateRuleWhy(r *Rule, who, why string) error {
 	if err := r.validate(); err != nil {
 		return err
 	}
@@ -262,10 +265,14 @@ func (s *Store) UpdateRule(r *Rule, who string) error {
 		}
 		return err
 	}
+	what := "changed, " + describe(*r)
+	if why != "" {
+		what += ", why: " + why
+	}
 	if oerr != nil {
-		s.ruleChange(who, r.Name, "changed, "+describe(*r), nil, r)
+		s.ruleChange(who, r.Name, what, nil, r)
 	} else {
-		s.ruleChange(who, r.Name, "changed, "+describe(*r), &old, r)
+		s.ruleChange(who, r.Name, what, &old, r)
 	}
 	return nil
 }
