@@ -467,6 +467,18 @@ func (s *site) apiRaceFinish(id int64, r *http.Request, w http.ResponseWriter) (
 	return s.store.raceFinish(id, in.Run, in.Score, in.Gates)
 }
 
+func (s *site) apiDerbyBack(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Day  string `json:"day"`
+		Race int    `json:"race"`
+		Pick int    `json:"pick"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.backSnail(id, in.Day, in.Race, in.Pick)
+}
+
 // The frog other sites draw when a visitor has none of their own.
 const houseSeed = 1207
 

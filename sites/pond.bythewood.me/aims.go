@@ -125,6 +125,9 @@ var aimList = []aim{
 	{"lp_mouth", "pin", "Sink the frog's mouth three times", map[string]int{"mouth": 3}, nil, 0},
 	{"lp_multi", "pin", "Start a multiball", map[string]int{"multi": 1}, nil, 0},
 	{"lp_long", "pin", "Keep one ball up 45 seconds", map[string]int{"long": 45}, nil, 0},
+
+	{"dy_long", "derby", "Win on a long shot of 4 to 1 or longer", map[string]int{"long": 1}, nil, 0},
+	{"dy_two", "derby", "Pick the winner twice in a day", map[string]int{"wins": 2}, nil, 0},
 }
 
 // The least score each count says a run made, so a page can't report more of

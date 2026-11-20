@@ -400,6 +400,17 @@ CREATE TABLE IF NOT EXISTS race (
     started_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS derby (
+    pond_id INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    day     TEXT NOT NULL,
+    race    INTEGER NOT NULL,
+    pick    INTEGER NOT NULL,
+    win     INTEGER NOT NULL,
+    paid    INTEGER NOT NULL,
+    odds    TEXT NOT NULL,
+    PRIMARY KEY (pond_id, day, race)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS stamps (
     page_id INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
     from_id INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
@@ -873,6 +884,9 @@ func (s *store) sweep() (int64, error) {
 		if _, err = tx.Exec(`DELETE FROM bought WHERE day < ?`, dayOf(s.now().AddDate(0, 0, -2))); err != nil {
 			return err
 		}
+		if _, err = tx.Exec(`DELETE FROM derby WHERE day < ?`, dayOf(s.now().AddDate(0, 0, -2))); err != nil {
+			return err
+		}
 		if _, err = tx.Exec(`DELETE FROM rain WHERE slot < ?`, rainSlot(s.now().AddDate(0, 0, -rainKept))); err != nil {
 			return err
 		}
@@ -1006,7 +1020,8 @@ type view struct {
 		Aims   []aimView `json:"aims"`
 		Race   raceView  `json:"race"`
 	} `json:"dive"`
-	Box struct {
+	Derby derbyView `json:"derby"`
+	Box   struct {
 		Cost int            `json:"cost"`
 		Odds [tierCount]int `json:"odds"`
 		Pity pityView       `json:"pity"`
@@ -1376,6 +1391,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	}
 	v.Dive.Aims = aimViews(aimed, dayOf(now), "dive")
 	if v.Dive.Race, err = raceViewOf(q, p.ID, now); err != nil {
+		return err
+	}
+	if v.Derby, err = derbyViewOf(q, p.ID, now, s.pepper); err != nil {
 		return err
 	}
 	for i := range v.Arcade {
