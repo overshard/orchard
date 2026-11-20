@@ -25,8 +25,10 @@ From the repo root `make deploy SITE=mcp.bythewood.me` builds the image and repl
 `oauth.go` is the sign in: the two metadata documents, `/authorize`, the
 return from auth at `/oauth/back` and `/token`. `mcp.go` is the one JSON-RPC
 endpoint and `tools.go` the tools, each a read of a tool's markdown report,
-JSON API or `/suite/state` over the bridge. `store.go` keeps grants and hashed
-tokens in SQLite. `suite/` and `web/` are this site's copies of the shared look
+JSON API or `/suite/state` over the bridge. `store.go` keeps grants, hashed
+tokens and every call in SQLite. `stats.go` sums each tool up for `/tools` and
+folds errors into causes, and `raw.go` rebuilds a call's JSON-RPC request and
+reply from what's kept for the raw view on `/calls`. `suite/` and `web/` are this site's copies of the shared look
 and HTTP layer.
 
 ## Things that will bite you
@@ -38,6 +40,11 @@ and HTTP layer.
   `knownClients`. Another client means adding its URL there.
 - gate refuses every path starting with a dot except `/.well-known/oauth-`,
   so a new `.well-known` route here needs gate's `dotfiles` rule changed too.
+- The raw view is rebuilt, not recorded. Only the id, the arguments (cut at
+  2,000 characters) and the first 600 characters of the answer are kept, and
+  the docs page says so, so keeping more means changing that note too.
+- A connector's session on auth lasts 90 days from when it was allowed and
+  doesn't slide, which is where the expiry on the overview comes from.
 - It speaks 2026-07-28 to a client that sends `_meta` and `Mcp-Method`, and the
   older initialize handshake to one that doesn't.
 
