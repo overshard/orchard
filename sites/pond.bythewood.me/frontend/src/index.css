@@ -4988,6 +4988,201 @@ button.big {
   font-weight: 700;
 }
 
+/* The derby's odds board is its title card, a key a snail. The card takes
+   no taps, so the board's own keys turn them back on. */
+.derbyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+.derbyboard button {
+  pointer-events: auto;
+}
+
+.arcade-card:has(.derbyboard) {
+  width: min(94%, 23rem);
+  gap: 0;
+  padding: 12px;
+}
+
+.derbyboard .dhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.derbyboard .dhead b {
+  font-size: 18px;
+  letter-spacing: 0.04em;
+}
+
+.derbyboard .dhead span,
+.derbyboard .going {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.derbyboard .dtitle {
+  font-size: 18px;
+  text-align: center;
+}
+
+.derbyboard .runners,
+.derbyboard .ran,
+.derbycard .order {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.derbyboard .runner {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--well);
+  box-shadow: var(--ghost);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+
+.derbyboard .runner.picked {
+  background: var(--on);
+  box-shadow: var(--pushed), var(--glow);
+}
+
+.derbyboard .runner canvas,
+.derbycard canvas {
+  width: 36px;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.derbyboard .dwho {
+  display: grid;
+  min-width: 0;
+}
+
+.derbyboard .dwho b {
+  font-size: 15px;
+}
+
+.derbyboard .dwho span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.derbyboard .runner.picked .dwho b {
+  color: var(--lamp);
+}
+
+.derbyboard .dodds {
+  display: grid;
+  justify-items: end;
+}
+
+.derbyboard .dodds em {
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.derbyboard .dodds i {
+  color: var(--dim);
+  font-size: 11px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.derbyboard .runner.fav .dodds i {
+  color: var(--ok);
+}
+
+.derbyboard .ran li,
+.derbycard .order li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.derbyboard .ran li span {
+  color: var(--muted);
+}
+
+.derbyboard .ran li.mine span,
+.derbycard .order li.mine b {
+  color: var(--lamp);
+}
+
+.derbycard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+.derbycard .order {
+  counter-reset: place;
+}
+
+.derbycard .order li::before {
+  counter-increment: place;
+  content: counter(place);
+  width: 1em;
+  color: var(--dim);
+  font-weight: 700;
+}
+
+.derbycard .order li.first::before {
+  color: var(--lamp);
+}
+
+.derbycard .order li span {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.derbycard .order li i {
+  color: var(--lamp);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.arcade-card .derbycard .slipline {
+  color: var(--muted);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.arcade-card:has(.derbycard) .arcade-win {
+  display: none;
+}
+
+.derby-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
 /* A round of fishing's catch, a slot a kind with the biggest one's size. */
 .fishrow {
   display: grid;

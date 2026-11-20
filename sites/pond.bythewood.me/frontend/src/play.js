@@ -24,6 +24,7 @@ import { swarm, swarmArt } from "./swarm.js";
 import { whirl, whirlArt } from "./whirl.js";
 import { sling, slingArt } from "./sling.js";
 import { pin, pinArt } from "./pin.js";
+import { derby, derbyArt } from "./derby.js";
 
 // Every game on Play. A game is a key, a name, one line, the picture on its
 // title card and the game the frame runs. A new game is one line on its
@@ -58,7 +59,10 @@ export const SHELVES = [
   ] },
 ];
 
-export const JARS = [FLAGSHIP, ...SHELVES.flatMap((s) => s.jars)];
+// The snail derby runs in the same frame but sits under Every day.
+export const DERBY = { key: "derby", name: "Snail derby", line: "Four snails on a mossy log and a free slip.", art: derbyArt, game: derby };
+
+export const JARS = [FLAGSHIP, ...SHELVES.flatMap((s) => s.jars), DERBY];
 
 // Each game's title card picture, and the race's, kept off the page.
 const LABELS = {};
@@ -100,7 +104,7 @@ function gameView(d) {
   cv.id = d.key + "-cv"; cv.width = 360; cv.height = 540; cv.tabIndex = 0;
   cv.setAttribute("aria-label", d.name + ". " + d.game.aria);
   screen.append(cv);
-  [["Best", "best", "0"], ["Today", "today", "0/0"], ["Pay", "pays", "Full"]].forEach(([k, id, v0]) => {
+  (d.game.tiles || [["Best", "best", "0"], ["Today", "today", "0/0"], ["Pay", "pays", "Full"]]).forEach(([k, id, v0]) => {
     const r = el("span", "readout"), val = el("span", "v", v0);
     val.id = d.key + "-" + id;
     r.append(el("span", "k", k), val);
