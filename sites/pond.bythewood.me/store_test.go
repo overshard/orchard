@@ -470,7 +470,7 @@ func TestABoxCostsMoreThanItsSparesSellFor(t *testing.T) {
 func TestNinetyDaysDoNotRunAway(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
-	minted := 0
+	minted, barrel := 0, 0
 	for day := range 90 {
 		*clock = clock.Add(20 * time.Hour)
 		before, _ := s.view(id)
@@ -493,6 +493,7 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 		}
 		playMarket(t, s, id)
 		playDerby(t, s, id)
+		barrel += playBarrel(t, s, clock, id, day)
 		after, _ := s.view(id)
 		minted += after.Pebbles - before.Pebbles
 
@@ -514,6 +515,7 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 	v, _ := s.view(id)
 	perDay := minted / 90
 	t.Logf("about %d pebbles a day earned, %d in the purse and %d hats found at day 90", perDay, v.Pebbles, countFound(v))
+	t.Logf("the rain barrel paid about %d a day of that", barrel/90)
 	if perDay > 250 {
 		t.Errorf("a casual player earns %d pebbles a day, which is more than six boxes", perDay)
 	}
@@ -579,6 +581,25 @@ func playMarket(t *testing.T, s *store, id int64) {
 	if _, err := s.trade(id, f.Key, 1, false); err != nil && !errors.Is(err, errPoor) && !errors.Is(err, errCap) && !errors.Is(err, errMelonShut) {
 		t.Fatal(err)
 	}
+}
+
+// playBarrel makes a year of New York rain, a wet day in three, and tips
+// the barrel once a day onto the garden when it can and through the sieve when not.
+func playBarrel(t *testing.T, s *store, clock *time.Time, id int64, day int) int {
+	t.Helper()
+	if day%3 == 0 {
+		putRain(t, s, clock.Add(-8*time.Hour), 6*(2+day%7), 2)
+	}
+	for _, how := range []string{tipGarden, tipSieve} {
+		d, err := s.tipBarrel(id, how)
+		if err == nil {
+			return d.Sieve.Pebbles
+		}
+		if !errors.Is(err, errNotYet) {
+			t.Fatal(err)
+		}
+	}
+	return 0
 }
 
 func countFound(v *view) int {
