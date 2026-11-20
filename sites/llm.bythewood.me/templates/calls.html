@@ -2,48 +2,99 @@
 
 <div class="o-ph">
   <div>
-    <span class="o-lab">llm &middot; calls{{if .Caller}} &middot; {{.Caller}}{{end}}{{if .Failed}} &middot; failed{{end}}</span>
+    <span class="o-lab">{{.Lab}}</span>
     <h1>{{.Headline}}</h1>
-    <p>The newest {{len .Calls}} of the last {{.Limit}}, with every prompt and completion in full.</p>
+    <p>{{if .Filtered}}The newest {{len .Calls}} of {{comma .Total}} that match{{else}}The newest {{len .Calls}} of {{comma .Total}}{{end}}, with every prompt and reply in full.</p>
+    <div class="o-pm">
+      <span>shown<b>{{len .Calls}}</b></span>
+      <span>cost<b>{{usd .Cost}}</b></span>
+      <span>p95<b>{{secs .P95}}</b></span>
+    </div>
   </div>
 </div>
 
+<form class="o-filters callsearch" method="get" action="/calls" role="search">
+  {{if .F.Caller}}<input type="hidden" name="caller" value="{{.F.Caller}}">{{end}}
+  {{if .F.Failed}}<input type="hidden" name="failed" value="1">{{end}}
+  {{if .F.Range}}<input type="hidden" name="range" value="{{.F.Range}}">{{end}}
+  <input class="o-in" type="search" name="q" value="{{.F.Q}}" placeholder="Search prompts, replies and errors" aria-label="Search calls">
+  <input class="o-in" type="date" name="day" value="{{.F.DayText}}" aria-label="Day">
+  <button type="submit" class="o-btn o-btn-sm">Search</button>
+  {{if .Filtered}}<a class="o-btn o-btn-sm" href="/calls">Clear</a>{{end}}
+</form>
+
 <nav class="o-filters" aria-label="Filter calls">
-  <a class="o-chip {{if and (not .Caller) (not .Failed)}}brass{{end}}" href="/calls">all</a>
-  <a class="o-chip {{if .Failed}}bad{{end}}" href="/calls?failed=1{{if .Caller}}&amp;caller={{.Caller}}{{end}}">failed only</a>
+  {{range .Chips}}<a class="o-chip {{.Kind}}" href="{{.Href}}">{{.Name}}</a>{{end}}
   <span class="o-sep"></span>
-  {{range .Callers}}<a class="o-chip {{if eq .Caller $.Caller}}brass{{end}}" href="/calls?caller={{.Caller}}{{if $.Failed}}&amp;failed=1{{end}}">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</a>{{end}}
+  {{range .Ranges}}<a class="o-chip {{.Kind}}" href="{{.Href}}">{{.Name}}</a>{{end}}
+  <span class="o-sep"></span>
+  {{range .Callers}}<a class="o-chip {{.Kind}}" href="{{.Href}}">{{.Name}}</a>{{end}}
 </nav>
 
 {{if .Calls}}
-<div class="calllist">
-{{range .Calls}}
-<article class="o-panel call {{if or .Err (ge .Status 400)}}bad{{end}}" id="call-{{.ID}}">
-  <header>
-    <span class="o-dot {{if or .Err (ge .Status 400)}}bad{{end}}"></span>
-    <b class="o-mono">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</b>
-    <span class="o-mono o-muted">{{when .At}}</span>
-    <span class="o-sp"></span>
-    <span class="o-mono o-muted">{{comma .PromptTok}} &rarr; {{comma .OutputTok}} tokens</span>
-    {{if .DecodeTPS}}<span class="o-mono o-muted">{{printf "%.1f" .DecodeTPS}} tok/s</span>{{end}}
-    <span class="o-mono">{{secs .MS}}</span>
-    {{if .Tools}}<span class="o-chip">{{.Tools}}</span>{{end}}
-    {{if .Err}}<span class="o-chip bad">failed</span>{{else if ge .Status 400}}<span class="o-chip bad">{{.Status}}</span>{{end}}
-  </header>
-  {{if .Err}}<p class="o-bad o-mono callerr">{{.Err}}</p>{{end}}
-  <details>
-    <summary>Prompt <span class="o-muted">{{short .Messages 80}}</span></summary>
-    <pre class="o-code">{{.Messages}}</pre>
-  </details>
-  <details>
-    <summary>Completion <span class="o-muted">{{if .Completion}}{{short .Completion 90}}{{else}}nothing came back{{end}}</span></summary>
-    <pre class="o-code">{{if .Completion}}{{.Completion}}{{else}}nothing came back{{end}}</pre>
-  </details>
-</article>
-{{end}}
+<section class="o-panel flush">
+<div class="o-scroll">
+<table class="o-tbl calls stack" data-keys>
+  <thead><tr><th>When</th><th>Caller</th><th>Asked</th><th class="r">In &rarr; out</th><th class="r">Cache</th><th class="r">$</th><th class="r">Took</th><th></th></tr></thead>
+  <tbody>
+  {{range .Calls}}
+    <tr id="call-{{.ID}}" {{if .Failed}}class="hot"{{end}}>
+      {{template "callcells" .}}
+    </tr>
+    <tr class="o-drawer" data-call="{{.ID}}">
+      <td colspan="8">
+        <div class="o-band b2 drawer">
+          <div class="drw">
+            <span class="o-lab plain o-muted">where the {{usd (dollars .Cost)}} went{{if .Estimated}}, estimated{{end}}</span>
+            {{if .Cost}}
+            <div class="tokbar">{{range .Parts}}{{if gt .Share 0.0}}<i class="mix {{.Kind}}" style="width:{{printf "%.2f" .Share}}%" data-tip="{{.Name}} {{usd .Spent}}"></i>{{end}}{{end}}</div>
+            <div class="parts">{{range .Parts}}{{if or .Tokens (gt .Spent 0.0)}}<div class="o-hbar"><span class="k"><i class="sw {{.Kind}}"></i>{{num .Tokens}} {{if eq .Kind "search"}}{{if eq .Tokens 1}}search{{else}}searches{{end}}{{else}}{{.Name}}{{end}}</span><span class="v">{{usd .Spent}}</span></div>{{end}}{{end}}</div>
+            {{with .CacheSaved}}<p class="o-foot">the cache saved {{usd .}} on this call</p>{{end}}
+            {{if .Estimated}}<p class="o-foot">older than the ledger's link, so priced from its tokens with the prompt as uncached</p>{{end}}
+            {{else}}
+            <p class="o-muted nothing">Nothing was charged{{if .Failed}}, the call failed before the model answered{{end}}.</p>
+            {{end}}
+          </div>
+          <div class="drw">
+            <span class="o-lab plain o-muted">time, {{secs .MS}}</span>
+            <div class="wf">
+              {{if .FirstMS}}
+              <span>first token</span><span class="tr"><i class="first {{if .Failed}}bad{{end}}" style="left:0;width:{{printf "%.1f" .FirstPct}}%"></i></span><span>{{secs .FirstMS}}</span>
+              <span>generating</span><span class="tr"><i class="gen" style="left:{{printf "%.1f" .FirstPct}}%;width:{{printf "%.1f" (sub 100.0 .FirstPct)}}%"></i></span><span>{{secs .GenMS}}</span>
+              {{else}}
+              <span>total</span><span class="tr"><i class="{{if .Failed}}bad{{else}}gen{{end}}" style="left:0;width:100%"></i></span><span>{{secs .MS}}</span>
+              {{end}}
+            </div>
+            <p class="o-foot">{{if .FirstMS}}{{if .DecodeTPS}}{{printf "%.0f" .DecodeTPS}} tokens a second once it started{{else}}streamed{{end}}{{else}}not streamed, so only the total is known{{end}}</p>
+            <div class="o-acts drwacts">
+              <button type="button" class="o-btn o-btn-sm" data-copy-call="{{.ID}}">Copy as markdown</button>
+              <a class="o-btn o-btn-sm" href="/calls?caller={{.Caller}}">Every {{if .Caller}}{{.Caller}}{{else}}unknown{{end}} call</a>
+              <a class="o-btn o-btn-sm" href="/calls?id={{.ID}}">Link</a>
+            </div>
+          </div>
+        </div>
+        <div class="o-band b2 drawer">
+          <div class="drw">
+            <span class="o-lab plain o-muted">asked</span>
+            <div class="prose" data-part="asked">{{with asked .Messages}}{{.}}{{else}}nothing was kept{{end}}</div>
+            <details><summary class="o-muted">the whole request</summary><pre class="o-code">{{.Messages}}</pre></details>
+          </div>
+          <div class="drw">
+            <span class="o-lab plain o-muted">{{if .Err}}error{{else}}reply{{end}}</span>
+            {{if .Err}}<div class="prose o-bad" data-part="error">{{.Err}}</div>{{end}}
+            <div class="prose" data-part="reply">{{if .Completion}}{{.Completion}}{{else}}nothing came back{{end}}</div>
+          </div>
+        </div>
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
 </div>
+</section>
+<p class="o-hint"><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>enter</kbd>open the call</span><span><kbd>?</kbd>every key</span></p>
 {{else}}
-<p class="o-empty"><b>Nothing logged{{if .Caller}} from {{.Caller}}{{end}}{{if .Failed}} that failed{{end}}.</b>{{if or .Caller .Failed}}<a href="/calls">Show every call</a>{{else}}A call marked incognito writes no row, so it never shows here.{{end}}</p>
+<p class="o-empty"><b>Nothing logged{{if .F.Caller}} from {{.F.Caller}}{{end}}{{if .F.Failed}} that failed{{end}}{{if .F.Q}} matching {{.F.Q}}{{end}}.</b>{{if .Filtered}}<a href="/calls">Show every call</a>{{else}}A call marked incognito writes no row, so it never shows here.{{end}}</p>
 {{end}}
 
 {{template "foot" .}}

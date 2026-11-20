@@ -26,19 +26,25 @@
 {{define "callrows"}}
 <div class="o-scroll">
 <table class="o-tbl calls stack">
-  <thead><tr><th>When</th><th>Caller</th><th>Asked</th><th class="r">Tokens</th><th class="r">Took</th><th></th></tr></thead>
+  <thead><tr><th>When</th><th>Caller</th><th>Asked</th><th class="r">In &rarr; out</th><th class="r">Cache</th><th class="r">$</th><th class="r">Took</th><th></th></tr></thead>
   <tbody>
   {{range .}}
-    <tr data-href="/calls?caller={{.Caller}}#call-{{.ID}}" {{if or .Err (ge .Status 400)}}class="hot"{{end}}>
-      <td class="n">{{when .At}}</td>
-      <td class="lead n"><a href="/calls?caller={{.Caller}}#call-{{.ID}}">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</a></td>
-      <td class="clip full o-muted">{{short .Messages 110}}</td>
-      <td class="r n">{{comma .PromptTok}} &rarr; {{comma .OutputTok}}</td>
-      <td class="r n">{{secs .MS}}</td>
-      <td>{{if .Err}}<span class="o-chip bad" title="{{.Err}}">failed</span>{{else if ge .Status 400}}<span class="o-chip bad">{{.Status}}</span>{{else if .Tools}}<span class="o-chip">tools</span>{{end}}</td>
+    <tr data-href="/calls?id={{.ID}}" {{if .Failed}}class="hot"{{end}}>
+      {{template "callcells" .}}
     </tr>
   {{end}}
   </tbody>
 </table>
 </div>
+{{end}}
+
+{{define "callcells"}}
+      <td class="n" data-tip="{{.At.UTC.Format "Mon 2 Jan 2006 15:04:05 UTC"}}">{{clock .At}}</td>
+      <td class="lead n"><a href="/calls?id={{.ID}}">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</a></td>
+      <td class="clip full o-muted">{{short .Messages 110}}</td>
+      <td class="r n" data-l="tokens">{{comma .PromptTok}} &rarr; {{comma .OutputTok}}</td>
+      <td class="r n o-muted" data-l="cache">{{if .CacheRead}}{{num .CacheRead}} read{{else if .CacheWrite}}{{num .CacheWrite}} write{{else}}&ndash;{{end}}</td>
+      <td class="r n" data-l="cost"{{if .Estimated}} data-tip="Priced from its token counts with the whole prompt as uncached input, since the call is older than the ledger's link to it"{{end}}>{{if .Estimated}}~{{end}}{{usd (dollars .Cost)}}</td>
+      <td class="r n" data-l="took">{{secs .MS}}</td>
+      <td>{{if .Err}}<span class="o-chip bad" data-tip="{{.Err}}">{{if .Status}}{{.Status}}{{else}}failed{{end}}</span>{{else if ge .Status 400}}<span class="o-chip bad">{{.Status}}</span>{{else if .Searches}}<span class="o-chip">search &times;{{.Searches}}</span>{{else if .Tools}}<span class="o-chip">tools</span>{{else}}<span class="o-chip ok">ok</span>{{end}}</td>
 {{end}}
