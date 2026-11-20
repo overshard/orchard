@@ -590,6 +590,9 @@ below live as tokens at the top of `frontend/src/index.css`.
   run more, has a lamp yellow TODAY sticker stuck on crooked and a dark amber
   edge. Fishing is the flagship and has a card of its own on top, its picture,
   name, line and pay beside a lamp Cast key, which goes ghost once it's spent.
+  The pebble pusher has a card the same shape under it, drawn with the pond's
+  own table as it was last saved, how many drops are waiting and what's on
+  the pile, beside a lamp Push key that goes ghost when the drops run out.
 - **Play is shelves.** Under fishing the jars sit four to a row, five on a
   desktop, on an Arcade shelf for the quick games with the deepest first, a
   Puzzles shelf for the slower thinking ones, and a Classics shelf for retired
@@ -716,6 +719,23 @@ below live as tokens at the top of `frontend/src/index.css`.
   with a slight zoom on the frog, which reduced motion doesn't get. The ball
   save is a lily pad across the drain that blinks and sinks as it runs out,
   and an outlane on each side past the cattails is where a ball is lost.
+- **The pebble pusher is an arcade cabinet seen from a little above the
+  front**, a wooden case round a backboard of bulbs, the chute on its rail
+  with the player's frog riding it, a blue metal shelf sliding in and out
+  over pond water under glass, a lamp yellow ledge and the tray under it. It
+  has no title or results card, it opens straight onto the table with only
+  the strip of drops, what's on the table and what's been won. A dotted line
+  drops from the chute to where a pebble lands, the dish of drops is in the
+  top corner, and the cabinet front has the name in lamp letters, the prizes
+  on the pile each with a bar for how long it has left to sit, and the spill
+  jar the side gutters pipe into. Pebbles are round and lit from the top, a
+  prize sits on a cream disc as its icon and glows lamp yellow once it can
+  come off, and anything hanging over the ledge teeters. Three or more off in
+  a rush count up over the ledge, a prize near the edge slows the table with
+  a slight zoom and says CLOSE when a shove leaves it hanging, and the lily pad
+  hole glows green while the shelf is back off it. A pebble down the hole tips
+  the spill jar and rains everything in it back over the table. Reduced
+  motion gets no zoom, no shake, no teetering and no tipping jar.
 - **The snail derby is four snails on a mossy log at night**, seen from the
   side under a string of lanterns, with the four residents who own them on
   the bank above, each with a pennant in its snail's shell colour. Its title
