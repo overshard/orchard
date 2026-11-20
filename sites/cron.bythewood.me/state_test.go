@@ -32,4 +32,16 @@ func TestSuiteStateFlagsAFailingJob(t *testing.T) {
 	if !found {
 		t.Fatalf("the failing job isn't marked bad: %+v", st.Items)
 	}
+	acts := map[string]string{}
+	for _, it := range st.Items {
+		if it.Kind == "action" {
+			acts[it.Name] = it.Post
+		}
+	}
+	if acts["pause broken"] != "/jobs/"+itoa(id)+"/pause" || acts["new check"] != "" {
+		t.Errorf("actions %+v", acts)
+	}
+	if _, ok := acts["try broken without sending"]; !ok {
+		t.Errorf("no try for a check in %+v", acts)
+	}
 }

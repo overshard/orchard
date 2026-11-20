@@ -22,7 +22,21 @@ func (s *site) suiteState(r *http.Request) suite.State {
 		{Kind: "page", Name: "new reminder", Href: base + "/jobs/new", Note: "push fixed text at a time"},
 		{Kind: "page", Name: "new check", Href: base + "/jobs/new?kind=prompt", Note: "the model looks something up"},
 		{Kind: "page", Name: "keys", Href: base + "/keys", Note: "tokens for the api"},
+		{Kind: "action", Name: "new reminder", Href: base + "/jobs/new", Note: "push fixed text at a time"},
+		{Kind: "action", Name: "new check", Href: base + "/jobs/new?kind=prompt", Note: "the model looks something up"},
 	}}
+	for _, j := range jobs {
+		id := strconv.FormatInt(j.ID, 10)
+		page := base + "/jobs/" + id
+		if j.Enabled {
+			st.Items = append(st.Items, suite.Item{Kind: "action", Name: "pause " + j.Name, Href: page, Post: "/jobs/" + id + "/pause", Note: s.describe(j)})
+		} else {
+			st.Items = append(st.Items, suite.Item{Kind: "action", Name: "resume " + j.Name, Href: page, Post: "/jobs/" + id + "/resume", Note: "paused"})
+		}
+		if j.Kind == "prompt" {
+			st.Items = append(st.Items, suite.Item{Kind: "action", Name: "try " + j.Name + " without sending", Href: page + "#try", Note: "shows the push it would send"})
+		}
+	}
 	for _, j := range jobs {
 		it := suite.Item{Kind: kindName(j.Kind), Name: j.Name, Href: base + "/jobs/" + strconv.FormatInt(j.ID, 10)}
 		switch {
