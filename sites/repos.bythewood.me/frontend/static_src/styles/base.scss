@@ -994,3 +994,77 @@ section > h2 {
 .repotbl td.lead .o-chip { margin-left: 6px; }
 section.o-panel { margin: 0; }
 .repocols .recent .commit:first-child { border-top: 0; }
+
+// The suite page head on every repository page, with chips under the title.
+.repoph .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.repoph .desc { color: var(--muted); font-size: 0.8rem; margin-left: 4px; }
+.repoph .o-lab a { color: inherit; }
+.repos .o-strip { margin: 10px 0 12px; }
+.repos .o-strip .o-delta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repoband { align-items: start; }
+.repoband .repomain, .repoband .side { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.repoband .clonebox, .repoband .editbox { margin: 0; }
+.o-panel.readme { padding: 0; }
+.o-panel.readme .markdown { padding: 1rem 1.25rem 1.25rem; }
+.o-panel h2 a { color: inherit; }
+
+// The file table. The last commit columns fill in after the page paints.
+.files { position: relative; }
+.files .o-ph2 { gap: 10px; }
+.files .o-ph2 h2, .blob .o-ph2 h2 { min-width: 0; flex: 1 1 12rem; overflow: hidden; }
+.repoph h1 { overflow-wrap: anywhere; }
+.files .o-pm { align-items: center; }
+.finder { position: relative; padding: 0 8px 8px; }
+.finder .o-in { width: 100%; padding-right: 2.2rem; }
+.finder > kbd { position: absolute; right: 16px; top: 7px; font: 0.66rem var(--o-mono); padding: 1px 5px; border: 1px solid var(--o-line-strong); color: var(--muted); pointer-events: none; }
+.finder .o-jr { position: absolute; z-index: 30; left: 8px; right: 8px; top: calc(100% - 8px); max-height: 340px; background: var(--o-panel2); border: 1px solid var(--o-line-strong); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+.finder .o-jr li { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "n k"; }
+.finder .o-jr li mark { background: none; color: var(--o-brass); }
+.tree { font-family: var(--mono); }
+.tree td { padding-top: 4px; padding-bottom: 4px; }
+.tree .name { white-space: nowrap; }
+.tree .icon { display: inline-block; width: 15px; height: 15px; margin-right: 8px; vertical-align: -3px; color: var(--faint); }
+.tree .icon svg { display: block; width: 15px; height: 15px; }
+.tree tr.dir .icon { color: var(--accent); }
+.tree .name a { color: var(--link); }
+.tree .lcol { width: 55%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--sans); }
+.tree .lcol a { color: var(--muted); }
+.tree .lcol a:hover { color: var(--link-lift); }
+.tree .lcol.wait::before { content: ""; display: block; height: 0.5em; width: 40%; background: var(--line); opacity: 0.7; }
+.tree .size, .tree .when { width: 1%; white-space: nowrap; color: var(--faint); }
+
+// Crumbs stay one line. On a phone the middle folds to a button that opens it.
+.crumbs { display: flex; align-items: baseline; min-width: 0; overflow: hidden; white-space: nowrap; font-family: var(--mono); font-size: 0.86rem; font-weight: 500; }
+.crumbs .seg, .crumbs > a { flex: none; }
+.crumbs .seg:last-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.crumbs .sep { color: var(--faint); margin: 0 0.3em; }
+.crumbs .fold { display: none; }
+.crumbs .fold button { background: none; border: 0; padding: 0 2px; color: var(--muted); font: inherit; cursor: pointer; }
+@media (max-width: 700px) {
+  .crumbs.long:not(.open) .mid { display: none; }
+  .crumbs.long:not(.open) .fold { display: inline; }
+  .crumbs.open { flex-wrap: wrap; white-space: normal; }
+}
+
+// A file, with line numbers that pick a line or a range for a link.
+.blob .linkbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 0 8px 8px; }
+.blob .permalink { flex: 1 1 18rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.74rem; color: var(--muted); background: var(--sunken); border: 1px solid var(--line); padding: 4px 8px; }
+.blob .permalink.pinned { color: var(--accent); border-color: rgba(217, 180, 90, 0.45); }
+.blob .code { border-width: 1px 0 0; }
+.blob .notice { margin: 8px; }
+.code [id^="L"] a { cursor: pointer; }
+.code [id^="L"] a:hover { color: var(--o-brass); }
+.code .hl { background: rgba(217, 180, 90, 0.12); }
+.code .hl > [id^="L"] { color: var(--o-brass) !important; box-shadow: inset -2px 0 0 var(--o-brass); }
+
+// The log, under a head per day.
+.daylog tr.day th { padding-top: 12px; text-align: left; font: 500 0.66rem var(--o-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: transparent; }
+.daylog tbody:first-child tr.day th { padding-top: 6px; }
+.daylog .subj, .recent .subj { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.daylog .subj a, .recent .subj a { color: var(--text); }
+.daylog .who { white-space: nowrap; }
+.log .pager { margin: 0; padding: 8px; gap: 14px; }
+@media (max-width: 700px) {
+  .daylog .who, .tree .lcol { display: none; }
+}
+.repoband .o-foot { padding: 6px 8px 8px; margin: 0; }

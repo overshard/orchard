@@ -1,22 +1,31 @@
 {{define "content"}}
 {{$d := .Data}}{{$c := $d.Ctx}}
-{{template "repohead" (dict "Ctx" $c "Tab" "log")}}
-
-<div class="toolbar">
-  {{template "refswitcher" $d}}
-  {{if $d.Path}}<span class="stat">History of <code>{{$d.Path}}</code></span>{{end}}
-</div>
+{{template "repohead" (dict "Ctx" $c "Page" "log" "Sub" "history" "Title" (or $d.Path $c.Repo.Name) "State" (printf "history at %s" $c.Rev))}}
 
 {{if $c.Empty}}
   <p class="empty">No commits yet.</p>
 {{else}}
-<ul class="commits">
-  {{range $d.Commits}}{{template "commitrow" (dict "Repo" $c.Repo.Name "Commit" .)}}{{end}}
-</ul>
-
-<nav class="pager">
-  {{if $d.HasPrev}}<a href="?page={{sub $d.Page 1}}">Newer</a>{{end}}
-  {{if $d.HasNext}}<a href="?page={{add $d.Page 1}}">Older</a>{{end}}
-</nav>
+<section class="o-panel flush log">
+  <div class="o-ph2"><h2>{{if $d.Path}}History of <code>{{$d.Path}}</code>{{else}}Commits{{end}}</h2><span class="o-pm"><span>page<b>{{$d.Page}}</b></span>{{template "refswitcher" $d}}</span></div>
+  <table class="o-tbl daylog" data-keys>
+    {{range $d.Days}}
+    <tbody>
+      <tr class="day"><th colspan="4">{{.Day}} <span class="o-muted">&middot; {{len .Commits}}</span></th></tr>
+      {{range .Commits}}
+      <tr data-href="/{{$c.Repo.Name}}/commit/{{.SHA}}">
+        <td class="subj"><a href="/{{$c.Repo.Name}}/commit/{{.SHA}}">{{.Subject}}</a></td>
+        <td class="o-muted who">{{.Author}}</td>
+        <td class="n o-muted">{{shortSHA .SHA}}</td>
+        <td class="r n" title="{{.When.Format "2006-01-02 15:04 MST"}}">{{shortAgo .When}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+    {{end}}
+  </table>
+  <nav class="pager o-foot">
+    {{if $d.HasPrev}}<a href="?page={{sub $d.Page 1}}">&larr; newer</a>{{end}}
+    {{if $d.HasNext}}<a href="?page={{add $d.Page 1}}">older &rarr;</a>{{end}}
+  </nav>
+</section>
 {{end}}
 {{end}}

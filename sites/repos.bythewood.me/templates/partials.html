@@ -21,26 +21,28 @@
 
 {{define "repohead"}}
 {{$c := .Ctx}}
-<div class="repohead">
-  <span class="o-lab">repos &middot; {{if $c.Meta.Mirror}}mirror{{else}}repository{{end}}</span>
-  <div class="titlerow">
-    <h1><a href="/{{$c.Repo.Name}}">{{$c.Repo.Name}}</a></h1>
-    {{if $c.Meta.Mirror}}<span class="badge mirror" title="Pulled from {{$c.Meta.Upstream}}, read only">mirror</span>{{end}}
-    {{if $c.Meta.Archived}}<span class="badge archived">archived upstream</span>{{end}}
-    {{if $c.Meta.UpstreamGone}}<span class="badge gone" title="No longer on GitHub. This is the only copy.">only copy</span>{{end}}
-    {{if $c.Empty}}<span class="badge empty">empty</span>{{end}}
+<div class="o-ph repoph">
+  <div>
+    <span class="o-lab">repos &middot; {{if $c.Meta.Mirror}}mirror{{else}}repository{{end}}{{if .Sub}} &middot; <a href="/{{$c.Repo.Name}}">{{$c.Repo.Name}}</a> &middot; {{.Sub}}{{end}}</span>
+    <h1>{{.Title}}{{if .State}}, <em{{if .Bad}} class="bad"{{end}}>{{.State}}</em>{{end}}.</h1>
+    {{if eq .Page "repo"}}
+    <div class="chips">
+      {{if $c.Meta.Mirror}}<span class="o-chip" data-tip="Pulled from {{$c.Meta.Upstream}}, read only">mirror</span>{{end}}
+      {{if $c.Meta.Archived}}<span class="o-chip">archived upstream</span>{{end}}
+      {{if $c.Meta.UpstreamGone}}<span class="o-chip warn" data-tip="No longer on GitHub. This is the only copy.">only copy</span>{{end}}
+      {{if $c.Empty}}<span class="o-chip">empty</span>{{end}}
+      {{range $c.Meta.Topics}}<span class="o-chip">{{.}}</span>{{end}}
+      {{if $c.Meta.Description}}<span class="desc">{{$c.Meta.Description}}</span>{{end}}
+    </div>
+    {{end}}
   </div>
-
-  {{if $c.Meta.Description}}<p class="desc">{{$c.Meta.Description}}</p>{{end}}
-  {{if $c.Meta.Topics}}
-    <p class="topics">{{range $c.Meta.Topics}}<span class="topic">{{.}}</span>{{end}}</p>
+  {{if eq .Page "repo"}}
+  <div class="o-acts">
+    {{if $c.Meta.Homepage}}<a class="o-btn o-btn-sm" href="{{$c.Meta.Homepage}}" rel="noopener">Homepage</a>{{end}}
+    <a class="o-btn o-btn-sm" href="/{{$c.Repo.Name}}/atom.xml">Atom</a>
+    {{if not $c.Empty}}<a class="o-btn o-btn-sm" href="/{{$c.Repo.Name}}/archive/{{$c.Rev}}.tar.gz" data-act="download {{$c.Repo.Name}} as tar.gz">Download tar.gz</a>{{end}}
+  </div>
   {{end}}
-
-  <p class="repometa o-mono">
-    <span>{{len $c.Branches}} {{pluralize (len $c.Branches) "branch" "branches"}}</span>
-    <span>{{len $c.Tags}} {{pluralize (len $c.Tags) "tag" "tags"}}</span>
-    <a href="/{{$c.Repo.Name}}/atom.xml">atom feed</a>
-  </p>
 </div>
 {{end}}
 
@@ -60,6 +62,60 @@
   </div>
 </details>
 {{end}}
+{{end}}
+
+
+{{/* The middle of a long path folds to a button on a phone, so the crumbs stay
+     one line with the repository and the leaf both in view. */}}
+{{define "crumbs"}}
+{{$c := .Ctx}}{{$segs := pathSegs .Path}}{{$last := sub (len $segs) 1}}
+<nav class="crumbs{{if gt (len $segs) 2}} long{{end}}" aria-label="Path">
+  <a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}">{{$c.Repo.Name}}</a>
+  {{if gt (len $segs) 2}}<span class="fold"><span class="sep">/</span><button type="button" aria-label="Show the whole path">&hellip;</button></span>{{end}}
+  {{range $i, $seg := $segs}}<span class="seg{{if lt $i $last}} mid{{end}}"><span class="sep">/</span>{{if and (eq $i $last) $.Leaf}}<span class="leaf">{{$seg.Name}}</span>{{else}}<a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}/{{urlPath $seg.Path}}">{{$seg.Name}}</a>{{end}}</span>{{end}}
+</nav>
+{{end}}
+
+
+{{define "filespanel"}}
+{{$c := .Ctx}}
+<section class="o-panel flush files" data-files="/{{$c.Repo.Name}}/files/{{$c.Rev}}" data-blob="/{{$c.Repo.Name}}/blob/{{$c.Rev}}/"{{if $c.SignedIn}} data-last="/{{$c.Repo.Name}}/last/{{$c.Rev}}{{if .Path}}/{{urlPath .Path}}{{end}}"{{end}}>
+  <div class="o-ph2">
+    <h2>{{if .Path}}{{template "crumbs" (dict "Ctx" $c "Path" .Path "Leaf" false)}}{{else}}Files{{end}}</h2>
+    <span class="o-pm">{{if .Tracked}}<span>tracked<b>{{.Tracked}}</b></span>{{else}}<span>entries<b>{{len .Entries}}</b></span>{{end}}{{template "refswitcher" .}}</span>
+  </div>
+  <div class="finder">
+    <input class="o-in mono" type="text" placeholder="go to file" aria-label="Go to file" autocomplete="off" spellcheck="false" data-finder>
+    <kbd aria-hidden="true">t</kbd>
+    <ul class="o-jr" hidden></ul>
+  </div>
+  <div class="o-scroll">
+  <table class="o-tbl tree">
+    <thead><tr><th>Name</th>{{if $c.SignedIn}}<th class="lcol">Last commit</th><th class="r">When</th>{{end}}<th class="r">Size</th></tr></thead>
+    <tbody>
+    {{if .Path}}
+    <tr class="dir"><td class="name"><span class="icon">{{template "icon-up"}}</span><a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}{{with parentPath .Path}}/{{urlPath .}}{{end}}">..</a></td>{{if $c.SignedIn}}<td class="lcol"></td><td></td>{{end}}<td></td></tr>
+    {{end}}
+    {{range .Entries}}
+      <tr class="{{if .IsDir}}dir{{else}}file{{end}}" data-name="{{.Name}}">
+        <td class="name">
+          <span class="icon">{{if .IsDir}}{{template "icon-dir"}}{{else if .IsSubmodule}}{{template "icon-sub"}}{{else}}{{template "icon-file"}}{{end}}</span>
+          {{if .IsDir}}
+            <a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}/{{urlPath .Path}}">{{.Name}}/</a>
+          {{else if .IsSubmodule}}
+            <span class="submodule">{{.Name}}{{if $c.SignedIn}} @ {{shortSHA .SHA}}{{end}}</span>
+          {{else}}
+            <a href="/{{$c.Repo.Name}}/blob/{{$c.Rev}}/{{urlPath .Path}}">{{.Name}}</a>
+          {{end}}
+        </td>
+        {{if $c.SignedIn}}<td class="lcol o-muted"></td><td class="r n when"></td>{{end}}
+        <td class="r n size">{{if not .IsDir}}{{humanBytes .Size}}{{end}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+</section>
 {{end}}
 
 
@@ -162,5 +218,79 @@
     </table>
     {{end}}
   {{end}}
+</div>
+{{end}}
+
+
+{{define "ticks"}}<div class="o-ticks">{{range .}}<i{{if .Cls}} class="{{.Cls}}"{{end}} style="height:{{.H}}%" data-tip="{{.Tip}}"></i>{{end}}</div>{{end}}
+
+
+{{/* History tiles only exist signed in, so signed out the strip is six wide. */}}
+{{define "repostrip"}}
+<div class="o-strip{{if not .History}} six{{end}}">
+  {{if .History}}
+  <div class="o-tile">
+    <small>commits</small>
+    <b>{{num .Count}}</b>
+    <span class="o-delta">a tick a week, 52 weeks</span>
+    {{template "ticks" .Weeks}}
+  </div>
+  <div class="o-tile">
+    <small>4 weeks</small>
+    <b>{{.Recent}}</b>
+    <span class="o-delta">{{if gt .Recent .Before}}+{{sub .Recent .Before}}{{else if lt .Recent .Before}}&minus;{{sub .Before .Recent}}{{else}}level{{end}} on the 4 before</span>
+    {{sparkT "ok" .Spark .Labels}}
+  </div>
+  {{end}}
+  <div class="o-tile">
+    <small>last push</small>
+    <b>{{shortAgo .LastPush}}</b>
+    <span class="o-delta" title="{{.LastSubject}}">{{.LastBranch}} &middot; {{.LastSubject}}</span>
+    {{template "ticks" .PushTicks}}
+  </div>
+  <div class="o-tile">
+    <small>files</small>
+    <b>{{num .Files}}</b>
+    <span class="o-delta">in {{.TopCount}} {{pluralize .TopCount "place" "places"}} at the top</span>
+    {{template "ticks" .Top}}
+  </div>
+  <div class="o-tile">
+    <small>refs</small>
+    <b>{{.Branches}} &middot; {{.Tags}}</b>
+    <span class="o-delta">branches &middot; tags</span>
+    {{if .RefTicks}}{{template "ticks" .RefTicks}}{{else}}<span class="o-nospark"></span>{{end}}
+  </div>
+  <div class="o-tile">
+    <small>pack</small>
+    <b class="{{if .Over}}bad{{end}}">{{humanBytes .Size}}</b>
+    <span class="o-delta{{if .Over}} o-bad{{else if ge .Percent 75}} o-warn{{end}}">{{.Percent}}% of the 100 MB push limit</span>
+    {{template "ticks" .Pack}}
+  </div>
+  <div class="o-tile">
+    <small>releases</small>
+    {{if .Release}}
+    <b>{{.Release}}</b>
+    <span class="o-delta">{{humanTime .ReleaseWhen}}</span>
+    {{template "ticks" .ReleaseTicks}}
+    {{else}}
+    <b>none</b>
+    <span class="o-delta">push a tag to cut one</span>
+    <span class="o-nospark"></span>
+    {{end}}
+  </div>
+  <div class="o-tile">
+    <small>mirror</small>
+    {{if not .Mirror}}
+    <b>no</b>
+    <span class="o-delta">pushed here, not mirrored</span>
+    {{else if .SyncErr}}
+    <b class="bad">failing</b>
+    <span class="o-delta o-bad" title="{{.SyncErr}}">{{.SyncErr}}</span>
+    {{else}}
+    <b>synced</b>
+    <span class="o-delta">{{humanTime .LastSync}}</span>
+    {{end}}
+    <span class="o-nospark"></span>
+  </div>
 </div>
 {{end}}

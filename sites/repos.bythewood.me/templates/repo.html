@@ -1,6 +1,6 @@
 {{define "content"}}
 {{$d := .Data}}{{$c := $d.Ctx}}
-{{template "repohead" (dict "Ctx" $c "Tab" "files")}}
+{{template "repohead" (dict "Ctx" $c "Page" "repo" "Title" $c.Repo.Name "State" $d.State "Bad" $d.Bad)}}
 
 {{if $c.Empty}}
   <div class="emptystate">
@@ -27,52 +27,51 @@ git push -u origin main</pre>
   </div>
   {{template "clonebox" $d}}
 {{else}}
-<div class="o-cols repocols">
-<div class="repomain">
-  <div class="toolbar">
-    {{template "refswitcher" $d}}
-    <span class="stat">{{$d.CommitCount}} {{pluralize $d.CommitCount "commit" "commits"}}</span>
-    <a class="btn" href="/{{$c.Repo.Name}}/archive/{{$c.Rev}}.tar.gz">Download tar.gz</a>
-  </div>
+{{template "repostrip" $d.Strip}}
 
-  <table class="tree">
-    <tbody>
-    {{range $d.Entries}}
-      <tr class="{{if .IsDir}}dir{{else}}file{{end}}">
-        <td class="icon">{{if .IsDir}}{{template "icon-dir"}}{{else if .IsSubmodule}}{{template "icon-sub"}}{{else}}{{template "icon-file"}}{{end}}</td>
-        <td class="name">
-          {{if .IsDir}}
-            <a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}/{{urlPath .Path}}">{{.Name}}/</a>
-          {{else if .IsSubmodule}}
-            <span class="submodule">{{.Name}} @ {{shortSHA .SHA}}</span>
-          {{else}}
-            <a href="/{{$c.Repo.Name}}/blob/{{$c.Rev}}/{{urlPath .Path}}">{{.Name}}</a>
-          {{end}}
-        </td>
-        <td class="size">{{if not .IsDir}}{{humanBytes .Size}}{{end}}</td>
-      </tr>
-    {{end}}
-    </tbody>
-  </table>
+<div class="o-band b2r repoband">
+<div class="repomain">
+  {{template "filespanel" (dict "Ctx" $c "Entries" $d.Entries "Path" "" "Tracked" $d.Strip.Files)}}
 
   {{if $d.Readme}}
-    <article class="readme">
-      <div class="readmehead">{{$d.ReadmeName}}</div>
+    <article class="o-panel flush readme">
+      <div class="o-ph2"><h2>{{$d.ReadmeName}}</h2></div>
       <div class="markdown">{{$d.Readme}}</div>
     </article>
   {{end}}
-
 </div>
 <div class="side">
   {{if $c.SignedIn}}
-  <section class="recent">
-    <h2>Recent commits</h2>
-    <ul class="commits">
-      {{range $d.Commits}}{{template "commitrow" (dict "Repo" $c.Repo.Name "Commit" .)}}{{end}}
-    </ul>
-    <a href="/{{$c.Repo.Name}}/log/{{$c.Rev}}">All commits</a>
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2><a href="/{{$c.Repo.Name}}/log/{{$c.Rev}}">Recent commits</a></h2><span class="o-pm"><span>4w<b>{{$d.Strip.Recent}}</b></span><span>all<b>{{$d.Strip.Count}}</b></span></span></div>
+    <table class="o-tbl recent" data-keys>
+      <tbody>
+      {{range $d.Commits}}
+        <tr data-href="/{{$c.Repo.Name}}/commit/{{.SHA}}">
+          <td class="subj"><a href="/{{$c.Repo.Name}}/commit/{{.SHA}}">{{.Subject}}</a></td>
+          <td class="n o-muted">{{shortSHA .SHA}}</td>
+          <td class="r n" title="{{.When.Format "2006-01-02 15:04 MST"}}">{{shortAgo .When}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    <p class="o-foot"><a href="/{{$c.Repo.Name}}/log/{{$c.Rev}}">every commit on {{$c.Rev}}</a></p>
   </section>
   {{end}}
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2><a href="/{{$c.Repo.Name}}/branches">Branches</a></h2><span class="o-pm"><span>branches<b>{{len $c.Branches}}</b></span><span>tags<b>{{len $c.Tags}}</b></span></span></div>
+    <table class="o-tbl">
+      <tbody>
+      {{range $i, $b := $c.Branches}}{{if lt $i 6}}
+        <tr>
+          <td><a href="/{{$c.Repo.Name}}/tree/{{$b.Name}}">{{if eq $b.Name $c.Head}}<b>{{$b.Name}}</b>{{else}}{{$b.Name}}{{end}}</a></td>
+          <td class="n o-muted">{{if eq $b.Name $c.Head}}default{{end}}</td>
+          <td class="r n" title="{{$b.When.Format "2006-01-02 15:04 MST"}}">{{shortAgo $b.When}}</td>
+        </tr>
+      {{end}}{{end}}
+      </tbody>
+    </table>
+  </section>
   {{template "clonebox" $d}}
 
 {{if and $.LoggedIn (not $c.Meta.Mirror)}}

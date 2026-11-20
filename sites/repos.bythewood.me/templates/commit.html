@@ -1,6 +1,6 @@
 {{define "content"}}
 {{$d := .Data}}{{$c := $d.Ctx}}
-{{template "repohead" (dict "Ctx" $c "Tab" "log")}}
+{{template "repohead" (dict "Ctx" $c "Page" "commit" "Sub" (shortSHA $d.Commit.SHA) "Title" $d.Commit.Subject)}}
 
 <article class="commitfull">
   <h2>{{$d.Commit.Subject}}</h2>

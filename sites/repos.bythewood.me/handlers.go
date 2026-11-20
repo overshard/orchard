@@ -133,6 +133,9 @@ type RepoCard struct {
 	// PushPercent is how much of one push through the tunnel a from-scratch push
 	// of this repository would use.
 	PushPercent int
+	// Weeks is commits a week for the last twelve, signed in only.
+	Weeks  []float64
+	Recent int
 }
 
 func (s *site) index(w http.ResponseWriter, r *http.Request) {
@@ -169,15 +172,49 @@ func (s *site) index(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	// A failing mirror is the row that needs somebody, so it goes first.
 	sort.SliceStable(cards, func(i, j int) bool {
+		if (cards[i].LastSyncErr != "") != (cards[j].LastSyncErr != "") {
+			return cards[i].LastSyncErr != ""
+		}
 		return cards[i].LastPush.After(cards[j].LastPush)
 	})
+
+	loggedIn := s.auth.Authenticated(r)
+	commits := make([]float64, 12)
+	var busiest RepoCard
+	if loggedIn {
+		byName := make(map[string]Repo, len(repos))
+		for _, repo := range repos {
+			byName[repo.Name] = repo
+		}
+		for i := range cards {
+			if cards[i].Empty {
+				continue
+			}
+			weeks := s.store.Weekly(ctx, byName[cards[i].Name], "HEAD")
+			for j, v := range weeks[len(weeks)-12:] {
+				cards[i].Weeks = append(cards[i].Weeks, float64(v))
+				commits[j] += float64(v)
+			}
+			for _, v := range weeks[len(weeks)-4:] {
+				cards[i].Recent += v
+			}
+			if cards[i].Recent > busiest.Recent {
+				busiest = cards[i]
+			}
+		}
+	}
+	labels := make([]string, 12)
+	for i := range labels {
+		labels[i] = weekLabel(time.Now(), 12, i)
+	}
 
 	var active, archived []RepoCard
 	var totalSize int64
 	var mirrors int
 	var newest time.Time
-	var week, failing int
+	var week, failing, onlyCopy, branches, tags int
 	touched := make([]float64, 12)
 	now := time.Now()
 	for _, c := range cards {
@@ -190,6 +227,11 @@ func (s *site) index(w http.ResponseWriter, r *http.Request) {
 		if c.LastSyncErr != "" {
 			failing++
 		}
+		if c.UpstreamGone {
+			onlyCopy++
+		}
+		branches += c.Branches
+		tags += c.Tags
 		if c.Archived {
 			archived = append(archived, c)
 		} else {
@@ -204,7 +246,7 @@ func (s *site) index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s.renderer.Render(w, http.StatusOK, "index.html", s.page(r, "", siteTagline, map[string]any{
+	s.renderer.Render(w, http.StatusOK, "index.html", s.pageAs(r, loggedIn, "", siteTagline, map[string]any{
 		"Repos":     cards,
 		"Active":    active,
 		"Archived":  archived,
@@ -217,6 +259,11 @@ func (s *site) index(w http.ResponseWriter, r *http.Request) {
 		"Week":      week,
 		"Failing":   failing,
 		"Touched":   touched,
+		"Labels":    labels,
+		"Commits":   commits,
+		"Busiest":   busiest,
+		"OnlyCopy":  onlyCopy,
+		"RefCount":  [2]int{branches, tags},
 	}))
 }
 
@@ -331,10 +378,11 @@ func (s *site) repo(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if rc.SignedIn {
-			commits, _ := s.store.Log(ctx, rc.Repo, rc.Rev, 0, 10)
+			commits, _ := s.store.Log(ctx, rc.Repo, rc.Rev, 0, 8)
 			data["Commits"] = commits
 		}
-		data["CommitCount"] = s.store.CountCommits(ctx, rc.Repo, rc.Rev)
+		paths, _ := s.store.Paths(ctx, rc.Repo, rc.Rev)
+		data["Strip"] = s.buildStrip(ctx, rc, paths)
 
 		entries, err := s.store.Tree(ctx, rc.Repo, rc.Rev, "")
 		if err == nil {
@@ -345,6 +393,7 @@ func (s *site) repo(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	data["State"], data["Bad"] = repoState(rc, data["Strip"])
 
 	title := rc.Repo.Name
 	desc := rc.Meta.Description
@@ -352,6 +401,20 @@ func (s *site) repo(w http.ResponseWriter, r *http.Request) {
 		desc = "git repository " + rc.Repo.Name
 	}
 	s.renderer.Render(w, http.StatusOK, "repo.html", s.pageForRepo(r, rc, title, desc, data))
+}
+
+// repoState is the end of the repository page's title, what's true of it now.
+func repoState(rc *repoContext, strip any) (string, bool) {
+	switch {
+	case rc.Meta.LastSyncErr != "":
+		return "sync failing", true
+	case rc.Empty:
+		return "empty", false
+	}
+	if st, ok := strip.(repoStrip); ok && !st.LastPush.IsZero() {
+		return "pushed " + humanTime(st.LastPush), false
+	}
+	return "", false
 }
 
 // readme finds and renders the README in a directory listing.
@@ -428,7 +491,8 @@ func (s *site) blob(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 
-	if _, err := s.store.Resolve(ctx, rc.Repo, rc.Rev); err != nil {
+	sha, err := s.store.Resolve(ctx, rc.Repo, rc.Rev)
+	if err != nil {
 		s.notFound(w, r)
 		return
 	}
@@ -444,6 +508,10 @@ func (s *site) blob(w http.ResponseWriter, r *http.Request) {
 		"Ctx":  rc,
 		"Path": path,
 		"Size": size,
+	}
+	// Only the owner gets a link pinned to a commit, see named.
+	if rc.SignedIn {
+		data["SHA"] = sha
 	}
 
 	switch {
@@ -461,7 +529,7 @@ func (s *site) blob(w http.ResponseWriter, r *http.Request) {
 		} else {
 			data["Plain"] = string(src)
 		}
-		data["Lines"] = strings.Count(string(src), "\n") + 1
+		data["Lines"] = strings.Count(strings.TrimSuffix(string(src), "\n"), "\n") + 1
 		data["Language"] = languageOf(path)
 	}
 
@@ -564,7 +632,7 @@ func (s *site) log(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "log.html",
 		s.pageForRepo(r, rc, rc.Repo.Name+" log", "", map[string]any{
 			"Ctx":     rc,
-			"Commits": commits,
+			"Days":    byDay(commits),
 			"Path":    path,
 			"Page":    page,
 			"HasNext": hasNext,

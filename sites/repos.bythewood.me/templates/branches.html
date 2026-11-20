@@ -1,6 +1,6 @@
 {{define "content"}}
 {{$d := .Data}}{{$c := $d.Ctx}}
-{{template "repohead" (dict "Ctx" $c "Tab" "branches")}}
+{{template "repohead" (dict "Ctx" $c "Page" "branches" "Sub" "branches" "Title" $c.Repo.Name "State" (printf "%d %s" (len $c.Branches) (pluralize (len $c.Branches) "branch" "branches")))}}
 
 <h2>Branches <span class="count">{{len $c.Branches}}</span></h2>
 <table class="refs">

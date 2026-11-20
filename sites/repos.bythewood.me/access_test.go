@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -47,6 +48,10 @@ func accessFixture(t *testing.T, signedIn bool) (*site, http.Handler, string) {
 	mux.HandleFunc("GET /{name}/branches", s.refsPage("branches.html"))
 	mux.HandleFunc("GET /{name}/archive/{rev}", s.archive)
 	mux.HandleFunc("GET /{name}/atom.xml", s.atom)
+	mux.HandleFunc("GET /{name}/files/{rev}", s.files)
+	mux.HandleFunc("GET /{name}/last/{rev}", s.lastCommits)
+	mux.HandleFunc("GET /{name}/last/{rev}/{path...}", s.lastCommits)
+	mux.HandleFunc("GET /{$}", s.index)
 
 	repo, _ := s.store.Open("orchard")
 	sha, err := s.store.Resolve(context.Background(), repo, "main")
@@ -79,13 +84,26 @@ func TestSignedOutSeesBranchesAndTagsOnly(t *testing.T) {
 		"/orchard/branches",
 		"/orchard/archive/main.tar.gz",
 		"/orchard/atom.xml",
+		"/orchard/tree/main/sites/dash.bythewood.me",
+		"/orchard/files/main",
+		"/",
 	} {
 		w := fetch(h, target, false)
 		if w.Code != http.StatusOK {
 			t.Errorf("%s answered %d, want 200", target, w.Code)
 		}
-		if body := w.Body.String(); strings.Contains(body, "/"+sha) || strings.Contains(body, "/commit/") {
+		body := w.Body.String()
+		if strings.Contains(body, "/"+sha) || strings.Contains(body, "/commit/") {
 			t.Errorf("%s leaked a commit link", target)
+		}
+		// The feed's entry ids carry a SHA inside a tag URI, which isn't a link.
+		if strings.Contains(body, sha[:7]) && !strings.HasSuffix(target, ".xml") {
+			t.Errorf("%s printed a commit SHA", target)
+		}
+		for _, history := range []string{"/log/", "/last/", "data-sha", "data-last"} {
+			if strings.Contains(body, history) {
+				t.Errorf("%s pointed at history with %q", target, history)
+			}
 		}
 	}
 
@@ -96,8 +114,16 @@ func TestSignedOutSeesBranchesAndTagsOnly(t *testing.T) {
 		"/orchard/archive/" + sha + ".tar.gz",
 		"/orchard/log/main",
 		"/orchard/commit/" + sha,
+		"/orchard/last/main",
+		"/orchard/files/" + sha,
 	} {
 		w := fetch(h, target, false)
+		if strings.Contains(target, "/last/") || strings.Contains(target, "/files/") {
+			if w.Code != http.StatusNotFound {
+				t.Errorf("%s answered %d, want 404", target, w.Code)
+			}
+			continue
+		}
 		if w.Code != http.StatusNotFound {
 			t.Errorf("%s answered %d, want 404", target, w.Code)
 		}
@@ -125,13 +151,35 @@ func TestSignedInSeesEverything(t *testing.T) {
 		}
 	}
 
-	if w := fetch(h, "/orchard", true); !strings.Contains(w.Body.String(), "/orchard/commit/"+sha) {
+	body := fetch(h, "/orchard", true).Body.String()
+	if !strings.Contains(body, "/orchard/commit/"+sha) {
 		t.Error("the repository page lost its recent commits signed in")
+	}
+	for _, want := range []string{`data-last="/orchard/last/main"`, "<small>commits</small>", "/orchard/log/main"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the repository page signed in is missing %q", want)
+		}
+	}
+	if body := fetch(h, "/orchard/blob/main/README.md", true).Body.String(); !strings.Contains(body, `data-sha="`+sha+`"`) {
+		t.Error("a file signed in has no SHA for y to pin to")
+	}
+
+	w := fetch(h, "/orchard/last/main", true)
+	var last struct {
+		Entries map[string]struct{ SHA, Subject string }
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &last); err != nil {
+		t.Fatalf("last commits: %v: %s", err, w.Body.String())
+	}
+	for _, name := range []string{"README.md", "sites"} {
+		if c := last.Entries[name]; c.SHA != sha || c.Subject != "first commit" {
+			t.Errorf("last commit for %s is %+v", name, c)
+		}
 	}
 
 	// Cloudflare caches by extension, so a public raw file at a SHA would be
 	// handed to a signed out visitor from the edge.
-	w := fetch(h, "/orchard/raw/"+sha+"/README.md", true)
+	w = fetch(h, "/orchard/raw/"+sha+"/README.md", true)
 	if cc := w.Header().Get("Cache-Control"); !strings.HasPrefix(cc, "private") {
 		t.Errorf("a raw file at a SHA carried Cache-Control %q", cc)
 	}

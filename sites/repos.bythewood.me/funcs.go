@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"html/template"
 	"net/url"
+	"path"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,8 +21,20 @@ var templateFuncs = template.FuncMap{
 	"firstLine":  firstLine,
 	"pluralize":  pluralize,
 	"percentOf":  percentOf,
-	"add":        func(a, b int) int { return a + b },
-	"sub":        func(a, b int) int { return a - b },
+	"num":        formatNum,
+	"shortAgo":   shortAgo,
+	"parentPath": parentPath,
+	"base":       path.Base,
+	"blobState":  blobState,
+	"sumOf": func(v []float64) float64 {
+		t := 0.0
+		for _, x := range v {
+			t += x
+		}
+		return t
+	},
+	"add": func(a, b int) int { return a + b },
+	"sub": func(a, b int) int { return a - b },
 }
 
 // dict lets a partial take more than one value, since a template has one dot.
@@ -144,4 +158,57 @@ func percentOf(n, total int64) int {
 		return 100
 	}
 	return p
+}
+
+// formatNum is the thousands separator. It takes any, since a template handing
+// an int to an int64 parameter only fails at render time.
+func formatNum(v any) string {
+	var n int64
+	switch t := v.(type) {
+	case int:
+		n = int64(t)
+	case int64:
+		n = t
+	case float64:
+		n = int64(t)
+	default:
+		return fmt.Sprint(v)
+	}
+	s := strconv.FormatInt(n, 10)
+	neg := strings.HasPrefix(s, "-")
+	s = strings.TrimPrefix(s, "-")
+	var b strings.Builder
+	for i, d := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteRune(d)
+	}
+	if neg {
+		return "-" + b.String()
+	}
+	return b.String()
+}
+
+// parentPath is the directory above p, empty at the top.
+func parentPath(p string) string {
+	i := strings.LastIndex(p, "/")
+	if i < 0 {
+		return ""
+	}
+	return p[:i]
+}
+
+// blobState is the end of a file page's title.
+func blobState(d map[string]any) string {
+	switch {
+	case d["TooLarge"] == true:
+		return "too large to show"
+	case d["Binary"] == true:
+		return "binary"
+	}
+	if n, ok := d["Lines"].(int); ok {
+		return formatNum(n) + " " + pluralize(n, "line", "lines")
+	}
+	return ""
 }

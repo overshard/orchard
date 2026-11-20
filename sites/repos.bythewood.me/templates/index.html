@@ -76,23 +76,49 @@ git push -u origin main</pre>
 {{end}}
 
 {{if $d.Repos}}
-<div class="o-tiles">
+<div class="o-strip{{if not $.LoggedIn}} six{{end}}">
   <div class="o-tile">
     <small>repositories</small>
     <b>{{len $d.Active}}</b>
     <span class="o-delta">{{if $d.Archived}}{{len $d.Archived}} archived as well{{else}}none archived{{end}}</span>
-    <span class="o-ticks" aria-hidden="true">{{range $d.Active}}<i class="{{if .LastSyncErr}}bad{{else if .Empty}}none{{end}}" title="{{.Name}}"></i>{{end}}</span>
+    <span class="o-ticks" aria-hidden="true">{{range $d.Active}}<i class="{{if .LastSyncErr}}bad{{else if .Empty}}none{{end}}" data-tip="{{.Name}}"></i>{{end}}</span>
   </div>
   <div class="o-tile">
     <small>pushed &middot; 7d</small>
     <b>{{$d.Week}}</b>
     <span class="o-delta">last push {{humanTime $d.LastPush}}</span>
-    {{spark "ok" $d.Touched}}
+    {{sparkT "ok" $d.Touched $d.Labels}}
   </div>
+  {{if $.LoggedIn}}
+  <div class="o-tile">
+    <small>commits &middot; 12w</small>
+    <b>{{num (sumOf $d.Commits)}}</b>
+    <span class="o-delta">on every default branch</span>
+    {{sparkT "ok" $d.Commits $d.Labels}}
+  </div>
+  <div class="o-tile">
+    <small>busiest &middot; 4w</small>
+    <b>{{if $d.Busiest.Name}}{{$d.Busiest.Name}}{{else}}none{{end}}</b>
+    <span class="o-delta">{{if $d.Busiest.Name}}{{$d.Busiest.Recent}} {{pluralize $d.Busiest.Recent "commit" "commits"}} in 4 weeks{{else}}nothing committed in 4 weeks{{end}}</span>
+    {{if $d.Busiest.Weeks}}{{spark "ok" $d.Busiest.Weeks}}{{else}}<span class="o-nospark"></span>{{end}}
+  </div>
+  {{end}}
   <div class="o-tile">
     <small>mirrors</small>
     <b class="{{if $d.Failing}}bad{{end}}">{{$d.Mirrors}}</b>
     <span class="o-delta {{if $d.Failing}}o-bad{{end}}">{{if $d.Failing}}{{$d.Failing}} failing to sync{{else if $d.Mirrors}}every one syncing{{else}}nothing mirrored{{end}}</span>
+    <span class="o-ticks" aria-hidden="true">{{range $d.Repos}}{{if .Mirror}}<i class="{{if .LastSyncErr}}bad{{end}}" data-tip="{{.Name}}{{if .LastSyncErr}} &middot; failing{{end}}"></i>{{end}}{{end}}</span>
+  </div>
+  <div class="o-tile">
+    <small>only copy</small>
+    <b class="{{if $d.OnlyCopy}}warn{{end}}">{{$d.OnlyCopy}}</b>
+    <span class="o-delta">{{if $d.OnlyCopy}}gone from GitHub, kept here{{else}}everything is upstream too{{end}}</span>
+    <span class="o-nospark"></span>
+  </div>
+  <div class="o-tile">
+    <small>refs</small>
+    <b>{{index $d.RefCount 0}} &middot; {{index $d.RefCount 1}}</b>
+    <span class="o-delta">branches &middot; tags</span>
     <span class="o-nospark"></span>
   </div>
   <div class="o-tile">
@@ -104,34 +130,36 @@ git push -u origin main</pre>
 </div>
 
 <section class="o-panel flush">
-  <div class="o-ph2"><h2>Repositories</h2><span class="o-lab">last pushed first</span></div>
-  {{template "repotable" $d.Active}}
+  <div class="o-ph2"><h2>Repositories</h2><span class="o-lab">failing first, then last pushed</span></div>
+  {{template "repotable" (dict "Rows" $d.Active "Signed" $.LoggedIn)}}
 </section>
 {{end}}
 
 {{if $d.Archived}}
 <section class="o-panel flush">
   <div class="o-ph2"><h2>Archived</h2><span class="o-lab">read only copies, no longer maintained</span></div>
-  {{template "repotable" $d.Archived}}
+  {{template "repotable" (dict "Rows" $d.Archived "Signed" $.LoggedIn)}}
 </section>
 {{end}}
 {{end}}
 
 {{define "repotable"}}
 <div class="o-scroll">
-<table class="o-tbl stack repotbl">
-  <thead><tr><th>Repository</th><th class="r">Size</th><th class="r">Branches</th><th class="r">Tags</th><th>Updated</th><th>Synced</th></tr></thead>
+<table class="o-tbl stack repotbl" data-keys>
+  <thead><tr><th>Repository</th>{{if .Signed}}<th class="r">12 weeks</th>{{end}}<th class="r">Size</th><th class="r">Branches</th><th class="r">Tags</th><th>Updated</th><th>Synced</th></tr></thead>
   <tbody>
-  {{range .}}
+  {{range .Rows}}
     <tr data-href="/{{.Name}}" class="{{if .LastSyncErr}}hot{{else if .Empty}}off{{end}}">
       <td class="lead">
         <a class="name" href="/{{.Name}}">{{.Name}}</a>
+        {{if .LastSyncErr}}<span class="o-chip bad">sync failing</span>{{end}}
         {{if .Mirror}}<span class="o-chip">mirror</span>{{end}}
-        {{if .UpstreamGone}}<span class="o-chip warn" title="No longer on GitHub. This is the only copy.">only copy</span>{{end}}
+        {{if .UpstreamGone}}<span class="o-chip warn" data-tip="No longer on GitHub. This is the only copy.">only copy</span>{{end}}
         {{if .Empty}}<span class="o-chip">empty</span>{{end}}
         {{if .Description}}<span class="sub">{{.Description}}</span>{{end}}
         {{if .LastSyncErr}}<span class="sub bad">Last sync failed: {{.LastSyncErr}}</span>{{end}}
       </td>
+      {{if $.Signed}}<td class="r o-cell-spark" data-l="12 weeks" data-tip="{{.Recent}} {{pluralize .Recent "commit" "commits"}} in 4 weeks">{{spark "ok" .Weeks}}</td>{{end}}
       <td class="r n" data-l="size">{{humanBytes .Size}}</td>
       <td class="r n o-muted" data-l="branches">{{.Branches}}</td>
       <td class="r n o-muted hide">{{if .Tags}}{{.Tags}}{{else}}&middot;{{end}}</td>

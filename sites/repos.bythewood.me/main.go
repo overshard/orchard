@@ -182,6 +182,9 @@ func realMain() error {
 	pages, archives := newThrottle(pageLimit), newThrottle(archiveLimit)
 
 	mux.HandleFunc("GET /{name}/raw/{rev}/{path...}", s.limited(pages, s.raw))
+	mux.HandleFunc("GET /{name}/files/{rev}", s.limited(pages, s.files))
+	mux.HandleFunc("GET /{name}/last/{rev}", s.lastCommits)
+	mux.HandleFunc("GET /{name}/last/{rev}/{path...}", s.lastCommits)
 
 	mux.HandleFunc("GET /{name}/log", s.log)
 	mux.HandleFunc("GET /{name}/log/{rev}", s.log)

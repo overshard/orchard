@@ -1,33 +1,28 @@
 {{define "content"}}
 {{$d := .Data}}{{$c := $d.Ctx}}
-{{template "repohead" (dict "Ctx" $c "Tab" "files")}}
+{{template "repohead" (dict "Ctx" $c "Page" "blob" "Sub" $c.Rev "Title" (base $d.Path) "State" (blobState $d))}}
 
-<div class="toolbar">
-  {{/*
-    The leaf is the file itself and is rendered as text, not a link. Linking it
-    to a /tree/ URL, as every other crumb correctly is, produced a 404 on the
-    last crumb of every blob page.
-  */}}
-  <nav class="crumbs">
-    <a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}">{{$c.Repo.Name}}</a>
-    {{$segs := pathSegs $d.Path}}{{$last := sub (len $segs) 1}}
-    {{range $i, $seg := $segs}} /
-      {{if eq $i $last}}<span class="leaf">{{$seg.Name}}</span>
-      {{else}}<a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}/{{urlPath $seg.Path}}">{{$seg.Name}}</a>{{end}}
-    {{end}}
-  </nav>
-  <span class="stat">{{humanBytes $d.Size}}{{if $d.Lines}} &middot; {{$d.Lines}} lines{{end}}{{if $d.Language}} &middot; {{$d.Language}}{{end}}</span>
-  <a class="btn" href="/{{$c.Repo.Name}}/raw/{{$c.Rev}}/{{urlPath $d.Path}}">Raw</a>
-  {{if $c.SignedIn}}<a class="btn" href="/{{$c.Repo.Name}}/log/{{$c.Rev}}/{{urlPath $d.Path}}">History</a>{{end}}
-</div>
+<section class="o-panel flush blob"{{if $d.SHA}} data-sha="{{$d.SHA}}"{{end}} data-rev="{{$c.Rev}}">
+  <div class="o-ph2">
+    <h2>{{template "crumbs" (dict "Ctx" $c "Path" $d.Path "Leaf" true)}}</h2>
+    <span class="o-pm"><span>size<b>{{humanBytes $d.Size}}</b></span>{{if $d.Language}}<span>{{$d.Language}}</span>{{end}}</span>
+  </div>
+  <div class="linkbar">
+    <code class="permalink" data-permalink>{{$.Canonical}}</code>
+    <button type="button" class="o-btn o-btn-sm" data-copy-link data-act="copy a link to these lines">Copy link</button>
+    <a class="o-btn o-btn-sm" href="/{{$c.Repo.Name}}/raw/{{$c.Rev}}/{{urlPath $d.Path}}">Raw</a>
+    {{if $c.SignedIn}}<a class="o-btn o-btn-sm" href="/{{$c.Repo.Name}}/log/{{$c.Rev}}/{{urlPath $d.Path}}">History</a>{{end}}
+    <span class="o-hint"><span><kbd>click</kbd>a line</span><span><kbd>shift</kbd>a range</span>{{if $d.SHA}}<span><kbd>y</kbd>pin to the commit</span>{{end}}</span>
+  </div>
 
 {{if $d.TooLarge}}
   <p class="notice">This file is {{humanBytes $d.Size}}, too large to render. Download the raw file instead.</p>
 {{else if $d.Binary}}
   <p class="notice">Binary file, {{humanBytes $d.Size}}. Download the raw file to inspect it.</p>
 {{else if $d.Highlighted}}
-  <div class="code">{{$d.Highlighted}}</div>
+  <div class="code" data-lines>{{$d.Highlighted}}</div>
 {{else}}
   <pre class="code plain">{{$d.Plain}}</pre>
 {{end}}
+</section>
 {{end}}
