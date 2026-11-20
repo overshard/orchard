@@ -24,21 +24,34 @@
   </details>
 
   {{ if .Properties }}
-  <div class="o-tiles">
+  <div class="chips"><span class="o-muted hint">Every property, the last 14 days against the 14 before where it says so.</span><span class="o-sp"></span><span class="when" data-xs-when>UTC days</span></div>
+  <div class="o-strip six">
     <div class="o-tile">
       <small>page views &middot; 7d</small>
       <b>{{ num .Totals.ViewsWeek }}</b>
       <span class="o-delta">{{ weekDelta .Totals.ViewsWeek .Totals.ViewsPrev }}</span>
-      {{ spark "ok" .Totals.Views14 }}
+      {{ sparkT "ok" .Totals.Views14 .Totals.Labels }}
     </div>
-    <div class="o-tile">
+    <div class="o-tile" data-tip="People who viewed a page, counted once per property.">
+      <small>visitors &middot; 7d</small>
+      <b>{{ num .Totals.Visitors }}</b>
+      <span class="o-delta">{{ weekDelta .Totals.Visitors .Totals.VisPrev }}</span>
+      {{ sparkT "ok" .Totals.Visitors14 .Totals.Labels }}
+    </div>
+    <div class="o-tile" data-tip="One tick a property, as tall as its share of the week's views.">
       <small>live &middot; 7d</small>
       <b>{{ .Totals.Live }} of {{ .Totals.Properties }}</b>
       <span class="o-delta">saw an event this week</span>
+      <div class="o-ticks">{{ range .Totals.Share }}<i style="height: {{ . }}%"></i>{{ end }}</div>
+    </div>
+    <div class="o-tile" data-tip="Busy hours and outside links pushed to the alerts topic.">
+      <small>alerts &middot; 7d</small>
+      <b>{{ .Totals.Alerts }}</b>
+      <span class="o-delta">surges and links pushed</span>
       <span class="o-nospark"></span>
     </div>
     <div class="o-tile">
-      <small>sessions &middot; all time</small>
+      <small>new visitors &middot; all time</small>
       <b>{{ num .Totals.Sessions }}</b>
       <span class="o-delta">{{ num .Totals.PageViews }} page views</span>
       <span class="o-nospark"></span>
@@ -46,7 +59,7 @@
     <div class="o-tile">
       <small>events &middot; all time</small>
       <b>{{ num .Totals.Events }}</b>
-      <span class="o-delta">views, sessions and custom</span>
+      <span class="o-delta">views, clicks, scrolls and custom</span>
       <span class="o-nospark"></span>
     </div>
   </div>
@@ -56,7 +69,7 @@
     {{ if .Properties }}
     <div class="o-scroll">
     <table class="o-tbl stack props">
-      <thead><tr><th>Property</th><th>Last 14 days</th><th class="r">Views 7d</th><th class="r">Views</th><th class="r">Sessions</th><th class="r">Events</th><th></th></tr></thead>
+      <thead><tr><th>Property</th><th>Views, 14 days</th><th class="r">Views 7d</th><th>Visitors, 14 days</th><th class="r">Visitors 7d</th><th class="r">Views</th><th class="r">Events</th><th></th></tr></thead>
       <tbody>
       {{ range .Properties }}
         <tr data-href="/{{ .ID }}" class="{{ if not .IsActive }}off{{ end }}">
@@ -65,10 +78,11 @@
             {{ if .IsPublic }}<span class="o-chip">public</span>{{ end }}
             {{ if not .IsActive }}<span class="o-chip">quiet</span>{{ end }}
           </td>
-          <td class="o-cell-spark">{{ spark (or (and .IsActive "ok") "flat") .Views14 }}</td>
-          <td class="r n" data-l="7d">{{ num .ViewsWeek }}</td>
+          <td class="o-cell-spark">{{ sparkT (or (and .IsActive "ok") "flat") .Views14 $.Totals.Labels }}</td>
+          <td class="r n" data-l="views 7d">{{ num .ViewsWeek }}</td>
+          <td class="o-cell-spark">{{ sparkT (or (and .IsActive "ok") "flat") .Visitors14 $.Totals.Labels }}</td>
+          <td class="r n" data-l="visitors 7d">{{ num .VisitorsWeek }}{{ if .AlertsWeek }} <span class="o-chip warn" data-tip="Alerts pushed this week">{{ .AlertsWeek }} alert{{ if gt .AlertsWeek 1 }}s{{ end }}</span>{{ end }}</td>
           <td class="r n o-muted" data-l="views">{{ num .TotalPageViews }}</td>
-          <td class="r n o-muted" data-l="sessions">{{ num .TotalSessionStarts }}</td>
           <td class="r n o-muted" data-l="events">{{ num .TotalEvents }}</td>
           <td class="act">
             {{ if not .IsProtected }}

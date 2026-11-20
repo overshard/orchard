@@ -22,7 +22,10 @@ type PropertyRow struct {
 	TotalPageViews     int64
 	TotalSessionStarts int64
 	Views14            []float64
+	Visitors14         []float64
 	ViewsWeek          int64
+	VisitorsWeek       int64
+	AlertsWeek         int64
 }
 
 // PropertyTotals is the summary strip above the list.
@@ -33,8 +36,15 @@ type PropertyTotals struct {
 	Sessions   int64
 	Live       int
 	Views14    []float64
+	Visitors14 []float64
+	Labels     []string
 	ViewsWeek  int64
 	ViewsPrev  int64
+	Visitors   int64
+	VisPrev    int64
+	Alerts     int64
+	// Share is each property's part of the week's views, for the ticks.
+	Share []int64
 }
 
 // activeWindow is how recently a property must have seen an event to show as
@@ -81,16 +91,24 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 	var totals PropertyTotals
 	activeSince := time.Now().Add(-activeWindow).UnixMilli()
 
+	weekStart := dayStartUTC(time.Now(), 6)
+	prevStart := dayStartUTC(time.Now(), 13)
+	totals.Labels = dayLabels(14)
+	totals.Views14 = make([]float64, 14)
+	totals.Visitors14 = make([]float64, 14)
 	for _, p := range props {
-		var total, pv, ss, active int64
+		var total, pv, ss, active, visitors, visPrev, alerts int64
 		// One round trip for all four counts, still N+1 across the list, which
 		// is fine at this scale.
 		err := s.db.QueryRowContext(ctx, `SELECT
 		    (SELECT COUNT(*) FROM events WHERE property_id = ?1),
 		    (SELECT COUNT(*) FROM events WHERE property_id = ?1 AND event = 'page_view'),
 		    (SELECT COUNT(*) FROM events WHERE property_id = ?1 AND event = 'session_start'),
-		    (SELECT COUNT(*) FROM events WHERE property_id = ?1 AND created_at >= ?2)`,
-			p.ID[:], activeSince).Scan(&total, &pv, &ss, &active)
+		    (SELECT COUNT(*) FROM events WHERE property_id = ?1 AND created_at >= ?2),
+		    (SELECT COUNT(DISTINCT user_id) FROM events WHERE property_id = ?1 AND event = 'page_view' AND created_at >= ?3),
+		    (SELECT COUNT(DISTINCT user_id) FROM events WHERE property_id = ?1 AND event = 'page_view' AND created_at >= ?4 AND created_at < ?3),
+		    (SELECT COUNT(*) FROM alerts WHERE property_id = ?1 AND created_at >= ?3)`,
+			p.ID[:], activeSince, weekStart, prevStart).Scan(&total, &pv, &ss, &active, &visitors, &visPrev, &alerts)
 		if err != nil {
 			slog.Info("properties counts", slog.Any("id", p.ID), slog.Any("err", err))
 		}
@@ -99,11 +117,15 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 		totals.PageViews += pv
 		totals.Sessions += ss
 		views := s.dailyViews(ctx, p.ID[:], 14)
+		people := s.daily(ctx, p.ID[:], 14, "COUNT(DISTINCT user_id)")
+		for i, v := range people {
+			totals.Visitors14[i] += v
+		}
+		totals.Visitors += visitors
+		totals.VisPrev += visPrev
+		totals.Alerts += alerts
 		var week int64
 		for i, v := range views {
-			if totals.Views14 == nil {
-				totals.Views14 = make([]float64, len(views))
-			}
 			totals.Views14[i] += v
 			if i >= 7 {
 				week += int64(v)
@@ -126,10 +148,16 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 			TotalPageViews:     pv,
 			TotalSessionStarts: ss,
 			Views14:            views,
+			Visitors14:         people,
 			ViewsWeek:          week,
+			VisitorsWeek:       visitors,
+			AlertsWeek:         alerts,
 		})
 	}
 	totals.Properties = len(listed)
+	for _, l := range listed {
+		totals.Share = append(totals.Share, 4+96*l.ViewsWeek/max(totals.ViewsWeek, 1))
+	}
 
 	data := s.page(r, "Properties", "Manage your properties.")
 	data.Properties = listed
@@ -239,11 +267,30 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // dailyViews is a property's page views a day for the last n days, oldest
 // first, for the trend beside it in the list.
 func (s *site) dailyViews(ctx context.Context, id []byte, n int) []float64 {
+	return s.daily(ctx, id, n, "COUNT(*)")
+}
+
+// dayStartUTC is midnight UTC, back days from today.
+func dayStartUTC(now time.Time, back int) int64 {
+	now = now.UTC()
+	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -back).UnixMilli()
+}
+
+func dayLabels(n int) []string {
+	out := make([]string, n)
+	for i := range n {
+		out[i] = formatGraphLabel(time.UnixMilli(dayStartUTC(time.Now(), n-1-i)).UTC())
+	}
+	return out
+}
+
+// daily is count over page views a day for the last n days. count is written
+// into the SQL, so callers pass a literal.
+func (s *site) daily(ctx context.Context, id []byte, n int, count string) []float64 {
 	out := make([]float64, n)
-	now := time.Now().UTC()
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -(n - 1))
-	rows, err := s.db.QueryContext(ctx, `SELECT (created_at - ?2) / 86400000, COUNT(*) FROM events
-		WHERE property_id = ?1 AND event = 'page_view' AND created_at >= ?2 GROUP BY 1`, id, start.UnixMilli())
+	start := dayStartUTC(time.Now(), n-1)
+	rows, err := s.db.QueryContext(ctx, `SELECT (created_at - ?2) / 86400000, `+count+` FROM events
+		WHERE property_id = ?1 AND event = 'page_view' AND created_at >= ?2 GROUP BY 1`, id, start)
 	if err != nil {
 		return out
 	}
