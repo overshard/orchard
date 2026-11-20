@@ -154,13 +154,16 @@ func newConnectorSession(db *sql.DB, r *http.Request, client string) (string, er
 	value := base64.RawURLEncoding.EncodeToString(raw)
 	now := time.Now()
 	c := requestContext(r)
-	_, err := db.Exec(`
-        INSERT INTO sessions (hash, created, last_seen, expires, sudo_at, ip, country, city, ua, cf_ray)
-        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+	res, err := db.Exec(`
+        INSERT INTO sessions (hash, created, last_seen, expires, sudo_at, ip, country, city, ua, cf_ray, method)
+        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
 		sessionHash(value), now.Unix(), now.Unix(), now.Add(connectorTTL).Unix(),
-		c.IP, c.Country, c.City, connectorUA+client, c.Ray)
+		c.IP, c.Country, c.City, connectorUA+client, c.Ray, methodConnector)
 	if err != nil {
 		return "", err
+	}
+	if id, err := res.LastInsertId(); err == nil {
+		markDay(db, id, now)
 	}
 	return value, nil
 }

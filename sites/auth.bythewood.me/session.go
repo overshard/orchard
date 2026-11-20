@@ -40,8 +40,16 @@ type Session struct {
 	Country  string
 	City     string
 	UA       string
+	Method   string
 	Current  bool
 }
+
+// How a session was signed in, stored in sessions.method.
+const (
+	methodCode      = "code"
+	methodRecovery  = "recovery"
+	methodConnector = "connector"
+)
 
 var errNoSession = errors.New("no live session")
 
@@ -55,7 +63,7 @@ func sessionHash(value string) []byte {
 
 // newSession mints an opaque identifier, records it, and returns the value for
 // the cookie. The value is never stored and cannot be recovered.
-func newSession(db *sql.DB, r *http.Request) (string, error) {
+func newSession(db *sql.DB, r *http.Request, method string) (string, error) {
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return "", err
@@ -64,15 +72,24 @@ func newSession(db *sql.DB, r *http.Request) (string, error) {
 
 	now := time.Now()
 	c := requestContext(r)
-	_, err := db.Exec(`
-        INSERT INTO sessions (hash, created, last_seen, expires, sudo_at, ip, country, city, ua, cf_ray)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	res, err := db.Exec(`
+        INSERT INTO sessions (hash, created, last_seen, expires, sudo_at, ip, country, city, ua, cf_ray, method)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		sessionHash(value), now.Unix(), now.Unix(), now.Add(sessionTTL).Unix(), now.Unix(),
-		c.IP, c.Country, c.City, c.UA, c.Ray)
+		c.IP, c.Country, c.City, c.UA, c.Ray, method)
 	if err != nil {
 		return "", err
 	}
+	if id, err := res.LastInsertId(); err == nil {
+		markDay(db, id, now)
+	}
 	return value, nil
+}
+
+// markDay notes a session was used on now's UTC day. Best effort, since it
+// only feeds a strip on the sessions page.
+func markDay(db *sql.DB, id int64, now time.Time) {
+	_, _ = db.Exec(`INSERT OR IGNORE INTO session_days (session_id, day) VALUES (?, ?)`, id, now.Unix()/86400)
 }
 
 func writeSessionCookie(w http.ResponseWriter, value string) {
@@ -140,6 +157,7 @@ func lookupSession(db *sql.DB, r *http.Request) (live, error) {
 	if now.Sub(time.Unix(lastSeen, 0)) > lastSeenResolution {
 		// Best effort. A page must not fail because this write did.
 		_, _ = db.Exec(`UPDATE sessions SET last_seen = ? WHERE id = ?`, now.Unix(), id)
+		markDay(db, id, now)
 	}
 
 	return live{ID: id, Hash: h, SudoAt: time.Unix(sudoAt, 0)}, nil
@@ -152,7 +170,7 @@ func (l live) inSudo() bool { return time.Since(l.SudoAt) < sudoWindow }
 // listSessions returns the live sessions, newest first, marking the caller's own.
 func listSessions(db *sql.DB, current []byte) ([]Session, error) {
 	rows, err := db.Query(`
-        SELECT id, hash, created, last_seen, expires, ip, country, city, ua
+        SELECT id, hash, created, last_seen, expires, ip, country, city, ua, method
         FROM sessions WHERE revoked = 0 AND expires > ?
         ORDER BY last_seen DESC`, time.Now().Unix())
 	if err != nil {
@@ -168,7 +186,7 @@ func listSessions(db *sql.DB, current []byte) ([]Session, error) {
 			created, lastSeen, expires int64
 		)
 		if err := rows.Scan(&s.ID, &hash, &created, &lastSeen, &expires,
-			&s.IP, &s.Country, &s.City, &s.UA); err != nil {
+			&s.IP, &s.Country, &s.City, &s.UA, &s.Method); err != nil {
 			return nil, err
 		}
 		s.Created = time.Unix(created, 0).UTC()
@@ -199,7 +217,11 @@ func revokeOthers(db *sql.DB, keep int64) (int64, error) {
 // nobody is going to ask about them. Without it the table only grows.
 func sweepSessions(db *sql.DB) error {
 	cutoff := time.Now().Add(-30 * 24 * time.Hour).Unix()
-	_, err := db.Exec(`DELETE FROM sessions WHERE expires < ? OR (revoked = 1 AND last_seen < ?)`,
-		time.Now().Unix(), cutoff)
+	if _, err := db.Exec(`DELETE FROM sessions WHERE expires < ? OR (revoked = 1 AND last_seen < ?)`,
+		time.Now().Unix(), cutoff); err != nil {
+		return err
+	}
+	_, err := db.Exec(`DELETE FROM session_days WHERE day < ? OR session_id NOT IN (SELECT id FROM sessions)`,
+		time.Now().Add(-30*24*time.Hour).Unix()/86400)
 	return err
 }

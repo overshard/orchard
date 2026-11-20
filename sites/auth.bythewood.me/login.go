@@ -163,7 +163,7 @@ func (s *site) codeSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clearPendingCookie(w)
-	s.openSession(w, r, next, "a code")
+	s.openSession(w, r, next, "a code", methodCode)
 }
 
 // recoveryForm and recoverySubmit are the break-glass, since ntfy is behind the
@@ -199,13 +199,13 @@ func (s *site) recoverySubmit(w http.ResponseWriter, r *http.Request) {
 	// code is for.
 	s.notifier.background(recoveryMessage(requestContext(r), remaining))
 
-	s.openSession(w, r, next, "a recovery code")
+	s.openSession(w, r, next, "a recovery code", methodRecovery)
 }
 
 // openSession is the one place a session is created, so the alert and the audit
 // record cannot drift apart from the cookie.
-func (s *site) openSession(w http.ResponseWriter, r *http.Request, next, how string) {
-	value, err := newSession(s.db, r)
+func (s *site) openSession(w http.ResponseWriter, r *http.Request, next, how, method string) {
+	value, err := newSession(s.db, r, method)
 	if err != nil {
 		s.fail(w, r, "opening a session", err)
 		return

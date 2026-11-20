@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -121,7 +122,40 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 CREATE INDEX IF NOT EXISTS events_ts ON events(ts);
+
+-- The days a session was used, for the strips on the sessions page. Written
+-- alongside last_seen, so at most once per lastSeenResolution per session.
+CREATE TABLE IF NOT EXISTS session_days (
+    session_id INTEGER NOT NULL,
+    day        INTEGER NOT NULL,
+    PRIMARY KEY (session_id, day)
+) WITHOUT ROWID;
 `
+
+// columns came after their tables first shipped. Only ever added, since the
+// database is the live one and ALTER TABLE has no IF NOT EXISTS.
+var columns = []struct{ table, name, def string }{
+	// method is how the session was signed in, code, recovery or connector,
+	// and empty for sessions older than the column.
+	{"sessions", "method", "TEXT NOT NULL DEFAULT ''"},
+}
+
+func migrate(db *sql.DB) error {
+	for _, c := range columns {
+		var n int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = ?`, c.table, c.name).Scan(&n); err != nil {
+			return err
+		}
+		if n > 0 {
+			continue
+		}
+		if _, err := db.Exec(`ALTER TABLE ` + c.table + ` ADD COLUMN ` + c.name + ` ` + c.def); err != nil {
+			return err
+		}
+		slog.Info("added a column", slog.String("table", c.table), slog.String("column", c.name))
+	}
+	return nil
+}
 
 // openDB opens the database and applies the schema. Pragmas go in the DSN
 // because they are per connection and database/sql opens connections lazily.
@@ -155,6 +189,9 @@ func openDB(path string) (*sql.DB, error) {
 	}
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("apply schema: %w", err)
+	}
+	if err := migrate(db); err != nil {
+		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	// SQLite's advice for a long lived connection. A failure only costs the
 	// planner its statistics, so it isn't fatal.
