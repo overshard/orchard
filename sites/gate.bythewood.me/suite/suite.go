@@ -121,6 +121,7 @@ var Tools = []Tool{
 	{"repos", "https://repos.bythewood.me/"},
 	{"mcp", "https://mcp.bythewood.me/"},
 	{"gate", "https://gate.bythewood.me/"},
+	{"dns", "https://dns.bythewood.me/"},
 }
 
 // Page is what the chrome templates read, one per rendered page.
