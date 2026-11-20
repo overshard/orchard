@@ -17,7 +17,7 @@ import (
 	"gate.bythewood.me/web"
 )
 
-func testSite(t *testing.T) *site {
+func testSite(t testing.TB) *site {
 	t.Helper()
 	store, err := OpenStore(filepath.Join(t.TempDir(), "gate.db"))
 	if err != nil {
@@ -217,14 +217,7 @@ func TestChallengeAndSolve(t *testing.T) {
 	body := w.Body.String()
 	i := strings.Index(body, `name="seed" value="`) + len(`name="seed" value="`)
 	seed := body[i : i+strings.Index(body[i:], `"`)]
-	nonce := ""
-	for n := 0; ; n++ {
-		sum := sha256.Sum256([]byte(seed + strconv.Itoa(n)))
-		if strings.HasPrefix(hex.EncodeToString(sum[:]), strings.Repeat("0", powZeros)) {
-			nonce = strconv.Itoa(n)
-			break
-		}
-	}
+	nonce := work(seed)
 	form := url.Values{"seed": {seed}, "nonce": {nonce}, "back": {"/explore?page=3"}}
 	sr := httptest.NewRequest(http.MethodPost, "http://repos.bythewood.me/__gate/solve", strings.NewReader(form.Encode()))
 	sr.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -366,3 +359,14 @@ func TestPassCoversTheSite(t *testing.T) {
 		t.Fatal("siteOf")
 	}
 }
+
+func work(seed string) string {
+	for n := 0; ; n++ {
+		sum := sha256.Sum256([]byte(seed + strconv.Itoa(n)))
+		if strings.HasPrefix(hex.EncodeToString(sum[:]), strings.Repeat("0", powZeros)) {
+			return strconv.Itoa(n)
+		}
+	}
+}
+
+func mustAddr(s string) netip.Addr { return netip.MustParseAddr(s) }
