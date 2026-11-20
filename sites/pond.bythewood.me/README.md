@@ -137,6 +137,11 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   `frontend/src/pinworld.js`, and `bun pinsim.js` in `frontend/` plays 500
   games with the frog alone and 500 with a player, which is what `pinRate`
   and `pinMost` in `arcade.go` are set from.
+  Raft run's river, the frog steering the leaf and the current are
+  `frontend/src/raftworld.js` the same way, and `bun raftsim.js` plays runs
+  with the frog alone and with a player who steers well, to keep raft's rate
+  and `raftMost` over them. `SELF` there turns the frog's steering off, which
+  leaves the old hold to steer game with the catches and the current.
   `frontend/src/play.js` is the shelves on Play. A game is one line on its
   shelf there with its title card picture and its game, and the page makes
   the jar, the game's view and its place in the tabs from that line. A jar is
