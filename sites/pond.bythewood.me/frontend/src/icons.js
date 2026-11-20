@@ -43,6 +43,7 @@ export const ICONS = {
   burrow: [["............", "....GGGG....", "..GGlGGGGG..", ".GGGGGGGGGG.", ".GGGddddGGG.", ".GGdYYYYdGG.", ".GGdYwYYdGG.", ".GGdYYYYdGG.", ".gggggggggg.", "............", "............", "............"]],
   spin: [["............", "....RYRY....", "...YRYRYR...", "..RYRYRYRY..", "..YRYwwRYR..", "..RYRwwYRY..", "..YRYRYRYR..", "...RYRYRY...", "....YRYR....", ".....bb.....", "....bbbb....", "............"]],
   heart: [["............", "............", "..RR...RR...", ".RpRR.RRRR..", ".RpRRRRRRR..", ".RRRRRRRRR..", "..RRRRRRR...", "...RRRRR....", "....RRR.....", ".....R......", "............", "............"]],
+  barrel: [["............", "...dddddd...", "..dUUuuUUd..", "..dddddddd..", "..BbBbBbBb..", "..ssssssss..", "..BbBbBbBb..", "..BbBbBbBb..", "..ssssssss..", "..BbBbBbBb..", "...dddddd...", "............"]],
   log: [["............", "............", "..DDDDDDDD..", ".DdddddddDD.", ".DdBBBdddDdD", ".DdBdBdddDdD", ".DdBBBdddDD.", "..DDDDDDDD..", "............", "............", "............", "............"]],
   key: [["............", "............", "..YYY.......", ".Y...Y......", ".Y...YYYYYY.", ".Y...Y..Y.Y.", "..YYY...Y...", "............", "............", "............", "............", "............"]],
   egg: [["............", "..lll.lll...", ".lGGl.lGGl..", ".lGkl.lGkl..", "..lll.lll...", "....lll.....", "...lGGl.....", "...lGkl.....", "....lll.....", "............", "............", "............"]],

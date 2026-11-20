@@ -64,6 +64,18 @@
         <button type="button" data-pick="2" aria-label="Log 3"><canvas width="64" height="40"></canvas></button>
       </div>
     </div>
+    <div class="prow barrel" id="play-barrel">
+      <canvas data-icon="barrel" width="24" height="24" aria-hidden="true"></canvas>
+      <span class="gtext"><b>The rain barrel</b><span id="barrel-line">The sieve catches what the rain washes down.</span></span>
+      <div class="barrel-well">
+        <div class="barrel-art"><canvas id="barrel-art" width="150" height="60" role="img" aria-label="The rain barrel by the stream, with its sieve"></canvas><div class="barrel-pops" id="barrel-pops" aria-hidden="true"></div></div>
+        <div class="barrel-keys">
+          <button type="button" class="primary" id="barrel-tip">Tip it out</button>
+          <button type="button" id="barrel-water">Water the garden</button>
+        </div>
+        <p class="barrel-note" id="barrel-note"></p>
+      </div>
+    </div>
   </section>
 
   <section class="view" id="v-dive" hidden>

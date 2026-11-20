@@ -6,6 +6,7 @@ import { initDive, enterDive, leaveDive, diveMode } from "./dive.js";
 import { arcade } from "./arcade.js";
 import { buildPlay, drawLabels, JARS, raceLine, showJar } from "./play.js";
 import { derbyLine } from "./derby.js";
+import { initBarrel, renderBarrel, showBarrel } from "./barrel.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initReeds } from "./reeds.js";
 import { initFrogPage, enterFrog, enterLay, leaveFrog } from "./frogpage.js";
@@ -930,6 +931,7 @@ setInterval(() => {
 function renderPlay(p) {
   raceLine(p.dive.race);
   derbyLine(p.derby);
+  renderBarrel(p);
   const w = p.wheel;
   $("play-wheel-line").textContent = w.free > 0 ? w.free + " free spin" + (w.free > 1 ? "s" : "") + " waiting" : "A free spin in " + hm(w.next_in);
   $("play-wheel").classList.toggle("pays", w.free > 0);
@@ -959,7 +961,10 @@ function drawPlay() {
   showJar("dive", p.dive);
   (p.arcade || []).forEach((a) => showJar(a.key, a));
   document.querySelectorAll("#logs canvas").forEach((cv, i) => drawLog(cv, logTurned && logPick === i));
+  showBarrel();
 }
+
+initBarrel();
 
 let logTurned = false, logPick = -1;
 $("logs").addEventListener("click", (e) => {

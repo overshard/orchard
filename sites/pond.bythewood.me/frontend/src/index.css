@@ -3559,6 +3559,92 @@ a.prow:active {
   height: 40px;
 }
 
+/* The rain barrel's picture keeps one height so the page never moves, and
+   its canvas is sized to whole device pixels a pixel in barrel.js. */
+.prow.barrel .barrel-well {
+  grid-column: 1 / -1;
+}
+
+.barrel-art {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  border-radius: 8px;
+  background: #0d1428;
+  box-shadow: var(--sunk), var(--edge);
+}
+
+.barrel-art canvas {
+  display: block;
+  border-radius: 8px;
+  image-rendering: pixelated;
+}
+
+.barrel-keys {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.barrel-note {
+  min-height: 1.5em;
+  margin: 4px 0 0;
+  color: var(--dim);
+  font-size: 12.5px;
+}
+
+.barrel-pops {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.barrel-pop {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transform: translate(-50%, -50%);
+  color: var(--text);
+  font-family: var(--ui);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 var(--ink);
+  animation: barrel-pop 1.4s ease-out forwards;
+  z-index: 1;
+}
+
+.barrel-pop canvas {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+}
+
+@keyframes barrel-pop {
+  from { opacity: 0; transform: translate(-50%, -30%) scale(0.5); }
+  18% { opacity: 1; transform: translate(-50%, -100%) scale(1.15); }
+  70% { opacity: 1; }
+  to { opacity: 0; transform: translate(-50%, -170%) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barrel-pop {
+    animation: barrel-fade 1.8s linear forwards;
+  }
+}
+
+@keyframes barrel-fade {
+  from { opacity: 0; transform: translate(-50%, -90%); }
+  15% { opacity: 1; transform: translate(-50%, -90%); }
+  80% { opacity: 1; transform: translate(-50%, -90%); }
+  to { opacity: 0; transform: translate(-50%, -90%); }
+}
+
 /* Slots: a square per thing, its tier as the border, a count in the corner. */
 .slots {
   display: grid;
