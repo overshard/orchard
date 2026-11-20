@@ -78,7 +78,7 @@ func TestAnHonestSavePaysAndKeepsTheTable(t *testing.T) {
 		t.Errorf("paid %d and the purse went %d to %d, want 6", d.Paid, before.Pebbles, d.Pond.Pebbles)
 	}
 	tb := d.Table
-	if tb.On != 72 || tb.Spill != 12 || tb.Drops != 10 || string(tb.Layout) != string(in.Layout) || tb.Run == "" || tb.Run == st.Run {
+	if tb.On != pushStart+2 || tb.Spill != pushSpill+2 || tb.Drops != 10 || string(tb.Layout) != string(in.Layout) || tb.Run == "" || tb.Run == st.Run {
 		t.Errorf("after the save the table is %+v", tb)
 	}
 	if _, err := s.pushSave(id, in); !errors.Is(err, errBadRun) {

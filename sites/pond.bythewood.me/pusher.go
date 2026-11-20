@@ -19,9 +19,9 @@ import (
 const (
 	pushDaily = 20
 	pushKeep  = 60
-	// A new table's one time gift, and the only pebbles the pusher makes
-	// apart from the allowance.
-	pushStart, pushSpill = 70, 10
+	// A new table's one time gift, a pile as if it had been pushed a while,
+	// and the only pebbles the pusher makes apart from the allowance.
+	pushStart, pushSpill = 90, 10
 	// A pile can't be cleared by pushing, the front row always holds some.
 	pushFloor = 40
 	// The most bodies a layout holds, well over a full table.
