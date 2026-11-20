@@ -3,7 +3,7 @@
 What every site here looks like and why. Read this before changing anything
 visual, and update it when a decision changes.
 
-The tool sites, analytics, auth, cron, llm, logging, repos and status, share one
+The tool sites, analytics, auth, cron, dns, gate, llm, logging, mcp, repos and status, share one
 look through `suite/`, a Go package each of them carries a byte identical copy
 of the same way it carries `web/`, and `make check` fails when a copy drifts. It
 holds `suite.css`, the Geist fonts, the header, status line and home page
@@ -1191,6 +1191,7 @@ below live as tokens at the top of `frontend/src/index.css`.
 | `repos` | suite | On the suite. Its own stylesheet keeps the tree, diff and README styles and maps its colour names onto the suite's. No serif any more |
 | `llm` | suite | On the suite. Overview, calls and keys, and the home page says whether Claude or the card is answering |
 | `cron` | suite | On the suite. Jobs, runs, a job form and keys, with `app.css` holding only what is cron's own |
+| `dns` | suite | On the suite. Overview, a live log with a drawer per lookup to allow or block it at any width, devices with their setup and a check that this browser uses it, and lists with my rules and a domain check |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `BRIEFS` rerun beside it that only appears signed in |
 | `pond` | none | Hand written CSS. A game in the Lantern direction, a night pond with lamp yellow keys, Inter with a Pixelify Sans wordmark, and colour pixel art in its pictures. Dive is full screen on a phone |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |

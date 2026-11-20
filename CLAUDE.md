@@ -14,7 +14,7 @@ copied into each the way `web/` is.
 
 One repo for every site Isaac Bythewood runs, plus the shared Cloudflare Tunnel
 and Caddy that front them. Every site is Go, and all of them are served from a small VPS behind a
-tunnel with no public ports.
+tunnel with no public web ports.
 
 | Directory | What it serves |
 |---|---|
@@ -30,6 +30,7 @@ tunnel with no public ports.
 | `sites/mcp.bythewood.me/` | Every tool, read only, as one MCP server. OAuth signs an agent in through auth, which mints it a session of its own, and each tool is read over the bridge as that session. SQLite for grants and tokens |
 | `sites/gate.bythewood.me/` | The firewall. Caddy asks it about every request with `forward_auth`, and its rules, bans and proof of work page change live from its page or from proposals over mcp. SQLite, with the rules in memory |
 | `sites/cron.bythewood.me/` | Reminders and scheduled checks pushed over the `reminders` ntfy topic. One-shots and cron lines on the Eastern clock, checks the model runs through llm, a page and a JSON API. SQLite |
+| `sites/dns.bythewood.me/` | A private resolver for my own devices. DNS over TLS on 853 and DNS over HTTPS with a token per device, hagezi blocklists, a log of every lookup, and unbound recursing behind it. SQLite |
 | `sites/pond.bythewood.me/` | A virtual pet game where every visitor gets a frog of their own. No accounts, a frog is kept by six words in a host only cookie and stored as an HMAC under a pepper in `.env`. SQLite, with every rule and every clock on the server |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
@@ -111,17 +112,24 @@ into a temporary directory and builds and tests it, so it can't quietly rot.
 ## Conventions that will bite you
 
 **Port 8000, everywhere.** Every container listens on 8000 internally, in dev
-and in prod, and no host ports are published. `cloudflared` terminates the
+and in prod, and no web port is published. `cloudflared` terminates the
 tunnel and hands plain HTTP to Caddy, which reverse proxies to each app by
 container name on the `orchard-edge` network. The one other port in the repo is
 `orchard-logging:9001`, a plain TCP socket Caddy writes its access log to,
 reachable on the bridge and nowhere else.
 
+**One host port is published, 853 for DNS over TLS.** `orchard-dns-dot` holds
+the certificate and nothing else, refuses any name without a device token at
+the handshake and hands each query to `orchard-dns` over the bridge, since the
+tunnel only carries HTTP. It's IPv4 only so Docker keeps the client's address.
+Docker's published ports skip ufw, so a port published anywhere else here is
+open to the internet whatever ufw says.
+
 **Everything is named `orchard-<first label>`.** `orchard-caddy` and
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,
 `orchard-status`, `orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`,
-`orchard-auth`, `orchard-llm`, `orchard-mcp`, `orchard-gate`, `orchard-cron`, `orchard-pond`
-and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
+`orchard-auth`, `orchard-llm`, `orchard-mcp`, `orchard-gate`, `orchard-cron`, `orchard-pond`,
+`orchard-dns` and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
 SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
 lookup table.
@@ -370,9 +378,10 @@ session.
 
 **Cloudflare's location headers are only trustworthy because of the tunnel.**
 `CF-IPCountry` and the visitor location transform feed the session list and the
-notification that says where a login came from. Nothing publishes a host port,
+notification that says where a login came from. Nothing publishes a web port,
 so nothing reaches an app without passing cloudflared and Caddy. The day one is
-directly reachable a client can set its own country.
+directly reachable a client can set its own country. Port 853 doesn't break
+this, since it only speaks DNS and reaches `orchard-dns` over the bridge.
 
 **auth cannot change other containers, and must not learn how.** It does not hold
 the ntfy account password, which ntfy stores hashed and will not hand back, and
