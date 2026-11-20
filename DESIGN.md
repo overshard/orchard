@@ -685,6 +685,20 @@ below live as tokens at the top of `frontend/src/index.css`.
   bullfrog olive with a yellow throat and brown ears, an elder in brown and
   cream with white whiskers and brows, a great frog deep teal with gold
   spots and orange eyes, and a pond king bright green with a gold crown.
+- **Lily pinball is the pond at night as a pinball table**, seen from above
+  with the mossy bank round it. Three lily pads are the pop bumpers, two
+  cattails over the flippers are the slingshots, five fireflies across the
+  top are the rollovers and the player's own frog sits at the top on its pad
+  with its mouth open as the big hole, its eyes on the nearest ball. The
+  flippers are long reed leaves, pale green while the frog works them and
+  lamp yellow while a held half of the field has one. A pad flashes lamp
+  yellow and rings spread on the water under it, a cattail bows and flashes,
+  a lit firefly glows and each one chimes a step up the scale. All five lit
+  drops two more balls out of the frog's mouth. A ball into the mouth is
+  held while the frog shuts it and gulps, and a ball headed for it goes slow
+  with a slight zoom on the frog, which reduced motion doesn't get. The ball
+  save is a lily pad across the drain that blinks and sinks as it runs out,
+  and an outlane on each side past the cattails is where a ball is lost.
 - **Tongue lash is dusk over the far bank**, the frog on a pad between two
   reed beds and bugs tossed up out of the reeds in arcs. A swipe drags the
   tongue along the finger, a fat pink line from the mouth through every spot
