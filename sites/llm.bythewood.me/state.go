@@ -21,6 +21,9 @@ func (s *site) suiteState(r *http.Request) suite.State {
 		{Kind: "page", Name: "calls", Href: base + "/calls", Note: fmt.Sprintf("%d in the last 24 hours", day.Calls)},
 		{Kind: "page", Name: "failed calls", Href: base + "/calls?failed=1", Note: fmt.Sprintf("%d failed in the last 24 hours", day.Errors)},
 		{Kind: "page", Name: "keys", Href: base + "/keys", Note: "one per caller"},
+		{Kind: "action", Name: "make a key", Href: base + "/keys#new", Note: "named for what will use it"},
+		{Kind: "action", Name: "failed calls today", Href: base + "/calls?failed=1&day=" + now.In(budgetZone).Format("2006-01-02"),
+			Note: fmt.Sprintf("%d failed in the last 24 hours", day.Errors)},
 	}}
 	st.Note = fmt.Sprintf("$%.2f this month, %s today", m.Spent, count(day.Calls, "call", "calls"))
 	if m.Budget > 0 {
