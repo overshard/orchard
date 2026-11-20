@@ -16,6 +16,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/miekg/dns"
 )
 
 // The DoT front is the only thing published to the internet. It holds the
@@ -25,7 +27,11 @@ const (
 	dotListen      = ":8853"
 	perIPConns     = 16
 	totalConns     = 512
-	handshakeLimit = 10 * time.Second
+	handshakeLimit = 5 * time.Second
+	// spareConns is room past totalConns for addresses that recently finished
+	// a handshake, so a flood of stalled strangers can't lock my phone out.
+	spareConns     = 64
+	goodFor        = 24 * time.Hour
 	idleLimit      = 2 * time.Minute
 	inflightPerCon = 32
 	badBeforeBan   = 10
@@ -46,6 +52,8 @@ type front struct {
 	bad    map[netip.Addr]*badCount
 	tokens map[string]tokenSeen
 	gate   map[netip.Addr]gateSeen
+	good   map[netip.Addr]time.Time
+	ready  atomic.Bool
 }
 
 type badCount struct {
@@ -67,9 +75,9 @@ type gateSeen struct {
 func newFront(certDir, app, gate string) *front {
 	return &front{
 		certDir: certDir, appURL: app, gateURL: gate,
-		http:  &http.Client{Timeout: 8 * time.Second, Transport: &http.Transport{MaxIdleConnsPerHost: 64, IdleConnTimeout: 90 * time.Second}},
+		http:  &http.Client{Timeout: 15 * time.Second, Transport: &http.Transport{MaxIdleConnsPerHost: 64, IdleConnTimeout: 90 * time.Second}},
 		conns: map[netip.Addr]int{}, bad: map[netip.Addr]*badCount{},
-		tokens: map[string]tokenSeen{}, gate: map[netip.Addr]gateSeen{},
+		tokens: map[string]tokenSeen{}, gate: map[netip.Addr]gateSeen{}, good: map[netip.Addr]time.Time{},
 	}
 }
 
@@ -77,7 +85,13 @@ func runFront(certDir string) error {
 	f := newFront(certDir, appURL, gateCheckURL)
 	go func() {
 		mux := http.NewServeMux()
-		mux.HandleFunc("GET /healthz", healthz)
+		mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+			if !f.ready.Load() {
+				plainNoStore(w, http.StatusServiceUnavailable, "waiting for a certificate")
+				return
+			}
+			healthz(w, r)
+		})
 		_ = http.ListenAndServe("127.0.0.1:8000", mux)
 	}()
 	for !f.loadCert() {
@@ -94,6 +108,7 @@ func runFront(certDir string) error {
 	if err != nil {
 		return err
 	}
+	f.ready.Store(true)
 	slog.Info("dot front listening", slog.String("addr", dotListen))
 	return f.accept(ln)
 }
@@ -143,8 +158,13 @@ func (f *front) tidy() {
 		}
 	}
 	for t, s := range f.tokens {
-		if now.Sub(s.at) > 10*time.Minute {
+		if now.Sub(s.at) > 10*time.Minute && !(s.ok && now.Sub(s.at) < goodFor) {
 			delete(f.tokens, t)
+		}
+	}
+	for ip, at := range f.good {
+		if now.Sub(at) > goodFor {
+			delete(f.good, ip)
 		}
 	}
 	for ip, g := range f.gate {
@@ -160,7 +180,11 @@ func (f *front) admit(ip netip.Addr) bool {
 	if b := f.bad[ip]; b != nil && time.Now().Before(b.banned) {
 		return false
 	}
-	if f.total >= totalConns || f.conns[ip] >= perIPConns {
+	limit := totalConns
+	if _, ok := f.good[ip]; ok {
+		limit += spareConns
+	}
+	if f.total >= limit || f.conns[ip] >= perIPConns {
 		return false
 	}
 	f.total++
@@ -177,9 +201,23 @@ func (f *front) release(ip netip.Addr) {
 	}
 }
 
+func (f *front) wasGood(ip netip.Addr) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	_, ok := f.good[ip]
+	return ok
+}
+
+func (f *front) markGood(ip netip.Addr) {
+	f.mu.Lock()
+	f.good[ip] = time.Now()
+	f.mu.Unlock()
+}
+
 // strike counts a failed handshake, bans the address here after too many, and
-// tells gate so its own counts and bans see it too.
-func (f *front) strike(ip netip.Addr, why string) {
+// tells gate so its own counts and bans see it too. A stalled handshake only
+// counts here, since a phone on a weak signal can stall too.
+func (f *front) strike(ip netip.Addr, why string, tellGate bool) {
 	f.mu.Lock()
 	b := f.bad[ip]
 	now := time.Now()
@@ -192,7 +230,9 @@ func (f *front) strike(ip netip.Addr, why string) {
 		b.banned = now.Add(banFor)
 	}
 	f.mu.Unlock()
-	go f.askGate(ip, "/bad-token")
+	if tellGate {
+		go f.askGate(ip, "/bad-token")
+	}
 	slog.Info("dot handshake refused", slog.String("ip", ip.String()), slog.String("why", why))
 }
 
@@ -228,23 +268,33 @@ func (f *front) askGate(ip netip.Addr, path string) bool {
 	return resp.StatusCode < 300
 }
 
-func (f *front) tokenOK(token string) bool {
+// tokenOK says whether the app knows a token. sure is false when the app
+// couldn't say, during a deploy for instance, and then a token it knew lately
+// still works and an unknown one is turned away without a strike.
+func (f *front) tokenOK(token string) (ok, sure bool) {
 	f.mu.Lock()
-	s, ok := f.tokens[token]
+	s, had := f.tokens[token]
 	f.mu.Unlock()
-	if ok && (s.ok && time.Since(s.at) < 5*time.Minute || !s.ok && time.Since(s.at) < time.Minute) {
-		return s.ok
+	if had && (s.ok && time.Since(s.at) < 5*time.Minute || !s.ok && time.Since(s.at) < time.Minute) {
+		return s.ok, true
 	}
-	resp, err := f.http.Get(f.appURL + "/internal/token/" + token)
+	req, _ := http.NewRequest(http.MethodGet, f.appURL+"/internal/token/"+token, nil)
+	req.Header.Set("X-Dns-Key", bridgeKey)
+	resp, err := f.http.Do(req)
 	if err != nil {
-		return false
+		return had && s.ok, had && s.ok
 	}
 	resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusNoContent, http.StatusNotFound:
+	default:
+		return had && s.ok, had && s.ok
+	}
 	good := resp.StatusCode == http.StatusNoContent
 	f.mu.Lock()
 	f.tokens[token] = tokenSeen{ok: good, at: time.Now()}
 	f.mu.Unlock()
-	return good
+	return good, true
 }
 
 // tokenFrom takes the device token out of a server name like
@@ -270,18 +320,25 @@ func (f *front) serve(c net.Conn, base *tls.Config) {
 	}
 	defer f.release(ip)
 	defer c.Close()
+	_ = c.SetDeadline(time.Now().Add(handshakeLimit))
 	if !f.gateOK(ip) {
 		return
 	}
 
 	var token string
+	unsure := false
 	cfg := base.Clone()
 	cfg.GetConfigForClient = func(h *tls.ClientHelloInfo) (*tls.Config, error) {
 		t, ok := tokenFrom(h.ServerName)
 		if !ok {
 			return nil, errors.New("no device name")
 		}
-		if !f.tokenOK(t) {
+		ok, sure := f.tokenOK(t)
+		if !sure {
+			unsure = true
+			return nil, errors.New("the app didn't answer")
+		}
+		if !ok {
 			return nil, errors.New("unknown device")
 		}
 		token = t
@@ -290,13 +347,19 @@ func (f *front) serve(c net.Conn, base *tls.Config) {
 		return inner, nil
 	}
 	tc := tls.Server(c, cfg)
-	_ = c.SetDeadline(time.Now().Add(handshakeLimit))
 	if err := tc.Handshake(); err != nil {
-		if token == "" && !isNetNoise(err) {
-			f.strike(ip, err.Error())
+		switch {
+		case token != "" || unsure:
+		case isTimeout(err):
+			if !f.wasGood(ip) {
+				f.strike(ip, "stalled handshake", false)
+			}
+		case !isNetNoise(err):
+			f.strike(ip, err.Error(), true)
 		}
 		return
 	}
+	f.markGood(ip)
 
 	var wmu sync.Mutex
 	sem := make(chan struct{}, inflightPerCon)
@@ -332,13 +395,38 @@ func (f *front) serve(c net.Conn, base *tls.Config) {
 	}
 }
 
+// ask hands a query to the app. When the app can't answer, the client gets a
+// SERVFAIL at once instead of waiting out its own timeout.
 func (f *front) ask(token string, ip netip.Addr, msg []byte) []byte {
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	out := f.askApp(token, ip, msg)
+	if out == nil {
+		return servfail(msg)
+	}
+	return out
+}
+
+func servfail(msg []byte) []byte {
+	req := new(dns.Msg)
+	if req.Unpack(msg) != nil {
+		return nil
+	}
+	m := new(dns.Msg)
+	m.SetRcode(req, dns.RcodeServerFailure)
+	out, err := m.Pack()
+	if err != nil {
+		return nil
+	}
+	return out
+}
+
+func (f *front) askApp(token string, ip netip.Addr, msg []byte) []byte {
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, f.appURL+"/internal/query", bytes.NewReader(msg))
 	req.Header.Set("Content-Type", "application/dns-message")
 	req.Header.Set("X-Dns-Token", token)
 	req.Header.Set("X-Dns-Ip", ip.String())
+	req.Header.Set("X-Dns-Key", bridgeKey)
 	resp, err := f.http.Do(req)
 	if err != nil {
 		return nil
@@ -354,8 +442,12 @@ func (f *front) ask(token string, ip netip.Addr, msg []byte) []byte {
 	return out
 }
 
-// isNetNoise is a client that hung up or went quiet, which isn't a bad name.
+// isNetNoise is a client that hung up, which isn't a bad name.
 func isNetNoise(err error) bool {
+	return errors.Is(err, io.EOF) || strings.Contains(err.Error(), "connection reset")
+}
+
+func isTimeout(err error) bool {
 	var ne net.Error
-	return errors.Is(err, io.EOF) || errors.As(err, &ne) && ne.Timeout() || strings.Contains(err.Error(), "connection reset")
+	return errors.As(err, &ne) && ne.Timeout()
 }

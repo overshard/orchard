@@ -1,9 +1,11 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/base64"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/miekg/dns"
@@ -43,9 +45,21 @@ func (s *site) doh(w http.ResponseWriter, r *http.Request) {
 	s.serveWire(w, d, raw, "doh", web.ClientIP(r))
 }
 
+// bridgeKey is shared by the app and the DoT front, so another container on
+// the bridge can't ask through /internal/ as a device or test tokens there.
+var bridgeKey = os.Getenv("DNS_BRIDGE_PASSWORD")
+
+func fromFront(r *http.Request) bool {
+	return bridgeKey == "" || subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Dns-Key")), []byte(bridgeKey)) == 1
+}
+
 // internalQuery is the DoT front's way in, over the bridge. Caddy answers
 // /internal/ with a 404 on the public name.
 func (s *site) internalQuery(w http.ResponseWriter, r *http.Request) {
+	if !fromFront(r) {
+		plainNoStore(w, http.StatusForbidden, "not from the front")
+		return
+	}
 	d := s.res.device(r.Header.Get("X-Dns-Token"))
 	if d == nil {
 		plainNoStore(w, http.StatusForbidden, "unknown token")
@@ -61,6 +75,10 @@ func (s *site) internalQuery(w http.ResponseWriter, r *http.Request) {
 
 func (s *site) internalToken(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
+	if !fromFront(r) {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
 	if s.res.device(r.PathValue("token")) == nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -74,7 +92,9 @@ func (s *site) serveWire(w http.ResponseWriter, d *Device, raw []byte, proto, ip
 		plainNoStore(w, http.StatusBadRequest, "that isn't a DNS message")
 		return
 	}
-	out, err := s.res.Answer(d, req, proto, ip).Pack()
+	resp := s.res.Answer(d, req, proto, ip)
+	pad(req, resp)
+	out, err := resp.Pack()
 	if err != nil {
 		plainNoStore(w, http.StatusInternalServerError, "couldn't pack the answer")
 		return
