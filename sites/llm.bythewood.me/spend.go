@@ -40,25 +40,70 @@ const (
 	searchMicros  = 10_000
 )
 
-// costMicros prices one API response. Cache writes are 1.25 times the input
-// rate and cache reads a tenth of it.
-func costMicros(u anthropic.Usage) int64 {
+// costParts is one response's bill by what it paid for, the token parts in
+// millionths of a micro so they add up to exactly what costMicros charges.
+// Cache writes are 1.25 times the input rate and cache reads a tenth of it.
+type costParts struct {
+	In, CacheWrite, CacheRead, Out int64
+	Search                         int64
+}
+
+func priceParts(u anthropic.Usage) costParts {
 	in, out := int64(inMicros), int64(outMicros)
 	if u.InputTokens+u.CacheCreationInputTokens+u.CacheReadInputTokens > longPrompt {
 		in, out = longInMicros, longOutMicros
 	}
-	tok := u.InputTokens*in + u.CacheCreationInputTokens*in*5/4 + u.CacheReadInputTokens*in/10 + u.OutputTokens*out
-	return tok/1_000_000 + u.ServerToolUse.WebSearchRequests*searchMicros
+	return costParts{In: u.InputTokens * in, CacheWrite: u.CacheCreationInputTokens * in * 5 / 4,
+		CacheRead: u.CacheReadInputTokens * in / 10, Out: u.OutputTokens * out,
+		Search: u.ServerToolUse.WebSearchRequests * searchMicros}
+}
+
+func (p costParts) micros() int64 {
+	return (p.In+p.CacheWrite+p.CacheRead+p.Out)/1_000_000 + p.Search
+}
+
+// costMicros prices one API response.
+func costMicros(u anthropic.Usage) int64 { return priceParts(u).micros() }
+
+// tokenSplit is what a call's prompt was made of, summed over every response
+// it took, which is what the bill counts.
+type tokenSplit struct {
+	InTok      int64 `json:"input_uncached"`
+	CacheRead  int64 `json:"cache_read"`
+	CacheWrite int64 `json:"cache_write"`
+	Searches   int64 `json:"searches"`
+}
+
+func (t tokenSplit) recorded() bool { return t.InTok+t.CacheRead+t.CacheWrite > 0 }
+
+// spendRow is one priced call in the ledger, with the call it paid for when
+// that call was written down.
+type spendRow struct {
+	KeyID, CallID, Micros int64
+	tokenSplit
+	OutTok int64
 }
 
 func (s *Store) LogSpend(keyID, micros int64) {
-	if micros <= 0 {
+	s.logSpend(spendRow{KeyID: keyID, Micros: micros})
+}
+
+func (s *Store) logSpend(r spendRow) {
+	if r.Micros <= 0 {
 		return
 	}
-	if _, err := s.db.Exec(`INSERT INTO spend (key_id, micros, at) VALUES (?,?,?)`,
-		keyID, micros, time.Now().Unix()); err != nil {
+	if _, err := s.db.Exec(`INSERT INTO spend (key_id, call_id, micros, in_tok, cache_read, cache_write, out_tok, searches, at)
+		VALUES (?,?,?,?,?,?,?,?,?)`, r.KeyID, r.CallID, r.Micros, r.InTok, r.CacheRead, r.CacheWrite, r.OutTok, r.Searches,
+		time.Now().Unix()); err != nil {
 		slog.Error("logging spend failed", "err", err)
 	}
+}
+
+// KeySpentSince is one key's share of the ledger, for its monthly cap.
+func (s *Store) KeySpentSince(id int64, t time.Time) (int64, error) {
+	var n int64
+	err := s.db.QueryRow(`SELECT COALESCE(SUM(micros),0) FROM spend WHERE key_id=? AND at >= ?`, id, t.Unix()).Scan(&n)
+	return n, err
 }
 
 func (s *Store) SpentSince(t time.Time) (int64, error) {

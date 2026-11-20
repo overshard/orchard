@@ -52,18 +52,11 @@ func (s *site) search(w http.ResponseWriter, r *http.Request, k Key) {
 	}
 
 	keep := r.Header.Get(incognitoHeader) != "1"
-	call := Call{KeyID: k.ID, Caller: k.Name, Model: s.claude.model, Tools: "web search"}
+	call := Call{KeyID: k.ID, Caller: k.Name, Model: s.claude.model, Tools: "web search", started: started}
 	if keep {
 		call.Messages = string(mustJSON([]map[string]string{{"role": "user", "content": "search: " + req.Query}}))
 	}
-	defer func() {
-		s.store.LogSpend(call.KeyID, call.Cost)
-		if !keep {
-			return
-		}
-		call.MS = time.Since(started).Milliseconds()
-		s.store.LogCall(call)
-	}()
+	defer func() { s.store.record(call, keep) }()
 
 	tool := anthropic.WebSearchTool20250305Param{MaxUses: anthropic.Int(1), AllowedDomains: req.Domains}
 	p := anthropic.MessageNewParams{
@@ -82,10 +75,7 @@ func (s *site) search(w http.ResponseWriter, r *http.Request, k Key) {
 			return
 		}
 		blocks = append(blocks, resp.Content...)
-		call.PromptTok = promptTokens(resp.Usage)
-		call.OutputTok += int(resp.Usage.OutputTokens)
-		call.Cost += costMicros(resp.Usage)
-		logUsage(resp.Usage)
+		call.addUsage(resp.Usage)
 		if resp.StopReason != anthropic.StopReasonPauseTurn {
 			break
 		}

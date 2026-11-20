@@ -89,21 +89,14 @@ func (s *site) completions(w http.ResponseWriter, r *http.Request, k Key) {
 	// the body it arrived in.
 	keep := r.Header.Get(incognitoHeader) != "1"
 
-	call := Call{KeyID: k.ID, Caller: k.Name, Model: req.Model}
+	call := Call{KeyID: k.ID, Caller: k.Name, Model: req.Model, started: started}
 	if keep {
 		call.Messages = string(mustJSON(req.Messages))
 		if len(req.Tools) > 0 {
 			call.Tools = fmt.Sprintf("%d offered", len(req.Tools))
 		}
 	}
-	defer func() {
-		s.store.LogSpend(call.KeyID, call.Cost)
-		if !keep {
-			return
-		}
-		call.MS = time.Since(started).Milliseconds()
-		s.store.LogCall(call)
-	}()
+	defer func() { s.store.record(call, keep) }()
 
 	if s.claude != nil {
 		s.viaClaude(w, r, body, &call)

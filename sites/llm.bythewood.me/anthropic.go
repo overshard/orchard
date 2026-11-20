@@ -366,14 +366,11 @@ func promptTokens(u anthropic.Usage) int {
 
 // answer is one finished turn read out of the Messages API's blocks.
 type answer struct {
-	text      string
-	calls     []oaToolCall
-	stop      anthropic.StopReason
-	refusal   string
-	promptTok int
-	outTok    int
-	searches  int
-	cost      int64
+	text    string
+	calls   []oaToolCall
+	stop    anthropic.StopReason
+	refusal string
+	usage   Call
 }
 
 // complete runs one turn, sending it back while a web search has it paused.
@@ -386,11 +383,7 @@ func (c *claude) complete(ctx context.Context, p anthropic.MessageNewParams) (an
 			return a, err
 		}
 		blocks = append(blocks, resp.Content...)
-		a.promptTok = promptTokens(resp.Usage)
-		a.outTok += int(resp.Usage.OutputTokens)
-		a.searches += int(resp.Usage.ServerToolUse.WebSearchRequests)
-		a.cost += costMicros(resp.Usage)
-		logUsage(resp.Usage)
+		a.usage.addUsage(resp.Usage)
 		a.stop = resp.StopReason
 		if resp.StopReason == anthropic.StopReasonRefusal {
 			a.refusal = string(resp.StopDetails.Category)
@@ -458,13 +451,13 @@ func (s *site) viaClaude(w http.ResponseWriter, r *http.Request, body []byte, ca
 		s.claudeFailed(w, err, call)
 		return
 	}
-	call.PromptTok, call.OutputTok, call.Cost = a.promptTok, a.outTok, a.cost
+	call.PromptTok, call.OutputTok, call.Cost, call.tokenSplit = a.usage.PromptTok, a.usage.OutputTok, a.usage.Cost, a.usage.tokenSplit
 	call.Completion = a.text
 	if call.Completion == "" && len(a.calls) > 0 {
 		call.Completion = "[tool calls: " + string(mustJSON(a.calls)) + "]"
 	}
-	if a.searches > 0 {
-		call.Tools = strings.TrimSpace(call.Tools + fmt.Sprintf(", %d web searches", a.searches))
+	if a.usage.Searches > 0 {
+		call.Tools = strings.TrimSpace(call.Tools + fmt.Sprintf(", %d web searches", a.usage.Searches))
 		call.Tools = strings.TrimPrefix(call.Tools, ", ")
 	}
 	if a.stop == anthropic.StopReasonRefusal {
@@ -482,8 +475,8 @@ func (s *site) viaClaude(w http.ResponseWriter, r *http.Request, body []byte, ca
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"id": "chatcmpl-claude", "object": "chat.completion", "created": time.Now().Unix(), "model": s.claude.model,
 		"choices": []map[string]any{{"index": 0, "message": msg, "finish_reason": finishReason(a.stop)}},
-		"usage": map[string]int{"prompt_tokens": a.promptTok, "completion_tokens": a.outTok,
-			"total_tokens": a.promptTok + a.outTok},
+		"usage": map[string]int{"prompt_tokens": call.PromptTok, "completion_tokens": call.OutputTok,
+			"total_tokens": call.PromptTok + call.OutputTok},
 	})
 }
 
@@ -563,9 +556,10 @@ func (s *site) claudeStream(w http.ResponseWriter, r *http.Request, p anthropic.
 		call.Status = http.StatusOK
 	}
 
-	call.PromptTok, call.OutputTok = promptTokens(msg.Usage), int(msg.Usage.OutputTokens)
-	call.Cost = costMicros(msg.Usage)
-	logUsage(msg.Usage)
+	call.addUsage(msg.Usage)
+	if !first.IsZero() && !call.started.IsZero() {
+		call.FirstMS = first.Sub(call.started).Milliseconds()
+	}
 	if !first.IsZero() && call.OutputTok > 0 {
 		if secs := time.Since(first).Seconds(); secs > 0 {
 			call.DecodeTPS = float64(call.OutputTok) / secs
