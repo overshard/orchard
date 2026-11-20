@@ -333,6 +333,14 @@ critical one sends a notification. Under each is 14 days of its history from
 `incidents.json`, a few hundred kilobytes a page, so it's read hourly on its
 own budget. Cloudflare's last fifty incidents only reach back about that far.
 
+**The band answers first and lists second.** A verdict line over both panels
+says what wants doing, then INCIDENTS as four tiles across, then ADVISORIES
+split into TO DO (open and check) and HANDLED folded one line per product. The
+split, the fold and the verdict are written twice, in Go for the first render
+and in `live.js`, since the signed in overlay can move a row between groups.
+Keep `todoAdvisories`, `handledAdvisories` and `securityVerdict` in step with
+`handledGroups` and `renderVerdict`.
+
 **GitHub allows 60 unauthenticated API calls an hour per address,** and the repo
 advisories and Mozilla's file listing are about a dozen a run every three hours.
 The Mozilla YAML files never change, so each is fetched once per process.

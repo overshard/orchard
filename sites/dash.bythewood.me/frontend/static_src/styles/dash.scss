@@ -1301,136 +1301,179 @@ main {
 
 // Security ------------------------------------------------------------------
 
-// The advisories run long titles, so they take the width and the providers sit
-// beside them as a short list like UPLINK's.
+// One column: the verdict, the providers as tiles across, then the advisories,
+// so an outage happening now sits above a fix that can wait an hour.
 .advisory-band {
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.42fr);
+  grid-template-columns: minmax(0, 1fr);
   > .panel { min-width: 0; }
 }
 
-.advisories {
-  .adv { list-style: none; margin: 0; padding: 0; }
+.verdict {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 6px 18px;
+  align-items: center;
+  padding: 11px var(--pad);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--faint);
 
-  .adv li {
-    display: grid;
-    grid-template-columns: 6px 118px minmax(0, 1fr) auto;
-    gap: 4px 12px;
-    align-items: baseline;
-    padding: 9px 0;
-    border-bottom: 1px solid var(--line);
-    &:last-child { border-bottom: 0; }
-  }
-  .adv li.empty { display: block; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
-
-  .pip { align-self: center; }
-
-  .prod {
+  .v-head {
     font-family: var(--grotesk);
     font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .what { min-width: 0; }
-  .what .t {
-    display: block;
-    font-size: 13px;
-    line-height: 18px;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .what a.t:hover, .what a.t:focus-visible { color: var(--amber); }
-  .what .m {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px 12px;
-    margin-top: 3px;
-    font-size: 10px;
+    font-size: 15px;
     letter-spacing: 0.08em;
-    color: var(--dim);
-  }
-
-  .tag {
-    padding: 1px 5px;
-    font-size: 9px;
-    letter-spacing: var(--track);
-    border: 1px solid var(--line-hot);
+    white-space: nowrap;
     color: var(--muted);
   }
-  .tag[data-k="exploited"], .tag[data-k="critical"] { color: var(--down); border-color: rgba(255, 95, 77, 0.45); }
-  .tag[data-k="high"] { color: var(--warn); border-color: rgba(255, 176, 0, 0.4); }
+  .v-say { font-size: 12px; letter-spacing: 0.06em; color: var(--text); min-width: 0; }
+  .v-say em { font-style: normal; color: var(--dim); }
+  .v-when { font-size: 10px; letter-spacing: var(--track); color: var(--dim); white-space: nowrap; text-align: right; }
 
-  .st { text-align: right; font-size: 11px; letter-spacing: 0.06em; white-space: nowrap; color: var(--muted); }
-  .st small { display: block; margin-top: 3px; font-size: 9px; letter-spacing: var(--track); color: var(--faint); }
+  &[data-v="ok"] { border-left-color: var(--up); .v-head { color: var(--up); } }
+  &[data-v="warn"] { border-left-color: var(--warn); .v-head { color: var(--warn); } }
+  &[data-v="down"] { border-left-color: var(--down); .v-head { color: var(--down); } }
+}
 
-  li[data-state="open"] { .pip { background: var(--down); } .st { color: var(--down); } }
-  li[data-state="check"] { .pip { background: var(--warn); } .st { color: var(--warn); } }
-  li[data-state="fixed"] .pip { background: var(--amber-dim); }
-  li[data-state="patched"] { .pip { background: var(--up); } .st { color: var(--up); } }
-  li[data-state="clear"] {
-    .pip { background: var(--faint); }
-    .st { color: var(--dim); }
-    .prod, .what .t { color: var(--muted); }
+.incidents {
+  .provs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
+  .provs > .empty { grid-column: 1 / -1; color: var(--dim); font-size: 11px; letter-spacing: var(--track); margin: 0; }
+
+  .prov {
+    display: grid;
+    gap: 8px;
+    align-content: start;
+    min-width: 0;
+    padding: 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+  }
+  .prov-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .prov-top .pip { align-self: center; }
+  .name { font-size: 12px; letter-spacing: 0.08em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chip {
+    margin-left: auto;
+    padding: 1px 6px;
+    font-size: 10px;
+    letter-spacing: var(--track);
+    white-space: nowrap;
+    color: var(--muted);
+    border: 1px solid var(--line-hot);
+  }
+  .prov-line {
+    display: grid;
+    align-content: start;
+    min-height: 3.2em;
+    font-size: 11px;
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+    color: var(--dim);
+    > a, > span:not(.hist) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    a { color: var(--muted); }
+    a:hover, a:focus-visible { color: var(--amber); }
   }
 
+  // Two weeks under each provider, a cell a day, so a quiet row still says
+  // something and a bad week shows as a run of amber.
+  .strip { display: grid; grid-template-columns: repeat(14, 1fr); gap: 2px; }
+  .strip i, .legend i { height: 14px; border: 1px solid var(--line); }
+  .strip i:last-child { outline: 1px solid var(--muted); outline-offset: 1px; }
+  .strip i:hover { outline: 1px solid var(--text); outline-offset: 1px; }
+  [data-d="1"] { background: repeating-linear-gradient(135deg, var(--line-hot) 0 2px, transparent 2px 4px); border-color: var(--line-hot); }
+  [data-d="2"] { background: var(--warn); border-color: var(--warn); }
+  .axis { display: flex; justify-content: space-between; font-size: 9px; letter-spacing: var(--track); color: var(--faint); }
+
+  .prov[data-state="ok"], .prov[data-state="elsewhere"] {
+    .pip { background: var(--up); }
+    .chip { color: var(--up); border-color: rgba(93, 220, 130, 0.4); }
+  }
+  .prov[data-state="unknown"] .pip { background: var(--faint); }
+  .prov[data-state="hit"] {
+    border-color: rgba(255, 176, 0, 0.5);
+    .pip { background: var(--warn); }
+    .chip { color: var(--warn); border-color: rgba(255, 176, 0, 0.5); }
+    .prov-line a, .prov-line > span:not(.hist) { color: var(--warn); }
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { display: inline-block; width: 12px; height: 10px; }
+}
+
+.advisories {
+  .adv-h { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; font-size: 10px; letter-spacing: var(--track); color: var(--dim); }
+  .empty { margin: 0; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
+
+  .todo { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+  .todo li {
+    display: grid;
+    grid-template-columns: 120px 130px minmax(0, 1fr);
+    gap: 6px 14px;
+    align-items: start;
+    padding: 10px 12px;
+    background: rgba(255, 176, 0, 0.05);
+    border: 1px solid rgba(255, 176, 0, 0.35);
+    border-left: 3px solid var(--warn);
+  }
+  .todo li[data-state="open"] {
+    background: var(--down-soft);
+    border-color: rgba(255, 95, 77, 0.45);
+    border-left-color: var(--down);
+    .act { color: var(--down); }
+  }
+  .act { font-family: var(--grotesk); font-weight: 700; font-size: 12px; letter-spacing: 0.1em; color: var(--warn); }
+  .act small { display: block; margin-top: 3px; font-family: var(--mono); font-weight: 400; font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
+
+  .prod { font-family: var(--grotesk); font-weight: 700; font-size: 12px; letter-spacing: 0.1em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .what { min-width: 0; }
+  .what .t { display: block; font-size: 13px; line-height: 18px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .what a.t:hover, .what a.t:focus-visible { color: var(--amber); }
+  .what .m { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 4px; font-size: 10px; letter-spacing: 0.08em; color: var(--dim); }
+
+  .tag { padding: 0 5px; font-size: 9px; letter-spacing: var(--track); border: 1px solid var(--line-hot); color: var(--muted); }
+  .tag[data-k="exploited"], .tag[data-k="critical"] { color: var(--down); border-color: rgba(255, 95, 77, 0.45); }
+
+  .done { list-style: none; margin: 0; padding: 0; }
+  .done > li { border-bottom: 1px solid var(--line); }
+  .done > li:last-child { border-bottom: 0; }
+  .done summary {
+    display: grid;
+    grid-template-columns: 120px 130px minmax(0, 1fr) 10px;
+    gap: 4px 14px;
+    align-items: baseline;
+    padding: 7px 0;
+    list-style: none;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--dim);
+    &::-webkit-details-marker { display: none; }
+    &:hover .prod, &:focus-visible .prod { color: var(--amber); }
+  }
+  .done .st { font-size: 10px; letter-spacing: 0.1em; color: var(--muted); white-space: nowrap; }
+  .done .st[data-s="patched"] { color: var(--up); }
+  .done .st[data-s="clear"] { color: var(--faint); }
+  .done .prod { font-size: 11px; color: var(--muted); }
+  .done .sum { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .done .chev::before { content: "\25B8"; color: var(--faint); font-size: 10px; display: inline-block; }
+  .done details[open] .chev::before { transform: rotate(90deg); }
+  .done .inner { list-style: none; margin: 0 0 10px; padding: 0 0 0 134px; display: grid; gap: 7px; }
+  .done .inner li { display: grid; gap: 2px; font-size: 12px; }
+  .done .inner a { color: var(--muted); }
+  .done .inner a:hover, .done .inner a:focus-visible { color: var(--amber); }
+  .done .inner .m { font-size: 9px; letter-spacing: 0.1em; color: var(--faint); }
+}
+
+.advisories, .incidents {
   .footnote {
     margin: auto 0 0;
-    padding-top: 10px;
+    padding-top: 12px;
     font-size: 9px;
     line-height: 1.5;
     letter-spacing: var(--track);
     color: var(--dim);
   }
   .footnote .next { color: var(--amber); }
-}
-
-.incidents {
-  .rows li { align-items: baseline; flex-wrap: wrap; padding: 8px 0; font-size: 12px; row-gap: 7px; }
-
-  // Two weeks under each provider, a cell a day, so a quiet row still says
-  // something and a bad week shows as a run of amber.
-  .days {
-    flex-basis: 100%;
-    display: grid;
-    grid-template-columns: repeat(14, 1fr);
-    gap: 3px;
-    padding-left: 14px;
-
-    i { height: 8px; background: var(--panel-2); border: 1px solid var(--line); }
-    i[data-d="1"] { background: var(--line-hot); }
-    i[data-d="2"] { background: var(--warn); border-color: var(--warn); }
-  }
-  .rows li.empty { color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
-  .rows .pip { align-self: center; }
-  .rows .name { color: var(--muted); letter-spacing: 0.08em; white-space: nowrap; }
-  .rows .bar {
-    flex: 1;
-    height: 1px;
-    min-width: 8px;
-    align-self: center;
-    background: repeating-linear-gradient(90deg, var(--line-hot) 0 1px, transparent 1px 4px);
-  }
-  .rows .v { font-size: 11px; letter-spacing: 0.06em; color: var(--dim); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .rows a.v:hover { color: var(--amber); }
-
-  li[data-state="ok"] .pip { background: var(--up); }
-  li[data-state="elsewhere"] .pip, li[data-state="unknown"] .pip { background: var(--faint); }
-  li[data-state="hit"] { .pip { background: var(--warn); } .name, .v { color: var(--warn); } }
-
-  .footnote {
-    margin: auto 0 0;
-    padding-top: 10px;
-    font-size: 9px;
-    line-height: 1.5;
-    letter-spacing: var(--track);
-    color: var(--dim);
-  }
 }
 
 .alert.advisory .hl a { color: var(--text); }
@@ -2880,10 +2923,15 @@ main {
   .band:not(.news-band) { grid-template-columns: 1fr; }
 
   // The title drops under the product and status instead of cutting off.
-  .advisories .adv li { grid-template-columns: 6px minmax(0, 1fr) auto; }
-  .advisories .adv .st { grid-column: 3; grid-row: 1; }
-  .advisories .adv .what { grid-column: 2 / 4; grid-row: 2; }
+  .incidents .provs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .advisories .todo li { grid-template-columns: 120px minmax(0, 1fr); }
+  .advisories .todo .what { grid-column: 1 / -1; }
   .advisories .what .t { white-space: normal; }
+  .advisories .done summary { grid-template-columns: 110px minmax(0, 1fr) 10px; }
+  .advisories .done .sum { display: none; }
+  .advisories .done .inner { padding-left: 0; }
+  .verdict { grid-template-columns: 1fr; }
+  .verdict .v-when { text-align: left; }
   .heat { grid-template-columns: repeat(3, 1fr); }
 
   .sys-row { flex-direction: column; gap: 12px; }
@@ -2915,6 +2963,9 @@ main {
 // things worth knowing before scrolling, and drops the rest.
 @media (max-width: 620px) {
   :root { --gap: 8px; --pad: 10px; }
+
+  .incidents .provs { grid-template-columns: 1fr; }
+  .advisories .todo li { grid-template-columns: 1fr; }
 
   .news-band { grid-template-columns: 1fr; }
 

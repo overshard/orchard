@@ -1265,10 +1265,14 @@ function renderStreaming(titles) {
 function advisoryNode(a) {
   const li = el("li");
   li.dataset.state = a.state;
-  li.append(el("span", "pip"));
+  const act = el("span", "act", a.status);
+  if (a.note) act.append(el("small", "", a.note));
+  li.append(act);
   li.append(el("span", "prod", a.product));
   const what = el("span", "what");
-  what.append(link(a.url, "t", a.title));
+  const t = link(a.url, "t", a.title);
+  t.title = a.title;
+  what.append(t);
   const meta = el("span", "m");
   const tag = el("span", "tag", a.tag);
   tag.dataset.k = (a.tag || "").toLowerCase();
@@ -1276,10 +1280,68 @@ function advisoryNode(a) {
   for (const v of [a.id, a.source, a.age, a.detail]) if (v) meta.append(el("span", "", v));
   what.append(meta);
   li.append(what);
-  const st = el("span", "st", a.status);
-  if (a.note) st.append(el("small", "", a.note));
-  li.append(st);
   return li;
+}
+
+// The same split and fold as todoAdvisories and handledAdvisories in Go, done
+// again here since the signed in overlay can move a row either way.
+const wantsDoing = (r) => r.state === "open" || r.state === "check";
+const joinSome = (sep, ...parts) => parts.filter((p) => p && p.trim()).join(sep);
+
+function handledGroups(rows) {
+  const groups = new Map();
+  for (const r of rows) {
+    if (wantsDoing(r)) continue;
+    if (!groups.has(r.product)) groups.set(r.product, []);
+    groups.get(r.product).push(r);
+  }
+  return [...groups].map(([product, list]) => {
+    const first = list[0];
+    const same = list.every((r) => r.status === first.status);
+    const sameState = list.every((r) => r.state === first.state);
+    const g = { product, rows: list, state: sameState ? first.state : "fixed" };
+    if (list.length === 1) {
+      g.status = first.status;
+      g.summary = joinSome(" / ", first.title, first.note, first.age);
+    } else if (same) {
+      g.status = `${list.length} ${first.status}`;
+      g.summary = joinSome(" / ", `NEWEST ${first.note || ""}`, first.age);
+    } else {
+      g.status = `${list.length} HANDLED`;
+      g.summary = joinSome(" / ", `NEWEST ${first.status} ${first.note || ""}`, first.age);
+    }
+    return g;
+  });
+}
+
+function groupNode(g) {
+  const li = el("li");
+  const details = el("details");
+  const summary = el("summary");
+  const st = el("span", "st", g.status);
+  st.dataset.s = g.state;
+  summary.append(st, el("span", "prod", g.product), el("span", "sum", g.summary));
+  const chev = el("span", "chev");
+  chev.setAttribute("aria-hidden", "true");
+  summary.append(chev);
+  details.append(summary);
+  const inner = el("ul", "inner");
+  for (const r of g.rows) {
+    const item = el("li");
+    item.append(link(r.url, "", r.title));
+    const bits = [r.tag, r.id, r.source, r.age, r.detail, joinSome(" ", r.status, r.note)].filter(Boolean);
+    item.append(el("span", "m", bits.join(" / ")));
+    inner.append(item);
+  }
+  details.append(inner);
+  li.append(details);
+  return li;
+}
+
+function groupHead(text) {
+  const h = el("div", "adv-h");
+  h.append(el("span", "", text), el("span", "rule"));
+  return h;
 }
 
 function advisoryBanner(a) {
@@ -1325,6 +1387,7 @@ async function loadHostCheck() {
     if (lastState) {
       rendered.delete("alerts");
       rendered.delete("advisories");
+      rendered.delete("verdict");
       render(lastState);
     }
   } catch {
@@ -1339,19 +1402,29 @@ function renderAdvisories(adv) {
   const rows = withHost(adv.rows || []);
   const host = document.querySelector("[data-advisories]");
   if (host) {
-    host.replaceChildren(
-      ...(rows.length
-        ? rows.map(advisoryNode)
-        : [el("li", "empty", adv.checked ? "NOTHING EXPLOITED OR CRITICAL IN 30 DAYS" : "AWAITING FIRST CHECK")]),
-    );
+    const todo = rows.filter(wantsDoing);
+    const done = handledGroups(rows);
+    const nodes = [];
+    if (todo.length) {
+      const ul = el("ul", "todo");
+      ul.append(...todo.map(advisoryNode));
+      nodes.push(groupHead("TO DO"), ul);
+    }
+    if (done.length) {
+      const ul = el("ul", "done");
+      ul.append(...done.map(groupNode));
+      nodes.push(groupHead(`HANDLED / ${done.length} ${done.length === 1 ? "PRODUCT" : "PRODUCTS"}`), ul);
+    }
+    if (!rows.length) nodes.push(el("p", "empty", adv.checked ? "NOTHING EXPLOITED OR CRITICAL IN 30 DAYS" : "AWAITING FIRST CHECK"));
+    host.replaceChildren(...nodes);
   }
   if (adv.checked) {
-    const act = rows.filter((r) => r.state === "open" || r.state === "check").length;
-    setText(document.querySelector("[data-advisories-meta]"), `${act ? `${act} TO DO` : "NOTHING TO DO"} / LAST 30D`);
+    const act = rows.filter(wantsDoing).length;
+    setText(document.querySelector("[data-advisories-meta]"), `${act ? `${act} TO DO` : "NOTHING TO DO"} / ${rows.length} IN 30D`);
     const note = document.querySelector("[data-advisories-note]");
     if (note) {
       note.replaceChildren(
-        `EXPLOITED, CRITICAL OR HIGH ON THE WATCHLIST. ${adv.kev_added} KEV ADDS IN 30D, ${adv.kev_kept} ON THE WATCHLIST. KEV / DEBIAN / OSV / GHSA / MOZILLA, CHECKED ${adv.checked}.`,
+        `EXPLOITED, CRITICAL OR HIGH ON THE WATCHLIST, LAST 30 DAYS. ${adv.kev_added} KEV ADDS IN 30D, ${adv.kev_kept} ON THE WATCHLIST. KEV / DEBIAN / OSV / GHSA / MOZILLA, CHECKED ${adv.checked}.`,
       );
       if (adv.next_patch) {
         note.append(" ");
@@ -1361,30 +1434,92 @@ function renderAdvisories(adv) {
   }
 }
 
+function incidentChip(r) {
+  if (r.state === "hit") return "AFFECTED";
+  if (r.state === "unknown") return "NO ANSWER";
+  return "CLEAR";
+}
+
+function incidentHistory(r) {
+  const n = (r.days || []).length;
+  if (!n) return "";
+  if (r.last_hit === -1) return `NO HITS IN ${n}D`;
+  const last = r.last_hit === 0 ? "LAST HIT TODAY" : `LAST HIT ${r.last_hit}D AGO`;
+  return `${last} / ${r.hits} OF ${n} DAYS`;
+}
+
 function renderIncidents(rows) {
   const host = document.querySelector("[data-incidents]");
   if (!host || !rows) return;
   host.replaceChildren(
     ...rows.map((r) => {
-      const li = el("li");
-      li.dataset.state = r.state;
-      li.append(el("span", "pip"));
-      li.append(el("span", "name", r.name));
-      li.append(el("span", "bar"));
-      li.append(r.url ? link(r.url, "v", r.text) : el("span", "v", r.text));
+      const tile = el("div", "prov");
+      tile.dataset.state = r.state;
+      const top = el("div", "prov-top");
+      top.append(el("span", "pip"), el("span", "name", r.name), el("span", "chip", incidentChip(r)));
+      tile.append(top);
+      const line = el("div", "prov-line");
+      if (r.state !== "ok") line.append(r.url ? link(r.url, "", r.text) : el("span", "", r.text));
+      line.append(el("span", "hist", incidentHistory(r)));
+      tile.append(line);
       if (r.days && r.days.length) {
-        const days = el("span", "days");
-        days.setAttribute("aria-label", `Last ${r.days.length} days`);
-        for (const d of r.days) {
-          const i = el("i");
-          i.dataset.d = d;
-          days.append(i);
-        }
-        li.append(days);
+        const strip = el("div", "strip");
+        strip.setAttribute("aria-label", `Last ${r.days.length} days`);
+        r.days.forEach((d, i) => {
+          const cell = el("i");
+          cell.dataset.d = d;
+          if (r.notes && r.notes[i]) cell.title = r.notes[i];
+          strip.append(cell);
+        });
+        const axis = el("div", "axis");
+        axis.append(el("span", "", `${r.days.length}D AGO`), el("span", "", "TODAY"));
+        tile.append(strip, axis);
       }
-      return li;
+      return tile;
     }),
   );
+}
+
+// The same verdict as securityVerdict in Go, over the overlaid rows.
+function renderVerdict(adv, incidents) {
+  const host = document.querySelector("[data-verdict]");
+  if (!host || !adv) return;
+  let state = "ok";
+  let head = "AWAITING FIRST CHECK";
+  const say = [];
+  if (!adv.checked) {
+    state = "wait";
+    say.push("ADVISORIES AND STATUS PAGES ARE BEING READ");
+  } else {
+    const todo = withHost(adv.rows || []).filter(wantsDoing);
+    const hit = (incidents || []).filter((r) => r.state === "hit");
+    const heads = [];
+    if (hit.length) {
+      state = "warn";
+      heads.push(`${hit.length} ${hit.length === 1 ? "OUTAGE" : "OUTAGES"}`);
+      for (const r of hit) say.push(`${r.name}: ${r.text}`);
+    }
+    if (todo.length) {
+      if (state === "ok") state = "warn";
+      heads.push(`${todo.length} TO DO`);
+      todo.forEach((r, i) => {
+        if (r.state === "open") state = "down";
+        if (i < 2) say.push(joinSome(", ", r.product, r.tag, r.note || r.status));
+      });
+      if (todo.length > 2) say.push(`AND ${todo.length - 2} MORE`);
+    }
+    head = heads.length ? heads.join(" / ") : "NOTHING TO DO";
+    if (!heads.length) say.push("NOTHING ON THE WATCHLIST WANTS DOING");
+    if (!hit.length) say.push("PROVIDERS CLEAR FOR THIS SETUP");
+  }
+  host.dataset.v = state;
+  const sayNode = el("span", "v-say");
+  say.forEach((part, i) => {
+    if (i) sayNode.append(el("em", "", " / "));
+    sayNode.append(part);
+  });
+  const when = adv.checked ? `CHECKED ${adv.checked}${hostCheck ? " / HOST CHECKED" : ""}` : "";
+  host.replaceChildren(el("span", "v-head", head), sayNode, el("span", "v-when", when));
 }
 
 function render(state) {
@@ -1408,6 +1543,7 @@ function render(state) {
   if (changed("feeds", state.feeds)) renderFeeds(state.feeds);
   if (changed("advisories", state.advisories)) renderAdvisories(state.advisories);
   if (changed("incidents", state.incidents)) renderIncidents(state.incidents);
+  if (changed("verdict", [state.advisories, state.incidents])) renderVerdict(state.advisories, state.incidents);
   if (changed("hn", state.hn)) renderStories("[data-hn]", state.hn);
   if (changed("lobsters", state.lobsters)) renderStories("[data-lobsters]", state.lobsters);
   if (changed("hn_pulse", state.hn_pulse)) renderPulse("[data-hn-pulse]", state.hn_pulse);

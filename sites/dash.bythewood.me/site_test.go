@@ -200,8 +200,8 @@ func TestHomeRendersAdvisories(t *testing.T) {
 	rec := httptest.NewRecorder()
 	s.home(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 	body := rec.Body.String()
-	for _, want := range []string{"ADVISORIES", "EXPLOITED: WINDOWS", "CHECK / WINDOWS UPDATE", `data-state="patched"`, "TRIXIE FIXED 6.12.90-1",
-		"1 TO DO / LAST 30D", "34 KEV ADDS IN 30D, 2 ON THE WATCHLIST", "NEXT PATCH TUESDAY TUE DEC 8", "2 OPEN, NOT TUNNEL OR DNS", `data-k="exploited"`} {
+	for _, want := range []string{"ADVISORIES", "EXPLOITED: WINDOWS", "CHECK / WINDOWS UPDATE", `data-s="patched"`, "TRIXIE FIXED 6.12.90-1",
+		"1 TO DO / 2 IN 30D", `data-v="warn"`, "WINDOWS, EXPLOITED, WINDOWS UPDATE", "PROVIDERS CLEAR FOR THIS SETUP", "HANDLED / 1 PRODUCT", "34 KEV ADDS IN 30D, 2 ON THE WATCHLIST", "NEXT PATCH TUESDAY TUE DEC 8", "2 OPEN, NOT TUNNEL OR DNS", `data-k="exploited"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the rendered page is missing %q", want)
 		}

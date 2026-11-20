@@ -888,3 +888,143 @@ func saveAdvisories(path string, a Advisories) {
 		slog.Warn("advisories not saved", slog.String("component", "security"), slog.Any("err", err))
 	}
 }
+
+// AdvisoryGroup is one product's handled rows folded into a line, so four Bun
+// fixes take one row instead of four. live.js folds the same way after the
+// signed in overlay, which can move a row between to do and handled.
+type AdvisoryGroup struct {
+	Product string
+	State   string
+	Status  string
+	Summary string
+	Rows    []Advisory
+}
+
+func wantsDoing(r Advisory) bool { return r.State == "open" || r.State == "check" }
+
+func todoAdvisories(rows []Advisory) []Advisory {
+	var out []Advisory
+	for _, r := range rows {
+		if wantsDoing(r) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+func handledAdvisories(rows []Advisory) []AdvisoryGroup {
+	var out []AdvisoryGroup
+	at := map[string]int{}
+	for _, r := range rows {
+		if wantsDoing(r) {
+			continue
+		}
+		i, ok := at[r.Product]
+		if !ok {
+			i = len(out)
+			at[r.Product] = i
+			out = append(out, AdvisoryGroup{Product: r.Product, State: r.State})
+		}
+		out[i].Rows = append(out[i].Rows, r)
+	}
+	for i := range out {
+		g := &out[i]
+		first, same, sameState := g.Rows[0], true, true
+		for _, r := range g.Rows {
+			same = same && r.Status == first.Status
+			sameState = sameState && r.State == first.State
+		}
+		if !sameState {
+			g.State = "fixed"
+		}
+		switch {
+		case len(g.Rows) == 1:
+			g.Status = first.Status
+			g.Summary = joinNonEmpty(" / ", first.Title, first.Note, first.Age)
+		case same:
+			g.Status = fmt.Sprintf("%d %s", len(g.Rows), first.Status)
+			g.Summary = joinNonEmpty(" / ", "NEWEST "+first.Note, first.Age)
+		default:
+			g.Status = fmt.Sprintf("%d HANDLED", len(g.Rows))
+			g.Summary = joinNonEmpty(" / ", "NEWEST "+first.Status+" "+first.Note, first.Age)
+		}
+	}
+	return out
+}
+
+func joinNonEmpty(sep string, parts ...string) string {
+	var keep []string
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			keep = append(keep, p)
+		}
+	}
+	return strings.Join(keep, sep)
+}
+
+// SecurityVerdict is the line across the top of the band, the answer to
+// whether anything wants doing before the rows that say what.
+type SecurityVerdict struct {
+	State string
+	Head  string
+	Say   []string
+	When  string
+}
+
+const verdictItems = 2
+
+func securityVerdict(a Advisories, incidents []Incident) SecurityVerdict {
+	if a.Checked == "" {
+		return SecurityVerdict{State: "wait", Head: "AWAITING FIRST CHECK", Say: []string{"ADVISORIES AND STATUS PAGES ARE BEING READ"}}
+	}
+	todo := todoAdvisories(a.Rows)
+	var hit []Incident
+	for _, r := range incidents {
+		if r.State == "hit" {
+			hit = append(hit, r)
+		}
+	}
+	v := SecurityVerdict{State: "ok", When: "CHECKED " + a.Checked}
+	var heads []string
+	if len(hit) > 0 {
+		v.State = "warn"
+		heads = append(heads, fmt.Sprintf("%d %s", len(hit), plural(len(hit), "OUTAGE", "OUTAGES")))
+		for _, r := range hit {
+			v.Say = append(v.Say, r.Name+": "+r.Text)
+		}
+	}
+	if len(todo) > 0 {
+		if v.State == "ok" {
+			v.State = "warn"
+		}
+		heads = append(heads, fmt.Sprintf("%d TO DO", len(todo)))
+		for i, r := range todo {
+			if r.State == "open" {
+				v.State = "down"
+			}
+			if i < verdictItems {
+				v.Say = append(v.Say, joinNonEmpty(", ", r.Product, r.Tag, cmpOr(r.Note, r.Status)))
+			}
+		}
+		if len(todo) > verdictItems {
+			v.Say = append(v.Say, fmt.Sprintf("AND %d MORE", len(todo)-verdictItems))
+		}
+	}
+	if len(heads) == 0 {
+		v.Head = "NOTHING TO DO"
+		v.Say = append(v.Say, "NOTHING ON THE WATCHLIST WANTS DOING")
+	} else {
+		v.Head = strings.Join(heads, " / ")
+	}
+	if len(hit) == 0 {
+		v.Say = append(v.Say, "PROVIDERS CLEAR FOR THIS SETUP")
+	}
+	return v
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
+}

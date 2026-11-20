@@ -310,9 +310,16 @@
 {{end}}
 {{end}}
 
-{{define "advisory"}}<li data-state="{{.State}}"><span class="pip"></span><span class="prod">{{.Product}}</span><span class="what"><a class="t" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Title}}</a><span class="m"><span class="tag" data-k="{{lower .Tag}}">{{.Tag}}</span><span>{{.ID}}</span><span>{{.Source}}</span>{{if .Age}}<span>{{.Age}}</span>{{end}}{{if .Detail}}<span>{{.Detail}}</span>{{end}}</span></span><span class="st">{{.Status}}{{if .Note}}<small>{{.Note}}</small>{{end}}</span></li>{{end}}
+{{define "advisory"}}<li data-state="{{.State}}"><span class="act">{{.Status}}{{if .Note}}<small>{{.Note}}</small>{{end}}</span><span class="prod">{{.Product}}</span><span class="what"><a class="t" href="{{.URL}}" rel="noopener noreferrer" target="_blank" title="{{.Title}}">{{.Title}}</a><span class="m"><span class="tag" data-k="{{lower .Tag}}">{{.Tag}}</span><span>{{.ID}}</span><span>{{.Source}}</span>{{if .Age}}<span>{{.Age}}</span>{{end}}{{if .Detail}}<span>{{.Detail}}</span>{{end}}</span></span></li>{{end}}
 
-{{define "incident"}}<li data-state="{{.State}}"><span class="pip"></span><span class="name">{{.Name}}</span><span class="bar"></span>{{if .URL}}<a class="v" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Text}}</a>{{else}}<span class="v">{{.Text}}</span>{{end}}{{if .Days}}<span class="days" aria-label="Last {{len .Days}} days">{{range .Days}}<i data-d="{{.}}"></i>{{end}}</span>{{end}}</li>{{end}}
+{{define "advisory-group"}}<li><details><summary><span class="st" data-s="{{.State}}">{{.Status}}</span><span class="prod">{{.Product}}</span><span class="sum">{{.Summary}}</span><span class="chev" aria-hidden="true"></span></summary><ul class="inner">{{range .Rows}}<li><a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Title}}</a><span class="m">{{.Tag}} / {{.ID}} / {{.Source}}{{if .Age}} / {{.Age}}{{end}}{{if .Detail}} / {{.Detail}}{{end}} / {{.Status}}{{if .Note}} {{.Note}}{{end}}</span></li>{{end}}</ul></details></li>{{end}}
+
+{{define "advisory-lists"}}{{$todo := todoAdvisories .Rows}}{{$done := handledAdvisories .Rows -}}
+{{if $todo}}<div class="adv-h"><span>TO DO</span><span class="rule"></span></div><ul class="todo">{{range $todo}}{{template "advisory" .}}{{end}}</ul>{{end -}}
+{{if $done}}<div class="adv-h"><span>HANDLED / {{len $done}} {{if eq (len $done) 1}}PRODUCT{{else}}PRODUCTS{{end}}</span><span class="rule"></span></div><ul class="done">{{range $done}}{{template "advisory-group" .}}{{end}}</ul>{{end -}}
+{{if not .Rows}}<p class="empty">{{if .Checked}}NOTHING EXPLOITED OR CRITICAL IN 30 DAYS{{else}}AWAITING FIRST CHECK{{end}}</p>{{end}}{{end}}
+
+{{define "incident"}}<div class="prov" data-state="{{.State}}"><div class="prov-top"><span class="pip"></span><span class="name">{{.Name}}</span><span class="chip">{{incidentChip .}}</span></div><div class="prov-line">{{if ne .State "ok"}}{{if .URL}}<a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Text}}</a>{{else}}<span>{{.Text}}</span>{{end}}{{end}}<span class="hist">{{incidentHistory .}}</span></div>{{if .Days}}{{$notes := .Notes}}<div class="strip" aria-label="Last {{len .Days}} days">{{range $i, $d := .Days}}<i data-d="{{$d}}"{{if $notes}} title="{{index $notes $i}}"{{end}}></i>{{end}}</div><div class="axis"><span>{{len .Days}}D AGO</span><span>TODAY</span></div>{{end}}</div>{{end}}
 
 {{define "advisory-banner"}}<div class="alert advisory" data-severity="severe">
   <div class="alert-head"><span class="pip"></span><span class="ev">EXPLOITED: {{.Product}}</span><span class="sev">{{.Source}}</span></div>
@@ -324,7 +331,9 @@
   </div>
 </div>{{end}}
 
-{{define "advisories-meta"}}{{if .Checked}}{{if .Act}}{{.Act}} TO DO{{else}}NOTHING TO DO{{end}} / LAST 30D{{end}}{{end}}
+{{define "advisories-meta"}}{{if .Checked}}{{if .Act}}{{.Act}} TO DO{{else}}NOTHING TO DO{{end}} / {{len .Rows}} IN 30D{{end}}{{end}}
 
-{{define "advisories-note"}}{{if .Checked}}EXPLOITED, CRITICAL OR HIGH ON THE WATCHLIST. {{.KEVAdded}} KEV ADDS IN 30D, {{.KEVKept}} ON THE WATCHLIST. KEV / DEBIAN / OSV / GHSA / MOZILLA, CHECKED {{.Checked}}.{{if .NextPatch}} <span class="next">NEXT PATCH TUESDAY {{.NextPatch}}</span>{{end}}{{end}}{{end}}
+{{define "security-verdict"}}<span class="v-head">{{.Head}}</span><span class="v-say">{{range $i, $s := .Say}}{{if $i}}<em> / </em>{{end}}{{$s}}{{end}}</span><span class="v-when" data-verdict-when>{{.When}}</span>{{end}}
+
+{{define "advisories-note"}}{{if .Checked}}EXPLOITED, CRITICAL OR HIGH ON THE WATCHLIST, LAST 30 DAYS. {{.KEVAdded}} KEV ADDS IN 30D, {{.KEVKept}} ON THE WATCHLIST. KEV / DEBIAN / OSV / GHSA / MOZILLA, CHECKED {{.Checked}}.{{if .NextPatch}} <span class="next">NEXT PATCH TUESDAY {{.NextPatch}}</span>{{end}}{{end}}{{end}}
 

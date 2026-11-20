@@ -13,7 +13,13 @@ var templateFuncs = template.FuncMap{
 	"path": func(d string) template.HTMLAttr { return template.HTMLAttr(d) },
 
 	"upper": strings.ToUpper,
-	"lower": strings.ToLower,
+
+	"todoAdvisories":    todoAdvisories,
+	"handledAdvisories": handledAdvisories,
+	"securityVerdict":   securityVerdict,
+	"incidentChip":      incidentChip,
+	"incidentHistory":   incidentHistoryLine,
+	"lower":             strings.ToLower,
 
 	// range gives a zero based index and the feed ranks read from one.
 	"inc": func(i int) int { return i + 1 },

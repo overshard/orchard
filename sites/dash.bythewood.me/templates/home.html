@@ -343,34 +343,33 @@
 
 </div>
 
-<div class="band advisory-band">
-  <section class="panel advisories" data-panel="advisories" id="advisories">
-    <div class="bracket tl"></div><div class="bracket tr"></div>
-    <div class="bracket bl"></div><div class="bracket br"></div>
-    <header class="panel-head">
-      <span class="idx">15</span>
-      <h2>ADVISORIES</h2>
-      <span class="rule"></span>
-      <span class="panel-meta" data-advisories-meta>{{template "advisories-meta" .State.Advisories}}</span>
-    </header>
-    <ul class="adv" data-advisories>
-      {{range .State.Advisories.Rows}}{{template "advisory" .}}{{else}}<li class="empty">{{if .State.Advisories.Checked}}NOTHING EXPLOITED OR CRITICAL IN 30 DAYS{{else}}AWAITING FIRST CHECK{{end}}</li>{{end}}
-    </ul>
-    <p class="footnote" data-advisories-note>{{template "advisories-note" .State.Advisories}}</p>
-  </section>
+<div class="band advisory-band" id="advisories">
+  {{with securityVerdict .State.Advisories .State.Incidents}}<div class="verdict" data-verdict data-v="{{.State}}">{{template "security-verdict" .}}</div>{{end}}
   <section class="panel incidents" data-panel="incidents">
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">16</span>
+      <span class="idx">15</span>
       <h2>INCIDENTS</h2>
       <span class="rule"></span>
-      <span class="panel-meta">PROVIDERS</span>
+      <span class="panel-meta">PROVIDERS / LAST 14D</span>
     </header>
-    <ul class="rows" data-incidents>
-      {{range .State.Incidents}}{{template "incident" .}}{{else}}<li class="empty">AWAITING STATUS PAGES</li>{{end}}
-    </ul>
-    <p class="footnote">LAST 14 DAYS UNDER EACH. AMBER IS A DAY AN INCIDENT TOUCHED VINT HILL, THE TUNNEL, CLAUDE OR GIT.</p>
+    <div class="provs" data-incidents>
+      {{range .State.Incidents}}{{template "incident" .}}{{else}}<p class="empty">AWAITING STATUS PAGES</p>{{end}}
+    </div>
+    <p class="footnote legend"><span><i></i>NO INCIDENT</span><span><i data-d="1"></i>INCIDENT, NOT THIS SETUP</span><span><i data-d="2"></i>TOUCHED VINT HILL, THE TUNNEL, CLAUDE OR GIT</span><span>OUTLINED IS TODAY, HOVER A DAY FOR WHAT HAPPENED</span></p>
+  </section>
+  <section class="panel advisories" data-panel="advisories">
+    <div class="bracket tl"></div><div class="bracket tr"></div>
+    <div class="bracket bl"></div><div class="bracket br"></div>
+    <header class="panel-head">
+      <span class="idx">16</span>
+      <h2>ADVISORIES</h2>
+      <span class="rule"></span>
+      <span class="panel-meta" data-advisories-meta>{{template "advisories-meta" .State.Advisories}}</span>
+    </header>
+    <div data-advisories>{{template "advisory-lists" .State.Advisories}}</div>
+    <p class="footnote" data-advisories-note>{{template "advisories-note" .State.Advisories}}</p>
   </section>
 </div>
 <div class="band uplink-band">

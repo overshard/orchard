@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -187,5 +188,72 @@ func TestAdvisoriesSurviveARestart(t *testing.T) {
 	}
 	if _, ok := loadAdvisories(t.TempDir()+"/none.json", now); ok {
 		t.Error("a missing file should load nothing")
+	}
+}
+
+func TestKEVEffect(t *testing.T) {
+	cases := map[string]string{
+		"OpenBSD OpenSSH on Linux contains an unexpected status code or return value vulnerability that could allow for authentication bypass.":                                                                 ", allows authentication bypass",
+		"Linux Kernel contains a missing initialization of a variable vulnerability that could allow for unintended modification of page-cache-backed data via failure to preserve the shared-fragment marker.": ", allows unintended modification of page-cache-backed data",
+		"Apache Axis contains an unsafe reflection vulnerability that could allow an unauthenticated remote attacker to execute arbitrary code via a crafted SOAP fault message.":                               ", lets an attacker execute arbitrary code",
+		"Microsoft Office Outlook contains a missing user interaction for potentially unsafe action vulnerability that allows an unauthorized attacker to perform spoofing over a network.":                     ", lets an attacker perform spoofing over a network",
+		"Some product contains a vulnerability.": "",
+	}
+	for in, want := range cases {
+		if got := kevEffect(in); got != want {
+			t.Errorf("kevEffect(%q) = %q, want %q", in[:40], got, want)
+		}
+	}
+}
+
+func TestHandledAdvisoriesFoldByProduct(t *testing.T) {
+	rows := []Advisory{
+		{ID: "k", Product: "LINUX KERNEL", State: "check", Status: "CHECK"},
+		{ID: "b1", Product: "BUN", Title: "LSQUIC", State: "fixed", Status: "FIXED", Note: "IN 1.4.5", Age: "TODAY"},
+		{ID: "c", Product: "CADDY", Title: "Root escape", State: "fixed", Status: "FIXED", Note: "IN 2.11.8", Age: "16D AGO"},
+		{ID: "b2", Product: "BUN", Title: "QPACK", State: "fixed", Status: "FIXED", Note: "IN 1.4.4", Age: "27D AGO"},
+		{ID: "o", Product: "OPENSSH", Title: "Auth bypass", State: "clear", Status: "NOT AFFECTED", Note: "TRIXIE"},
+		{ID: "b3", Product: "BUN", Title: "brotli", State: "patched", Status: "PATCHED", Note: "HOST 1.4.5"},
+	}
+	if todo := todoAdvisories(rows); len(todo) != 1 || todo[0].ID != "k" {
+		t.Fatalf("todo = %+v", todo)
+	}
+	got := handledAdvisories(rows)
+	if len(got) != 3 || got[0].Product != "BUN" || got[1].Product != "CADDY" || got[2].Product != "OPENSSH" {
+		t.Fatalf("groups = %+v", got)
+	}
+	if b := got[0]; len(b.Rows) != 3 || b.Status != "3 HANDLED" || b.State != "fixed" || b.Summary != "NEWEST FIXED IN 1.4.5 / TODAY" {
+		t.Errorf("bun = %+v", b)
+	}
+	if c := got[1]; c.Status != "FIXED" || c.Summary != "Root escape / IN 2.11.8 / 16D AGO" {
+		t.Errorf("caddy = %+v", c)
+	}
+	if o := got[2]; o.State != "clear" || o.Status != "NOT AFFECTED" {
+		t.Errorf("openssh = %+v", o)
+	}
+}
+
+func TestSecurityVerdict(t *testing.T) {
+	quiet := []Incident{{Name: "CLOUDFLARE", State: "elsewhere", Text: "2 OPEN, NOT TUNNEL OR DNS"}}
+	if v := securityVerdict(Advisories{}, quiet); v.State != "wait" {
+		t.Errorf("before a check = %+v", v)
+	}
+	clear := Advisories{Checked: "08:24", Rows: []Advisory{{Product: "BUN", State: "fixed"}}}
+	if v := securityVerdict(clear, quiet); v.State != "ok" || v.Head != "NOTHING TO DO" || v.When != "CHECKED 08:24" {
+		t.Errorf("clear = %+v", v)
+	}
+	todo := Advisories{Checked: "08:24", Rows: []Advisory{
+		{Product: "LINUX KERNEL", Tag: "EXPLOITED", State: "check", Status: "CHECK", Note: "DEBIAN UPDATE"},
+		{Product: "A", State: "open", Status: "UPDATE"},
+		{Product: "B", State: "check", Status: "CHECK"},
+	}}
+	hit := append(quiet, Incident{Name: "GITHUB", State: "hit", Text: "GIT OPERATIONS DEGRADED"})
+	v := securityVerdict(todo, hit)
+	if v.State != "down" || v.Head != "1 OUTAGE / 3 TO DO" {
+		t.Errorf("busy = %+v", v)
+	}
+	want := []string{"GITHUB: GIT OPERATIONS DEGRADED", "LINUX KERNEL, EXPLOITED, DEBIAN UPDATE", "A, UPDATE", "AND 1 MORE"}
+	if !slices.Equal(v.Say, want) {
+		t.Errorf("say = %q", v.Say)
 	}
 }
