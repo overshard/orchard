@@ -264,6 +264,25 @@ http://gate.bythewood.me {
 
 # mcp, every tool read only for an agent. OAuth lives here too, signing in
 # through auth, and its two .well-known routes are the only ones any site serves.
+# /q/ is DNS over HTTPS, a request per lookup with the device's token in the
+# path, so it stays out of both access logs. /internal/ is the DoT front's way
+# in and only the bridge may reach it.
+http://dns.bythewood.me {
+	import site
+
+	log_skip /q/*
+
+	handle /internal* {
+		respond "not here" 404
+	}
+
+	handle {
+		reverse_proxy orchard-dns:8000 {
+			import hold
+		}
+	}
+}
+
 http://mcp.bythewood.me {
 	import site
 	reverse_proxy orchard-mcp:8000 {
