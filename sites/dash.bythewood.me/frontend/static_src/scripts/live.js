@@ -1482,7 +1482,7 @@ function renderIncidents(rows) {
 
 // The same verdict as securityVerdict in Go, over the overlaid rows.
 function renderVerdict(adv, incidents) {
-  const host = document.querySelector("[data-verdict]");
+  const host = document.querySelector("[data-security-verdict]");
   if (!host || !adv) return;
   let state = "ok";
   let head = "AWAITING FIRST CHECK";

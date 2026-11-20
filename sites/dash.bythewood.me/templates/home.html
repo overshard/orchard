@@ -344,7 +344,7 @@
 </div>
 
 <div class="band advisory-band" id="advisories">
-  {{with securityVerdict .State.Advisories .State.Incidents}}<div class="verdict" data-verdict data-v="{{.State}}">{{template "security-verdict" .}}</div>{{end}}
+  {{with securityVerdict .State.Advisories .State.Incidents}}<div class="verdict" data-security-verdict data-v="{{.State}}">{{template "security-verdict" .}}</div>{{end}}
   <section class="panel incidents" data-panel="incidents">
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
