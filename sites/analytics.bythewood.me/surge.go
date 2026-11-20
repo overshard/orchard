@@ -49,8 +49,9 @@ type SurgeWatcher struct {
 	push Publisher
 	now  func() time.Time
 
-	mu   sync.Mutex
-	sent map[string]time.Time
+	mu     sync.Mutex
+	sent   map[string]time.Time
+	loaded bool
 }
 
 func NewSurgeWatcher(db *sql.DB, push Publisher) *SurgeWatcher {
@@ -82,6 +83,14 @@ type busyProperty struct {
 func (w *SurgeWatcher) Check(ctx context.Context) {
 	now := w.now()
 	since, until := now.Add(-surgeWindow).UnixMilli(), now.UnixMilli()+1
+	w.mu.Lock()
+	if !w.loaded {
+		w.loaded = true
+		for k, at := range recentAlertKeys(ctx, w.db, now.Add(-linkCooldown)) {
+			w.sent[k] = at
+		}
+	}
+	w.mu.Unlock()
 
 	busy, err := w.busy(ctx, now, since, until)
 	if err != nil {
@@ -91,7 +100,8 @@ func (w *SurgeWatcher) Check(ctx context.Context) {
 	flagged := map[uuid.UUID]bool{}
 	for _, b := range busy {
 		flagged[b.id] = true
-		if !w.claim("busy:"+b.id.String(), busyCooldown) {
+		key := "busy:" + b.id.String()
+		if !w.claim(key, busyCooldown) {
 			continue
 		}
 		page, pageN := w.top(ctx, b.id, since, until, "url")
@@ -103,7 +113,7 @@ func (w *SurgeWatcher) Check(ctx context.Context) {
 		if ref != "" && !own(ref) {
 			body += fmt.Sprintf(" Most came from %s (%d).", ref, refN)
 		}
-		w.publish(ctx, ntfy.Message{Title: "Busy: " + b.name, Body: body, Priority: "default",
+		w.publish(ctx, b.id, "busy", key, ntfy.Message{Title: "Busy: " + b.name, Body: body, Priority: "default",
 			Tags: "chart_with_upwards_trend", Link: dashboardURL(b.id), Label: "Analytics"})
 	}
 
@@ -114,14 +124,15 @@ func (w *SurgeWatcher) Check(ctx context.Context) {
 	}
 	for _, l := range links {
 		// A busy property's alert already names its top referrer.
-		if flagged[l.id] || !w.claim("link:"+l.id.String()+":"+l.referrer, linkCooldown) {
+		key := "link:" + l.id.String() + ":" + l.referrer
+		if flagged[l.id] || !w.claim(key, linkCooldown) {
 			continue
 		}
 		body := fmt.Sprintf("%d people came from %s in the last hour.", l.people, l.referrer)
 		if l.page != "" {
 			body += " Most landed on " + l.page + "."
 		}
-		w.publish(ctx, ntfy.Message{Title: l.name + " linked from " + l.referrer, Body: body, Priority: "default",
+		w.publish(ctx, l.id, "link", key, ntfy.Message{Title: l.name + " linked from " + l.referrer, Body: body, Priority: "default",
 			Tags: "link", Link: dashboardURL(l.id), Label: "Analytics"})
 	}
 }
@@ -209,8 +220,8 @@ func (w *SurgeWatcher) top(ctx context.Context, id uuid.UUID, since, until int64
 	return v.String, n
 }
 
-// claim is false while key is cooling down, so a long surge pushes once. It's
-// in memory, so a deploy in the middle of one can push it a second time.
+// claim is false while key is cooling down, so a long surge pushes once. The
+// alerts table seeds it on the first check, so a deploy doesn't push again.
 func (w *SurgeWatcher) claim(key string, cooldown time.Duration) bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -222,10 +233,13 @@ func (w *SurgeWatcher) claim(key string, cooldown time.Duration) bool {
 	return true
 }
 
-func (w *SurgeWatcher) publish(ctx context.Context, m ntfy.Message) {
+func (w *SurgeWatcher) publish(ctx context.Context, id uuid.UUID, kind, key string, m ntfy.Message) {
 	if err := w.push.Publish(ctx, m); err != nil {
 		slog.Error("surge alert failed", slog.String("component", "surge"), slog.String("title", m.Title), slog.Any("err", err))
 		return
+	}
+	if err := recordAlert(ctx, w.db, id, kind, key, m.Title, m.Body, w.now()); err != nil {
+		slog.Error("surge alert not recorded", slog.String("component", "surge"), slog.Any("err", err))
 	}
 	slog.Info("surge alert", slog.String("component", "surge"), slog.String("title", m.Title))
 }

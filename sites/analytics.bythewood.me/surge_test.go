@@ -120,3 +120,30 @@ func TestSurgeOutsideLink(t *testing.T) {
 		t.Fatalf("sent %+v", push.sent)
 	}
 }
+
+// A pushed alert is kept for the chart, and a watcher started after a deploy
+// reads it back instead of pushing the same surge again.
+func TestSurgeAlertIsRecordedAndRemembered(t *testing.T) {
+	db, id := retentionTestDB(t)
+	now := time.Now()
+	quietHistory(t, db, id, now)
+	for i := range 6 {
+		view(t, db, id, now.Add(-time.Duration(i)*time.Minute), fmt.Sprint("r", i), "/posts/x/", "reddit.com")
+	}
+	first := NewSurgeWatcher(db, &caught{})
+	first.now = func() time.Time { return now }
+	first.Check(context.Background())
+
+	got := readAlerts(context.Background(), db, id, now.Add(-time.Hour).UnixMilli(), now.UnixMilli(), 10)
+	if len(got) != 1 || got[0].Kind != "link" || !strings.Contains(got[0].Title, "reddit.com") {
+		t.Fatalf("recorded %+v", got)
+	}
+
+	push := &caught{}
+	second := NewSurgeWatcher(db, push)
+	second.now = func() time.Time { return now.Add(time.Minute) }
+	second.Check(context.Background())
+	if len(push.sent) != 0 {
+		t.Errorf("a restarted watcher pushed again: %+v", push.sent)
+	}
+}
