@@ -258,13 +258,20 @@ var tools = []tool{
 	{
 		Name: "status_report", Title: "Uptime report for one property",
 		Description: "status.bythewood.me's report for one property: current state, response times, uptime, TLS, security headers, Lighthouse scores and SEO crawl issues.",
-		Schema:      obj(map[string]any{"property": str("The property's name, like blog.bythewood.me. Part of the name works.")}, "property"),
+		Schema: obj(map[string]any{
+			"property": str("The property's name, like blog.bythewood.me. Part of the name works."),
+			"insights": enum("How to list crawl issues, grouped by rule with a few example pages if left out, or every page.", "grouped", "all"),
+		}, "property"),
 		run: func(ctx context.Context, rd reader, raw json.RawMessage) (string, error) {
-			_, path, err := rd.find(ctx, "status", "property", sarg(argsOf(raw), "property"))
+			a := argsOf(raw)
+			_, path, err := rd.find(ctx, "status", "property", sarg(a, "property"))
 			if err != nil {
 				return "", err
 			}
 			body, err := rd.get(ctx, "status", path+"?report=md")
+			if err == nil && sarg(a, "insights") != "all" {
+				body = groupInsights(body)
+			}
 			return strangers + clip(body), err
 		},
 	},
@@ -384,6 +391,50 @@ var tools = []tool{
 				}
 			}
 			return "", fmt.Errorf("%s has no README", name)
+		},
+	},
+	{
+		Name: "dash_brief", Title: "dash's briefs and advisories",
+		Description: "dash.bythewood.me as text: the news, markets and Hacker News briefs, the market signal, security advisories and provider incidents, any system that isn't up, and the economic calendar ahead.",
+		Schema: obj(map[string]any{
+			"section": enum("One part, or every part if left out.", "all", "news", "markets", "feeds", "advisories", "systems"),
+		}),
+		run: func(ctx context.Context, rd reader, raw json.RawMessage) (string, error) {
+			body, err := dashBrief(ctx, rd, sarg(argsOf(raw), "section"))
+			return strangers + clip(body), err
+		},
+	},
+	{
+		Name: "auth_activity", Title: "Sign ins and sessions",
+		Description: "auth.bythewood.me's live sessions and its newest events, codes sent, sign ins, refusals, connectors allowed and revoked, with where each came from.",
+		Schema: obj(map[string]any{
+			"limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 200, "description": "How many events, 50 if left out."},
+		}),
+		run: func(ctx context.Context, rd reader, raw json.RawMessage) (string, error) {
+			n, _ := strconv.Atoi(sarg(argsOf(raw), "limit"))
+			if n == 0 {
+				n = 50
+			}
+			body, err := authActivity(ctx, rd, n)
+			return clip(body), err
+		},
+	},
+	{
+		Name: "llm_usage", Title: "llm spend and calls",
+		Description: "llm.bythewood.me's month spend against its budget, the last 30 days by caller with failures and tokens, and the newest calls. Set failed to see only failed calls with what they asked.",
+		Schema: obj(map[string]any{
+			"caller": str("Only this caller, like dash or pond."),
+			"failed": enum("yes to list only failed calls.", "yes", "no"),
+			"limit":  map[string]any{"type": "integer", "minimum": 1, "maximum": 200, "description": "How many calls, 25 if left out."},
+		}),
+		run: func(ctx context.Context, rd reader, raw json.RawMessage) (string, error) {
+			a := argsOf(raw)
+			n, _ := strconv.Atoi(sarg(a, "limit"))
+			if n == 0 {
+				n = 25
+			}
+			body, err := llmUsage(ctx, rd, sarg(a, "caller"), sarg(a, "failed") == "yes", n)
+			return strangers + clip(body), err
 		},
 	},
 }
