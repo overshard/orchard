@@ -13,6 +13,8 @@
 
   {{ template "alerts" . }}
 
+  {{ template "checkup" .Overview.Checkup }}
+
   <section class="o-panel">
     <div class="o-ph2"><h2>Tools</h2><span class="o-lab">behind this sign in</span></div>
     <div class="tools">
@@ -60,8 +62,9 @@
 {{ end }}
 
 {{ define "tool" }}
-<a class="tool" href="https://{{ .host }}/">
+<a class="tool" href="https://{{ .host }}/" data-tool="{{ .name }}">
   <span class="tool-name">{{ .name }}<span aria-hidden="true">&rarr;</span></span>
+  <span class="tool-state" hidden><i></i><b></b></span>
   <span class="tool-desc">{{ .desc }}</span>
   <span class="tool-host o-mono">{{ .host }}</span>
 </a>
