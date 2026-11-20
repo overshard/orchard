@@ -331,3 +331,23 @@ func (w *Watchdog) writeLifecycle(ctx context.Context, ev lifecycleEvent) error 
 		lifecycleKey(ev.source), state+"|"+strconv.FormatInt(ev.at.UnixMilli(), 10))
 	return err
 }
+
+// HeardWithin reports whether anything arrived from source in the last d. It
+// counts caddy's rollup only lines, which never reach the records table.
+func (w *Watchdog) HeardWithin(source string, d time.Duration) bool {
+	if w == nil {
+		return false
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	last, ok := w.seen[source]
+	return ok && w.now().Sub(last) <= d
+}
+
+func (s *site) markHeard(rows []SourceRow) {
+	for i := range rows {
+		if !rows[i].IsLive && s.watchdog.HeardWithin(rows[i].Source, 15*time.Minute) {
+			rows[i].IsLive = true
+		}
+	}
+}

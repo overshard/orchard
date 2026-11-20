@@ -265,6 +265,7 @@ func (s *site) renderDashboard(w http.ResponseWriter, r *http.Request, source st
 	if source == "" {
 		d.BySource = breakdown(ctx, s.db, f, "source", 10)
 		d.Sources = sources(ctx, s.db, f)
+		s.markHeard(d.Sources)
 		sparks := sourceSparks(ctx, s.db, f, d.Graph)
 		for i := range d.Sources {
 			d.Sources[i].Spark = sparks[d.Sources[i].Source]

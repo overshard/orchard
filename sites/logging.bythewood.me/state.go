@@ -15,6 +15,7 @@ func (s *site) suiteState(r *http.Request) suite.State {
 	// A day to find every source, so a silent one still shows, and the last
 	// hour for whether it's in trouble now.
 	rows := sources(r.Context(), s.db, filter{StartMS: now.Add(-24 * time.Hour).UnixMilli(), EndMS: now.UnixMilli()})
+	s.markHeard(rows)
 	hour := map[string]SourceRow{}
 	for _, src := range sources(r.Context(), s.db, filter{StartMS: now.Add(-time.Hour).UnixMilli(), EndMS: now.UnixMilli()}) {
 		hour[src.Source] = src
