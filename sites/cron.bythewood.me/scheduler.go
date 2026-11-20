@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -34,16 +35,22 @@ type Publisher interface {
 	Publish(ctx context.Context, m ntfy.Message) error
 }
 
-type Scheduler struct {
+// composer works out what a job would say. It holds no Publisher, so a try
+// built on it alone has no way to reach ntfy.
+type composer struct {
 	store *Store
-	push  Publisher
 	model *Model
 	http  *http.Client
 	loc   *time.Location
+	now   func() time.Time
+}
+
+type Scheduler struct {
+	composer
+	push Publisher
 	// Where a snooze button posts, the public hostname since the phone
 	// presses it.
 	base string
-	now  func() time.Time
 
 	// Waits between publish attempts. ntfy restarting with the edge is the
 	// usual reason a push fails, and it's back within ten seconds.
@@ -56,8 +63,8 @@ type Scheduler struct {
 
 func NewScheduler(store *Store, push Publisher, model *Model, loc *time.Location) *Scheduler {
 	return &Scheduler{
-		store: store, push: push, model: model, loc: loc, base: baseURL, now: time.Now,
-		http:  &http.Client{Timeout: 20 * time.Second},
+		composer: composer{store: store, model: model, loc: loc, now: time.Now, http: &http.Client{Timeout: 20 * time.Second}},
+		push:     push, base: baseURL,
 		waits: []time.Duration{2 * time.Second, 8 * time.Second},
 		wake:  make(chan struct{}, 1), sem: make(chan struct{}, parallel),
 	}
@@ -109,7 +116,8 @@ func (s *Scheduler) Loop(ctx context.Context) {
 }
 
 // skipStale moves repeating jobs that came due while the container was down
-// past the gap, since a daily check fired six hours late helps nobody.
+// past the gap, since a daily check fired six hours late helps nobody, and
+// writes a missed run for each fire it skipped.
 func (s *Scheduler) skipStale() {
 	now := s.now()
 	jobs, err := s.store.Due(now.Add(-staleAfter))
@@ -125,8 +133,39 @@ func (s *Scheduler) skipStale() {
 		if err != nil {
 			continue
 		}
+		s.recordMissed(j, now)
 		slog.Warn("skipped a missed run", "job", j.Name, "due", j.NextRun.In(s.loc).Format(time.DateTime))
 		_ = s.store.Reschedule(j.ID, next, j.Failures, j.LastRun, "missed while down")
+	}
+}
+
+// maxMissed bounds the rows one outage writes for a job, so a minutely job
+// down for a week leaves a line of them instead of ten thousand.
+const maxMissed = 12
+
+func (s *Scheduler) recordMissed(j Job, now time.Time) {
+	var fires []time.Time
+	total := 0
+	for t := j.NextRun; !t.IsZero() && !t.After(now) && total < 100000; {
+		total++
+		fires = append(fires, t)
+		if len(fires) > maxMissed {
+			fires = fires[1:]
+		}
+		next, err := s.NextRun(j, t)
+		if err != nil || !next.After(t) {
+			break
+		}
+		t = next
+	}
+	for i, t := range fires {
+		msg := "missed while down"
+		if i == 0 && total > len(fires) {
+			msg = fmt.Sprintf("missed while down, along with %d before it", total-len(fires))
+		}
+		if _, err := s.store.AddRun(Run{JobID: j.ID, Name: j.Name, Kind: j.Kind, At: t, Err: msg, Missed: "down"}); err != nil {
+			slog.Error("writing a missed run", "job", j.Name, "err", err)
+		}
 	}
 }
 
@@ -169,10 +208,14 @@ func (s *Scheduler) settle(j Job, next time.Time, run Run) {
 		_ = s.store.Reschedule(j.ID, s.now().Add(retryEvery), j.Failures+1, run.At, run.Err)
 	case j.Once():
 		slog.Error("gave up on a reminder", "job", j.Name, "err", run.Err)
+		_ = s.store.MarkRun(run.ID, "dropped", fmt.Sprintf("dropped after %d tries: %s", maxRetries, run.Err))
 		_ = s.store.Delete(j.ID)
 	case run.OK:
 		_ = s.store.Reschedule(j.ID, next, 0, run.At, "")
 	default:
+		if run.dropped {
+			_ = s.store.MarkRun(run.ID, "dropped", "push dropped: "+run.Err)
+		}
 		_ = s.store.Reschedule(j.ID, next, j.Failures+1, run.At, run.Err)
 	}
 	s.Wake()
@@ -184,53 +227,92 @@ func (s *Scheduler) Execute(ctx context.Context, j Job, late time.Duration) Run 
 	start := s.now()
 	run := Run{JobID: j.ID, Name: j.Name, Kind: j.Kind, At: start}
 
-	title, body, send := j.Title, j.Message, true
-	if title == "" {
-		title = j.Name
-	}
-	if j.Kind == "prompt" {
-		ans, err := s.ask(ctx, j)
-		if err != nil {
-			run.Err = err.Error()
-			// A check that silently stops is the thing this site exists to
-			// prevent, so a failed one says so.
+	d, err := s.compose(ctx, j)
+	if err != nil {
+		run.Err = err.Error()
+		// A check that silently stops is the thing this site exists to
+		// prevent, so a failed one says so. A quote failing every minute
+		// would be noise, so it only logs.
+		if j.Kind == "prompt" {
 			_ = s.publish(ctx, ntfy.Message{
 				Title: "Check failed: " + j.Name, Body: run.Err, Priority: "default", Tags: "warning",
 			})
-			return s.record(run, start)
 		}
-		send, body = ans.Notify, ans.Message
-		if ans.Title != "" {
-			title = ans.Title
-		}
-	}
-	if j.Kind == "quote" {
-		t, b, ok, err := s.quote(ctx, j)
-		if err != nil {
-			run.Err = err.Error()
-			return s.record(run, start)
-		}
-		title, body, send = t, b, ok
+		return s.record(run, start)
 	}
 	if late > lateAfter {
-		body += fmt.Sprintf("\n\n(late by %s)", roundLate(late))
+		d.Body += fmt.Sprintf("\n\n(late by %s)", roundLate(late))
 	}
-	run.Title, run.Body = title, body
-	if !send {
+	run.Title, run.Body = d.Title, d.Body
+	if !d.Send {
 		run.OK = true
 		return s.record(run, start)
 	}
 
-	m := ntfy.Message{Title: title, Body: body, Priority: j.Priority, Tags: "alarm_clock", Link: j.Link, Label: "Open"}
-	if tok, err := s.store.AddSnooze(Snooze{Name: j.Name, Title: title, Body: body, Priority: j.Priority, Link: j.Link}, start); err == nil {
+	m := ntfy.Message{Title: d.Title, Body: d.Body, Priority: j.Priority, Tags: "alarm_clock", Link: j.Link, Label: "Open"}
+	if tok, err := s.store.AddSnooze(Snooze{Name: j.Name, Title: d.Title, Body: d.Body, Priority: j.Priority, Link: j.Link, JobID: cmp.Or(j.SnoozeOf, j.ID)}, start); err == nil {
 		m.Buttons = []string{"http, Snooze 1h, " + s.base + "/snooze/" + tok + ", method=POST, clear=true"}
 	}
 	if err := s.publish(ctx, m); err != nil {
-		run.Err = err.Error()
+		run.Err, run.dropped = err.Error(), true
 	} else {
 		run.OK, run.Pushed = true, true
 	}
 	return s.record(run, start)
+}
+
+// draft is what a job would push, and Send false means it would stay quiet.
+type draft struct {
+	Title, Body string
+	Send        bool
+}
+
+func (c *composer) compose(ctx context.Context, j Job) (draft, error) {
+	d := draft{Title: j.Title, Body: j.Message, Send: true}
+	if d.Title == "" {
+		d.Title = j.Name
+	}
+	switch j.Kind {
+	case "prompt":
+		ans, err := c.ask(ctx, j)
+		if err != nil {
+			return d, err
+		}
+		d.Send, d.Body = ans.Notify, ans.Message
+		if ans.Title != "" {
+			d.Title = ans.Title
+		}
+	case "quote":
+		t, b, ok, err := c.quote(ctx, j)
+		if err != nil {
+			return d, err
+		}
+		d.Title, d.Body, d.Send = t, b, ok
+	}
+	return d, nil
+}
+
+// Trial is what a try came back with. Nothing about it was sent or stored.
+type Trial struct {
+	Push  bool   `json:"push"`
+	Title string `json:"title,omitempty"`
+	Body  string `json:"body,omitempty"`
+	MS    int64  `json:"ms"`
+	Err   string `json:"err,omitempty"`
+}
+
+// Try runs a job the way a fire would and says what it would push. It lives on
+// composer so it can't publish, write a run or mint a snooze.
+func (c *composer) Try(ctx context.Context, j Job) Trial {
+	start := c.now()
+	d, err := c.compose(ctx, j)
+	t := Trial{MS: c.now().Sub(start).Milliseconds()}
+	if err != nil {
+		t.Err = err.Error()
+		return t
+	}
+	t.Push, t.Title, t.Body = d.Send, d.Title, d.Body
+	return t
 }
 
 func (s *Scheduler) record(run Run, start time.Time) Run {
@@ -264,7 +346,7 @@ func (s *Scheduler) publish(ctx context.Context, m ntfy.Message) error {
 	return err
 }
 
-func (s *Scheduler) ask(ctx context.Context, j Job) (Answer, error) {
+func (s *composer) ask(ctx context.Context, j Job) (Answer, error) {
 	if s.model == nil {
 		return Answer{}, errors.New("no LLM_KEY, so prompt jobs can't run")
 	}
@@ -273,7 +355,7 @@ func (s *Scheduler) ask(ctx context.Context, j Job) (Answer, error) {
 
 // lastPush gives a check its previous push, so one can report a change since
 // then or stay quiet when it already told him.
-func (s *Scheduler) lastPush(job int64) string {
+func (s *composer) lastPush(job int64) string {
 	r, ok := s.lastPushRun(job)
 	if !ok {
 		return "\n\nThis check hasn't pushed anything yet."
@@ -287,6 +369,7 @@ func (s *Scheduler) Snoozed(n Snooze) (Job, error) {
 	j := Job{
 		Name: n.Name, Kind: "notify", At: s.now().Add(snoozeFor).Truncate(time.Minute),
 		Title: n.Title, Message: n.Body, Priority: n.Priority, Link: n.Link, Enabled: true, CreatedBy: "snooze",
+		SnoozeOf: n.JobID,
 	}
 	j.NextRun = j.At
 	id, err := s.store.Insert(j)

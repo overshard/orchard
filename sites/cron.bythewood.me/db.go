@@ -40,7 +40,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   last_err   TEXT NOT NULL DEFAULT '',
   created_by TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  snooze_of  INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS jobs_next ON jobs(enabled, next_run);
 CREATE TABLE IF NOT EXISTS runs (
@@ -54,7 +55,8 @@ CREATE TABLE IF NOT EXISTS runs (
   pushed   INTEGER NOT NULL DEFAULT 0,
   title    TEXT NOT NULL DEFAULT '',
   body     TEXT NOT NULL DEFAULT '',
-  err      TEXT NOT NULL DEFAULT ''
+  err      TEXT NOT NULL DEFAULT '',
+  missed   TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS runs_at ON runs(at DESC);
 CREATE INDEX IF NOT EXISTS runs_job ON runs(job_id, at DESC);
@@ -73,7 +75,8 @@ CREATE TABLE IF NOT EXISTS snoozes (
   body       TEXT NOT NULL,
   priority   TEXT NOT NULL,
   link       TEXT NOT NULL,
-  expires_at INTEGER NOT NULL
+  expires_at INTEGER NOT NULL,
+  job_id     INTEGER NOT NULL DEFAULT 0
 );
 `
 
@@ -91,8 +94,37 @@ func OpenStore(path string) (*Store, error) {
 	if _, err := db.Exec(schema); err != nil {
 		return nil, err
 	}
+	if err := migrate(db); err != nil {
+		return nil, err
+	}
 	_, _ = db.Exec("PRAGMA optimize=0x10002")
 	return &Store{db: db}, nil
+}
+
+// columns are added to tables made before them. Only ever added, since the
+// database is the live one.
+var columns = []struct{ table, name, def string }{
+	// missed is down for a fire skipped while the container was down and
+	// dropped for a push given up on, empty for a run that happened.
+	{"runs", "missed", "TEXT NOT NULL DEFAULT ''"},
+	{"jobs", "snooze_of", "INTEGER NOT NULL DEFAULT 0"},
+	{"snoozes", "job_id", "INTEGER NOT NULL DEFAULT 0"},
+}
+
+func migrate(db *sql.DB) error {
+	for _, c := range columns {
+		var n int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info(?) WHERE name=?`, c.table, c.name).Scan(&n); err != nil {
+			return err
+		}
+		if n == 0 {
+			if _, err := db.Exec(`ALTER TABLE ` + c.table + ` ADD COLUMN ` + c.name + ` ` + c.def); err != nil {
+				return err
+			}
+			slog.Info("added a column", "table", c.table, "column", c.name)
+		}
+	}
+	return nil
 }
 
 func (s *Store) Close() error {
@@ -120,12 +152,15 @@ type Job struct {
 	CreatedBy string
 	Created   time.Time
 	Updated   time.Time
+	// SnoozeOf is the job a pressed snooze button was on, zero for one made
+	// before that was kept.
+	SnoozeOf int64
 }
 
 func (j Job) Once() bool { return j.Cron == "" }
 
 const jobCols = `id, name, kind, cron, at_unix, title, message, priority, link, enabled,
-  next_run, failures, last_run, last_err, created_by, created_at, updated_at`
+  next_run, failures, last_run, last_err, created_by, created_at, updated_at, snooze_of`
 
 func unix(t time.Time) int64 {
 	if t.IsZero() {
@@ -148,7 +183,7 @@ func scanJob(r scanner) (Job, error) {
 	var at, next, last, created, updated int64
 	var enabled int
 	err := r.Scan(&j.ID, &j.Name, &j.Kind, &j.Cron, &at, &j.Title, &j.Message, &j.Priority, &j.Link,
-		&enabled, &next, &j.Failures, &last, &j.LastErr, &j.CreatedBy, &created, &updated)
+		&enabled, &next, &j.Failures, &last, &j.LastErr, &j.CreatedBy, &created, &updated, &j.SnoozeOf)
 	j.At, j.NextRun, j.LastRun = fromUnix(at), fromUnix(next), fromUnix(last)
 	j.Created, j.Updated, j.Enabled = fromUnix(created), fromUnix(updated), enabled == 1
 	return j, err
@@ -194,9 +229,9 @@ func (s *Store) jobs(q string, args ...any) ([]Job, error) {
 func (s *Store) Insert(j Job) (int64, error) {
 	now := time.Now().Unix()
 	r, err := s.db.Exec(`INSERT INTO jobs(name, kind, cron, at_unix, title, message, priority, link, enabled,
-	  next_run, created_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+	  next_run, created_by, created_at, updated_at, snooze_of) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		j.Name, j.Kind, j.Cron, unix(j.At), j.Title, j.Message, j.Priority, j.Link, b2i(j.Enabled),
-		unix(j.NextRun), j.CreatedBy, now, now)
+		unix(j.NextRun), j.CreatedBy, now, now, j.SnoozeOf)
 	if err != nil {
 		return 0, err
 	}
@@ -245,65 +280,120 @@ type Run struct {
 	Title  string
 	Body   string
 	Err    string
+	Missed string
+
+	// dropped is set by Execute when the push itself never landed.
+	dropped bool
+}
+
+// Result is the one word a run is filed under: pushed, quiet, failed or
+// missed, which also covers a push that was dropped.
+func (r Run) Result() string {
+	switch {
+	case r.Missed != "":
+		return "missed"
+	case r.Err != "":
+		return "failed"
+	case r.Pushed:
+		return "pushed"
+	}
+	return "quiet"
 }
 
 func (s *Store) AddRun(r Run) (int64, error) {
-	res, err := s.db.Exec(`INSERT INTO runs(job_id, name, kind, at, ms, ok, pushed, title, body, err)
-	  VALUES(?,?,?,?,?,?,?,?,?,?)`,
-		r.JobID, r.Name, r.Kind, r.At.Unix(), r.MS, b2i(r.OK), b2i(r.Pushed), r.Title, r.Body, r.Err)
+	res, err := s.db.Exec(`INSERT INTO runs(job_id, name, kind, at, ms, ok, pushed, title, body, err, missed)
+	  VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
+		r.JobID, r.Name, r.Kind, r.At.Unix(), r.MS, b2i(r.OK), b2i(r.Pushed), r.Title, r.Body, r.Err, r.Missed)
 	if err != nil {
 		return 0, err
 	}
 	return res.LastInsertId()
 }
 
+// RunFilter narrows a list of runs. Result is one of Run.Result's words.
+type RunFilter struct {
+	Job    int64
+	Result string
+	Limit  int
+}
+
+var resultWhere = map[string]string{
+	"pushed": `missed='' AND err='' AND pushed=1`,
+	"quiet":  `missed='' AND err='' AND pushed=0`,
+	"failed": `missed='' AND err!=''`,
+	"missed": `missed!=''`,
+}
+
+const runCols = `id, job_id, name, kind, at, ms, ok, pushed, title, body, err, missed`
+
+func scanRun(r scanner) (Run, error) {
+	var run Run
+	var at int64
+	var ok, pushed int
+	err := r.Scan(&run.ID, &run.JobID, &run.Name, &run.Kind, &at, &run.MS, &ok, &pushed, &run.Title, &run.Body, &run.Err, &run.Missed)
+	run.At, run.OK, run.Pushed = time.Unix(at, 0), ok == 1, pushed == 1
+	return run, err
+}
+
 // Runs is the newest first, for one job when job is above zero.
 func (s *Store) Runs(job int64, limit int) ([]Run, error) {
-	q := `SELECT id, job_id, name, kind, at, ms, ok, pushed, title, body, err FROM runs`
+	return s.FindRuns(RunFilter{Job: job, Limit: limit})
+}
+
+func (s *Store) FindRuns(f RunFilter) ([]Run, error) {
+	q := `SELECT ` + runCols + ` FROM runs WHERE 1=1`
 	args := []any{}
-	if job > 0 {
-		q += ` WHERE job_id=?`
-		args = append(args, job)
+	if f.Job > 0 {
+		q += ` AND job_id=?`
+		args = append(args, f.Job)
+	}
+	if w, ok := resultWhere[f.Result]; ok {
+		q += ` AND ` + w
 	}
 	q += ` ORDER BY at DESC, id DESC LIMIT ?`
-	rows, err := s.db.Query(q, append(args, limit)...)
+	return s.runs(q, append(args, f.Limit)...)
+}
+
+func (s *Store) runs(q string, args ...any) ([]Run, error) {
+	rows, err := s.db.Query(q, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := []Run{}
 	for rows.Next() {
-		var r Run
-		var at int64
-		var ok, pushed int
-		if err := rows.Scan(&r.ID, &r.JobID, &r.Name, &r.Kind, &at, &r.MS, &ok, &pushed, &r.Title, &r.Body, &r.Err); err != nil {
+		r, err := scanRun(rows)
+		if err != nil {
 			return nil, err
 		}
-		r.At, r.OK, r.Pushed = time.Unix(at, 0), ok == 1, pushed == 1
 		out = append(out, r)
 	}
 	return out, rows.Err()
 }
 
-// RunsSince is every run from t on, for the activity tiles.
+// RunsSince is every run from t on, oldest first, for the activity tiles.
 func (s *Store) RunsSince(t time.Time) ([]Run, error) {
-	rows, err := s.db.Query(`SELECT at, ok, pushed, err FROM runs WHERE at>=? ORDER BY at`, t.Unix())
+	return s.runs(`SELECT `+runCols+` FROM runs WHERE at>=? ORDER BY at`, t.Unix())
+}
+
+// LastRuns is each job's newest n runs, oldest first, for its tick strip.
+func (s *Store) LastRuns(n int) (map[int64][]Run, error) {
+	rows, err := s.runs(`SELECT `+runCols+` FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY at DESC, id DESC) AS rn
+	  FROM runs) WHERE rn<=? ORDER BY at, id`, n)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	out := []Run{}
-	for rows.Next() {
-		var r Run
-		var at int64
-		var ok, pushed int
-		if err := rows.Scan(&at, &ok, &pushed, &r.Err); err != nil {
-			return nil, err
-		}
-		r.At, r.OK, r.Pushed = time.Unix(at, 0), ok == 1, pushed == 1
-		out = append(out, r)
+	out := map[int64][]Run{}
+	for _, r := range rows {
+		out[r.JobID] = append(out[r.JobID], r)
 	}
-	return out, rows.Err()
+	return out, nil
+}
+
+// MarkRun files a run that already has a row as missed or dropped.
+func (s *Store) MarkRun(id int64, missed, errText string) error {
+	_, err := s.db.Exec(`UPDATE runs SET missed=?, err=? WHERE id=?`, missed, errText, id)
+	return err
 }
 
 func (s *Store) Counts() (jobs, runs, pushed int) {
@@ -402,6 +492,7 @@ func (s *Store) DeleteKey(id int64) error {
 // Snooze is what a pressed snooze button sends again.
 type Snooze struct {
 	Name, Title, Body, Priority, Link string
+	JobID                             int64
 }
 
 // AddSnooze returns the token that goes in the button's url. The url is the
@@ -411,8 +502,8 @@ func (s *Store) AddSnooze(n Snooze, now time.Time) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	_, err = s.db.Exec(`INSERT INTO snoozes(hash, name, title, body, priority, link, expires_at) VALUES(?,?,?,?,?,?,?)`,
-		hashSecret(tok), n.Name, n.Title, n.Body, n.Priority, n.Link, now.Add(7*24*time.Hour).Unix())
+	_, err = s.db.Exec(`INSERT INTO snoozes(hash, name, title, body, priority, link, expires_at, job_id) VALUES(?,?,?,?,?,?,?,?)`,
+		hashSecret(tok), n.Name, n.Title, n.Body, n.Priority, n.Link, now.Add(7*24*time.Hour).Unix(), n.JobID)
 	return tok, err
 }
 
@@ -420,7 +511,7 @@ func (s *Store) AddSnooze(n Snooze, now time.Time) (string, error) {
 func (s *Store) TakeSnooze(tok string, now time.Time) (Snooze, bool) {
 	var n Snooze
 	h := hashSecret(tok)
-	err := s.db.QueryRow(`DELETE FROM snoozes WHERE hash=? AND expires_at>=? RETURNING name, title, body, priority, link`,
-		h, now.Unix()).Scan(&n.Name, &n.Title, &n.Body, &n.Priority, &n.Link)
+	err := s.db.QueryRow(`DELETE FROM snoozes WHERE hash=? AND expires_at>=? RETURNING name, title, body, priority, link, job_id`,
+		h, now.Unix()).Scan(&n.Name, &n.Title, &n.Body, &n.Priority, &n.Link, &n.JobID)
 	return n, err == nil
 }

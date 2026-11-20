@@ -73,7 +73,7 @@ func fetchQuote(ctx context.Context, c *http.Client, symbol string) (q Quote, tr
 	return q, m.Volume > 0 && m.Price > 0, nil
 }
 
-func (s *Scheduler) quote(ctx context.Context, j Job) (title, body string, send bool, err error) {
+func (s *composer) quote(ctx context.Context, j Job) (title, body string, send bool, err error) {
 	symbol := strings.ToUpper(strings.TrimSpace(j.Message))
 	q, traded, err := fetchQuote(ctx, s.http, symbol)
 	if err != nil || !traded {
@@ -97,7 +97,7 @@ func (s *Scheduler) quote(ctx context.Context, j Job) (title, body string, send 
 	return symbol, body, true, nil
 }
 
-func (s *Scheduler) lastPushRun(job int64) (Run, bool) {
+func (s *composer) lastPushRun(job int64) (Run, bool) {
 	runs, err := s.store.Runs(job, 50)
 	if err != nil {
 		return Run{}, false
