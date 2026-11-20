@@ -11,11 +11,8 @@ import (
 	"time"
 )
 
-// The pebble pusher. The table and the pile on it are the pond's own and
-// keep between visits, and a pond gets an allowance of drops a day. The page
-// plays the pile out, and the server keeps a count of every pebble and only
-// takes a save that adds up, so the pusher never pays more than the
-// allowance put on the table plus the pile it started with.
+// The page plays the pile out and the server only counts, taking a save that
+// adds up, so a pusher can't pay more than its allowance and starting pile.
 const (
 	pushDaily = 20
 	pushKeep  = 60
