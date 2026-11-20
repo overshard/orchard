@@ -80,7 +80,18 @@ func (e *engine) passed(r *http.Request, q *req) bool {
 	if err != nil || time.Now().Unix() > n {
 		return false
 	}
-	return hmac.Equal([]byte(sig), []byte(e.sign("pass", strings.ToLower(q.Host), exp, q.UA)))
+	return hmac.Equal([]byte(sig), []byte(e.sign("pass", siteOf(q.Host), exp, q.UA)))
+}
+
+// siteOf is the domain a pass covers, the last two labels, so one solve on
+// any bythewood.me host is good on every other one.
+func siteOf(host string) string {
+	host = strings.ToLower(host)
+	parts := strings.Split(host, ".")
+	if len(parts) <= 2 {
+		return host
+	}
+	return strings.Join(parts[len(parts)-2:], ".")
 }
 
 var challengeTpl *template.Template
@@ -98,7 +109,7 @@ func (e *engine) challenge(w http.ResponseWriter, r *http.Request, q *req) {
 		back = "/"
 	}
 	err := challengeTpl.ExecuteTemplate(w, "challenge.html", map[string]any{
-		"Seed": e.seed(strings.ToLower(q.Host), time.Now()), "Zeros": powZeros, "Back": back, "Host": q.Host,
+		"Seed": e.seed(siteOf(q.Host), time.Now()), "Zeros": powZeros, "Back": back, "Host": q.Host,
 	})
 	if err != nil {
 		slog.Error("render challenge", slog.Any("err", err))
@@ -112,6 +123,7 @@ func (e *engine) solve(w http.ResponseWriter, r *http.Request) {
 	if h, _, ok := strings.Cut(host, ":"); ok {
 		host = h
 	}
+	host = siteOf(host)
 	seed, nonce := r.PostFormValue("seed"), r.PostFormValue("nonce")
 	now := time.Now()
 	if !e.seedOK(seed, host, now) || !worked(seed, nonce) {
@@ -119,7 +131,7 @@ func (e *engine) solve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	until := now.Add(passFor)
-	http.SetCookie(w, &http.Cookie{Name: passCookie, Value: e.pass(host, r.Header.Get("User-Agent"), until), Path: "/",
+	http.SetCookie(w, &http.Cookie{Name: passCookie, Value: e.pass(host, r.Header.Get("User-Agent"), until), Path: "/", Domain: host,
 		Expires: until, MaxAge: int(passFor / time.Second), HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode})
 	back := r.PostFormValue("back")
 	if !strings.HasPrefix(back, "/") || strings.HasPrefix(back, "//") || strings.HasPrefix(back, "/\\") {
