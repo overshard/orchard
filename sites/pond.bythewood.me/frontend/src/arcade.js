@@ -16,9 +16,10 @@ export function arcade(game) {
   const F = game.feel;
   let net = Promise.resolve(), started = null, down = null, first = !!game.demo && unseen(k);
 
-  function info() { return state.pond && state.pond.arcade.find((a) => a.key === k); }
+  function info() { return game.info ? game.info() : state.pond && state.pond.arcade.find((a) => a.key === k); }
 
   function note() {
+    if (game.note) { game.note(); return; }
     const a = info();
     if (!a) return;
     $(k + "-best").textContent = a.best;
@@ -86,11 +87,13 @@ export function arcade(game) {
     card.classList.toggle("quick", A.state === "over" && A.quick);
     if (A.state === "over" && A.quick) {
       const r = el("span", "readout big");
-      r.append(el("span", "k", game.why() || "Score"), el("span", "v", String(game.score())));
+      r.append(el("span", "k", game.why() || game.scoreWord || "Score"), el("span", "v", String(game.score())));
       const extra = game.card && game.card(true);
       card.replaceChildren(...[r, el("p", A.paid ? "won" : "dim", payWords()), extra, el("b", "key", "AGAIN")].filter(Boolean));
       return;
     }
+    // A game with a board of its own puts it up in place of the title.
+    if (A.state === "idle" && game.board) { card.replaceChildren(game.board(start)); return; }
     const win = el("div", "arcade-win"), art = el("canvas");
     art.width = 168; art.height = 96;
     art.getContext("2d").drawImage(label(k), 0, 0);
@@ -107,7 +110,7 @@ export function arcade(game) {
     } else {
       kids.push(el("p", "why", game.why() || "Done"));
       const r = el("span", "readout big");
-      r.append(el("span", "k", "Score"), el("span", "v", String(game.score())));
+      r.append(el("span", "k", game.scoreWord || "Score"), el("span", "v", String(game.score())));
       kids.push(r);
       const extra = game.card && game.card(false);
       if (extra) kids.push(extra);
@@ -116,7 +119,7 @@ export function arcade(game) {
       const a = info();
       if (a && a.aims && a.aims.length) kids.push(aimList(a.aims, A.aims));
       if (A.best) kids.push(el("p", "won", "A new best"));
-      if (now - A.overAt > LOCK) kids.push(el("p", "again", "Tap to go again"));
+      if (now - A.overAt > LOCK) kids.push(el("p", "again", game.again ? game.again() : "Tap to go again"));
     }
     card.replaceChildren(...kids);
   }
@@ -213,6 +216,9 @@ export function arcade(game) {
     if (!state.pond) return;
     if (A.state === "over" && performance.now() - A.overAt < lock()) return;
     if (A.state === "paused") { resume(); return; }
+    // A board takes its own taps, and a tap after a run goes back to it.
+    if (game.board && A.state === "over") { A.state = "idle"; game.reset(state.g, state.pond); paint(performance.now()); return; }
+    if (game.board && A.state === "idle") return;
     if (A.state !== "play") {
       start();
       // The tap that starts a run goes on steering it if it's held.
@@ -260,6 +266,7 @@ export function arcade(game) {
     const dir = { ArrowUp: "up", KeyW: "up", ArrowDown: "down", KeyS: "down", ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right" }[e.code];
     if (dir || e.code === "Space" || e.code === "Enter") e.preventDefault();
     if (e.repeat) return;
+    if (game.board && A.state === "idle") { if (game.boardKey(e.code, start)) paint(performance.now()); return; }
     if (A.state !== "play") { if (dir || e.code === "Space" || e.code === "Enter") press(null); return; }
     used();
     // A game with its own keys gets every one, down and up.
