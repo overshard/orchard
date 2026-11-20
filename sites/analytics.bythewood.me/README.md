@@ -23,11 +23,16 @@ make clean    delete build/ and node_modules
 
 ## Layout
 
-`collector.go` takes the events, `queries.go` and `dashboard.go` read them back,
+`collector.go` takes the events, and `dashboard.go`, `filters.go`, `stats.go`,
+`tiles.go`, `queries.go` and `chart.go` read them back into the dashboard. Every
+row on it is a link that adds an `f_<field>` filter to the URL, and the filters
+narrow the SQL, so a filtered view is a link you can share. `goals.go` keeps the
+custom events marked as goals,
 `report.go` with `reports/` and `typst.go` writes the reports, `geoip.go` and
 `ua.go` turn an address and a user agent into a place and a browser, and
 `retention.go` deletes anything past a year, and `surge.go` pushes to the
-`alerts` ntfy topic when real people arrive in unusual numbers. The database and the GeoIP file
+`alerts` ntfy topic when real people arrive in unusual numbers and keeps each
+push in the `alerts` table for the chart. The database and the GeoIP file
 live in `data/`, or the `orchard-analytics-data` volume in production.
 
 ## Things that will bite you
@@ -40,5 +45,9 @@ live in `data/`, or the `orchard-analytics-data` volume in production.
   private, so set `is_public` on its row in `data/db.sqlite3` to look at it.
 - A surge needs at least 10 people and 20 views in an hour and five times the
   property's average hour over two weeks, and one outside site sending 5 people
-  in an hour is a link alert. Each pushes once per 6 or 24 hours, kept in memory,
-  so a deploy mid surge can push it again.
+  in an hour is a link alert. Each pushes once per 6 or 24 hours, and the
+  cooldowns are read back from the `alerts` table when the watcher starts.
+- A visit is a visitor's events with no gap of half an hour, cut at query time,
+  so entry pages, bounce and the referrer, utm, entry and goal filters all hang
+  off it. Country and region live only on a visitor's first `session_start`,
+  so those filters match the visitor and not the row.
