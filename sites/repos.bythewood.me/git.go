@@ -79,6 +79,8 @@ type Store struct {
 	// A separate lock from mu so reading a card never waits on a cat-file open.
 	overviewMu sync.Mutex
 	overviews  map[string]overviewEntry
+
+	memo *memo
 }
 
 func NewStore(root string) *Store {
@@ -86,6 +88,7 @@ func NewStore(root string) *Store {
 		Root:      root,
 		batches:   make(map[string]*catFile),
 		overviews: make(map[string]overviewEntry),
+		memo:      newMemo(),
 	}
 }
 
@@ -538,12 +541,13 @@ func (s *Store) Overview(ctx context.Context, repo Repo) Overview {
 	return fresh
 }
 
-// InvalidateOverview drops one repository's card, and is called from every write
+// InvalidateOverview drops one repository's card and memo, and is called from every write
 // path here so a push that has landed is never listed as if it hadn't.
 func (s *Store) InvalidateOverview(name string) {
 	s.overviewMu.Lock()
 	delete(s.overviews, name)
 	s.overviewMu.Unlock()
+	s.memo.drop(name)
 }
 
 // readOverview walks both ref namespaces once, because the branch count, the
