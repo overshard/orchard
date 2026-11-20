@@ -1,157 +1,119 @@
 import { colours } from "./frog.js";
 import { drawTop } from "./top.js";
 import { feel } from "./feel.js";
-import { sfx } from "./sound.js";
+import { sfx, chime } from "./sound.js";
+import { reduced } from "./api.js";
+import { PENTA } from "./drop.js";
+import { W, H, FY, SELF, RING, EYE, PAY, EDDY, centre, half, flow, speed, world, run, score, metres, over } from "./raftworld.js";
 
-// Raft run. The frog rides a leaf down a river that keeps narrowing. Hold a
-// finger where it should go, or the arrow keys, and thread the gaps in the
-// reed weirs while missing rocks and the banks. Three bumps and it's over.
-const W = 180, H = 270, FY = H - 56, STEER = 150, KEYS = 120;
-// The frog is hit a few pixels inside its leaf, and NEAR is how close a miss gets a CLOSE.
-const BODY = 3, NEAR = 4;
-// Every ten seconds or so a whirlpool turns up ahead. It drags the leaf in,
-// its eye is a bump and getting past inside its ring pays SPUN.
-const WHIRL = 10, RING = 20, EYE = 5, PULL = 75, SPUN = 3;
+// Raft run. The frog rides a leaf down a river that keeps narrowing and
+// steers it itself, and a held finger or the arrow keys take over until let go.
+const LAMP = "#ffcf6a", SURF = "#7fd6c2";
 
 let G = null, col = null;
 const F = feel();
 
-// The river narrows and quickens over the first stretch and then holds.
-function centre(y) { return W / 2 + Math.sin(y / 170) * 30 + Math.sin(y / 53) * 9; }
-function half(y) { return 40 + 34 * Math.exp(-y / 1500); }
-function speed(t) { return 118 - 62 * Math.exp(-t / 7); }
-function screenY(wy) { return H - (wy - G.dist); }
-
-function spawn() {
-  const y = G.nextAt, c = centre(y), h = half(y);
-  const r = Math.random();
-  if (G.since >= 3 || r < 0.3) {
-    const gap = 26 + 14 * Math.exp(-G.dist / 1200);
-    G.things.push({ k: "weir", y, gap, gx: c - h + 8 + Math.random() * (h * 2 - gap - 16) });
-    G.since = 0;
-  } else {
-    const n = r < 0.75 ? 1 : 2;
-    for (let i = 0; i < n; i++) G.things.push({ k: "rock", y: y + i * 18, x: c - h + 10 + Math.random() * (h * 2 - 20), r: 5 + Math.floor(Math.random() * 3) });
-    if (Math.random() < 0.5) G.things.push({ k: "pebble", y: y + 40, x: c - h + 12 + Math.random() * (h * 2 - 24) });
-    G.since++;
-  }
-  G.nextAt += 70 + Math.random() * 40;
+function heard(e) {
+  if (e.k === "bump") F.crash(e.x, FY);
+  else if (e.k === "tip") { F.crash(e.x, FY, { sound: "splash" }); F.squash(1); }
+  else if (e.k === "weir") { F.got(e.x, FY - 2, "+" + PAY.weir, { streak: e.n }); if (e.close) F.close(e.x, FY - 26); }
+  else if (e.k === "close") F.close(e.x, FY - 26);
+  else if (e.k === "spun") F.got(e.x, FY - 2, "SPUN +" + PAY.spun, { big: true, streak: e.n });
+  else if (e.k === "pebble") F.got(e.x, FY - 2, "+" + PAY.pebble, { streak: e.n });
+  else if (e.k === "shell") F.got(e.x, FY - 2, "+" + PAY.shell, { streak: e.n, sound: "pip" });
+  else if (e.k === "fly") {
+    chime(PENTA[Math.min(PENTA.length - 1, 1 + e.n)], 0.04);
+    F.burst(e.x, FY - 4, LAMP, 5); F.pop(e.x, FY - 12, "+" + PAY.fly, LAMP);
+  } else if (e.k === "warn") sfx("warn");
 }
 
-function bump(why) {
-  if (G.safe > 0) return;
-  if (G.clean < 0) G.clean = raft.score();
-  G.lives--; G.safe = 1.2; G.why = why; G.row = 0;
-  if (G.lives <= 0) G.dead = 0.01;
-  F.crash(G.fx, FY);
+// Pale streaks ride the current, faster down the middle than at the banks,
+// so the water can be seen to move.
+function streaks() {
+  const s = [];
+  for (let i = 0; i < 28; i++) s.push({ k: (i * 0.618) % 2 - 1, y: (i * 97) % (H + 20) - 10, n: 3 + (i % 4) });
+  return s;
 }
 
 export const raft = {
-  key: "raft", W, H, title: "RAFT RUN", feel: F,
-  aria: "Hold where the raft should go, or use the arrow keys.",
-  help: ["HOLD WHERE THE RAFT SHOULD GO", "THREAD THE GAPS IN THE REEDS", "SKIM A WHIRLPOOL, MISS ITS EYE", "THREE BUMPS AND YOU'RE OUT", "TAP TO START"],
+  key: "raft", W, H, title: "RAFT RUN", feel: F, edge: ["#3f8a44", "#3f8a44"],
+  line: SELF ? "Drift down the river, steer if you like." : "Steer a leaf down the river.",
+  aria: SELF ? "The frog steers the leaf. Hold where it should go, or the arrow keys, to take over until you let go." : "Hold where the raft should go, or use the arrow keys.",
+  help: SELF
+    ? ["THE FROG STEERS ITSELF", "HOLD WHERE IT SHOULD GO TO TAKE OVER", "CATCH FIREFLIES, SHELLS AND PEBBLES", "A ROCK HIT HEAD ON TIPS THE LEAF", "TAP TO START"]
+    : ["HOLD WHERE THE RAFT SHOULD GO", "THREAD THE GAPS IN THE REEDS", "CATCH FIREFLIES, SHELLS AND PEBBLES", "A ROCK HIT HEAD ON TIPS THE LEAF", "TAP TO START"],
 
   reset(g) {
     col = colours(g, null);
-    G = { t: 0, dist: 0, v: speed(0), fx: centre(56), want: null, keys: { left: false, right: false }, things: [], nextAt: 230, since: 0, lives: 3, safe: 0, dead: 0, row: 0, bonus: 0, why: "", weirs: 0, pebbles: 0, clean: -1, whirlAt: 8 + Math.random() * 2, whirls: 0 };
-    // A weir inside two seconds, with a line of pebbles to show the way through.
-    const wy = 150, gap = 40, gx = centre(wy) + (Math.random() < 0.5 ? -1 : 1) * 14 - gap / 2;
-    G.things.push({ k: "weir", y: wy, gap, gx });
-    for (let i = 1; i <= 4; i++) G.things.push({ k: "pebble", y: 56 + i * 20, x: G.fx + (gx + gap / 2 - G.fx) * i / 4 });
-    while (G.nextAt < G.dist + H + 40) spawn();
+    G = { w: world(), want: null, keys: { left: false, right: false }, touched: false, streaks: streaks() };
   },
 
   demo() {
-    const w = G && G.things.find((t) => t.k === "weir" && !t.done);
+    if (!G || G.touched) return null;
+    const w = G.w.things.find((t) => t.k === "weir" && !t.done);
     return w ? { x: w.gx + w.gap / 2, y: FY - 30, hold: true } : null;
   },
 
-  drag(x) { if (G) G.want = x; },
+  drag(x) { if (G) { G.want = x; G.touched = true; } },
   release() { if (G) G.want = null; },
-  hold(dir, on) { if (G) G.keys[dir] = on; },
+  hold(dir, on) { if (G) { G.keys[dir] = on; if (on) G.touched = true; } },
+  pause() { if (G) { G.want = null; G.keys = { left: false, right: false }; } },
 
   step(dt) {
-    G.t += dt;
-    if (G.dead) { G.dead += dt; return; }
-    G.v = speed(G.t);
-    G.dist += G.v * dt;
-    G.safe = Math.max(0, G.safe - dt);
-    if (G.want !== null) {
-      const d = G.want - G.fx;
-      G.fx += Math.sign(d) * Math.min(Math.abs(d), STEER * dt);
+    const w = G.w;
+    run(w, dt, { want: G.want, left: G.keys.left, right: G.keys.right });
+    w.events.forEach(heard);
+    w.events.length = 0;
+    for (const s of G.streaks) {
+      const x = centre(s.y) + s.k * half(s.y);
+      if (!w.dead) s.y += speed(w.t) * flow(x, s.y) * 1.3 * dt;
+      const sy = H - (s.y - w.dist);
+      if (sy < -10) s.y = w.dist - 10 + Math.random() * 8;
+      else if (sy > H + 10) s.y = w.dist + H + 4;
     }
-    if (G.keys.left) G.fx -= KEYS * dt;
-    if (G.keys.right) G.fx += KEYS * dt;
-    while (G.nextAt < G.dist + H + 40) spawn();
-    if (G.t >= G.whirlAt) {
-      const y = G.nextAt + 10, wc = centre(y);
-      G.things.push({ k: "whirl", y, x: wc + (Math.random() * 2 - 1) * half(y) / 3 });
-      G.nextAt += 80;
-      G.whirlAt = G.t + WHIRL - 1 + Math.random() * 2;
-      sfx("warn");
-    }
-    const fy = G.dist + (H - FY), c = centre(fy), h = half(fy);
-    for (const t of G.things) {
-      if (t.k !== "whirl" || t.done || Math.abs(fy - t.y) > RING + 10 || Math.abs(G.fx - t.x) > RING + 12) continue;
-      G.fx += Math.sign(t.x - G.fx) * Math.min(Math.abs(t.x - G.fx), PULL * dt);
-    }
-    if (Math.abs(G.fx - c) > h - 5) { bump("ON THE BANK"); G.fx = c + Math.sign(G.fx - c) * (h - 9); }
-    for (const t of G.things) {
-      if (t.done) continue;
-      if (t.k === "weir" && fy >= t.y) {
-        t.done = true;
-        const room = Math.min(G.fx - BODY - t.gx, t.gx + t.gap - G.fx - BODY);
-        if (room > 0) {
-          G.bonus++; G.weirs++;
-          F.got(G.fx, FY - 2, "+1", { streak: ++G.row });
-          if (room < NEAR) F.close(G.fx, FY - 26);
-        } else bump("IN THE REEDS");
-      } else if (t.k === "rock" && Math.abs(fy - t.y) < t.r + BODY && Math.abs(G.fx - t.x) < t.r + BODY) {
-        t.done = true; bump("ON A ROCK");
-      } else if (t.k === "rock" && fy > t.y + t.r + BODY) {
-        t.done = true;
-        if (Math.abs(G.fx - t.x) < t.r + BODY + NEAR && G.safe === 0) F.close(G.fx, FY - 26);
-      } else if (t.k === "whirl" && fy >= t.y) {
-        t.done = true;
-        const d = Math.abs(G.fx - t.x);
-        if (d < EYE) bump("IN THE WHIRLPOOL");
-        else if (d < RING && G.safe === 0) { G.bonus += SPUN; G.whirls++; F.got(G.fx, FY - 2, "SPUN +" + SPUN, { big: true, streak: ++G.row }); }
-      } else if (t.k === "pebble" && Math.abs(fy - t.y) < 8 && Math.abs(G.fx - t.x) < 9) {
-        t.done = true; G.bonus += 2; G.pebbles++;
-        F.got(t.x, FY - 2, "+2", { streak: ++G.row });
-      }
-    }
-    G.things = G.things.filter((t) => screenY(t.y) < H + 20);
   },
 
-  over() { return G && G.dead > 0.45; },
-  score() { return G ? Math.floor(G.dist / 150) + G.bonus : 0; },
-  why() { return G ? G.why : ""; },
-  report() { return { counts: { weirs: G.weirs, pebbles: G.pebbles, clean: G.clean < 0 ? raft.score() : G.clean, whirls: G.whirls } }; },
+  over() { return G && over(G.w); },
+  score() { return G ? score(G.w) : 0; },
+  why() { return G ? G.w.why : ""; },
+  report() {
+    const w = G.w;
+    return { counts: { weirs: w.weirs, pebbles: w.pebbles, clean: w.clean < 0 ? score(w) : w.clean, whirls: w.whirls, flies: w.flies, far: Math.floor(metres(w) / 10) } };
+  },
+  tally() {
+    if (!G) return [];
+    const w = G.w, l = ["Drifted " + metres(G.w) + " metres"];
+    if (w.flies) l.push(w.flies + (w.flies > 1 ? " fireflies" : " firefly") + " caught");
+    if (w.shells) l.push(w.shells + (w.shells > 1 ? " shells" : " shell") + " picked up");
+    return l;
+  },
 
   draw(x) {
-    const dist = G ? G.dist : 0;
+    const w = G ? G.w : null, dist = w ? w.dist : 0;
     x.fillStyle = "#3f8a44"; x.fillRect(-4, 0, W + 8, H);
     for (let s = 0; s < H; s += 2) {
       const wy = dist + (H - s), c = centre(wy), h = half(wy);
       x.fillStyle = "#2f6b33"; x.fillRect(Math.round(c - h - 4), s, Math.round(h * 2 + 8), 2);
       x.fillStyle = "#1d5163"; x.fillRect(Math.round(c - h), s, Math.round(h * 2), 2);
+      // The slower water along each bank is a shade darker.
+      x.fillStyle = "#1a4858"; x.fillRect(Math.round(c - h), s, Math.round(h * 0.28), 2); x.fillRect(Math.round(c + h * 0.72), s, Math.round(h * 0.28), 2);
       if (Math.floor(wy / 2) % 23 === 0) { x.fillStyle = "#4f9a4a"; x.fillRect(Math.round(c - h - 14), s, 2, 4); x.fillRect(Math.round(c + h + 12), s, 2, 4); }
-      if (Math.floor(wy / 2) % 17 === 0) { x.fillStyle = "#7fd6c2"; x.fillRect(Math.round(c - h / 2 + Math.sin(wy) * h / 3), s, 6, 1); }
     }
-    if (!G) return;
-    for (const t of G.things) {
-      const sy = Math.round(screenY(t.y));
-      if (t.k === "whirl") {
-        drawWhirl(x, t.x, sy, G.t);
-      } else if (t.k === "rock") {
-        x.fillStyle = "#3a3f46"; x.fillRect(Math.round(t.x - t.r), sy - t.r + 2, t.r * 2, t.r * 2 - 2);
-        x.fillStyle = "#8a9099"; x.fillRect(Math.round(t.x - t.r + 1), sy - t.r, t.r * 2 - 2, t.r * 2 - 3);
-        x.fillStyle = "#b6bcc4"; x.fillRect(Math.round(t.x - t.r + 2), sy - t.r + 1, 3, 2);
-        x.fillStyle = "#7fd6c2"; x.fillRect(Math.round(t.x - t.r - 1), sy + t.r - 1, t.r * 2 + 2, 1);
-      } else if (t.k === "pebble" && !t.done) {
+    if (!w) return;
+    x.fillStyle = "#4f93a0";
+    for (const s of G.streaks) {
+      const sy = Math.round(H - (s.y - dist)), sx = Math.round(centre(s.y) + s.k * half(s.y));
+      x.fillRect(sx, sy, 1, Math.round(s.n * flow(sx, s.y)));
+    }
+    for (const t of w.things) {
+      const sy = Math.round(H - (t.y - dist));
+      if (t.k === "whirl") drawWhirl(x, t.x, sy, w.t);
+      else if (t.k === "rock") rock(x, t, sy, w.t);
+      else if (t.k === "pebble" && !t.done) {
         x.fillStyle = "#d5d8dc"; x.fillRect(Math.round(t.x) - 3, sy - 2, 6, 4); x.fillStyle = "#9aa0a6"; x.fillRect(Math.round(t.x) - 1, sy, 4, 2);
-      } else if (t.k === "weir") {
+      } else if (t.k === "shell" && !t.done) shell(x, t.x, sy + Math.round(Math.sin(w.t * 3 + t.y) * 0.6));
+      else if (t.k === "fly" && !t.done) firefly(x, t.x, sy - 6, w.t + t.ph);
+      else if (t.k === "weir") {
         const c = centre(t.y), h = half(t.y);
         for (let rx = Math.round(c - h); rx < c + h; rx += 3) {
           if (rx + 2 > t.gx && rx < t.gx + t.gap) continue;
@@ -161,21 +123,77 @@ export const raft = {
         x.fillStyle = t.done ? "#2f6b33" : "#ffe27a"; x.fillRect(Math.round(t.gx) - 1, sy - 6, 1, 6); x.fillRect(Math.round(t.gx + t.gap), sy - 6, 1, 6);
       }
     }
-    if (G.lives > 0 && !(G.safe > 0 && Math.floor(G.safe * 10) % 2)) {
-      const fx = Math.round(G.fx);
-      x.fillStyle = "#7fd6c2"; x.fillRect(fx - 7, FY + 14 + (Math.floor(G.t * 8) % 2), 3, 1); x.fillRect(fx + 4, FY + 14 + (Math.floor(G.t * 8 + 1) % 2), 3, 1);
-      F.squashed(x, fx, FY + 4, () => {
-        x.fillStyle = "#1f5a2c"; x.fillRect(fx - 9, FY - 6, 18, 20);
-        x.fillStyle = "#56b45f"; x.fillRect(fx - 8, FY - 7, 16, 20);
-        x.fillStyle = "#3f9a4d"; x.fillRect(fx, FY - 6, 1, 18);
-        drawTop(x, col, fx - 6, FY - 4, false);
-      });
-    }
+    if (w.tipped) tipped(x, w);
+    else if (w.lives > 0 && !(w.safe > 0 && Math.floor(w.safe * 10) % 2)) leaf(x, w);
     F.draw(x);
-    x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.font = "700 13px Inter, sans-serif"; x.fillText(String(raft.score()), 6, 16);
-    x.fillStyle = "#e2567a"; for (let i = 0; i < G.lives; i++) x.fillRect(W - 12 - i * 9, 6, 6, 6);
+    x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.font = "700 13px Inter, sans-serif"; x.fillText(String(score(w)), 6, 16);
+    x.fillStyle = "#e2567a"; for (let i = 0; i < w.lives; i++) x.fillRect(W - 12 - i * 9, 6, 6, 6);
   },
 };
+
+// The leaf, lit lamp yellow round its rim while a finger has it, and with the
+// frog's paddle out on the side it's turning to while the frog has it.
+function leaf(x, w) {
+  const fx = Math.round(w.fx);
+  x.fillStyle = SURF; x.fillRect(fx - 7, FY + 14 + (Math.floor(w.t * 8) % 2), 3, 1); x.fillRect(fx + 4, FY + 14 + (Math.floor(w.t * 8 + 1) % 2), 3, 1);
+  if (w.mine && G.want !== null) { x.fillStyle = LAMP; x.fillRect(Math.round(G.want) - 1, FY + 18, 3, 1); }
+  F.squashed(x, fx, FY + 4, () => {
+    if (w.glow > 0) {
+      x.fillStyle = LAMP;
+      for (let i = 0; i < 24; i += 3) { x.fillRect(fx - 11 + i, FY - 10, 1, 1); x.fillRect(fx - 11 + i, FY + 16, 1, 1); }
+      for (let i = 0; i < 26; i += 3) { x.fillRect(fx - 12, FY - 9 + i, 1, 1); x.fillRect(fx + 11, FY - 9 + i, 1, 1); }
+    }
+    x.fillStyle = w.mine ? LAMP : "#1f5a2c"; x.fillRect(fx - 9, FY - 6, 18, 20);
+    x.fillStyle = w.glow > 0.25 ? "#8fd27a" : "#56b45f"; x.fillRect(fx - 8, FY - 7, 16, 20);
+    x.fillStyle = "#3f9a4d"; x.fillRect(fx, FY - 6, 1, 18);
+    drawTop(x, col, fx - 6, FY - 4, false);
+    if (!w.mine && Math.abs(w.turn) > 0.3) {
+      const side = w.turn > 0 ? -1 : 1, px = fx + side * 10 + (side < 0 ? -1 : 0), dip = Math.floor(w.t * 6) % 2;
+      x.fillStyle = "#8a5a2b"; x.fillRect(px, FY + 2 + dip, 2, 6);
+      x.fillStyle = SURF; x.fillRect(px - 1, FY + 8 + dip, 4, 1);
+    }
+  });
+}
+
+// A leaf hit head on goes over, its pale underside up, and the frog goes in.
+function tipped(x, w) {
+  const fx = Math.round(w.fx), p = Math.min(1, w.dead / 0.5), wide = Math.max(1, Math.round(16 * Math.abs(Math.cos(p * Math.PI))));
+  x.fillStyle = p < 0.5 ? "#56b45f" : "#a7c98a"; x.fillRect(fx - Math.round(wide / 2), FY - 7 + Math.round(p * 4), wide, 20);
+  if (p < 0.5) drawTop(x, col, fx - 6, FY - 4 - Math.round(p * 10), false);
+  const r = Math.round(4 + w.dead * 18);
+  if (!reduced || w.dead < 0.3) {
+    x.fillStyle = SURF;
+    for (let a = 0; a < 12; a++) x.fillRect(Math.round(fx + Math.cos(a / 12 * 6.28) * r), Math.round(FY + 16 + Math.sin(a / 12 * 6.28) * r / 2), 2, 1);
+  }
+}
+
+// A rock, with its eddy curling round in the water just past it.
+function rock(x, t, sy, now) {
+  const r = t.r, rx = Math.round(t.x);
+  x.fillStyle = "#4f93a0";
+  for (let k = 0; k < 3; k++) {
+    const a = now * 3 + k * 2.1, d = 2 + ((now * 10 + k * 7) % (EDDY - 6));
+    x.fillRect(rx + Math.round(Math.cos(a) * (r - 1)), sy - r - Math.round(d), 2, 1);
+  }
+  x.fillStyle = "#3a3f46"; x.fillRect(rx - r, sy - r + 2, r * 2, r * 2 - 2);
+  x.fillStyle = "#8a9099"; x.fillRect(rx - r + 1, sy - r, r * 2 - 2, r * 2 - 3);
+  x.fillStyle = "#b6bcc4"; x.fillRect(rx - r + 2, sy - r + 1, 3, 2);
+  x.fillStyle = SURF; x.fillRect(rx - r - 1, sy + r - 1, r * 2 + 2, 1);
+}
+
+function shell(x, sx, sy) {
+  sx = Math.round(sx);
+  x.fillStyle = "#e9d6c0"; x.fillRect(sx - 3, sy - 2, 7, 4); x.fillRect(sx - 2, sy - 3, 5, 1);
+  x.fillStyle = "#c79a7a"; x.fillRect(sx - 2, sy - 1, 1, 3); x.fillRect(sx, sy - 2, 1, 4); x.fillRect(sx + 2, sy - 1, 1, 3);
+  x.fillStyle = SURF; x.fillRect(sx - 4, sy + 2, 9, 1);
+}
+
+function firefly(x, fx, fy, t) {
+  fx = Math.round(fx); fy = Math.round(fy + Math.sin(t * 4) * 1.5);
+  if (Math.sin(t * 5) > -0.3) { x.fillStyle = "#c98a2a"; x.fillRect(fx - 3, fy, 7, 1); x.fillRect(fx, fy - 3, 1, 7); }
+  x.fillStyle = LAMP; x.fillRect(fx - 1, fy - 1, 3, 3);
+  x.fillStyle = "#fff6dc"; x.fillRect(fx, fy, 1, 1);
+}
 
 // A whirlpool is rings of pale water turning round a dark eye, drawn a dash
 // at a time so it reads as pixels.
@@ -186,7 +204,7 @@ function drawWhirl(x, wx, wy, t) {
     x.fillRect(Math.round(wx) - hw, Math.round(wy) + dy, hw * 2, 1);
   }
   x.fillStyle = "#0a1b1f"; x.fillRect(Math.round(wx - EYE), Math.round(wy - 2), EYE * 2, 4);
-  x.fillStyle = "#7fd6c2";
+  x.fillStyle = SURF;
   for (let r = 7; r <= RING; r += 6) {
     for (let k = 0; k < 3; k++) {
       const a = t * (4 - r / 8) + k * 2.1 + r;

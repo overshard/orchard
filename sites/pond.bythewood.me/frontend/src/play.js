@@ -41,7 +41,7 @@ export const SHELVES = [
     { key: "pin", name: "Lily pinball", line: "The frog plays, grab a flipper if you like.", art: pinArt, game: pin },
     { key: "dive", name: "Dive", line: "Race nine frogs to the bottom.", art: diveArt },
     { key: "cross", name: "Crossing", line: "Hop the lane and the stream home.", art: crossArt, game: cross },
-    { key: "raft", name: "Raft run", line: "Steer a leaf down the river.", art: raftArt, game: raft },
+    { key: "raft", name: "Raft run", line: raft.line, art: raftArt, game: raft },
     { key: "leap", name: "Lily leap", line: "Bounce as high as the pads go.", art: leapArt, game: leap },
     { key: "school", name: "Tadpoles", line: "Lead a school round the shallows.", art: schoolArt, game: school },
     { key: "stack", name: "Lily stack", line: "Stack pads as high as they go.", art: stackArt, game: stack },
@@ -250,6 +250,7 @@ function raftArt(r, g) {
   r.fillStyle = "#56b45f"; for (let x = 40; x < 130; x += 3) if (x < 74 || x > 98) r.fillRect(x, 26, 2, 10);
   r.fillStyle = "#8a5a2b"; for (let x = 41; x < 130; x += 6) if (x < 74 || x > 98) r.fillRect(x, 23, 2, 4);
   r.fillStyle = "#8a9099"; r.fillRect(104, 56, 10, 8);
+  r.fillStyle = "#ffcf6a"; [[60, 50], [52, 40], [118, 76]].forEach(([x, y]) => r.fillRect(x, y, 3, 3));
   r.fillStyle = "#56b45f"; r.fillRect(76, 66, 16, 20);
   drawTop(r, colours(g, null), 78, 70, false);
 }
