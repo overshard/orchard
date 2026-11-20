@@ -342,7 +342,7 @@ func kevAdvisories(ctx context.Context, g *Guard, host hostVersions, verdicts ma
 		r := Advisory{
 			ID:      v.CVE,
 			Product: w.label,
-			Title:   kevTitle(v.Name, v.Vendor, v.Product),
+			Title:   kevTitle(v.Name, v.Vendor, v.Product) + kevEffect(v.Description),
 			Tag:     "EXPLOITED",
 			Source:  "KEV",
 			URL:     "https://nvd.nist.gov/vuln/detail/" + v.CVE,
@@ -368,6 +368,29 @@ func kevTitle(name, vendor, product string) string {
 	t := strings.TrimSuffix(strings.TrimSpace(name), " Vulnerability")
 	t = strings.TrimPrefix(t, vendor+" ")
 	return strings.TrimPrefix(t, product+" ")
+}
+
+// KEV names are a CWE ("Missing Initialization of a Variable"), which says
+// nothing about what an attacker gets, so the effect is lifted from the
+// description's "that could allow ..." clause when it has one.
+var kevAllows = regexp.MustCompile(`(?i)\b(?:that|which)\s+(?:could\s+|may\s+|can\s+)?allows?\s+(?:for\s+)?(.+?)(?:\.(?:\s|$)|\s+via\s|\s+by\s|$)`)
+
+var kevAttacker = regexp.MustCompile(`(?i)^(?:an?\s+)?(?:[\w-]+\s+){0,3}(?:attacker|user|actor)s?\s+to\s+`)
+
+func kevEffect(description string) string {
+	m := kevAllows.FindStringSubmatch(description)
+	if m == nil {
+		return ""
+	}
+	effect, verb := m[1], ", allows "
+	if loc := kevAttacker.FindStringIndex(effect); loc != nil {
+		effect, verb = effect[loc[1]:], ", lets an attacker "
+	}
+	effect = strings.TrimSpace(effect)
+	if effect == "" || len(effect) > 90 {
+		return ""
+	}
+	return verb + effect
 }
 
 func cmpOr(a, b string) string {
