@@ -70,6 +70,9 @@ export const ICONS = {
   g_flick: [["............", "..ww........", ".wkkw.......", ".wkkwGG.....", "..wwGGGRRRRk", "..GGGGG...kW", "..GGGGG....k", "...GGG......", "............", "............", "............", "............"]],
 
   // Rocks.
+  // The night market's glow coin, a gold coin with a glowworm curled on it, and the moonmelon.
+  coin: [["............", "...aaaaaa...", "..aAAAAAAa..", ".aAYYYYYYAa.", ".aAYYlGGYAa.", ".aAYGYYYGAa.", ".aAYGYlYGAa.", ".aAYYGGGYAa.", ".aAYYYYYYAa.", "..aAAAAAAa..", "...aaaaaa...", "............"]],
+  melon: [["............", ".....bb.....", ".....b......", "...tttttt...", "..tTtTtTtt..", ".tTWWTtTtTt.", ".tTWtTtTtTt.", ".tTtTtTtTtt.", ".ttTtTtTttt.", "..ttTtTttt..", "...tttttt...", "............"]],
   peb: [["............", "............", "............", "....ssss....", "...sSSSSs...", "..sSWSSSSs..", "..sSSSSSSs..", "...ssssss...", "............", "............", "............", "............"]],
   agate: [["............", "....oooo....", "...oOHHOo...", "..oOHOOHOo..", "..oHOooOHo..", "..oHOooOHo..", "..oOHOOHOo..", "...oOHHOo...", "....oooo....", "............", "............", "............"]],
   quartz: [["............", ".....L......", "....LLc.....", "....LLc.....", "...LLLc..L..", "...LLLccLLc.", "..LLLLccLLc.", "..LLLcccLcc.", "...hhhhhhhh.", "............", "............", "............"], { L: "#e6e0f2", c: "#a79fc0", h: "#6f6890" }],
