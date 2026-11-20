@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
@@ -206,7 +207,7 @@ func TestUnknownCountryNeverTripsNot(t *testing.T) {
 
 func TestChallengeAndSolve(t *testing.T) {
 	s := testSite(t)
-	r := Rule{Name: "bots", When: "ua contains curl", Action: actChallenge}
+	r := Rule{Name: "bots", When: "ua contains curl\ncrawler is none", Action: actChallenge}
 	_ = s.store.AddRule(&r, "you")
 	_ = s.reload()
 	w := ask(s, "GET", "repos.bythewood.me", "/explore?page=3", stranger, "User-Agent", "curl/8")
@@ -238,12 +239,19 @@ func TestChallengeAndSolve(t *testing.T) {
 	if w.Code != 204 {
 		t.Fatalf("a solved pass was refused, %d", w.Code)
 	}
-	w = ask(s, "GET", "blog.bythewood.me", "/", stranger, "User-Agent", "curl/8", "Cookie", cookie.Name+"="+cookie.Value)
-	if w.Code != 403 {
-		t.Fatalf("a pass for repos worked on blog, %d", w.Code)
+	if cookie.Domain != "bythewood.me" {
+		t.Fatalf("pass cookie domain %q", cookie.Domain)
 	}
-	if s.engine.seedOK(seed, "blog.bythewood.me", time.Now()) {
-		t.Fatal("a seed for repos checked out on blog")
+	w = ask(s, "GET", "blog.bythewood.me", "/", stranger, "User-Agent", "curl/8", "Cookie", cookie.Name+"="+cookie.Value)
+	if w.Code != 204 {
+		t.Fatalf("a pass from repos didn't cover blog, %d", w.Code)
+	}
+	w = ask(s, "GET", "isaacbythewood.com", "/", stranger, "User-Agent", "curl/8", "Cookie", cookie.Name+"="+cookie.Value)
+	if w.Code != 403 {
+		t.Fatalf("a pass for bythewood.me worked on isaacbythewood.com, %d", w.Code)
+	}
+	if s.engine.seedOK(seed, "isaacbythewood.com", time.Now()) {
+		t.Fatal("a seed for bythewood.me checked out on isaacbythewood.com")
 	}
 }
 
@@ -324,5 +332,37 @@ func TestSignedInSkipsRules(t *testing.T) {
 	}
 	if w := ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger, "Cookie", web.SessionCookie+"=stale"); w.Code != 404 {
 		t.Fatalf("a dead session got %d", w.Code)
+	}
+}
+
+func TestCrawlers(t *testing.T) {
+	c := NewCrawlers()
+	c.ranges["google"] = []netip.Prefix{netip.MustParsePrefix("66.249.64.0/27")}
+	ctx := context.Background()
+	cases := []struct {
+		ip, ua string
+		asn    int
+		want   string
+	}{
+		{"66.249.64.5", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)", 15169, "google"},
+		{"10.9.9.9", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)", 396982, "fake"},
+		{"31.13.24.5", "meta-externalagent/1.1", 32934, "meta"},
+		{"203.0.113.4", "facebookexternalhit/1.1", 64500, "fake"},
+		{"203.0.113.4", "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)", 64500, "preview"},
+		{"203.0.113.4", "Mozilla/5.0 (X11; Linux x86_64) Firefox/140.0", 64500, "none"},
+	}
+	for _, x := range cases {
+		if got := c.Classify(ctx, netip.MustParseAddr(x.ip), x.ua, x.asn); got != x.want {
+			t.Errorf("%s %q = %s, want %s", x.ip, x.ua, got, x.want)
+		}
+	}
+	if m := prefixField.FindAllStringSubmatch(`{"prefixes":[{"ipv4Prefix":"1.2.3.0/24"},{"ipv6Prefix":"2001:db8::/32"}]} ipv4Prefix\": \"3.81.245.78\"`, -1); len(m) != 3 || m[2][1] != "3.81.245.78" {
+		t.Errorf("prefixes parsed as %v", m)
+	}
+}
+
+func TestPassCoversTheSite(t *testing.T) {
+	if siteOf("repos.bythewood.me") != "bythewood.me" || siteOf("www.isaacbythewood.com") != "isaacbythewood.com" || siteOf("bythewood.me") != "bythewood.me" {
+		t.Fatal("siteOf")
 	}
 }

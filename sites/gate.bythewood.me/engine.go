@@ -38,6 +38,7 @@ type engine struct {
 	mode   atomic.Value
 	self   atomic.Pointer[[]netip.Prefix]
 	geo    *Geo
+	bots   *Crawlers
 	auth   *web.Authenticator
 	secret []byte
 	stats  *stats
@@ -67,7 +68,7 @@ type Ban struct {
 }
 
 func newEngine(geo *Geo, auth *web.Authenticator, secret []byte, st *stats) *engine {
-	e := &engine{geo: geo, auth: auth, secret: secret, stats: st,
+	e := &engine{geo: geo, bots: NewCrawlers(), auth: auth, secret: secret, stats: st,
 		windows: map[windowKey]*window{}, bans: map[netip.Addr]Ban{}}
 	e.mode.Store(modeOn)
 	empty := []*Rule{}
@@ -184,6 +185,9 @@ func (e *engine) request(r *http.Request) *req {
 	if q.IP.IsValid() {
 		g := e.geo.Lookup(q.IP)
 		q.Country, q.ASN, q.Org = g.Country, g.ASN, g.Org
+	}
+	if q.IP.IsValid() {
+		q.Crawler = e.bots.Classify(r.Context(), q.IP, q.UA, q.ASN)
 	}
 	// Cloudflare's guess fills in when DB-IP has none, never the other way.
 	if q.Country == "" {

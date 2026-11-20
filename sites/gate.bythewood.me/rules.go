@@ -72,6 +72,7 @@ type req struct {
 	Path    string
 	Query   string
 	UA      string
+	Crawler string
 	Header  func(string) string
 }
 
@@ -85,7 +86,7 @@ type cond struct {
 	nets   []netip.Prefix
 }
 
-var fields = []string{"host", "path", "query", "method", "ip", "asn", "country", "ua", "header"}
+var fields = []string{"host", "path", "query", "method", "ip", "asn", "country", "ua", "crawler", "header"}
 var ops = []string{"is", "in", "prefix", "contains", "suffix", "regex"}
 
 // parseWhen reads the condition lines of a rule, one per line, every line has
@@ -134,7 +135,7 @@ func parseCond(line string) (cond, error) {
 	} else if slices.Contains(fields, f) && f != "header" {
 		c.field = f
 	} else {
-		return c, fmt.Errorf("%q isn't a field, use one of host, path, query, method, ip, asn, country, ua or header:Name", f)
+		return c, fmt.Errorf("%q isn't a field, use one of host, path, query, method, ip, asn, country, ua, crawler or header:Name", f)
 	}
 	c.op = strings.ToLower(word())
 	if !slices.Contains(ops, c.op) {
@@ -231,6 +232,8 @@ func (c *cond) value(q *req) (string, bool) {
 		return q.Country, q.Country != ""
 	case "ua":
 		return q.UA, true
+	case "crawler":
+		return q.Crawler, q.Crawler != ""
 	case "header":
 		return q.Header(c.header), true
 	}

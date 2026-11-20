@@ -24,6 +24,7 @@ not country is US</pre>
       <dt>asn</dt><dd>the network's AS number, <code>asn is 14061 AS16509</code></dd>
       <dt>country</dt><dd>two letters, from DB-IP, with Cloudflare's guess when DB-IP has none</dd>
       <dt>ua</dt><dd>the user agent</dd>
+      <dt>crawler</dt><dd>a checked crawler's name (google, bing, duckduckgo, apple, yandex, baidu, openai, anthropic, perplexity, ccbot, amazon, mistral, meta), <code>fake</code> when the user agent claims one and the address isn't theirs, <code>preview</code> for a link preview, or <code>none</code></dd>
       <dt>header:Name</dt><dd>any request header, <code>header:Accept-Language is</code> with nothing sent is empty</dd>
     </dl>
     <h3 class="sub">Tests</h3>
@@ -34,7 +35,7 @@ not country is US</pre>
       <dt>suffix</dt><dd>ends with one of them</dd>
       <dt>regex</dt><dd>the rest of the line is one Go regex, add <code>(?i)</code> to ignore case</dd>
     </dl>
-    <p class="o-muted small">Everything but regex ignores case. A field gate doesn't know, like the country of an address no database has, fails its line either way, so <code>not country is US</code> never catches an address with no country.</p>
+    <p class="o-muted small">Crawlers are checked against the ranges each owner publishes, fetched daily, then reverse DNS that resolves back for Bing, Yandex, Baidu, Apple, Amazon and Common Crawl, and Meta's own network. Everything but regex ignores case. A field gate doesn't know, like the country of an address no database has, fails its line either way, so <code>not country is US</code> never catches an address with no country.</p>
   </section>
   <section class="o-panel">
     <div class="o-ph2"><h2>What a rule does</h2><span class="o-lab">in this order</span></div>

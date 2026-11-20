@@ -58,8 +58,13 @@ the shared look and HTTP layer.
   `Dockerfile` and the archive extensions are end anchored, and the config
   names are capped at two path segments so a hashed asset under `/static/`
   isn't taken.
-- A pass cookie is tied to the host and the user agent, so a browser update
-  sends the visitor through the challenge once more.
+- A pass cookie covers the whole domain, every bythewood.me host or
+  isaacbythewood.com, and is tied to the user agent, so a browser update sends
+  the visitor through the challenge once more.
+- `crawler` checks a claimed crawler against its owner's published ranges,
+  fetched daily in `crawlers.go`, then forward confirmed reverse DNS. A list
+  that fails to fetch keeps its last good ranges, and a crawler with neither
+  shows as `fake`, so a new one needs adding there before a rule can trust it.
 
 ## License
 
