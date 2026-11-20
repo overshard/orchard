@@ -28,6 +28,7 @@ tunnel with no public ports.
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
 | `sites/llm.bythewood.me/` | The model gateway. Claude Haiku behind an API key, with a monthly budget it enforces and every prompt and completion logged unless the caller marks the call incognito |
 | `sites/mcp.bythewood.me/` | Every tool, read only, as one MCP server. OAuth signs an agent in through auth, which mints it a session of its own, and each tool is read over the bridge as that session. SQLite for grants and tokens |
+| `sites/gate.bythewood.me/` | The firewall. Caddy asks it about every request with `forward_auth`, and its rules, bans and proof of work page change live from its page or from proposals over mcp. SQLite, with the rules in memory |
 | `sites/cron.bythewood.me/` | Reminders and scheduled checks pushed over the `reminders` ntfy topic. One-shots and cron lines on the Eastern clock, checks the model runs through llm, a page and a JSON API. SQLite |
 | `sites/pond.bythewood.me/` | A virtual pet game where every visitor gets a frog of their own. No accounts, a frog is kept by six words in a host only cookie and stored as an HMAC under a pepper in `.env`. SQLite, with every rule and every clock on the server |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
@@ -119,7 +120,7 @@ reachable on the bridge and nowhere else.
 **Everything is named `orchard-<first label>`.** `orchard-caddy` and
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,
 `orchard-status`, `orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`,
-`orchard-auth`, `orchard-llm`, `orchard-mcp`, `orchard-cron`, `orchard-pond`
+`orchard-auth`, `orchard-llm`, `orchard-mcp`, `orchard-gate`, `orchard-cron`, `orchard-pond`
 and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
 SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
@@ -221,8 +222,8 @@ containers the Makefile runs, which use `orchard-util` out of `edge/util`.
 Vendor software goes the same way. `ntfy` and `cloudflared` are
 static binaries, so their Dockerfiles `COPY --from` the pinned upstream image
 into `debian:trixie-slim` and nothing runs on Alpine or distroless. `caddy` is
-built with xcaddy on `golang:1.27-trixie` for its rate limit module, with every
-version pinned in its Dockerfile.
+stock Caddy built from source on `golang:1.27-trixie`, with its version pinned
+in its Dockerfile.
 Reach for a new base image and the answer is no: add the package to `edge/util`
 or to the runtime stage.
 
@@ -252,6 +253,16 @@ lines from a dashboard. The shipper writes its own state changes to stderr and
 never calls `slog`, which would enqueue a record about failing to ship, and
 `logging.bythewood.me` passes a local sink, because posting to itself would be
 an ingest request that logs a request that becomes an ingest request.
+
+**Every request asks gate first, and nothing about refusing a request lives in
+Caddy.** Every site block imports `(gate)`, a `forward_auth` to
+`orchard-gate:8000/check` with `X-Gate-Ip` set from `client_ip`. Scanner paths,
+dot paths, the US only sign in and the sign in rate limit are rules in gate's
+database, seeded from `seed.go` on an empty one and changed on its page after
+that. With orchard-gate down every site answers 502, the same as a site of its
+own being down. What stays in Caddy is routing, the routes only the bridge may
+reach (`/verify`, `/ingest`, `/aggregate`) and ntfy's publish fence, since
+those are about where a request may go and not who it's from.
 
 **Caddy ships, cloudflared and ntfy do not.** Caddy can't carry a Go handler, so
 it writes its access log to a socket with its own `net` writer and
@@ -347,7 +358,7 @@ in this public repository, so anyone can post it to `/login`. One code is
 outstanding at a time and a repeat request publishes nothing, and at most five
 notifications go out per hour whatever address they are asked from. A per IP
 limit is bypassed by sending one request from each of a thousand proxies, so on
-its own it bounds nothing. Caddy still caps each address at ten sign in POSTs a
+its own it bounds nothing. gate still caps each address at ten sign in POSTs a
 minute, and auth keeps no shared request limit, because one that any prober can
 spend locks the real user out with it. Codes
 publish at ntfy priority `low` so a flood is silent, and only a session that

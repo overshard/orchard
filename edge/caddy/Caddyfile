@@ -8,7 +8,6 @@
 {
 	auto_https off
 	admin off
-	order rate_limit before basic_auth
 	servers {
 		# Or client_ip resolves to cloudflared's bridge address.
 		trusted_proxies static private_ranges
@@ -76,119 +75,41 @@
 	log_append component edge
 }
 
-# Exploit scanners probing software nothing here runs, about a third of all
-# requests. Blocked at the edge because it is a property of the edge rather than
-# of any app, and because a third of every log record being hostile noise is what
-# stops a real new 404 after a deploy from being visible at all.
+# Every site asks gate.bythewood.me about each request before it sees it, and
+# every rule about who to refuse lives there, changed live from its page. A 2xx
+# lets the request on and anything else goes back to the visitor as gate wrote
+# it. With orchard-gate down this answers 502 everywhere, the same as a site.
 #
-# `respond 404` rather than `abort`: Cloudflare reads a closed origin connection
-# as an origin error and counts it against origin health. A 404 is what these
-# paths already returned.
+# X-Gate-Ip is set here from client_ip, which Cf-Connecting-Ip feeds, so a
+# client can't send its own. The /__gate/ routes are the proof of work page's
+# answer, which has to land on the visitor's own host to set its cookie there.
 #
-# This is the full list, and the only one. Cloudflare runs no rules of its own.
-#
-# Some of these clauses look wrong and are not.
-#
-#   "/.git", "/.aws", "/.ssh" and "/.vscode" keep the leading slash. A bare
-#   ".git" matches /orchard.git/info/refs and takes clone and push over HTTPS
-#   down with it.
-#
-#   "graphql", "stripe" and "firebase" are bare substrings, which is only safe
-#   because repos is exempt by the content shape. Anything matching one of those
-#   words is a product nothing here runs.
-#
-#   ".env" is bare, which catches /app.env and /docker.env, and it is only safe
-#   because repos is excluded above.
-#
-#   "/media/system/" carries the system segment. blog serves /media/images/ and
-#   /media/avatar_images/ for real.
-#
-#   "Dockerfile" is end-anchored because one of the mirrored repositories is
-#   named dockerfiles, and a bare substring took /dockerfiles and its atom feed
-#   off repos.
-#
-#   The archive extensions are end-anchored and repos is excluded from them,
-#   since repos serves /{name}/archive/{rev}.tar.gz for real.
-#
-#   The config and secrets filename groups are capped at two path segments. A
-#   hashed asset lands under /static/ and an unanchored config\.js would take
-#   one of them down.
-#
-# A path starting with a dot is refused on every host, repos too, since nothing
-# here serves one. mcp's OAuth metadata is the one exception, see dotfiles.
-#
-# Everything generic stays out. /info, /console, /new/, /old/ and /backup/ are
-# all plausible routes here one day and each is worth a cheap 404, and /code is
-# already a real route on isaacbythewood.com.
-#
-# Do not turn on Bot Fight Mode to solve this. status probes its own public
-# hostnames with a plain Go client, which cannot solve a JS challenge, so every
-# site here would report a permanent false outage.
-
-# Root anchored, so repository content and /orchard.git are never touched.
-(dotfiles) {
-	@dotfile {
-		path_regexp dotfile ^/\.
-		not path /.well-known/oauth-*
+# A Gate-Quiet answer is noise like scanner probes, kept out of both access
+# logs since a third of every record being hostile hides a real new 404. gate
+# still counts every one.
+(gate) {
+	handle /__gate/* {
+		reverse_proxy orchard-gate:8000 {
+			import hold
+		}
 	}
 
-	log_skip @dotfile
+	forward_auth orchard-gate:8000 {
+		uri /check
+		header_up X-Gate-Ip {client_ip}
+		import hold
 
-	handle @dotfile {
-		header Cache-Control "no-store"
-		respond 404
-	}
-}
-
-# repos.bythewood.me serves arbitrary paths out of arbitrary repositories, so
-# matching on path content collides with real files: it took
-# /orchard/blob/main/sites/analytics.bythewood.me/.env.example off the file
-# browser, and every site here has to commit a .env.example.
-#
-# Depth is the wrong separator for that, since scanners walk /var/www/.git/config
-# and /api/.env/.git/config all day. Repository content always carries a verb as
-# its second segment, so exempting that shape and applying the full list
-# everywhere else keeps the browser working and still catches the nested probes.
-#
-# /orchard.git/info/refs is not exempt and must not match, which is why every
-# dotfile clause keeps its leading slash. Clone and push over HTTPS depend on it.
-(scanners_repos) {
-	import dotfiles
-
-	@hostile_repos {
-		not path_regexp repo_content ^/[^/]+/(?:blob|raw|tree|commit|log|archive|branches|tags)(?:/|$)
-		path_regexp hostile_repos (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode|remote/fgt_lang|remote/login|global-protect/|ssl-vpn/|app/rest/|blade-auth/|blade-system/|pimcore-studio/|php-cgi/|administrator/|language/en-gb/|media/system/|api/v1/totp/|_cat/|_cluster/|_watcher/|_snapshot/|_nodes|api/datasources|api/alert-notifications|api/v1/provisioning/|api/org|api/dashboards|api/2\.0/mlflow/|containers/json|v1\.24/|images/json|v2/keys/|api/contents|auth/v1/|rest/v1/|api/v1/validate/code|api/v1/auto_login|druid/|hazelcast/|geoserver/|ws/v1/cluster|editor/filemanager/|plugins/editors/|media/jui/|@fs/|__vite_rsc_|@vite/|proc/self/|userfiles|read-document|inngest|api/fs/exec|api/exec|api/designer/|api/templates/preview|_debugbar/|_debug_toolbar/|__debug__/|debug/pprof|debug/vars|debug-kit|telescope/requests|server-status|server-info|nginx_status|graphql|actuator|swagger|openapi\.json|_payload\.json|app/etc/local\.xml|_darcs/|CVS/Root|stripe|firebase|amplifyconfiguration|amplify_outputs|awsconfiguration|aws-exports|aws_credentials|google-services|gc-service|gcp-service|client_secrets?\.|terraform\.tfstate|terraform\.tfvars|serverless\.ya?ml|sam-template|vercel\.json|netlify\.toml|docker-compose\.|compose\.ya?ml|Dockerfile$|Dockerfile\.|rclone\.conf|web\.config|gradle\.properties|application\.properties|bootstrap\.(?:yml|properties)|appsettings|settings\.py|secret_token|master\.key|schema\.prisma|composer\.(?:json|lock)|Gemfile|Rakefile|Jakefile|behat\.yml|circle\.yml|codeception\.yml|renovate\.json|platformio\.ini)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|joomla|keys-status|\.(?:php|asp|jsp|cgi|axd|sql|bak|esp|action)|\.(?:zip|rar|7z|tgz|tar\.gz)$|^/(?:env|_environment)$|\.astro\.mjs\.map$|\.(?:pem|key|p12|pfx|jks|keystore)$|^/(?:api/)?(?:proxy|fetch|redirect|request|url|webhook|load|out)$|^/(?:ip|null)$|^/(?:[^/]+/){0,2}_{0,2}env(?:-config)?\.(?:js|json|ts|txt|ya?ml|old)$|^/(?:[^/]+/){0,2}config(?:uration)?\.(?:json|js|ts|py|rb|ya?ml|toml|sh)$|^/(?:[^/]+/){0,2}(?:secrets?|credentials?|app-config|service_account|auth|token)\.(?:json|js|ts|py|rb|ya?ml|ini|csv|txt)$|^/config/[^/]*\.(?:ya?ml|json|exs|rb|conf|properties)$|^/(?:[^/]+/){0,2}(?:id_dsa|id_ecdsa|private-?key|privatekey)(?:$|\.)|^/api/(?:v\d+/)?(?:config|settings|keys|env|sysConfig)(?:/|$)|^/api/(?:session/properties|postman\.json)$|^/(?:s3/)?credentials$|^/s3\.(?:key|secret|ya?ml|properties)$
-	}
-
-	log_skip @hostile_repos
-
-	handle @hostile_repos {
-		# A header-less response lets Cloudflare stamp its own TTL and hold
-		# the 404 at the edge.
-		header Cache-Control "no-store"
-		respond 404
-	}
-}
-
-(scanners) {
-	import dotfiles
-
-	# Matched anywhere in the path rather than at the root, since most of the
-	# volume arrives nested under a guessed prefix (/blog/wp-json/, /app/.env).
-	# Ordinary 404s like /login or /apple-touch-icon.png are left alone.
-	@hostile path_regexp hostile (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode|remote/fgt_lang|remote/login|global-protect/|ssl-vpn/|app/rest/|blade-auth/|blade-system/|pimcore-studio/|php-cgi/|administrator/|language/en-gb/|media/system/|api/v1/totp/|_cat/|_cluster/|_watcher/|_snapshot/|_nodes|api/datasources|api/alert-notifications|api/v1/provisioning/|api/org|api/dashboards|api/2\.0/mlflow/|containers/json|v1\.24/|images/json|v2/keys/|api/contents|auth/v1/|rest/v1/|api/v1/validate/code|api/v1/auto_login|druid/|hazelcast/|geoserver/|ws/v1/cluster|editor/filemanager/|plugins/editors/|media/jui/|@fs/|__vite_rsc_|@vite/|proc/self/|userfiles|read-document|inngest|api/fs/exec|api/exec|api/designer/|api/templates/preview|_debugbar/|_debug_toolbar/|__debug__/|debug/pprof|debug/vars|debug-kit|telescope/requests|server-status|server-info|nginx_status|graphql|actuator|swagger|openapi\.json|_payload\.json|app/etc/local\.xml|_darcs/|CVS/Root|stripe|firebase|amplifyconfiguration|amplify_outputs|awsconfiguration|aws-exports|aws_credentials|google-services|gc-service|gcp-service|client_secrets?\.|terraform\.tfstate|terraform\.tfvars|serverless\.ya?ml|sam-template|vercel\.json|netlify\.toml|docker-compose\.|compose\.ya?ml|Dockerfile$|Dockerfile\.|rclone\.conf|web\.config|gradle\.properties|application\.properties|bootstrap\.(?:yml|properties)|appsettings|settings\.py|secret_token|master\.key|schema\.prisma|composer\.(?:json|lock)|Gemfile|Rakefile|Jakefile|behat\.yml|circle\.yml|codeception\.yml|renovate\.json|platformio\.ini)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|joomla|keys-status|\.(?:php|asp|jsp|cgi|axd|sql|bak|esp|action)|\.(?:zip|rar|7z|tgz|tar\.gz)$|^/(?:env|_environment)$|\.astro\.mjs\.map$|\.(?:pem|key|p12|pfx|jks|keystore)$|^/(?:api/)?(?:proxy|fetch|redirect|request|url|webhook|load|out)$|^/(?:ip|null)$|^/(?:[^/]+/){0,2}_{0,2}env(?:-config)?\.(?:js|json|ts|txt|ya?ml|old)$|^/(?:[^/]+/){0,2}config(?:uration)?\.(?:json|js|ts|py|rb|ya?ml|toml|sh)$|^/(?:[^/]+/){0,2}(?:secrets?|credentials?|app-config|service_account|auth|token)\.(?:json|js|ts|py|rb|ya?ml|ini|csv|txt)$|^/config/[^/]*\.(?:ya?ml|json|exs|rb|conf|properties)$|^/(?:[^/]+/){0,2}(?:id_dsa|id_ecdsa|private-?key|privatekey)(?:$|\.)|^/api/(?:v\d+/)?(?:config|settings|keys|env|sysConfig)(?:/|$)|^/api/(?:session/properties|postman\.json)$|^/(?:s3/)?credentials$|^/s3\.(?:key|secret|ya?ml|properties)$
-
-	# Not logged. Moving the noise to another log is not the point.
-	log_skip @hostile
-
-	handle @hostile {
-		header Cache-Control "no-store"
-		respond 404
+		@quiet header Gate-Quiet 1
+		handle_response @quiet {
+			log_skip
+			copy_response_headers
+			copy_response
+		}
 	}
 }
 
 (site) {
-	import scanners
+	import gate
 	import headers
 
 	encode zstd gzip
@@ -259,34 +180,7 @@ http://auth.bythewood.me {
 		respond "not here" 404
 	}
 
-	# Signing in is only ever from the US. Cloudflare sets CF-IPCountry on every
-	# request and nothing reaches Caddy except through the tunnel, so a client
-	# can't send its own. Travelling means taking this out first.
-	@abroad {
-		path /login /code /recovery
-		not header Cf-Ipcountry US
-	}
-
-	handle @abroad {
-		header Cache-Control "no-store"
-		respond "Signing in is only open from the US." 403
-	}
-
 	handle {
-		# Per address, so one prober can't spend a shared limit and lock everyone
-		# out. auth's ceiling of codes an hour still holds across every address.
-		rate_limit {
-			zone signin {
-				match {
-					method POST
-					path /login /code /recovery
-				}
-				key {client_ip}
-				events 10
-				window 1m
-			}
-		}
-
 		reverse_proxy orchard-auth:8000 {
 			import hold
 		}
@@ -329,7 +223,7 @@ http://logging.bythewood.me {
 # halves of (site) directly and gives encode a matcher instead of taking the
 # blanket one.
 http://dash.bythewood.me {
-	import scanners
+	import gate
 	import headers
 
 	@compressible not path /events
@@ -352,6 +246,22 @@ http://cron.bythewood.me {
 	}
 }
 
+# gate, the firewall every block here asks first. /check and the /__gate/
+# routes are only for Caddy and the visitor's own host, never this one.
+http://gate.bythewood.me {
+	import site
+
+	handle /check* {
+		respond "not here" 404
+	}
+
+	handle {
+		reverse_proxy orchard-gate:8000 {
+			import hold
+		}
+	}
+}
+
 # mcp, every tool read only for an agent. OAuth lives here too, signing in
 # through auth, and its two .well-known routes are the only ones any site serves.
 http://mcp.bythewood.me {
@@ -362,7 +272,7 @@ http://mcp.bythewood.me {
 }
 
 http://llm.bythewood.me {
-	import scanners
+	import gate
 	import headers
 
 	@compressible not path /v1/chat/completions
@@ -422,7 +332,7 @@ http://repos.bythewood.me {
 	# Not `import site`, because packfiles are already compressed and gzipping
 	# one costs CPU on both ends to make it slightly larger. `encode` goes on
 	# the browse handle instead.
-	import scanners_repos
+	import gate
 	import headers
 
 	@git path_regexp ^/[^/]+\.git(/.*)?$
