@@ -26,6 +26,7 @@ type Crumb struct {
 // pages other than the one rendering are zero.
 type PageData struct {
 	Title       string
+	TabTitle    string
 	Description string
 	Canonical   string
 	AnalyticsID string
@@ -84,8 +85,13 @@ type site struct {
 // page builds the shared half of PageData.
 func (s *site) page(r *http.Request, title, description string) PageData {
 	_, tags, _ := s.lib.Published()
+	tab := title
+	if title != siteName {
+		tab = title + " · " + authorName
+	}
 	return PageData{
 		Title:          title,
+		TabTitle:       tab,
 		Description:    description,
 		Canonical:      baseURL + r.URL.Path,
 		AnalyticsID:    analyticsID,
@@ -121,7 +127,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 func (s *site) blogIndex(w http.ResponseWriter, r *http.Request) {
 	published, tags, years := s.lib.Published()
 
-	data := s.page(r, "Blog",
+	data := s.page(r, "All posts",
 		"Posts on webdev, coding, security, and sysadmin by Isaac Bythewood.")
 	data.ShowSocial = true
 	data.Heading = "Blog"
@@ -148,7 +154,7 @@ func (s *site) blogByTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	display := titleCase(tag)
-	data := s.page(r, "Blog - Tag - "+display,
+	data := s.page(r, "Posts tagged "+display,
 		"Posts on webdev, coding, security, and sysadmin by Isaac Bythewood. "+
 			"Currently filtered by tag "+display+".")
 	data.ShowSocial = true
@@ -178,7 +184,7 @@ func (s *site) blogByYear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := s.page(r, "Blog - Year - "+year,
+	data := s.page(r, "Posts from "+year,
 		"Posts on webdev, coding, security, and sysadmin by Isaac Bythewood. "+
 			"Currently filtered by year "+year+".")
 	data.ShowSocial = true
