@@ -47,7 +47,7 @@ func (s *site) landing(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, defaultNext, http.StatusSeeOther)
 		return
 	}
-	data := s.page(r, "One sign in for every tool", "One account for every tool, with a six digit code pushed to your phone.")
+	data := s.page(r, "one sign in for every tool", "One account for every tool, with a six digit code pushed to your phone.")
 	data.Footer = suite.Footer{Tool: "auth", About: "The front door to the other tools, one account and a code pushed to my phone.",
 		Source: sourceURL, Author: authorName, Year: data.Year, Pages: []suite.Tab{{Name: "Home", Href: "/"}, {Name: "Sign in", Href: "/login"}}}
 	s.renderer.Render(w, http.StatusOK, "home.html", data)

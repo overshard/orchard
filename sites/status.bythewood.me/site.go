@@ -2,7 +2,7 @@ package main
 
 const (
 	baseURL    = "https://status.bythewood.me"
-	siteName   = "Status"
+	siteName   = "status"
 	authorName = "Isaac Bythewood"
 	githubUser = "overshard"
 

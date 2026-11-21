@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   {{ template "suite-head" }}
-  <title>{{ .Title }} · {{ .SiteName }}</title>
+  <title>{{ if eq .Path "/" }}{{ .SiteName }} &middot; {{ .Title }}{{ else }}{{ .Title }} &middot; {{ .SiteName }}{{ end }}</title>
   <meta name="description" content="{{ .Description }}">
   <link rel="canonical" href="{{ .Canonical }}">
   <!-- Not a public site, a search engine holding a copy of this is a thing

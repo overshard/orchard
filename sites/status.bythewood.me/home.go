@@ -57,7 +57,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := s.page(r, "Self-hosted uptime monitoring",
+	data := s.page(r, "uptime, speed and crawls",
 		"Self-hosted uptime monitoring with public status pages, response time history, "+
 			"Lighthouse audits and crawl findings.")
 

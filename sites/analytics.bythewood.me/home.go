@@ -14,7 +14,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := s.page(r, "Self-hosted analytics",
+	data := s.page(r, "who visits my sites",
 		"Self-hosted website analytics. Page views, clicks, scrolls, sessions, and custom events.")
 	data.PageScript = s.pagesScript
 	data.PageStyles = s.pagesStyles

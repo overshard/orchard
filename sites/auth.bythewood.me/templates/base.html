@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   {{ template "suite-head" }}
-  <title>{{ .Title }} · {{ .SiteName }}</title>
+  <title>{{ if eq .Path "/" }}{{ .SiteName }} &middot; {{ .Title }}{{ else }}{{ .Title }} &middot; {{ .SiteName }}{{ end }}</title>
   <meta name="description" content="{{ .Description }}">
   {{/* Nothing here is worth indexing and every page but the form is behind a
        session. */}}

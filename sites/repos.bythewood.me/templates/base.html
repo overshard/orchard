@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 {{template "suite-head"}}
-<title>{{if .Title}}{{.Title}} &middot; {{end}}{{.SiteName}}</title>
+<title>{{if .Title}}{{.Title}} &middot; {{.SiteName}}{{else}}{{.SiteName}} &middot; my git remote, mirrored to GitHub{{end}}</title>
 {{if .Description}}<meta name="description" content="{{.Description}}">{{end}}
 <!-- Not a public site, a search engine holding a copy of this is a thing
      nobody asked for. -->

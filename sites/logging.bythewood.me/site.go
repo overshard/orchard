@@ -4,7 +4,7 @@ package main
 // environment variable this app reads is the ntfy token its alerts publish with.
 const (
 	baseURL    = "https://logging.bythewood.me"
-	siteName   = "Logging"
+	siteName   = "logging"
 	authorName = "Isaac Bythewood"
 	githubUser = "overshard"
 

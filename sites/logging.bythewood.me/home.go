@@ -15,7 +15,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := s.page(r, "Self-hosted logging",
+	data := s.page(r, "every site's logs in one place",
 		"Structured logs from every site, shipped in process, kept in SQLite, read as graphs.")
 	data.PageScript = s.pagesScript
 	data.PageStyles = s.pagesStyles

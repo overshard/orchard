@@ -4,7 +4,7 @@ package main
 // tracking silently did nothing.
 const (
 	baseURL    = "https://analytics.bythewood.me"
-	siteName   = "Analytics"
+	siteName   = "analytics"
 	authorName = "Isaac Bythewood"
 	githubUser = "overshard"
 
