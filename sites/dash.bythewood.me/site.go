@@ -8,7 +8,7 @@ const (
 
 	// What the browser tab reads. siteName stays "Dash" for the structured data
 	// and the feed, since this is the tab's own wording and not the site's name.
-	titleBase  = "DASH · BYTHEWOOD.ME"
+	titleBase  = "DASH"
 	authorName = "Isaac Bythewood"
 	githubUser = "overshard"
 
