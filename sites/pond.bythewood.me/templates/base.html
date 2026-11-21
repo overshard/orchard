@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>{{ .Title }} · {{ .SiteName }}</title>
+  <title>{{ if .Title }}{{ .Title }} &middot; {{ .SiteName }}{{ else }}{{ .SiteName }} &middot; a frog of your own{{ end }}</title>
   <meta name="description" content="{{ .Description }}">
   <meta name="theme-color" content="#0b1222">
   <link rel="manifest" href="/manifest.webmanifest">

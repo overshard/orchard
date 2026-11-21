@@ -324,7 +324,7 @@ func (s *site) pageFor(entry, title, description string) page {
 }
 
 func (s *site) home(w http.ResponseWriter, r *http.Request) {
-	s.renderer.Render(w, http.StatusOK, "index.html", s.page("Home", siteDesc))
+	s.renderer.Render(w, http.StatusOK, "index.html", s.page("", siteDesc))
 }
 
 // keyPage shows the key the cookie holds, so it is never cached and never
@@ -362,7 +362,7 @@ func (s *site) keyLanding(w http.ResponseWriter, r *http.Request) {
 
 func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusNotFound, "notfound.html",
-		s.pageFor("src/guest.js", "Not Found", "That page does not exist."))
+		s.pageFor("src/guest.js", "Not found", "That page does not exist."))
 }
 
 func robots(w http.ResponseWriter, r *http.Request) {
