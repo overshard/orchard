@@ -80,7 +80,7 @@
 # lets the request on and anything else goes back to the visitor as gate wrote
 # it. With orchard-gate down this answers 502 everywhere, the same as a site.
 #
-# X-Gate-Ip is set here from client_ip, which Cf-Connecting-Ip feeds, so a
+# X-Gate-Ip is set on both from client_ip, which Cf-Connecting-Ip feeds, so a
 # client can't send its own. The /__gate/ routes are the proof of work page's
 # answer, which has to land on the visitor's own host to set its cookie there.
 #
@@ -90,6 +90,7 @@
 (gate) {
 	handle /__gate/* {
 		reverse_proxy orchard-gate:8000 {
+			header_up X-Gate-Ip {client_ip}
 			import hold
 		}
 	}
