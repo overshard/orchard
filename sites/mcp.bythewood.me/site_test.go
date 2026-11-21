@@ -124,8 +124,17 @@ func TestSignInThroughAuthAndCallATool(t *testing.T) {
 		t.Fatalf("authorize: %d %s %s", rec.Code, loc, rec.Body.String())
 	}
 	req := loc.Query().Get("req")
+	if loc.Query().Get("started") == "" {
+		t.Fatalf("authorize didn't say when it started: %s", loc)
+	}
+	flow := cookieNamed(rec.Result().Cookies(), flowCookie(req))
+	if flow == nil || flow.Domain != "" || !flow.HttpOnly || !flow.Secure {
+		t.Fatalf("authorize set no host-only flow cookie: %v", rec.Result().Cookies())
+	}
 
-	rec = do(t, h, httptest.NewRequest("GET", "/oauth/back?req="+url.QueryEscape(req)+"&handoff=h1", nil))
+	back := httptest.NewRequest("GET", "/oauth/back?req="+url.QueryEscape(req)+"&handoff=h1", nil)
+	back.AddCookie(flow)
+	rec = do(t, h, back)
 	loc, _ = url.Parse(rec.Header().Get("Location"))
 	if rec.Code != 302 || !strings.HasPrefix(loc.String(), callback) || loc.Query().Get("state") != "st" || loc.Query().Get("iss") != baseURL {
 		t.Fatalf("back: %d %s", rec.Code, loc)
@@ -172,6 +181,44 @@ func TestSignInThroughAuthAndCallATool(t *testing.T) {
 	if code, _ = rpc(t, h, access, "tools/list", nil); code != 401 {
 		t.Fatalf("the grant outlived its session: %d", code)
 	}
+}
+
+// A consent link started in somebody else's browser and forwarded can't be
+// finished, even after allowing it on auth.
+func TestBackRefusesAnotherBrowser(t *testing.T) {
+	s, _ := testSite(t)
+	h := s.handler()
+	q := url.Values{"response_type": {"code"}, "client_id": {knownClients[0]}, "redirect_uri": {"https://claude.ai/api/mcp/auth_callback"},
+		"code_challenge": {"abc"}, "code_challenge_method": {"S256"}}
+	start := func() (string, *http.Cookie) {
+		rec := do(t, h, httptest.NewRequest("GET", "/authorize?"+q.Encode(), nil))
+		loc, _ := url.Parse(rec.Header().Get("Location"))
+		req := loc.Query().Get("req")
+		return req, cookieNamed(rec.Result().Cookies(), flowCookie(req))
+	}
+
+	req, _ := start()
+	rec := do(t, h, httptest.NewRequest("GET", "/oauth/back?req="+url.QueryEscape(req)+"&handoff=h1", nil))
+	if rec.Code != http.StatusForbidden || rec.Header().Get("Location") != "" {
+		t.Fatalf("no cookie: %d %q", rec.Code, rec.Header().Get("Location"))
+	}
+
+	req, _ = start()
+	_, other := start()
+	r := httptest.NewRequest("GET", "/oauth/back?req="+url.QueryEscape(req)+"&handoff=h1", nil)
+	r.AddCookie(&http.Cookie{Name: flowCookie(req), Value: other.Value})
+	if rec := do(t, h, r); rec.Code != http.StatusForbidden {
+		t.Fatalf("another flow's cookie: %d", rec.Code)
+	}
+}
+
+func cookieNamed(cookies []*http.Cookie, name string) *http.Cookie {
+	for _, c := range cookies {
+		if c.Name == name {
+			return c
+		}
+	}
+	return nil
 }
 
 func TestLegacyInitialize(t *testing.T) {

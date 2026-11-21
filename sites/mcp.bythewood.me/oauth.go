@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -87,8 +88,13 @@ type oauth struct {
 
 type pendingAuth struct {
 	ClientID, ClientName, RedirectURI, Challenge, State, Resource string
+	Browser                                                       string
 	expires                                                       time.Time
 }
+
+// flowCookie binds a sign in to the browser that started it, so a consent link
+// somebody else started and forwarded can't be finished by clicking through it.
+func flowCookie(req string) string { return "mcp_flow_" + req }
 
 type authCode struct {
 	Grant                            int64
@@ -207,23 +213,27 @@ func (o *oauth) authorize(w http.ResponseWriter, r *http.Request) {
 		fail("invalid_target", "the only resource here is "+resourceURL)
 		return
 	}
-	id := randomToken()
+	id, browser := randomToken(), randomToken()
+	now := time.Now()
 	name := doc.ClientName
 	if name == "" {
 		name = "an agent"
 	}
 	o.mu.Lock()
-	o.sweep(time.Now())
+	o.sweep(now)
 	o.pending[id] = pendingAuth{ClientID: clientID, ClientName: name, RedirectURI: redirect, Challenge: q.Get("code_challenge"),
-		State: q.Get("state"), Resource: resourceURL, expires: time.Now().Add(pendingTTL)}
+		State: q.Get("state"), Resource: resourceURL, Browser: browser, expires: now.Add(pendingTTL)}
 	o.mu.Unlock()
+	http.SetCookie(w, &http.Cookie{Name: flowCookie(id), Value: browser, Path: "/oauth/back", MaxAge: int(pendingTTL / time.Second),
+		HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode})
 	cu, _ := url.Parse(clientID)
 	ru, _ := url.Parse(redirect)
 	host := cu.Host
 	if ru != nil && ru.Hostname() != cu.Hostname() {
 		host += ", back to " + ru.Hostname()
 	}
-	v := url.Values{"req": {id}, "client": {name}, "host": {host}, "back": {baseURL + "/oauth/back"}}
+	v := url.Values{"req": {id}, "client": {name}, "host": {host}, "back": {baseURL + "/oauth/back"},
+		"started": {strconv.FormatInt(now.Unix(), 10)}}
 	http.Redirect(w, r, connectURL+"?"+v.Encode(), http.StatusFound)
 }
 
@@ -244,6 +254,14 @@ func (o *oauth) back(w http.ResponseWriter, r *http.Request) {
 	o.mu.Unlock()
 	if !ok || time.Now().After(p.expires) {
 		http.Error(w, "that sign in has expired, start it again from the client", http.StatusBadRequest)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{Name: flowCookie(q.Get("req")), Path: "/oauth/back", MaxAge: -1, HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode})
+	if c, err := r.Cookie(flowCookie(q.Get("req"))); err != nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(p.Browser)) != 1 {
+		o.store.AddEvent("refused", p.ClientName, "finished in a different browser from the one that started it")
+		http.Error(w, "This sign in was started in a different browser, so it wasn't finished and nothing was connected. "+
+			"If you didn't just click Connect in Claude yourself, somebody else started it. "+
+			"Otherwise start it again from Claude in this browser.", http.StatusForbidden)
 		return
 	}
 	v := url.Values{"iss": {baseURL}}
