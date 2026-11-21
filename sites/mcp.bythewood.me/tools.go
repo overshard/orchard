@@ -552,20 +552,20 @@ var tools = []tool{
 	},
 	{
 		Name: "gate_edit", Title: "Change a gate rule", Live: true,
-		Description: "Changes an existing gate rule by name, only the fields you send, and it takes effect at once. Use it for tuning a rule Isaac already has, like adding ban_after or a path to skip. It can't turn a proposal on, change an allow rule or save a rule that would catch signing in, and every edit lands in gate's change log with your why, where Isaac can restore it. `when` replaces every condition line, so send the whole rule as gate_report shows it plus your change. Look with gate_report and gate_traffic first.",
+		Description: "Changes a live gate rule by name, only the fields you send, and it takes effect at once, so it can loosen a rule or narrow what it catches but never make it refuse more. `when` can only keep every existing line and add more (every line has to hold, so an added line like `not path prefix /feed` narrows it), `then` can't change, a limit's rate can only go up, ban_after can't go below 3 or the rule's own value if that's lower, a ban lasts at most 24 hours, and watching can only be set to true. Turning a rule on stays with Isaac on gate's page. It can't change an allow rule or save one that would catch signing in, and every edit lands in gate's change log with your why, where Isaac can restore it. Send `when` as the whole rule as gate_report shows it plus your added lines. Look with gate_report and gate_traffic first.",
 		Writes:      true,
 		Schema: obj(map[string]any{
 			"name":      str("The rule's name, as gate_report lists it."),
 			"why":       str("Why, in a sentence, with what you saw."),
-			"when":      str("Every condition line, separated by newlines. Replaces the rule's whole condition."),
-			"then":      enum("What it does.", "block", "limit", "challenge"),
+			"when":      str("Every existing condition line plus any you add, separated by newlines."),
+			"then":      enum("What it does, which can't change.", "block", "limit", "challenge"),
 			"status":    map[string]any{"type": "integer", "minimum": 403, "maximum": 404, "description": "For block, 403 or 404."},
-			"rate":      map[string]any{"type": "integer", "minimum": 1, "maximum": 10000, "description": "For limit, requests a minute per address."},
+			"rate":      map[string]any{"type": "integer", "minimum": 1, "maximum": 10000, "description": "For limit, requests a minute per address, only ever raised."},
 			"message":   str("For block, what the refusal says."),
 			"note":      str("The rule's own note, replaced."),
 			"ban_after": map[string]any{"type": "integer", "minimum": 0, "maximum": 1000, "description": "Ban an address everywhere after this many hits in 10 minutes, 0 for never."},
-			"ban_hours": map[string]any{"type": "integer", "minimum": 1, "maximum": 8760, "description": "How long a ban lasts, 24 if never set."},
-			"watching":  map[string]any{"type": "boolean", "description": "true to only count, false to enforce. A proposal can't be set to false."},
+			"ban_hours": map[string]any{"type": "integer", "minimum": 1, "maximum": 24, "description": "How long a ban lasts, 24 if never set."},
+			"watching":  map[string]any{"type": "boolean", "description": "Only true, to make the rule only count. Turning it back on is Isaac's."},
 		}, "name", "why"),
 		run: func(ctx context.Context, rd reader, raw json.RawMessage) (string, error) {
 			code, body, err := rd.post(ctx, "gate", "/api/edit", raw)
