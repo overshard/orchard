@@ -111,7 +111,7 @@ func OpenDB(dir string) (*DB, error) {
 
 	// WAL so a mirror sync writing state doesn't block a page read, and a
 	// busy_timeout because a push-to-create and a sync tick can land together.
-	dsn := path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"
+	dsn := path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)"
 
 	conn, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -230,6 +230,16 @@ func (d *DB) SetDescription(name, description string, topics []string, homepage 
         UPDATE repos SET description = ?, topics = ?, homepage = ? WHERE name = ?`,
 		description, string(blob), homepage, name)
 	return err
+}
+
+// hiddenRepo reports whether a repository is signed in only. A failed lookup
+// counts as hidden so an error can't show one to a stranger.
+func hiddenRepo(d *DB, name string) bool {
+	m, err := d.Repo(name)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false
+	}
+	return err != nil || m.Hidden
 }
 
 // SetHidden keeps a repository on disk but off the index. There is no delete here.
