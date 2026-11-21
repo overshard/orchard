@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ const connectorUA = "connector: "
 
 type connectRequest struct {
 	Req, Client, Host string
+	Started           time.Time
 }
 
 // handoffs are sessions minted for a connector, waiting for mcp to collect
@@ -79,6 +81,9 @@ func readConnect(r *http.Request) (connectRequest, bool) {
 	if c.Client == "" {
 		c.Client = "an agent"
 	}
+	if n, err := strconv.ParseInt(r.FormValue("started"), 10, 64); err == nil && n > 0 {
+		c.Started = time.Unix(n, 0)
+	}
 	return c, true
 }
 
@@ -107,7 +112,7 @@ var connectorReads = []consentTool{
 	{"cron", "the jobs and their runs"},
 	{"llm", "spend and calls"},
 	{"repos", "a repository's README"},
-	{"gate", "rules, traffic and what it refused, and proposing a rule"},
+	{"gate", "rules, traffic and what it refused, proposing a rule, and loosening or narrowing a live rule at once"},
 	{"dns", "lookups, blocks and devices on the resolver"},
 	{"dash", "the briefs and advisories"},
 	{"auth", "the sign ins and sessions on the activity page"},

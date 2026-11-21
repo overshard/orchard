@@ -17,6 +17,10 @@
   <div class="o-cols even">
     <section class="o-panel">
       <div class="o-ph2"><h2>What it gets</h2><span class="o-lab">read, and propose</span></div>
+      <div class="o-note brass consent-check" role="note">
+        <span class="o-lab">only if you started it</span>
+        {{ if not .Connect.Started.IsZero }}This sign in started {{ ago .Connect.Started }}, at <span class="o-mono">{{ when .Connect.Started }}</span>. {{ end }}Only allow it if you just clicked Connect in Claude yourself. A link somebody sent you opens this same page, and allowing it would give their Claude your tools.
+      </div>
       <ul class="connectlist">
         {{ range .Consent.Tools }}<li><b>{{ .Name }}</b> <span class="o-muted">{{ .What }}</span></li>{{ end }}
       </ul>
@@ -40,7 +44,6 @@
     <section class="o-panel">
       <div class="o-ph2"><h2>Worth knowing</h2></div>
       <p class="o-muted small">Log lines, referrers and crawl results are written by strangers, and an agent reads them as they are. Nothing here lets it act on what it reads, and the one thing it can write is a gate proposal that waits for you.</p>
-      <p class="o-muted small">If you didn't just add a connector, don't allow this.</p>
     </section>
   </div>
   {{ end }}
