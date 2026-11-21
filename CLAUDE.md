@@ -261,6 +261,11 @@ lines from a dashboard. The shipper writes its own state changes to stderr and
 never calls `slog`, which would enqueue a record about failing to ship, and
 `logging.bythewood.me` passes a local sink, because posting to itself would be
 an ingest request that logs a request that becomes an ingest request.
+Every container shares the bridge, so each POST carries `LOGGING_TOKEN` from
+the site's `.env` and logging refuses `/ingest` and `/aggregate` without it.
+`make logging-token` writes the same value into every `.env`, and a site with
+`SHIP_LOGS=1` and no token exits instead of shipping nothing. Caddy can't send
+a token, so 9001 only reads from the address `orchard-caddy` resolves to.
 
 **Every request asks gate first, and nothing about refusing a request lives in
 Caddy.** Every site block imports `(gate)`, a `forward_auth` to

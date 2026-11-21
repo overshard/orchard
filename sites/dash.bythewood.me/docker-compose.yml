@@ -17,6 +17,7 @@ services:
     # queue and flushes the guard state.
     stop_grace_period: 30s
     environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       LLM_URL: http://orchard-llm:8000
       LLM_KEY: ${LLM_KEY:-}
     volumes:

@@ -44,7 +44,7 @@ func testSite(t *testing.T, db *sql.DB) *site {
 	t.Helper()
 	w := NewWriter(db)
 	t.Cleanup(w.Close)
-	return &site{db: db, writer: w, auth: stubAuth(t, true)}
+	return &site{db: db, writer: w, auth: stubAuth(t, true), caddy: loopbackCaddy()}
 }
 
 // stubAuth stands in for auth.bythewood.me, which the real Authenticator asks

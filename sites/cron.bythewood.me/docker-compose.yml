@@ -11,6 +11,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       CRON_DB: /data/cron.db
       NTFY_TOKEN: ${NTFY_TOKEN:-}
       LLM_KEY: ${LLM_KEY:-}

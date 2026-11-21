@@ -15,6 +15,7 @@ services:
     # queue. Without it a slow drain means SIGKILL and a skipped db.Close().
     stop_grace_period: 30s
     environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       # Read from .env in this directory, which compose picks up as the project
       # directory. Empty is tolerated and logged: refusing to start without it
       # would mean a bad ntfy token locks the operator out of everything at

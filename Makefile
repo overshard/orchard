@@ -65,7 +65,7 @@ COMPOSE_DOWN = $(DOCKER) compose
 .DEFAULT_GOAL := help
 .PHONY: help install up up-one deploy edge doctor down down-one run build check shared-check frog frog-check template-check new fmt fmt-check vet vuln deps test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
-	auth-init auth-recovery dash-key pond-key cron-key llm-key util require-site require-env require-tunnel
+	auth-init auth-recovery dash-key pond-key cron-key llm-key logging-token util require-site require-env require-tunnel
 
 help:
 	@echo "running system"
@@ -90,6 +90,7 @@ help:
 	@echo "  make env                   write every missing .env from its example"
 	@echo "  make ntfy                  create the three ntfy accounts"
 	@echo "  make ntfy-token            mint the publishers' tokens into the .env files"
+	@echo "  make logging-token         write the token logging shares into every .env"
 	@echo "  make auth-init             create the login account, printing its recovery codes"
 	@echo "  make dash-key              mint dash's gateway key into its .env, or give llm back the one it has"
 	@echo "  make pond-key              the same for pond, which writes its nightly lines with it"
@@ -340,8 +341,32 @@ env:
 			printf '  %-20s %s\n' "$$var" "$$pw"; \
 		done; \
 	done
+	@$(MAKE) --no-print-directory logging-token
 	@echo ""
 	@echo "those are the only copies, so put them in Bitwarden now."
+
+# logging and every site that ships to it hold the same LOGGING_TOKEN, so it
+# can't be a *_PASSWORD that env fills per site. logging's .env is where it
+# lives, and a fresh one is made only when that has none. It's never printed.
+logging-token:
+	@src=sites/logging.bythewood.me/.env; \
+	tok=$$(sed -n 's/^LOGGING_TOKEN=//p' "$$src" 2>/dev/null); \
+	[ -n "$$tok" ] || tok=$$(LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 64); \
+	for ex in sites/*/.env.example; do \
+		grep -q '^LOGGING_TOKEN=' "$$ex" || continue; \
+		f=$$(dirname "$$ex")/.env; \
+		if [ ! -f "$$f" ]; then \
+			echo "$$f is missing, run make env" >&2; \
+			continue; \
+		fi; \
+		grep -qx "LOGGING_TOKEN=$$tok" "$$f" && continue; \
+		if grep -q '^LOGGING_TOKEN=' "$$f"; then \
+			sed -i "s|^LOGGING_TOKEN=.*|LOGGING_TOKEN=$$tok|" "$$f"; \
+		else \
+			printf '\nLOGGING_TOKEN=%s\n' "$$tok" >> "$$f"; \
+		fi; \
+		echo "LOGGING_TOKEN written to $$f"; \
+	done
 
 # The browser step, and it covers one Cloudflare zone at a time because cert.pem
 # carries a single zone. Two zones means running this again for the second and
@@ -473,6 +498,13 @@ require-env:
 		echo "generated password in each, and prints them. if this machine is" >&2; \
 		echo "rejoining something that already exists, the old values are in" >&2; \
 		echo "Bitwarden and go in by hand instead." >&2; \
+		exit 1; \
+	fi
+	@if grep -q '^LOGGING_TOKEN=' "$(SITE_DIR)/.env.example" 2>/dev/null && \
+		! grep -q '^LOGGING_TOKEN=.' "$(SITE_DIR)/.env"; then \
+		echo "$(SITE)'s .env has no LOGGING_TOKEN, and logging refuses records without it:" >&2; \
+		echo "" >&2; \
+		echo "  make logging-token" >&2; \
 		exit 1; \
 	fi
 

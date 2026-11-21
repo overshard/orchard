@@ -11,6 +11,8 @@ services:
       dockerfile: Dockerfile
     container_name: orchard-repos
     restart: unless-stopped
+    environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
     env_file: .env
     volumes:
       - data:/data

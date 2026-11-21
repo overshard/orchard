@@ -303,9 +303,8 @@ type rollupDelta struct {
 	durMax   float64
 }
 
-// ingest is the endpoint every other site posts to. There is no token because
-// Caddy refuses /ingest on the public hostname, so the only address that answers
-// is the container name on the orchard-edge bridge.
+// ingest is the endpoint every other site posts to, over the orchard-edge
+// bridge and behind requireToken.
 func (s *site) ingest(w http.ResponseWriter, r *http.Request) {
 	body := http.MaxBytesReader(w, r.Body, maxBody)
 	defer body.Close()

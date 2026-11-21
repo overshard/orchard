@@ -16,6 +16,7 @@ services:
     # SIGKILL and a skipped db.Close().
     stop_grace_period: 30s
     environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       NTFY_TOKEN: ${NTFY_TOKEN:-}
     volumes:
       - data:/data

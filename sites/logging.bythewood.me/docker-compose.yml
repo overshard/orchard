@@ -1,8 +1,9 @@
 name: orchard-logging
 
 # No published ports, and /ingest is reachable only by container name on the
-# shared network, which is why it needs no token. The volume is the fastest
-# growing one here, so retention is enforced by the process itself.
+# shared network, behind LOGGING_TOKEN since every container shares it. The
+# volume is the fastest growing one here, so retention is enforced by the
+# process itself.
 
 services:
   app:
@@ -21,6 +22,7 @@ services:
       # over a missing alert credential would turn a quiet notification into an
       # outage.
       NTFY_TOKEN: ${NTFY_TOKEN:-}
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
     volumes:
       - data:/data
     # A ceiling to fail against rather than a target, since this machine is also

@@ -15,6 +15,7 @@ services:
     # and the call log closes cleanly rather than being killed mid write.
     stop_grace_period: 30s
     environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       LLM_UPSTREAM: http://swap:8091
       LLM_GPU: http://gpu:8092
       LLM_MODEL: local

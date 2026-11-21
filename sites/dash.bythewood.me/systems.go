@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"dash.bythewood.me/web"
 )
 
 // The health strip. The page is public, so a row carries a name, up or down, a
@@ -20,7 +22,8 @@ import (
 const probeEvery = 60 * time.Second
 
 // aggregateURL is a container name on the orchard-edge bridge, never the public
-// hostname. Caddy refuses this path from outside.
+// hostname. Caddy refuses this path from outside, and logging wants the token
+// the shipper sends.
 const aggregateURL = "http://orchard-logging:8000/aggregate"
 
 // Monitored is one row. Source is the label it ships its logs under and, for a
@@ -260,7 +263,8 @@ func buildSystems(ctx context.Context, g *Guard, now time.Time) Systems {
 	s := Systems{Rows: rows, Total: len(rows), Checked: now.UTC().Format("15:04:05")}
 
 	var payload aggregatePayload
-	if err := getJSON(ctx, g, "logging", aggregateURL, &payload); err == nil {
+	headers := map[string]string{web.LoggingTokenHeader: web.LoggingToken()}
+	if err := getJSONHeaders(ctx, g, "logging", aggregateURL, headers, &payload); err == nil {
 		type counts struct {
 			errors, requests int64
 			baseline, p95    float64

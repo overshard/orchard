@@ -11,6 +11,8 @@ services:
       dockerfile: Dockerfile
     container_name: orchard-blog
     restart: unless-stopped
+    environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
     # Longer than Docker's 10s default, because shutdown drains the log shipper
     # queue. Without it a slow drain means SIGKILL.
     stop_grace_period: 30s

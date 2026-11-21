@@ -63,6 +63,10 @@ type site struct {
 	writer   *Writer
 	typst    *Typst
 	watchdog *Watchdog
+	caddy    *caddyPeer
+
+	// Shared with every site that ships here and with dash.
+	token string
 
 	auth *web.Authenticator
 
@@ -167,6 +171,8 @@ func realMain() error {
 		dist:        dist,
 		assets:      assets,
 		writer:      writer,
+		caddy:       newCaddyPeer(caddyHost),
+		token:       loggingToken(),
 		typst:       NewTypst(),
 		auth:        web.NewAuthenticator(),
 		baseScript:  assets.Script("static_src/base/index.js"),
@@ -243,13 +249,13 @@ func realMain() error {
 	mux.HandleFunc("GET /search", noStore(s.auth.RequireAuth(s.search)))
 	mux.HandleFunc("GET /search/tail", noStore(s.auth.RequireAuthJSON(s.tail)))
 
-	// Unauthenticated, and reachable only over the bridge since Caddy refuses
-	// /ingest on the public hostname.
-	mux.HandleFunc("POST /ingest", s.ingest)
+	// Bridge only, since Caddy refuses /ingest on the public hostname, and
+	// behind the shared token since every container shares that bridge.
+	mux.HandleFunc("POST /ingest", requireToken(s.token, s.ingest))
 
 	// Counts per source for the dash health strip, fenced the same way, and
 	// since dash is public it never returns a message, a path or an address.
-	mux.HandleFunc("GET /aggregate", s.aggregate)
+	mux.HandleFunc("GET /aggregate", requireToken(s.token, s.aggregate))
 	// The mux only answers 405 itself when nothing else matches, and the
 	// "GET /" catch-all below matches every GET path there is.
 	for path, allow := range map[string]string{
@@ -278,6 +284,10 @@ func realMain() error {
 		web.SameOrigin(),
 	)
 
+	if s.token == "" {
+		slog.Error("LOGGING_TOKEN is empty, so ingest and aggregate refuse everything",
+			slog.String("component", "bridge"))
+	}
 	slog.Info("logging serving", slog.String("base_url", baseURL),
 		slog.Int("retention_days", int(rawRetention/(24*time.Hour))))
 	return web.Serve(listenAddr, handler)

@@ -18,9 +18,16 @@ import (
 // nothing here ever blocks the caller and a full queue or a failed POST drops.
 
 // ShipEndpoint is a container name on the orchard-edge bridge, never the public
-// hostname. Anything that can reach it is already inside the network, so there
-// is no token to configure.
+// hostname. Every container shares that bridge, so ingest still wants a token.
 const ShipEndpoint = "http://orchard-logging:8000/ingest"
+
+// LoggingTokenHeader carries LOGGING_TOKEN to /ingest and /aggregate.
+const LoggingTokenHeader = "X-Logging-Token"
+
+// LoggingToken is the secret logging.bythewood.me shares with every site.
+func LoggingToken() string {
+	return os.Getenv("LOGGING_TOKEN")
+}
 
 const (
 	// Bounded, so the failure mode is dropping instead of blocking.
@@ -271,6 +278,13 @@ func HTTPSink() Sink {
 		fmt.Fprintln(os.Stderr, "log shipping off, SHIP_LOGS is not 1")
 		return func(string, []Record) {}
 	}
+	token := LoggingToken()
+	if token == "" {
+		// Exits instead of shipping nothing, since a quiet site reads as a
+		// healthy one on every dashboard downstream.
+		fmt.Fprintln(os.Stderr, "log shipping: SHIP_LOGS is 1 but LOGGING_TOKEN is empty")
+		os.Exit(1)
+	}
 	client := &http.Client{Timeout: shipTimeout}
 	var (
 		mu      sync.Mutex
@@ -313,6 +327,7 @@ func HTTPSink() Sink {
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(LoggingTokenHeader, token)
 
 		resp, err := client.Do(req)
 		if err != nil {

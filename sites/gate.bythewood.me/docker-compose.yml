@@ -11,6 +11,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       GATE_DATA: /data
     volumes:
       - data:/data

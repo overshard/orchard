@@ -16,6 +16,7 @@ services:
     # otherwise piles up as zombies until the container hits its process limit.
     init: true
     environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       # Keys are stored hashed under this, so it has to outlive the database.
       # Lose it and no pond key opens anything.
       POND_PEPPER: ${POND_PEPPER:?put a long random POND_PEPPER in .env, see .env.example}
