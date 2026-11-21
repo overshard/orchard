@@ -23,6 +23,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: "0.50"
           memory: 256M
           pids: 256
     healthcheck:
@@ -59,6 +60,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: "0.50"
           memory: 128M
           pids: 256
     healthcheck:
@@ -96,6 +98,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: "0.50"
           memory: 128M
           pids: 256
     logging:
