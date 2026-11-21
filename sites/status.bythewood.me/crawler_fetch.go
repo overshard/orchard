@@ -54,7 +54,8 @@ type FetchResult struct {
 
 func newCrawlClient() *http.Client {
 	return &http.Client{
-		Timeout: crawlerRequestTimeout,
+		Timeout:   crawlerRequestTimeout,
+		Transport: publicTransport(),
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 10 {
 				return http.ErrUseLastResponse

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1277,5 +1278,30 @@ func TestTimeoutInHandshakeIsNotACertError(t *testing.T) {
 	cert := fmt.Errorf("tls handshake: %w", &tls.CertificateVerificationError{Err: errors.New("expired")})
 	if !looksLikeTLSError(cert) {
 		t.Error("a certificate failure was not recognised")
+	}
+}
+
+func TestCrawlClientRefusesPrivateAddresses(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte("<a href=/>x</a>"))
+	}))
+	defer srv.Close()
+	client := newCrawlClient()
+	if r := fetchPage(context.Background(), client, srv.URL); r.Status != 0 || !strings.Contains(r.Err, "refusing") {
+		t.Errorf("a loopback page was fetched: %d %q", r.Status, r.Err)
+	}
+	if code := headStatus(context.Background(), client, srv.URL); code != 0 {
+		t.Errorf("a loopback link was probed: %d", code)
+	}
+	for ip, want := range map[string]bool{
+		"127.0.0.1": false, "10.0.0.1": false, "172.18.0.5": false, "192.168.1.1": false,
+		"169.254.169.254": false, "100.100.1.1": false, "0.0.0.0": false, "::1": false,
+		"fd00::1": false, "fe80::1": false, "::ffff:127.0.0.1": false,
+		"104.16.0.1": true, "8.8.8.8": true, "2606:4700::1": true,
+	} {
+		if got := isPublicIP(net.ParseIP(ip)); got != want {
+			t.Errorf("isPublicIP(%s) = %v, want %v", ip, got, want)
+		}
 	}
 }
