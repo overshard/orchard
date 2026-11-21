@@ -36,6 +36,9 @@ func selfSigned(t *testing.T, dir string) {
 }
 
 func TestDoTFront(t *testing.T) {
+	old := bridgeKey
+	bridgeKey = "front-key"
+	t.Cleanup(func() { bridgeKey = old })
 	s, d := testSite(t)
 	app := httptest.NewServer(s.handler())
 	defer app.Close()

@@ -215,19 +215,29 @@ func TestDoH(t *testing.T) {
 func TestInternalQuery(t *testing.T) {
 	s, d := testSite(t)
 	raw, _ := query("ok.example.org", dns.TypeA).Pack()
-	r := httptest.NewRequest(http.MethodPost, "/internal/query", bytes.NewReader(raw))
-	r.Header.Set("X-Dns-Token", d.Token)
-	w := httptest.NewRecorder()
-	s.handler().ServeHTTP(w, r)
-	if w.Code != 200 {
-		t.Fatalf("internal query: %d", w.Code)
+	ask := func(token, key string) int {
+		r := httptest.NewRequest(http.MethodPost, "/internal/query", bytes.NewReader(raw))
+		r.Header.Set("X-Dns-Token", token)
+		if key != "" {
+			r.Header.Set("X-Dns-Key", key)
+		}
+		w := httptest.NewRecorder()
+		s.handler().ServeHTTP(w, r)
+		return w.Code
 	}
-	r = httptest.NewRequest(http.MethodPost, "/internal/query", bytes.NewReader(raw))
-	r.Header.Set("X-Dns-Token", "nope")
-	w = httptest.NewRecorder()
-	s.handler().ServeHTTP(w, r)
-	if w.Code != http.StatusForbidden {
-		t.Errorf("unknown token: %d", w.Code)
+	if code := ask(d.Token, ""); code != http.StatusForbidden {
+		t.Errorf("no key set let a query in: %d", code)
+	}
+	old := bridgeKey
+	bridgeKey = "front-key"
+	t.Cleanup(func() { bridgeKey = old })
+	if code := ask(d.Token, "front-key"); code != 200 {
+		t.Fatalf("internal query: %d", code)
+	}
+	for _, c := range [][2]string{{d.Token, ""}, {d.Token, "wrong"}, {"nope", "front-key"}} {
+		if code := ask(c[0], c[1]); code != http.StatusForbidden {
+			t.Errorf("token %q key %q: %d", c[0], c[1], code)
+		}
 	}
 }
 

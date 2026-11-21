@@ -79,6 +79,9 @@ func main() {
 	shipper := web.ShipLogs(selfSource, web.HTTPSink())
 	defer shipper.Close()
 
+	if bridgeKey == "" && !*acmeMode {
+		slog.Error("DNS_BRIDGE_PASSWORD is unset, so the DoT front and /internal/ are refused until it's set in .env")
+	}
 	tlsDir := env("DNS_TLS", "data/tls")
 	if *acmeMode {
 		runACME(tlsDir, env("DNS_ACME", "data/acme"))

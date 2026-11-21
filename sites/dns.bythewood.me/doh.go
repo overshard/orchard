@@ -49,8 +49,10 @@ func (s *site) doh(w http.ResponseWriter, r *http.Request) {
 // the bridge can't ask through /internal/ as a device or test tokens there.
 var bridgeKey = os.Getenv("DNS_BRIDGE_PASSWORD")
 
+// fromFront refuses everything when the key is unset, since an empty key
+// would let any container on the bridge in.
 func fromFront(r *http.Request) bool {
-	return bridgeKey == "" || subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Dns-Key")), []byte(bridgeKey)) == 1
+	return bridgeKey != "" && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Dns-Key")), []byte(bridgeKey)) == 1
 }
 
 // internalQuery is the DoT front's way in, over the bridge. Caddy answers
