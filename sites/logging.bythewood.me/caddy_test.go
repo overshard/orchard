@@ -328,7 +328,7 @@ func TestHostSource(t *testing.T) {
 func TestCaddyRefusedBatchIsNotObserved(t *testing.T) {
 	db := testDB(t)
 	w := &Writer{db: db, ch: make(chan row), quit: make(chan struct{}), done: make(chan struct{})}
-	s := &site{db: db, writer: w, watchdog: NewWatchdog(db, nil)}
+	s := &site{db: db, writer: w, watchdog: NewWatchdog(db, nil), caddy: loopbackCaddy()}
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -363,7 +363,7 @@ func TestCaddyRefusedBatchIsNotObserved(t *testing.T) {
 func TestLocalRefusedBatchIsNotObserved(t *testing.T) {
 	db := testDB(t)
 	w := &Writer{db: db, ch: make(chan row), quit: make(chan struct{}), done: make(chan struct{})}
-	s := &site{db: db, writer: w, watchdog: NewWatchdog(db, nil)}
+	s := &site{db: db, writer: w, watchdog: NewWatchdog(db, nil), caddy: loopbackCaddy()}
 
 	s.LocalSink(selfSource, []web.Record{{Msg: "hello", Level: "INFO", Time: time.Now().UnixMilli()}})
 	if w.Stats().Rejected == 0 {

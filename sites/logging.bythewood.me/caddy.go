@@ -17,8 +17,8 @@ import (
 // Its runtime log never comes here, since a failing net writer reports itself there.
 
 const (
-	// No token, like /ingest, since nothing outside the bridge can reach this
-	// port and anything that can is already inside the network.
+	// Only caddyPeer's address is read from, since every container on the
+	// bridge can reach this port and Caddy can't send a token.
 	caddyListenAddr = ":9001"
 
 	// Matches the container name, like every other source here.
@@ -71,6 +71,9 @@ func (s *site) serveCaddyLogs(ctx context.Context, ln net.Listener) error {
 		go func() {
 			defer live.Add(-1)
 			defer conn.Close()
+			if !s.caddy.allowed(conn.RemoteAddr()) {
+				return
+			}
 			s.readCaddyLog(conn)
 		}()
 	}
