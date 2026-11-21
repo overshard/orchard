@@ -25,11 +25,11 @@ const listenAddr = ":8000"
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self'",
+		"script-src 'self' https://analytics.bythewood.me/static/collector.js",
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data:",
 		"font-src 'self'",
-		"connect-src 'self' https://pond.bythewood.me",
+		"connect-src 'self' https://analytics.bythewood.me https://pond.bythewood.me",
 		"base-uri 'self'",
 		"form-action 'self'",
 		"frame-ancestors 'none'",
