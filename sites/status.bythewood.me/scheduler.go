@@ -13,9 +13,11 @@ import (
 const (
 	cycleInterval = 30 * time.Second
 
-	// Two pools, so a long crawl can't starve a three-minute ping.
-	fastWorkers = 2
-	slowWorkers = 2
+	// Separate pools, so a long crawl can't starve a three-minute ping. Lighthouse
+	// gets one slot, since two Chromiums at once pin both CPUs and the memory cap.
+	fastWorkers       = 2
+	slowWorkers       = 2
+	lighthouseWorkers = 1
 
 	checkInterval      = 3 * time.Minute
 	lighthouseInterval = 24 * time.Hour
@@ -39,8 +41,9 @@ type Scheduler struct {
 
 	// Buffered channels as semaphores, a full one blocks the goroutine that wants
 	// to work until a slot frees up.
-	fast chan struct{}
-	slow chan struct{}
+	fast       chan struct{}
+	slow       chan struct{}
+	lighthouse chan struct{}
 
 	// The loop and every job it started, so shutdown can wait for their writes.
 	jobs sync.WaitGroup
@@ -48,11 +51,12 @@ type Scheduler struct {
 
 func NewScheduler(db *sql.DB, notifier *Notifier, root string) *Scheduler {
 	return &Scheduler{
-		db:       db,
-		notifier: notifier,
-		root:     root,
-		fast:     make(chan struct{}, fastWorkers),
-		slow:     make(chan struct{}, slowWorkers),
+		db:         db,
+		notifier:   notifier,
+		root:       root,
+		fast:       make(chan struct{}, fastWorkers),
+		slow:       make(chan struct{}, slowWorkers),
+		lighthouse: make(chan struct{}, lighthouseWorkers),
 	}
 }
 
@@ -199,8 +203,8 @@ func (s *Scheduler) enqueueLighthouse(ctx context.Context) error {
 
 		s.jobs.Go(func() {
 			select {
-			case s.slow <- struct{}{}:
-				defer func() { <-s.slow }()
+			case s.lighthouse <- struct{}{}:
+				defer func() { <-s.lighthouse }()
 			case <-ctx.Done():
 				return
 			}

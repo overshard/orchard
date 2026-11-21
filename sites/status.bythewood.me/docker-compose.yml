@@ -19,6 +19,7 @@ services:
     # limit. lighthouse.go's process-group kill covers the timeout case only.
     init: true
     environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       # Read from .env in this directory, which compose picks up as the project
       # directory. Write-only ntfy token, and an empty one is tolerated: refusing to start
       # over a missing alert credential would turn a quiet notification into an
@@ -32,7 +33,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "2.00"
+          cpus: "1.0"
           memory: 1536M
           pids: 512
     # The binary probes itself, since the scratch images here have no shell for a
