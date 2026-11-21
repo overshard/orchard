@@ -1,0 +1,10 @@
+# Docker reads this, not .gitignore. Without it `COPY . .` carries .env and any
+# local data into the build context, and from there into BuildKit's cache.
+**/node_modules
+**/build
+**/bin
+**/data
+.git
+.playwright-cli
+**/.env
+**/*.pem
