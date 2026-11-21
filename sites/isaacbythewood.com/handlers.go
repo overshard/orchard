@@ -88,8 +88,11 @@ type site struct {
 
 func (s *site) page(name, title, description string) PageData {
 	fullTitle := siteTitle
-	if title != "" {
-		fullTitle = title + " — " + siteTitle
+	switch {
+	case name == "index":
+		fullTitle = siteTitle + " · " + title
+	case title != "":
+		fullTitle = title + " · " + siteTitle
 	}
 	if description == "" {
 		description = siteDesc
@@ -150,7 +153,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := s.page("index", "Senior Solutions Architect at Craftmaster Furniture", "")
+	data := s.page("index", "Senior Solutions Architect", "")
 	// No card at all until the blog has answered once.
 	if post, ok := s.latest.Get(); ok {
 		data.Latest = &post
@@ -255,7 +258,7 @@ func (s *site) contact(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
-	data := s.page("notfound", "Not Found", "That page does not exist.")
+	data := s.page("notfound", "Not found", "That page does not exist.")
 	s.renderer.Render(w, http.StatusNotFound, "notfound.html", data)
 }
 
