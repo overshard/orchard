@@ -6,7 +6,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 COPY unbound.conf /etc/unbound/unbound.conf
 RUN cp /usr/share/dns/root.key /var/lib/unbound/root.key && unbound-checkconf /etc/unbound/unbound.conf
-USER unbound
+# The same UID as the app, which reaches the control socket through a volume
+# only that UID can enter.
+USER 65532:65532
 EXPOSE 5353/udp 5353/tcp
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["unbound-control", "status"]

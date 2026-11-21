@@ -52,6 +52,9 @@ unbound's stats. `unbound/` is its image and config.
   won't open. Pro leaves those alone.
 - Windows wants the server's address beside the DoH template, and those are
   Cloudflare's for this name. The device page shows them as they are now.
+- unbound's control socket is in `orchard-dns-control`, a tmpfs volume with
+  mode 0700 owned by 65532, and it's how the site reads unbound's stats. Both
+  containers have to run as 65532 or the stats and unbound's healthcheck stop.
 
 ## License
 

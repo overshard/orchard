@@ -14,6 +14,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       DNS_DATA: /data
       DNS_TLS: /tls
       DNS_BRIDGE_PASSWORD: ${DNS_BRIDGE_PASSWORD:?run make env}
@@ -23,6 +24,7 @@ services:
     volumes:
       - data:/data
       - tls:/tls:ro
+      - control:/run/unbound-ctl
     depends_on:
       unbound:
         condition: service_healthy
@@ -59,6 +61,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       DNS_TLS: /tls
       DNS_BRIDGE_PASSWORD: ${DNS_BRIDGE_PASSWORD:?run make env}
     ports:
@@ -101,6 +104,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       DNS_TLS: /tls
       DNS_ACME: /acme
       CLOUDFLARE_TOKEN: ${CLOUDFLARE_TOKEN:-}
@@ -150,7 +154,8 @@ services:
     tmpfs:
       - /tmp
       - /var/lib/unbound:mode=1777
-      - /run/unbound:mode=1777
+    volumes:
+      - control:/run/unbound-ctl
     logging:
       driver: json-file
       options:
@@ -165,6 +170,14 @@ volumes:
     name: orchard-dns-tls
   acme:
     name: orchard-dns-acme
+  # unbound's control socket. tmpfs, so a stale socket never outlives a reboot,
+  # and owned by 65532 with mode 0700, so only unbound and the app get in.
+  control:
+    name: orchard-dns-control
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: uid=65532,gid=65532,mode=0700
 
 # unbound's access-control names this subnet, so it's fixed, and kept off
 # Docker's 172.17-31 pools and wireguard's 10.77.

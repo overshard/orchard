@@ -12,9 +12,9 @@ import (
 	"time"
 )
 
-// unboundCtl is unbound's control port on the inner network. It takes plain
-// text with no certificate, since only this app can reach it.
-const unboundCtl = "orchard-dns-unbound:8953"
+// unboundCtl is unbound's control socket, in a volume only this app and unbound
+// mount, as the same UID. It speaks plain text since the volume is the fence.
+const unboundCtl = "/run/unbound-ctl/unbound.ctl"
 
 // counts is lookups by status and protocol since the app started.
 type counts struct {
@@ -43,7 +43,7 @@ func (c *counts) snapshot() map[[2]string]int64 {
 
 // unboundStats asks unbound for its counters since it started.
 func unboundStats(addr string) (map[string]float64, error) {
-	c, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	c, err := net.DialTimeout("unix", addr, 2*time.Second)
 	if err != nil {
 		return nil, err
 	}
