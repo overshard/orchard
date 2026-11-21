@@ -200,6 +200,11 @@ func parseCond(line string) (cond, error) {
 	return c, nil
 }
 
+// key is a condition line in a canonical form, for comparing two rules.
+func (c *cond) key() string {
+	return fmt.Sprintf("%t\x00%s\x00%s\x00%s\x00%s", c.not, c.field, c.header, c.op, strings.Join(c.vals, "\x00"))
+}
+
 // match reports whether every condition holds. A field gate doesn't know, like
 // the country of an address no database has, fails its test either way, so an
 // unknown never trips a `not` rule.

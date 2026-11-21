@@ -212,9 +212,9 @@ type edit struct {
 	Watching *bool   `json:"watching"`
 }
 
-// apiEdit changes the fields the connector sends on an existing rule. It can't
-// turn a proposal on, touch an allow rule or save one that catches signing in,
-// since those could let in or lock out more than it meant to.
+// apiEdit changes the fields the connector sends on an existing rule. It goes
+// live at once, so it can only make a rule refuse less, see onlyNarrows, and it
+// can't touch an allow rule or save one that catches signing in.
 func (s *site) apiEdit(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
@@ -276,6 +276,10 @@ func (s *site) apiEdit(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusBadRequest, err.Error())
 		return
 	}
+	if err := onlyNarrows(old, rule, e.Watching); err != nil {
+		fail(http.StatusForbidden, err.Error()+", so only Isaac can make that change from gate's page")
+		return
+	}
 	if !rule.Watching {
 		if lock := s.lockoutFor(&rule); len(lock) > 0 {
 			fail(http.StatusForbidden, "it would catch signing in ("+strings.Join(lock, ", ")+"), so only Isaac can save it")
@@ -289,4 +293,55 @@ func (s *site) apiEdit(w http.ResponseWriter, r *http.Request) {
 	_ = s.reload()
 	_ = json.NewEncoder(w).Encode(map[string]any{"id": rule.ID, "name": rule.Name, "url": fmt.Sprintf("%s/rules/%d", baseURL, rule.ID),
 		"state": describe(rule), "when": rule.When, "ban_after": rule.BanAfter, "ban_hours": int(rule.BanFor / time.Hour)})
+}
+
+// apiBanHours caps the ban an agent can set, since a ban covers every site.
+const apiBanHours = 24
+
+// onlyNarrows refuses an agent's edit that would refuse more than the rule
+// already does. Conditions are all ANDed, so keeping every old line and adding
+// more can only match less.
+func onlyNarrows(old, rule Rule, watching *bool) error {
+	if watching != nil && !*watching {
+		return fmt.Errorf("an agent can only set a rule to watching")
+	}
+	if rule.Action != old.Action {
+		return fmt.Errorf("an agent can't change what a rule does")
+	}
+	if rule.When != old.When {
+		before, err := parseWhen(old.When)
+		if err != nil {
+			return fmt.Errorf("the rule's own condition doesn't parse")
+		}
+		after, err := parseWhen(rule.When)
+		if err != nil {
+			return err
+		}
+		keep := map[string]bool{}
+		for _, c := range after {
+			keep[c.key()] = true
+		}
+		for _, c := range before {
+			if !keep[c.key()] {
+				return fmt.Errorf("an agent can only add condition lines, and every existing line has to stay as it is")
+			}
+		}
+	}
+	if old.Action == actLimit && rule.Rate < old.Rate {
+		return fmt.Errorf("an agent can only raise a limit's rate, it's %d a minute now", old.Rate)
+	}
+	if rule.BanAfter != old.BanAfter && rule.BanAfter != 0 {
+		floor := 3
+		if old.BanAfter > 0 {
+			floor = min(old.BanAfter, 3)
+		}
+		if rule.BanAfter < floor {
+			return fmt.Errorf("an agent can't set ban_after below %d", floor)
+		}
+	}
+	bansMore := rule.BanAfter > 0 && (old.BanAfter == 0 || rule.BanAfter < old.BanAfter)
+	if rule.BanFor > apiBanHours*time.Hour && (rule.BanFor != old.BanFor || bansMore) {
+		return fmt.Errorf("an agent can set a ban of at most %d hours", apiBanHours)
+	}
+	return nil
 }

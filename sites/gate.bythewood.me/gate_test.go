@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -28,6 +30,10 @@ func testSite(t testing.TB) *site {
 	verify := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie(web.SessionCookie); err == nil && c.Value == "good" {
 			_, _ = w.Write([]byte(`{"ok":true}`))
+			return
+		}
+		if c, err := r.Cookie(web.SessionCookie); err == nil && c.Value == "agent" {
+			_, _ = w.Write([]byte(`{"ok":true,"method":"connector"}`))
 			return
 		}
 		w.WriteHeader(http.StatusUnauthorized)
@@ -327,6 +333,30 @@ func (s *site) signedInHandler() http.Handler {
 	})
 }
 
+// A connector's session reads and proposes, and nothing else it posts lands.
+func TestConnectorWritesOnlyThroughTheAPI(t *testing.T) {
+	s := testSite(t)
+	send := func(method, path, body string) int {
+		r := httptest.NewRequest(method, path, strings.NewReader(body))
+		r.AddCookie(&http.Cookie{Name: web.SessionCookie, Value: "agent"})
+		w := httptest.NewRecorder()
+		s.handler().ServeHTTP(w, r)
+		return w.Code
+	}
+	if c := send(http.MethodGet, "/api/report", ""); c != 200 {
+		t.Errorf("connector GET /api/report = %d", c)
+	}
+	if c := send(http.MethodPost, "/api/propose", `{"name":"by-agent","when":"asn is 14061","then":"challenge"}`); c != 200 {
+		t.Errorf("connector propose = %d", c)
+	}
+	if c := send(http.MethodPost, "/settings", "mode=off"); c != http.StatusSeeOther {
+		t.Errorf("connector POST /settings = %d, want a redirect to sign in", c)
+	}
+	if c := send(http.MethodPost, "/bans", "ip=203.0.113.9"); c != http.StatusSeeOther {
+		t.Errorf("connector POST /bans = %d, want a redirect to sign in", c)
+	}
+}
+
 func TestSignedInSkipsRules(t *testing.T) {
 	s := testSite(t)
 	if w := ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger, "Cookie", web.SessionCookie+"=good"); w.Code != 204 {
@@ -414,7 +444,65 @@ func TestAPIEdit(t *testing.T) {
 	if w := post(`{"name":"cloud-crawl","why":"x","watching":false}`); w.Code != 403 {
 		t.Errorf("a proposal was turned on, %d", w.Code)
 	}
-	if w := post(`{"name":"cloud-crawl","why":"x","when":"asn is 14061 16509"}`); w.Code != 200 {
-		t.Errorf("a proposal's condition wasn't editable, %d %s", w.Code, w.Body.String())
+	if w := post(`{"name":"cloud-crawl","why":"x","when":"asn is 14061\nnot path prefix /feed"}`); w.Code != 200 {
+		t.Errorf("a proposal's condition couldn't be narrowed, %d %s", w.Code, w.Body.String())
+	}
+	if w := post(`{"name":"cloud-crawl","why":"x","when":"asn is 14061 16509"}`); w.Code != 403 {
+		t.Errorf("a proposal's condition was widened, %d %s", w.Code, w.Body.String())
+	}
+}
+
+// An agent's edit goes live at once, so it can only make a rule refuse less.
+func TestAPIEditOnlyNarrows(t *testing.T) {
+	s := testSite(t)
+	post := func(v map[string]any) *httptest.ResponseRecorder {
+		v["why"] = "x"
+		body, _ := json.Marshal(v)
+		w := httptest.NewRecorder()
+		s.signedInHandler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/edit", bytes.NewReader(body)))
+		return w
+	}
+	scanners, _ := s.store.RuleNamed("scanners")
+	for _, c := range []struct {
+		why  string
+		edit map[string]any
+		code int
+	}{
+		{"swap the condition", map[string]any{"name": "scanners", "when": "host is isaacbythewood.com"}, 403},
+		{"drop a line", map[string]any{"name": "dotfiles", "when": "path prefix /."}, 403},
+		{"change a value", map[string]any{"name": "sign-in-us", "when": "host is auth.bythewood.me\npath is /login"}, 403},
+		{"enforce", map[string]any{"name": "scanners", "watching": false}, 403},
+		{"change the action", map[string]any{"name": "sign-in-rate", "then": "block"}, 403},
+		{"lower a rate", map[string]any{"name": "sign-in-rate", "rate": 5}, 403},
+		{"ban after one hit", map[string]any{"name": "scanners", "ban_after": 1}, 403},
+		{"ban for a year", map[string]any{"name": "scanners", "ban_after": 5, "ban_hours": 8760}, 403},
+		{"the whole attack", map[string]any{"name": "scanners", "when": "host is isaacbythewood.com", "watching": false, "ban_after": 1, "ban_hours": 8760}, 403},
+		{"add a line", map[string]any{"name": "scanners", "when": scanners.When + "\nnot host is repos.bythewood.me"}, 200},
+		{"raise a rate", map[string]any{"name": "sign-in-rate", "rate": 20}, 200},
+		{"ban after three", map[string]any{"name": "scanners", "ban_after": 3, "ban_hours": 24}, 200},
+		{"ban later", map[string]any{"name": "scanners", "ban_after": 50}, 200},
+		{"stop banning", map[string]any{"name": "scanners", "ban_after": 0}, 200},
+		{"watch", map[string]any{"name": "scanners", "watching": true}, 200},
+	} {
+		if w := post(c.edit); w.Code != c.code {
+			t.Errorf("%s = %d, want %d %s", c.why, w.Code, c.code, w.Body.String())
+		}
+	}
+	r, _ := s.store.RuleNamed("scanners")
+	if !r.Watching || r.BanAfter != 0 || !strings.HasPrefix(r.When, scanners.When) {
+		t.Fatalf("scanners ended up wrong: %+v", r)
+	}
+
+	// A ban Isaac set longer than a day stays his, and an agent can't ban
+	// sooner under it.
+	r.BanAfter, r.BanFor = 10, 8760*time.Hour
+	if err := s.store.UpdateRuleWhy(&r, "isaac", "test"); err != nil {
+		t.Fatal(err)
+	}
+	if w := post(map[string]any{"name": "scanners", "ban_after": 5}); w.Code != 403 {
+		t.Errorf("banned sooner under a year long ban, %d", w.Code)
+	}
+	if w := post(map[string]any{"name": "scanners", "note": "still a year"}); w.Code != 200 {
+		t.Errorf("a note edit was refused, %d %s", w.Code, w.Body.String())
 	}
 }
