@@ -42,6 +42,10 @@ blog and the portfolio are separate identities and nothing here applies to them.
 - **Use the space.** At every width the grids fill their rows, with tiles spread
   so the last row isn't short, lists packed in columns instead of a grid with
   holes, and a side column beside a form instead of empty page.
+- **Each tool's favicon is one brass glyph on a charcoal tile,** drawn on a 32
+  grid with a 2.6 stroke so it holds at 16px, in `suite/files/icon-<tool>.svg`
+  and served at `/favicon.svg` and `/favicon.ico` by `suite.Favicon`. A tab title
+  is `tool · what it does` on the home page and `Page · tool` everywhere else.
 - **A status line along the bottom,** vim style, a brass block with the tool's
   name, then its state, then facts like the time zone on the right. Only facts
   that are true and nothing that pretends to be a key binding.

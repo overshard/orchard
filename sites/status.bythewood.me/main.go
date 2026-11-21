@@ -208,12 +208,13 @@ func realMain() error {
 		mux.HandleFunc("GET "+path, methodNotAllowed(allow))
 	}
 
-	mux.HandleFunc("GET /favicon.ico", favicon)
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /sitemap.xml", sitemap)
 
 	mux.Handle("GET /static/", web.Static(dist, assets))
 	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
+	mux.Handle("GET /favicon.svg", suite.Favicon("status"))
+	mux.Handle("GET /favicon.ico", suite.Favicon("status"))
 	mux.Handle("GET /suite/", suite.Handler())
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {

@@ -198,8 +198,8 @@ func realMain() error {
 	mux.HandleFunc("GET /{name}/archive/{rev}", s.limited(archives, s.archive))
 	mux.HandleFunc("GET /{name}/atom.xml", s.atom)
 
-	mux.HandleFunc("GET /favicon.ico", favicon)
-	mux.HandleFunc("GET /favicon.svg", favicon)
+	mux.Handle("GET /favicon.svg", suite.Favicon("repos"))
+	mux.Handle("GET /favicon.ico", suite.Favicon("repos"))
 	mux.HandleFunc("GET /robots.txt", robots)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -281,13 +281,3 @@ func robots(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = w.Write([]byte(b.String()))
 }
-
-func favicon(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	_, _ = w.Write([]byte(faviconSVG))
-}
-
-const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">` +
-	`<rect width="32" height="32" rx="7" fill="#17151a"/>` +
-	`<circle cx="16" cy="16" r="7" fill="#a99bf5"/></svg>`

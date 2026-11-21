@@ -146,28 +146,6 @@ func browser(ua string) string {
 	return "other"
 }
 
-// Inline so it can't drift from the navbar logo, which is the same markup. A
-// north star with three companions still reads at 16px, where a full
-// constellation turns to mush.
-const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <g stroke="#6b9e78" stroke-width="1.6" opacity="0.55" stroke-linecap="round">
-    <path d="M46 15 L34 28"/>
-    <path d="M18 47 L29 36"/>
-    <path d="M46 15 L52 40"/>
-  </g>
-  <path d="M32 4 L36.4 26.2 L58 32 L36.4 37.8 L32 60 L27.6 37.8 L6 32 L27.6 26.2 Z"
-        fill="#6b9e78"/>
-  <circle cx="46" cy="15" r="3.4" fill="#c9d9cb"/>
-  <circle cx="18" cy="47" r="2.6" fill="#7eaab8"/>
-  <circle cx="52" cy="40" r="2.2" fill="#c9a84c"/>
-</svg>`
-
-func favicon(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	_, _ = w.Write([]byte(faviconSVG))
-}
-
 // robots refuses the whole site. There is nothing here worth indexing and the
 // login form is the only page a stranger can reach at all.
 func robots(w http.ResponseWriter, r *http.Request) {

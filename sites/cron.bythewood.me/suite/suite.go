@@ -73,10 +73,11 @@ func Handler() http.Handler {
 // Funcs has to be on a template before Parse, since templates.html calls them.
 func Funcs() template.FuncMap {
 	return template.FuncMap{
-		"suiteURL": URL,
-		"spark":    Spark,
-		"sparkT":   SparkT,
-		"tools":    func() []Tool { return Tools },
+		"suiteURL":   URL,
+		"faviconURL": FaviconURL,
+		"spark":      Spark,
+		"sparkT":     SparkT,
+		"tools":      func() []Tool { return Tools },
 	}
 }
 

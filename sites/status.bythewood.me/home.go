@@ -69,17 +69,6 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "home.html", data)
 }
 
-func favicon(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	_, _ = w.Write([]byte(faviconSVG))
-}
-
-const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-<polyline points="2,34 18,34 24,28 30,14 36,52 42,20 48,34 62,34" fill="none" stroke="#6b9e78" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
-<circle cx="30" cy="14" r="3.5" fill="#c9a84c"/>
-</svg>`
-
 // robots refuses the crawl everywhere since nothing here is for a stranger. The
 // noindex tag in base.html is needed too, a crawler obeying robots.txt never sees it.
 func robots(w http.ResponseWriter, r *http.Request) {

@@ -274,11 +274,12 @@ func (s *site) handler() http.Handler {
 		mux.HandleFunc("GET "+path, methodNotAllowed(allow))
 	}
 
-	mux.HandleFunc("GET /favicon.ico", favicon)
 	mux.HandleFunc("GET /robots.txt", robots)
 
 	mux.Handle("GET /static/", web.Static(s.dist, s.assets))
 	mux.HandleFunc("GET /suite/merged", s.suiteMerged)
+	mux.Handle("GET /favicon.svg", suite.Favicon("auth"))
+	mux.Handle("GET /favicon.ico", suite.Favicon("auth"))
 	mux.Handle("GET /suite/", suite.Handler())
 
 	mux.HandleFunc("GET /healthz", healthz)

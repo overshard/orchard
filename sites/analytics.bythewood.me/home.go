@@ -31,22 +31,6 @@ func (s *site) documentation(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "documentation.html", data)
 }
 
-// Inline instead of a file so it can't drift from the navbar logo, which is
-// this same markup.
-const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect x="6"  y="38" width="10" height="22" rx="1.5" fill="#6b9e78"/>
-  <rect x="20" y="28" width="10" height="32" rx="1.5" fill="#6b9e78"/>
-  <rect x="34" y="18" width="10" height="42" rx="1.5" fill="#6b9e78"/>
-  <rect x="48" y="8"  width="10" height="52" rx="1.5" fill="#6b9e78"/>
-  <rect x="48" y="8"  width="10" height="6"  rx="1.5" fill="#c9a84c"/>
-</svg>`
-
-func favicon(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	_, _ = w.Write([]byte(faviconSVG))
-}
-
 // robots refuses every crawl, production included, since nothing here is for a
 // stranger. It duplicates the noindex in base.html because a crawler that obeys
 // robots.txt never fetches the page to see the tag.

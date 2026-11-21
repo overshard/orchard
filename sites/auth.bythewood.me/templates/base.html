@@ -8,7 +8,6 @@
        session. */}}
   <meta name="robots" content="noindex, nofollow">
   {{ with .Refresh }}<meta http-equiv="refresh" content="0; url={{ . }}">{{ end }}
-  <link rel="icon" type="image/svg+xml" href="/favicon.ico">
 
   {{ range .Styles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
   {{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}

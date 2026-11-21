@@ -181,6 +181,8 @@ func realMain() error {
 	mux.HandleFunc("GET /calls", s.auth.RequireAuth(s.callsPage))
 	mux.Handle("GET /static/", s.static())
 	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
+	mux.Handle("GET /favicon.svg", suite.Favicon("llm"))
+	mux.Handle("GET /favicon.ico", suite.Favicon("llm"))
 	mux.Handle("GET /suite/", suite.Handler())
 	mux.HandleFunc("GET /keys", s.auth.RequireAuth(s.keysPage))
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {

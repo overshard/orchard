@@ -129,6 +129,8 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /token", s.oauth.token)
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /healthz", healthz)
+	mux.Handle("GET /favicon.svg", suite.Favicon("mcp"))
+	mux.Handle("GET /favicon.ico", suite.Favicon("mcp"))
 	mux.Handle("GET /suite/", suite.Handler())
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)

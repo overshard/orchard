@@ -32,21 +32,6 @@ func (s *site) documentation(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "documentation.html", data)
 }
 
-// Inline instead of a file so it can't drift from the navbar logo, which is the
-// same markup.
-const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect x="8" y="10" width="48" height="7" rx="1.5" fill="#6b9e78"/>
-  <rect x="8" y="24" width="34" height="7" rx="1.5" fill="#6b9e78"/>
-  <rect x="8" y="38" width="44" height="7" rx="1.5" fill="#c9a84c"/>
-  <rect x="8" y="52" width="26" height="7" rx="1.5" fill="#6b9e78"/>
-</svg>`
-
-func favicon(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	_, _ = w.Write([]byte(faviconSVG))
-}
-
 // robots refuses every crawler, since nothing here is for a stranger.
 // base.html carries a noindex tag too.
 func robots(w http.ResponseWriter, r *http.Request) {

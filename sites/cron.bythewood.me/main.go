@@ -166,6 +166,8 @@ func (s *site) routes() http.Handler {
 	mux.HandleFunc("POST /keys/{id}/delete", s.auth.RequireAuth(s.keyDelete))
 	mux.Handle("GET /static/", s.static())
 	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
+	mux.Handle("GET /favicon.svg", suite.Favicon("cron"))
+	mux.Handle("GET /favicon.ico", suite.Favicon("cron"))
 	mux.Handle("GET /suite/", suite.Handler())
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)

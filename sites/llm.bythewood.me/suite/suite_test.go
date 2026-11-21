@@ -44,3 +44,16 @@ func TestHandler(t *testing.T) {
 		}
 	}
 }
+
+func TestEveryToolHasAnIcon(t *testing.T) {
+	for _, tool := range Tools {
+		rec := httptest.NewRecorder()
+		Favicon(tool.Name).ServeHTTP(rec, httptest.NewRequest("GET", FaviconURL(), nil))
+		if rec.Code != 200 || !strings.HasPrefix(rec.Body.String(), "<svg") {
+			t.Errorf("%s: %d %q", tool.Name, rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Header().Get("Cache-Control"), "immutable") {
+			t.Errorf("%s: versioned icon not immutable", tool.Name)
+		}
+	}
+}

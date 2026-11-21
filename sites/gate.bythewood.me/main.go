@@ -199,6 +199,8 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /api/edit", s.auth.RequireAuthJSON(s.apiEdit))
 	mux.Handle("GET /static/", static())
 	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
+	mux.Handle("GET /favicon.svg", suite.Favicon("gate"))
+	mux.Handle("GET /favicon.ico", suite.Favicon("gate"))
 	mux.Handle("GET /suite/", suite.Handler())
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /healthz", healthz)
