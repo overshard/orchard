@@ -214,7 +214,7 @@ func realMain() error {
 	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
 	mux.HandleFunc("GET /", s.notFound)
 
-	wr := &wire{store: store, db: db, backend: backend, allowCreate: true}
+	wr := &wire{store: store, db: db, backend: backend, allowCreate: true, signedIn: s.auth.Authenticated}
 
 	// Neither the wire nor /static/ can be a mux pattern, since a wildcard matches
 	// a whole segment so "{name}.git" is illegal, and "GET /static/" conflicts

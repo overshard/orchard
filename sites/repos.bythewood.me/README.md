@@ -38,8 +38,11 @@ a range for a `#L10-L24` link. Repositories live in
   both in the root `CLAUDE.md`.
 - Every git call is a plumbing subprocess with NUL delimiters and `--` before
   anything a visitor typed. Keep it that way in `git.go`.
-- Hiding a repository only takes it off the index. Anyone with the URL can
-  still read and clone it, so nothing private belongs here.
+- A hidden repository is off the index and answers a 404 to anyone signed out,
+  so its name doesn't leak. Cloning one takes a push token sent up front, like
+  `git -c http.proactiveAuth=basic clone https://git:<token>@repos.bythewood.me/<name>.git`,
+  since git only sends a credential after a 401. It's still not for anything
+  private.
 - Signed out, pages are only served at a branch or tag name, and history,
   diffs and anything at a commit SHA answer a signed in only 404. Every SHA is
   another copy of the tree for a crawler, so a signed out page must never link

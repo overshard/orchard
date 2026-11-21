@@ -291,6 +291,15 @@ type repoContext struct {
 	PushPercent int
 }
 
+// shareable sets a public cache policy, except on a hidden repository, where a
+// copy Cloudflare kept for the owner would be served to anyone.
+func (rc *repoContext) shareable(w http.ResponseWriter, policy string) {
+	if rc.Meta.Hidden {
+		policy = "private, no-store"
+	}
+	w.Header().Set("Cache-Control", policy)
+}
+
 // resolveRepo loads the shared header, or writes a 404 and reports false.
 func (s *site) resolveRepo(w http.ResponseWriter, r *http.Request) (*repoContext, bool) {
 	ctx := r.Context()
@@ -302,6 +311,11 @@ func (s *site) resolveRepo(w http.ResponseWriter, r *http.Request) (*repoContext
 		return nil, false
 	}
 
+	signedIn := s.auth.Authenticated(r)
+	if !signedIn && hiddenRepo(s.db, name) {
+		s.notFound(w, r)
+		return nil, false
+	}
 	meta, _ := s.db.Repo(name)
 	meta.Name = name
 
@@ -314,7 +328,7 @@ func (s *site) resolveRepo(w http.ResponseWriter, r *http.Request) (*repoContext
 		CloneURL:        cloneURL(baseURL, name),
 		BridgeURL:       bridgeCloneURL(containerName, name),
 		BridgeContainer: containerName,
-		SignedIn:        s.auth.Authenticated(r),
+		SignedIn:        signedIn,
 	}
 	rc.OverLimit = rc.Size > cloudflareBodyLimit
 	rc.PushPercent = percentOf(rc.Size, cloudflareBodyLimit)
@@ -570,7 +584,7 @@ func (s *site) raw(w http.ResponseWriter, r *http.Request) {
 	if sha == rc.Rev {
 		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 	} else {
-		w.Header().Set("Cache-Control", "public, max-age=300")
+		rc.shareable(w, "public, max-age=300")
 	}
 
 	if err := s.store.StreamBlob(ctx, rc.Repo, rc.Rev, path, w); err != nil {
@@ -862,7 +876,7 @@ func (s *site) atom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/atom+xml; charset=utf-8")
-	w.Header().Set("Cache-Control", "public, max-age=600")
+	rc.shareable(w, "public, max-age=600")
 
 	repoURL := baseURL + "/" + rc.Repo.Name
 	updated := time.Now().UTC()

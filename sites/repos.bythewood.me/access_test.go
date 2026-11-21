@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io/fs"
 	"net/http"
@@ -182,5 +183,84 @@ func TestSignedInSeesEverything(t *testing.T) {
 	w = fetch(h, "/orchard/raw/"+sha+"/README.md", true)
 	if cc := w.Header().Get("Cache-Control"); !strings.HasPrefix(cc, "private") {
 		t.Errorf("a raw file at a SHA carried Cache-Control %q", cc)
+	}
+}
+
+// A hidden repository answers a stranger exactly as a missing one would.
+func TestHiddenIsSignedInOnly(t *testing.T) {
+	for _, signedIn := range []bool{false, true} {
+		s, h, _ := accessFixture(t, signedIn)
+		if err := s.db.EnsureRepo("orchard"); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.db.SetHidden("orchard", true); err != nil {
+			t.Fatal(err)
+		}
+		want := http.StatusNotFound
+		if signedIn {
+			want = http.StatusOK
+		}
+		for _, target := range []string{"/orchard", "/orchard/tree/main", "/orchard/raw/main/README.md", "/orchard/atom.xml", "/orchard/branches", "/orchard/files/main"} {
+			w := fetch(h, target, signedIn)
+			if w.Code != want {
+				t.Errorf("%s answered %d signed in %v, want %d", target, w.Code, signedIn, want)
+			}
+			if signedIn && strings.HasPrefix(w.Header().Get("Cache-Control"), "public") {
+				t.Errorf("%s of a hidden repository is shareable: %s", target, w.Header().Get("Cache-Control"))
+			}
+		}
+		if body := fetch(h, "/", signedIn).Body.String(); strings.Contains(body, `href="/orchard"`) {
+			t.Error("the index listed a hidden repository")
+		}
+	}
+}
+
+func TestHiddenCloneNeedsACredential(t *testing.T) {
+	s := repoFixture(t)
+	db, err := OpenDB(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	token, err := db.CreateToken("laptop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wr := &wire{store: s.store, db: db, backend: gitHTTPBackend(), signedIn: func(r *http.Request) bool {
+		return r.Header.Get("Cookie") == "session"
+	}}
+	h := wr.Router(http.NotFoundHandler())
+	clone := func(hdr ...string) int {
+		r := httptest.NewRequest(http.MethodGet, "/orchard.git/info/refs?service=git-upload-pack", nil)
+		for i := 0; i+1 < len(hdr); i += 2 {
+			r.Header.Set(hdr[i], hdr[i+1])
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w.Code
+	}
+	if code := clone(); code == http.StatusNotFound {
+		t.Fatalf("a public repository wouldn't clone, %d", code)
+	}
+	if err := db.EnsureRepo("orchard"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.SetHidden("orchard", true); err != nil {
+		t.Fatal(err)
+	}
+	basic := "Basic " + base64.StdEncoding.EncodeToString([]byte("git:"+token))
+	wrong := "Basic " + base64.StdEncoding.EncodeToString([]byte("git:nope"))
+	for _, c := range []struct {
+		hdr     []string
+		refused bool
+	}{
+		{nil, true},
+		{[]string{"Authorization", wrong}, true},
+		{[]string{"Authorization", basic}, false},
+		{[]string{"Cookie", "session"}, false},
+	} {
+		if code := clone(c.hdr...); (code == http.StatusNotFound) != c.refused {
+			t.Errorf("clone with %v answered %d", c.hdr, code)
+		}
 	}
 }

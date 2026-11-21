@@ -45,6 +45,7 @@ type wire struct {
 	backend string
 	// allowCreate turns push-to-create on.
 	allowCreate bool
+	signedIn    func(*http.Request) bool
 }
 
 // Router puts the wire in front of the browse mux. It's a wrapper instead of mux
@@ -105,6 +106,13 @@ func (wr *wire) serve(w http.ResponseWriter, r *http.Request, name, rest string)
 			slog.Error("record new repo", slog.String("repo", name), slog.Any("err", err))
 		}
 		repo = created
+	}
+
+	// A hidden repository answers a stranger the way a missing one does, so a
+	// clone of it needs a token sent up front or an orchard session.
+	if !writing && hiddenRepo(wr.db, name) && !wr.mayRead(r) {
+		http.NotFound(w, r)
+		return
 	}
 
 	// A push into a mirror would diverge from upstream, and the next sync would
@@ -249,6 +257,14 @@ func (wr *wire) authenticate(r *http.Request) (string, bool) {
 		return "", false
 	}
 	return label, true
+}
+
+func (wr *wire) mayRead(r *http.Request) bool {
+	if wr.signedIn != nil && wr.signedIn(r) {
+		return true
+	}
+	_, ok := wr.authenticate(r)
+	return ok
 }
 
 // isDumbPath matches the dumb-HTTP fallback paths. http-backend would serve loose
