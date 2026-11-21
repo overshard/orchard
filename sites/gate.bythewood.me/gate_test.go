@@ -222,6 +222,7 @@ func TestChallengeAndSolve(t *testing.T) {
 	sr := httptest.NewRequest(http.MethodPost, "http://repos.bythewood.me/__gate/solve", strings.NewReader(form.Encode()))
 	sr.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	sr.Header.Set("User-Agent", "curl/8")
+	sr.Header.Set("X-Gate-Ip", stranger)
 	sw := httptest.NewRecorder()
 	s.handler().ServeHTTP(sw, sr)
 	if sw.Code != 303 || sw.Header().Get("Location") != "/explore?page=3" {
@@ -231,6 +232,14 @@ func TestChallengeAndSolve(t *testing.T) {
 	w = ask(s, "GET", "repos.bythewood.me", "/explore?page=4", stranger, "User-Agent", "curl/8", "Cookie", cookie.Name+"="+cookie.Value)
 	if w.Code != 204 {
 		t.Fatalf("a solved pass was refused, %d", w.Code)
+	}
+	w = ask(s, "GET", "repos.bythewood.me", "/", "198.51.100.200", "User-Agent", "curl/8", "Cookie", cookie.Name+"="+cookie.Value)
+	if w.Code != 204 {
+		t.Fatalf("a pass didn't cover its own /24, %d", w.Code)
+	}
+	w = ask(s, "GET", "repos.bythewood.me", "/", "203.0.113.7", "User-Agent", "curl/8", "Cookie", cookie.Name+"="+cookie.Value)
+	if w.Code != 403 {
+		t.Fatalf("a pass worked from another network, %d", w.Code)
 	}
 	if cookie.Domain != "bythewood.me" {
 		t.Fatalf("pass cookie domain %q", cookie.Domain)

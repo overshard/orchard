@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -76,11 +77,26 @@ func worked(seed, nonce string) bool {
 	return strings.HasPrefix(hex.EncodeToString(sum[:]), strings.Repeat("0", powZeros))
 }
 
-// The pass is tied to the host and the browser's user agent, so a solved
-// cookie can't be lifted and handed to a farm of different clients as is.
-func (e *engine) pass(host, ua string, until time.Time) string {
+// The pass is tied to the host, the browser's user agent and the network it
+// was solved from, so a scraper rotating addresses has to solve for each one.
+func (e *engine) pass(host, ua string, ip netip.Addr, until time.Time) string {
 	exp := strconv.FormatInt(until.Unix(), 36)
-	return exp + "." + e.sign("pass", host, exp, ua)
+	return exp + "." + e.sign("pass", host, exp, ua, passNet(ip))
+}
+
+// passNet is the /24 or /64 a pass covers, wide enough that a phone moving
+// around its carrier's pool keeps it.
+func passNet(ip netip.Addr) string {
+	if !ip.IsValid() {
+		return ""
+	}
+	ip = ip.Unmap()
+	bits := 24
+	if ip.Is6() {
+		bits = 64
+	}
+	p, _ := ip.Prefix(bits)
+	return p.String()
 }
 
 func (e *engine) passed(r *http.Request, q *req) bool {
@@ -96,7 +112,7 @@ func (e *engine) passed(r *http.Request, q *req) bool {
 	if err != nil || time.Now().Unix() > n {
 		return false
 	}
-	return hmac.Equal([]byte(sig), []byte(e.sign("pass", siteOf(q.Host), exp, q.UA)))
+	return hmac.Equal([]byte(sig), []byte(e.sign("pass", siteOf(q.Host), exp, q.UA, passNet(q.IP))))
 }
 
 // siteOf is the domain a pass covers, the last two labels, so one solve on
@@ -149,13 +165,15 @@ func (e *engine) solve(w http.ResponseWriter, r *http.Request) {
 	if signed {
 		rule = seedRule(seed)
 	}
+	ip, _ := netip.ParseAddr(strings.TrimSpace(r.Header.Get("X-Gate-Ip")))
+	ok = ok && ip.IsValid()
 	e.stats.solved(full, rule, ok)
 	if !ok {
 		plain(w, http.StatusBadRequest, "That didn't check out. Go back and let the page finish.")
 		return
 	}
 	until := now.Add(passFor)
-	http.SetCookie(w, &http.Cookie{Name: passCookie, Value: e.pass(host, r.Header.Get("User-Agent"), until), Path: "/", Domain: host,
+	http.SetCookie(w, &http.Cookie{Name: passCookie, Value: e.pass(host, r.Header.Get("User-Agent"), ip, until), Path: "/", Domain: host,
 		Expires: until, MaxAge: int(passFor / time.Second), HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode})
 	back := r.PostFormValue("back")
 	if !strings.HasPrefix(back, "/") || strings.HasPrefix(back, "//") || strings.HasPrefix(back, "/\\") {
