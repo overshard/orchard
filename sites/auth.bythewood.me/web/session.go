@@ -50,21 +50,28 @@ func NewAuthenticatorAt(verify string) *Authenticator {
 
 // Authenticated reports whether the caller is signed in. Every failure is a no,
 // including auth being unreachable, because the alternative is failing open.
+// A connector's session only reads, so it's signed out on anything but GET and HEAD.
 func (a *Authenticator) Authenticated(r *http.Request) bool {
+	ok, connector := a.check(r)
+	return ok && (!connector || r.Method == http.MethodGet || r.Method == http.MethodHead)
+}
+
+// check asks auth about the cookie, and says whether it's a connector's.
+func (a *Authenticator) check(r *http.Request) (ok, connector bool) {
 	// A site built without one is signed out instead of a panic, since this is
 	// called from the page data every template renders.
 	if a == nil || a.client == nil {
-		return false
+		return false, false
 	}
 
 	c, err := r.Cookie(SessionCookie)
 	if err != nil || c.Value == "" {
-		return false
+		return false, false
 	}
 
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, a.verify, nil)
 	if err != nil {
-		return false
+		return false, false
 	}
 	req.AddCookie(&http.Cookie{Name: SessionCookie, Value: c.Value})
 
@@ -73,17 +80,18 @@ func (a *Authenticator) Authenticated(r *http.Request) bool {
 		slog.Error("verifying a session failed",
 			slog.String("component", "auth"),
 			slog.Any("err", err))
-		return false
+		return false, false
 	}
 	defer resp.Body.Close()
 
 	var body struct {
-		OK bool `json:"ok"`
+		OK     bool   `json:"ok"`
+		Method string `json:"method"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&body); err != nil {
-		return false
+		return false, false
 	}
-	return resp.StatusCode == http.StatusOK && body.OK
+	return resp.StatusCode == http.StatusOK && body.OK, body.Method == "connector"
 }
 
 // RequireAuth gates a handler, sending anyone without a session to the login
@@ -101,8 +109,21 @@ func (a *Authenticator) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 // RequireAuthJSON gates the endpoints a dashboard's own JavaScript calls, where
 // a redirect to an HTML login page would be parsed as data.
 func (a *Authenticator) RequireAuthJSON(next http.HandlerFunc) http.HandlerFunc {
+	return a.requireJSON(a.Authenticated, next)
+}
+
+// RequireAuthJSONConnector is RequireAuthJSON that also lets a connector's
+// session write, for the few endpoints mcp's tools post to.
+func (a *Authenticator) RequireAuthJSONConnector(next http.HandlerFunc) http.HandlerFunc {
+	return a.requireJSON(func(r *http.Request) bool {
+		ok, _ := a.check(r)
+		return ok
+	}, next)
+}
+
+func (a *Authenticator) requireJSON(signedIn func(*http.Request) bool, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !a.Authenticated(r) {
+		if !signedIn(r) {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-store")
 			w.WriteHeader(http.StatusUnauthorized)
