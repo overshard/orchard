@@ -138,6 +138,10 @@ func (s *site) requireAuth(next func(http.ResponseWriter, *http.Request, live)) 
 			http.Redirect(w, r, "/login?next="+returnTo(r), http.StatusSeeOther)
 			return
 		}
+		if l.Method == methodConnector && r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "a connector's session only reads", http.StatusForbidden)
+			return
+		}
 		next(w, r, l)
 	}
 }
@@ -339,8 +343,8 @@ func (s *site) activity(w http.ResponseWriter, r *http.Request, l live) {
 }
 
 // verify is how the other sites turn a cookie into an answer over the bridge,
-// and Caddy refuses this path on the public hostname. It returns the username
-// and the sudo flag and nothing else, since there's only one somebody.
+// and Caddy refuses this path on the public hostname. The method lets a site
+// keep a connector's session to reading.
 func (s *site) verify(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
@@ -361,6 +365,7 @@ func (s *site) verify(w http.ResponseWriter, r *http.Request) {
 		"ok":       true,
 		"username": user.Username,
 		"sudo":     l.inSudo(),
+		"method":   l.Method,
 	})
 }
 

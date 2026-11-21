@@ -127,6 +127,7 @@ type live struct {
 	ID     int64
 	Hash   []byte
 	SudoAt time.Time
+	Method string
 }
 
 // lookupSession validates the cookie against the table. Expiry is checked in
@@ -142,11 +143,12 @@ func lookupSession(db *sql.DB, r *http.Request) (live, error) {
 		id       int64
 		sudoAt   int64
 		lastSeen int64
+		method   string
 	)
 	err = db.QueryRow(`
-        SELECT id, sudo_at, last_seen FROM sessions
+        SELECT id, sudo_at, last_seen, method FROM sessions
         WHERE hash = ? AND revoked = 0 AND expires > ?`,
-		h, time.Now().Unix()).Scan(&id, &sudoAt, &lastSeen)
+		h, time.Now().Unix()).Scan(&id, &sudoAt, &lastSeen, &method)
 	if errors.Is(err, sql.ErrNoRows) {
 		return live{}, errNoSession
 	}
@@ -161,7 +163,7 @@ func lookupSession(db *sql.DB, r *http.Request) (live, error) {
 		markDay(db, id, now)
 	}
 
-	return live{ID: id, Hash: h, SudoAt: time.Unix(sudoAt, 0)}, nil
+	return live{ID: id, Hash: h, SudoAt: time.Unix(sudoAt, 0), Method: method}, nil
 }
 
 // inSudo reports whether this session proved possession recently enough to
