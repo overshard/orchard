@@ -37,6 +37,9 @@ and HTTP layer.
 - auth mints each connector a session of its own after a fresh code, and that
   session is what every read is sent as. Revoking it on auth's sessions page
   ends the grant on the agent's next call.
+- A grant carries its scope, `read` and `gate:write` if it stayed ticked on
+  auth's consent page, and gate_propose and gate_edit are refused without
+  `gate:write`. Grants from before scopes existed have both.
 - Only Claude's two client metadata documents may start a sign in, see
   `knownClients`. Another client means adding its URL there.
 - gate refuses every path starting with a dot except `/.well-known/oauth-`,

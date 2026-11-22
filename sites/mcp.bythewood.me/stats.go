@@ -179,6 +179,8 @@ func cause(err string) string {
 		return "ambiguous name"
 	case has("has nothing at", "has no readme", "matches"):
 		return "not found"
+	case has("without gate:write"):
+		return "no gate:write"
 	case has("gate refused"):
 		return "refused by gate"
 	case has("didn't parse", " answered "):

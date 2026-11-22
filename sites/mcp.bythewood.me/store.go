@@ -96,6 +96,12 @@ func OpenStore(path string) (*Store, error) {
 	if _, err := db.Exec(schema); err != nil {
 		return nil, err
 	}
+	// Grants from before scopes could already change gate, so they keep it.
+	if err := addColumns(db, "grants", map[string]string{
+		"scope": "TEXT NOT NULL DEFAULT 'read gate:write'",
+	}); err != nil {
+		return nil, err
+	}
 	if err := addColumns(db, "calls", map[string]string{
 		"rpc_id": "TEXT NOT NULL DEFAULT ''",
 		"code":   "INTEGER NOT NULL DEFAULT 0",
@@ -139,6 +145,7 @@ type Grant struct {
 	ClientName string
 	Session    string
 	Resource   string
+	Scope      string
 	Created    time.Time
 	LastUsed   time.Time
 }
@@ -154,9 +161,9 @@ func tokenHash(t string) []byte {
 	return h[:]
 }
 
-func (s *Store) AddGrant(clientID, name, session, resource string) (int64, error) {
-	res, err := s.db.Exec(`INSERT INTO grants (client_id, client_name, session, resource, created) VALUES (?, ?, ?, ?, ?)`,
-		clientID, name, session, resource, time.Now().Unix())
+func (s *Store) AddGrant(clientID, name, session, resource, scope string) (int64, error) {
+	res, err := s.db.Exec(`INSERT INTO grants (client_id, client_name, session, resource, scope, created) VALUES (?, ?, ?, ?, ?, ?)`,
+		clientID, name, session, resource, scope, time.Now().Unix())
 	if err != nil {
 		return 0, err
 	}
@@ -188,10 +195,10 @@ var errNoToken = errors.New("no such token")
 func (s *Store) Lookup(token, kind string) (Grant, error) {
 	var g Grant
 	var created, used int64
-	err := s.db.QueryRow(`SELECT g.id, g.client_id, g.client_name, g.session, g.resource, g.created, g.last_used
+	err := s.db.QueryRow(`SELECT g.id, g.client_id, g.client_name, g.session, g.resource, g.scope, g.created, g.last_used
 		FROM tokens t JOIN grants g ON g.id = t.grant_id
 		WHERE t.hash = ? AND t.kind = ? AND t.expires > ? AND g.revoked = 0`,
-		tokenHash(token), kind, time.Now().Unix()).Scan(&g.ID, &g.ClientID, &g.ClientName, &g.Session, &g.Resource, &created, &used)
+		tokenHash(token), kind, time.Now().Unix()).Scan(&g.ID, &g.ClientID, &g.ClientName, &g.Session, &g.Resource, &g.Scope, &created, &used)
 	if errors.Is(err, sql.ErrNoRows) {
 		return g, errNoToken
 	}
@@ -241,6 +248,13 @@ func (s *Store) Spend(token, clientID string) (int64, error) {
 		return 0, err
 	}
 	return grant, errors.Join(errReused, tx.Commit())
+}
+
+// Scope is what a grant was allowed, for the token response.
+func (s *Store) Scope(grant int64) string {
+	var scope string
+	_ = s.db.QueryRow(`SELECT scope FROM grants WHERE id = ?`, grant).Scan(&scope)
+	return scope
 }
 
 func (s *Store) Touch(grant int64) {

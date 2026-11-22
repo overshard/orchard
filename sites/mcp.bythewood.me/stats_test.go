@@ -16,7 +16,7 @@ func seeded(t *testing.T) *site {
 	t.Helper()
 	s, _ := testSite(t)
 	now := time.Now()
-	g, _ := s.store.AddGrant(knownClients[0], "Claude", "sess-1", resourceURL)
+	g, _ := s.store.AddGrant(knownClients[0], "Claude", "sess-1", resourceURL, "read gate:write")
 	add := func(ago time.Duration, c Call) {
 		c.At, c.Grant, c.Client = now.Add(-ago), g, "Claude"
 		if c.Method == "" {

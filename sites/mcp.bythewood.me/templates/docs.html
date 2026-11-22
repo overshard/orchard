@@ -34,7 +34,7 @@
       <li>auth asks whether to let the connector read orchard. Allowing makes a session just for it, good for 90 days.</li>
       <li>Claude gets a token for an hour at a time and swaps it for a new one quietly. It reads every tool as that session.</li>
     </ol>
-    <p class="o-muted small">Revoke the connector's session on <a href="https://auth.bythewood.me/sessions">auth's sessions page</a> and its next call is refused. Only Claude's own clients, claude.ai and Claude Code, can start a sign in.</p>
+    <p class="o-muted small">Revoke the connector's session on <a href="https://auth.bythewood.me/sessions">auth's sessions page</a> and its next call is refused. Only Claude's own clients, claude.ai and Claude Code, can start a sign in. Untick gate:write on auth's consent page to connect one that only reads, and gate_propose and gate_edit are then refused.</p>
   </section>
   <section class="o-panel">
     <div class="o-ph2"><h2>Approving tools</h2><span class="o-lab">always allow</span></div>

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -151,7 +152,7 @@ func TestSignInThroughAuthAndCallATool(t *testing.T) {
 	_ = json.Unmarshal(rec.Body.Bytes(), &tok)
 	access, _ := tok["access_token"].(string)
 	refresh, _ := tok["refresh_token"].(string)
-	if rec.Code != 200 || access == "" || refresh == "" {
+	if rec.Code != 200 || access == "" || refresh == "" || tok["scope"] != "read gate:write" {
 		t.Fatalf("token: %d %s", rec.Code, rec.Body.String())
 	}
 
@@ -226,7 +227,7 @@ func cookieNamed(cookies []*http.Cookie, name string) *http.Cookie {
 
 func TestLegacyInitialize(t *testing.T) {
 	s, _ := testSite(t)
-	g, _ := s.store.AddGrant(knownClients[1], "Claude Code", "sess-1", resourceURL)
+	g, _ := s.store.AddGrant(knownClients[1], "Claude Code", "sess-1", resourceURL, "read gate:write")
 	access, _, _ := s.store.Issue(g)
 	r := httptest.NewRequest("POST", "/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"x","version":"1"}}}`))
 	r.Header.Set("Content-Type", "application/json")
@@ -293,7 +294,7 @@ func TestCheckArgsHoldsCallsToTheSchema(t *testing.T) {
 
 func TestRefreshRotatesOnceAndReuseEndsTheGrant(t *testing.T) {
 	s, _ := testSite(t)
-	g, _ := s.store.AddGrant(knownClients[1], "Claude Code", "sess-1", resourceURL)
+	g, _ := s.store.AddGrant(knownClients[1], "Claude Code", "sess-1", resourceURL, "read gate:write")
 	_, refresh, _ := s.store.Issue(g)
 
 	var wg sync.WaitGroup
@@ -328,5 +329,35 @@ func TestRefreshRotatesOnceAndReuseEndsTheGrant(t *testing.T) {
 	}
 	if _, err := s.store.Spend(next, knownClients[1]); err == nil {
 		t.Fatal("the grant's newest refresh token still works after a reuse")
+	}
+}
+
+func TestGateWritesNeedTheScope(t *testing.T) {
+	s, _ := testSite(t)
+	g, _ := s.store.AddGrant(knownClients[1], "Claude Code", "sess-1", resourceURL, "read")
+	access, _, _ := s.store.Issue(g)
+	for _, name := range []string{"gate_propose", "gate_edit"} {
+		_, out := rpc(t, s.handler(), access, "tools/call", map[string]any{"name": name,
+			"arguments": map[string]any{"name": "x", "why": "y", "when": "path is /x", "then": "block", "note": "z"}})
+		res, _ := out["result"].(map[string]any)
+		if res == nil || res["isError"] != true || !strings.Contains(fmt.Sprint(res["content"]), "without gate:write") {
+			t.Errorf("%s with a read only grant: %v", name, out)
+		}
+	}
+}
+
+func TestScopeIsKeptInsideWhatWasOffered(t *testing.T) {
+	for _, c := range []struct{ requested, allowed, want string }{
+		{"", "", "read gate:write"},
+		{"read", "", "read"},
+		{"read", "read gate:write", "read"},
+		{"read gate:write", "read", "read"},
+		{"read gate:write", "read gate:write", "read gate:write"},
+		{"gate:write", "gate:write", "read gate:write"},
+		{"read admin", "read admin", "read"},
+	} {
+		if got := grantedScope(offeredScope(c.requested), c.allowed); got != c.want {
+			t.Errorf("asked %q, auth allowed %q: got %q, want %q", c.requested, c.allowed, got, c.want)
+		}
 	}
 }

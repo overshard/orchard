@@ -174,7 +174,12 @@ func (s *site) serveMCP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var text string
-		err := checkArgs(t.Schema, p.Arguments)
+		var err error
+		if t.Writes && !hasScope(g.Scope, scopeGateWrite) {
+			err = errors.New("this connector was allowed without gate:write, so it can't change gate. Connect it again and leave gate:write ticked")
+		} else {
+			err = checkArgs(t.Schema, p.Arguments)
+		}
 		if err == nil {
 			text, err = t.run(r.Context(), s.reader(g), p.Arguments)
 		}

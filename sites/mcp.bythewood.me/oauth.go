@@ -31,6 +31,39 @@ var knownClients = []string{
 }
 
 const (
+	scopeRead      = "read"
+	scopeGateWrite = "gate:write"
+)
+
+var scopesSupported = []string{scopeRead, scopeGateWrite}
+
+// offeredScope is what the consent page asks about. read always, and
+// gate:write when the client asked for it or named no scope at all.
+func offeredScope(requested string) string {
+	asked := strings.Fields(requested)
+	if len(asked) == 0 || slices.Contains(asked, scopeGateWrite) {
+		return scopeRead + " " + scopeGateWrite
+	}
+	return scopeRead
+}
+
+// hasScope reports whether a space separated scope holds want.
+func hasScope(scope, want string) bool { return slices.Contains(strings.Fields(scope), want) }
+
+// grantedScope is what auth said was allowed, kept inside what was offered.
+// An auth that sends no scope granted everything offered.
+func grantedScope(offered, allowed string) string {
+	if allowed == "" {
+		return offered
+	}
+	out := []string{scopeRead}
+	if hasScope(offered, scopeGateWrite) && hasScope(allowed, scopeGateWrite) {
+		out = append(out, scopeGateWrite)
+	}
+	return strings.Join(out, " ")
+}
+
+const (
 	connectURL  = "https://auth.bythewood.me/connect"
 	handoffURL  = "http://orchard-auth:8000/verify/handoff"
 	pendingTTL  = 10 * time.Minute
@@ -49,7 +82,7 @@ func protectedResource(w http.ResponseWriter, r *http.Request) {
 		"resource":                 resourceURL,
 		"resource_name":            "orchard",
 		"authorization_servers":    []string{baseURL},
-		"scopes_supported":         []string{"read"},
+		"scopes_supported":         scopesSupported,
 		"bearer_methods_supported": []string{"header"},
 	})
 }
@@ -63,7 +96,7 @@ func authServerMetadata(w http.ResponseWriter, r *http.Request) {
 		"grant_types_supported":                          []string{"authorization_code", "refresh_token"},
 		"code_challenge_methods_supported":               []string{"S256"},
 		"token_endpoint_auth_methods_supported":          []string{"none"},
-		"scopes_supported":                               []string{"read"},
+		"scopes_supported":                               scopesSupported,
 		"client_id_metadata_document_supported":          true,
 		"authorization_response_iss_parameter_supported": true,
 	})
@@ -88,9 +121,9 @@ type oauth struct {
 }
 
 type pendingAuth struct {
-	ClientID, ClientName, RedirectURI, Challenge, State, Resource string
-	Browser                                                       string
-	expires                                                       time.Time
+	ClientID, ClientName, RedirectURI, Challenge, State, Resource, Scope string
+	Browser                                                              string
+	expires                                                              time.Time
 }
 
 // flowCookie binds a sign in to the browser that started it, so a consent link
@@ -223,7 +256,7 @@ func (o *oauth) authorize(w http.ResponseWriter, r *http.Request) {
 	o.mu.Lock()
 	o.sweep(now)
 	o.pending[id] = pendingAuth{ClientID: clientID, ClientName: name, RedirectURI: redirect, Challenge: q.Get("code_challenge"),
-		State: q.Get("state"), Resource: resourceURL, Browser: browser, expires: now.Add(pendingTTL)}
+		State: q.Get("state"), Resource: resourceURL, Scope: offeredScope(q.Get("scope")), Browser: browser, expires: now.Add(pendingTTL)}
 	o.mu.Unlock()
 	http.SetCookie(w, &http.Cookie{Name: flowCookie(id), Value: browser, Path: "/oauth/back", MaxAge: int(pendingTTL / time.Second),
 		HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode})
@@ -234,7 +267,7 @@ func (o *oauth) authorize(w http.ResponseWriter, r *http.Request) {
 		host += ", back to " + ru.Hostname()
 	}
 	v := url.Values{"req": {id}, "client": {name}, "host": {host}, "back": {baseURL + "/oauth/back"},
-		"started": {strconv.FormatInt(now.Unix(), 10)}}
+		"started": {strconv.FormatInt(now.Unix(), 10)}, "scope": {offeredScope(q.Get("scope"))}}
 	http.Redirect(w, r, connectURL+"?"+v.Encode(), http.StatusFound)
 }
 
@@ -275,14 +308,15 @@ func (o *oauth) back(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, withQuery(p.RedirectURI, v), http.StatusFound)
 		return
 	}
-	session, err := o.collect(r, q.Get("handoff"))
+	session, allowed, err := o.collect(r, q.Get("handoff"))
 	if err != nil {
 		slog.Error("handoff failed", slog.Any("err", err))
 		v.Set("error", "server_error")
 		http.Redirect(w, r, withQuery(p.RedirectURI, v), http.StatusFound)
 		return
 	}
-	grant, err := o.store.AddGrant(p.ClientID, p.ClientName, session, p.Resource)
+	scope := grantedScope(p.Scope, allowed)
+	grant, err := o.store.AddGrant(p.ClientID, p.ClientName, session, p.Resource, scope)
 	if err != nil {
 		slog.Error("saving grant", slog.Any("err", err))
 		v.Set("error", "server_error")
@@ -294,26 +328,26 @@ func (o *oauth) back(w http.ResponseWriter, r *http.Request) {
 	o.codes[code] = authCode{Grant: grant, ClientID: p.ClientID, RedirectURI: p.RedirectURI, Challenge: p.Challenge, expires: time.Now().Add(authCodeTTL)}
 	o.mu.Unlock()
 	slog.Info("connector allowed", slog.String("client", p.ClientName), slog.Int64("grant", grant))
-	o.store.AddEvent("allowed", p.ClientName, p.ClientID)
+	o.store.AddEvent("allowed", p.ClientName, p.ClientID+", "+scope)
 	v.Set("code", code)
 	http.Redirect(w, r, withQuery(p.RedirectURI, v), http.StatusFound)
 }
 
-func (o *oauth) collect(r *http.Request, handoff string) (string, error) {
+func (o *oauth) collect(r *http.Request, handoff string) (session, scope string, err error) {
 	req, _ := http.NewRequestWithContext(r.Context(), http.MethodGet, handoffURL+"?code="+url.QueryEscape(handoff), nil)
 	resp, err := o.http.Do(req)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("auth answered %d", resp.StatusCode)
+		return "", "", fmt.Errorf("auth answered %d", resp.StatusCode)
 	}
-	var got struct{ Session string }
+	var got struct{ Session, Scope string }
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&got); err != nil || got.Session == "" {
-		return "", fmt.Errorf("auth's handoff was empty")
+		return "", "", fmt.Errorf("auth's handoff was empty")
 	}
-	return got.Session, nil
+	return got.Session, got.Scope, nil
 }
 
 func tokenError(w http.ResponseWriter, code, desc string) {
@@ -376,7 +410,7 @@ func (o *oauth) token(w http.ResponseWriter, r *http.Request) {
 		"token_type":    "Bearer",
 		"expires_in":    int(accessTTL / time.Second),
 		"refresh_token": refresh,
-		"scope":         "read",
+		"scope":         o.store.Scope(grant),
 	})
 }
 
@@ -391,6 +425,6 @@ func pkceMatches(verifier, challenge string) bool {
 
 // challenge is the 401 that starts a sign in, pointing at the metadata.
 func challenge(w http.ResponseWriter) {
-	w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+baseURL+`/.well-known/oauth-protected-resource/mcp", scope="read"`)
+	w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+baseURL+`/.well-known/oauth-protected-resource/mcp", scope="read gate:write"`)
 	writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_token", "error_description": "sign in through auth.bythewood.me"})
 }

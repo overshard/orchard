@@ -56,15 +56,15 @@
     <div class="o-ftxt">
       <span class="o-lab">sign in</span>
       <h3>The same phone code, then a yes</h3>
-      <p>Adding the connector opens auth in a browser. It asks for a fresh code, then whether to let the agent read orchard. Allowing makes a session just for it, listed beside your browsers.</p>
+      <p>Adding the connector opens auth in a browser. It asks for a fresh code, then whether to let the agent read orchard and whether it may change gate. Allowing makes a session just for it, listed beside your browsers.</p>
       <ul><li>Revoking it on auth ends it on the next call</li><li>Only Claude's own clients can start a sign in</li></ul>
     </div>
     <div class="o-crop">
       <span class="o-staged">STAGED</span>
       <span class="o-lab">auth &middot; connect</span>
       <div class="crop-t">Let <em>Claude</em> read orchard?</div>
-      <ul class="crop-list"><li>Every tool's state and reports</li><li>Log search, cron jobs and runs</li><li>Nothing that changes anything</li></ul>
-      <div class="crop-btns"><span class="o-btn o-btn-p o-btn-sm">Allow read access</span><span class="o-btn o-btn-sm">Don't allow</span></div>
+      <ul class="crop-list"><li>Every tool's state and reports</li><li>Log search, cron jobs and runs</li><li>gate:write, ticked unless you untick it</li></ul>
+      <div class="crop-btns"><span class="o-btn o-btn-p o-btn-sm">Allow</span><span class="o-btn o-btn-sm">Don't allow</span></div>
     </div>
   </div>
   <div class="o-frow flip">
