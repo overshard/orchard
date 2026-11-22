@@ -71,6 +71,7 @@
               <input type="hidden" name="back" value="{{$.Back}}">
               {{$n := or .Via .Name}}{{range $i, $p := parents $n}}<label class="o-check"><input type="radio" name="domain" value="{{$p}}" {{if eq $i 0}}checked{{end}}> <code>{{$p}}</code></label>{{end}}
               {{if .Device}}<label class="o-check"><input type="checkbox" name="only" value="{{.Device}}"> <span>only on {{.DeviceName}}</span></label>{{end}}
+              <select class="o-in" name="for" aria-label="How long it lasts">{{template "spans"}}</select>
               <div class="o-formbar"><button class="o-btn o-btn-sm {{if .Blocked}}o-btn-p{{else}}o-btn-bad{{end}}" type="submit">{{if .Blocked}}Allow{{else}}Block{{end}}</button></div>
             </form>
           </div>

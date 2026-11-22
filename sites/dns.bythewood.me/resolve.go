@@ -50,7 +50,7 @@ type rules struct {
 func (r *rules) match(name string, m map[string][]Rule, d int64) (Rule, bool) {
 	for n := name; ; {
 		for _, x := range m[n] {
-			if x.Device == d {
+			if x.Device == d && (x.Expires.IsZero() || time.Now().Before(x.Expires)) {
 				return x, true
 			}
 		}

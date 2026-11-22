@@ -153,3 +153,25 @@ func TestPausedDeviceLogsWouldBlock(t *testing.T) {
 		t.Fatalf("resumed: %+v", v)
 	}
 }
+
+func TestRuleExpires(t *testing.T) {
+	s, d := testSite(t)
+	if err := s.store.PutRuleUntil("ads.example.net", "allow", "", 0, "", time.Now().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.reload()
+	if v := s.res.decide(d, "ads.example.net"); v.Status != "allow" {
+		t.Fatalf("live allow: %+v", v)
+	}
+	_ = s.store.PutRuleUntil("ads.example.net", "allow", "", 0, "", time.Now().Add(-time.Second))
+	_ = s.reload()
+	if v := s.res.decide(d, "ads.example.net"); v.Status != "block" {
+		t.Fatalf("expired allow still applies: %+v", v)
+	}
+	s.store.Sweep(time.Now())
+	var n int
+	_ = s.store.db.QueryRow(`SELECT COUNT(*) FROM rules`).Scan(&n)
+	if n != 0 {
+		t.Errorf("sweep left %d expired rules", n)
+	}
+}

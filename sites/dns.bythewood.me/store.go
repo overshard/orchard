@@ -149,9 +149,20 @@ func migrate(db *sql.DB) error {
 			return err
 		}
 	}
-	if has("rules", "device") {
-		return nil
+	if !has("rules", "device") {
+		if err := rebuildRules(db); err != nil {
+			return err
+		}
 	}
+	if !has("rules", "expires") {
+		if _, err := db.Exec(`ALTER TABLE rules ADD COLUMN expires INTEGER NOT NULL DEFAULT 0`); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func rebuildRules(db *sql.DB) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -342,20 +353,25 @@ type Rule struct {
 	Created time.Time
 	Device  int64
 	Target  string
+	// Expires is when the rule stops applying, and zero is never.
+	Expires time.Time
 }
 
-const ruleCols = `id, domain, action, note, created, device, target`
+const ruleCols = `id, domain, action, note, created, device, target, expires`
 
 func scanRule(sc interface{ Scan(...any) error }) (Rule, error) {
 	var r Rule
-	var c int64
-	err := sc.Scan(&r.ID, &r.Domain, &r.Action, &r.Note, &c, &r.Device, &r.Target)
+	var c, exp int64
+	err := sc.Scan(&r.ID, &r.Domain, &r.Action, &r.Note, &c, &r.Device, &r.Target, &exp)
 	r.Created = time.Unix(c, 0)
+	if exp > 0 {
+		r.Expires = time.Unix(exp, 0)
+	}
 	return r, err
 }
 
 func (s *Store) Rules() ([]Rule, error) {
-	rows, err := s.rd.Query(`SELECT ` + ruleCols + ` FROM rules ORDER BY domain, device`)
+	rows, err := s.rd.Query(`SELECT `+ruleCols+` FROM rules WHERE expires = 0 OR expires > ? ORDER BY domain, device`, time.Now().Unix())
 	if err != nil {
 		return nil, err
 	}
@@ -384,6 +400,12 @@ func (s *Store) PutRule(domain, action, note string) error {
 // PutRuleFor writes a rule for one device, or every device when device is 0,
 // replacing whatever rule that domain had for it.
 func (s *Store) PutRuleFor(domain, action, note string, device int64, target string) error {
+	return s.PutRuleUntil(domain, action, note, device, target, time.Time{})
+}
+
+// PutRuleUntil is PutRuleFor with a time the rule stops applying, or zero
+// for never.
+func (s *Store) PutRuleUntil(domain, action, note string, device int64, target string, until time.Time) error {
 	domain = cleanName(domain)
 	if !looksLikeDomain(domain) {
 		return errBadDomain
@@ -402,9 +424,13 @@ func (s *Store) PutRuleFor(domain, action, note string, device int64, target str
 	default:
 		return fmt.Errorf("unknown action %q", action)
 	}
-	_, err := s.db.Exec(`INSERT INTO rules (domain, action, note, created, device, target) VALUES (?, ?, ?, ?, ?, ?)
-		ON CONFLICT(domain, device) DO UPDATE SET action = excluded.action, note = excluded.note, target = excluded.target`,
-		domain, action, note, time.Now().Unix(), device, target)
+	var exp int64
+	if !until.IsZero() {
+		exp = until.Unix()
+	}
+	_, err := s.db.Exec(`INSERT INTO rules (domain, action, note, created, device, target, expires) VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(domain, device) DO UPDATE SET action = excluded.action, note = excluded.note, target = excluded.target, expires = excluded.expires`,
+		domain, action, note, time.Now().Unix(), device, target, exp)
 	return err
 }
 
@@ -582,6 +608,7 @@ func (s *Store) Sweep(now time.Time) {
 		}
 	}
 	_, _ = s.db.Exec(`DELETE FROM hours WHERE hour < ?`, now.Add(-keepHoursDays*24*time.Hour).Unix())
+	_, _ = s.db.Exec(`DELETE FROM rules WHERE expires > 0 AND expires <= ?`, now.Unix())
 }
 
 const lookupCols = `id, at, device, name, qtype, status, reason, via, rcode, ms, proto, ip, answer`

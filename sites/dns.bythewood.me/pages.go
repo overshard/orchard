@@ -819,7 +819,11 @@ func (s *site) addRule(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("only") != "" {
 		device, _ = strconv.ParseInt(r.FormValue("only"), 10, 64)
 	}
-	if err := s.store.PutRuleFor(domain, action, strings.TrimSpace(r.FormValue("note")), device, r.FormValue("target")); err != nil {
+	var until time.Time
+	if min, _ := strconv.Atoi(r.FormValue("for")); slices.Contains(ruleSpans, min) {
+		until = time.Now().Add(time.Duration(min) * time.Minute)
+	}
+	if err := s.store.PutRuleUntil(domain, action, strings.TrimSpace(r.FormValue("note")), device, r.FormValue("target"), until); err != nil {
 		http.Redirect(w, r, back+sep+"toast="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
@@ -833,6 +837,10 @@ func (s *site) addRule(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, back+sep+"toast="+url.QueryEscape(word+" "+cleanName(domain)+where), http.StatusSeeOther)
 }
+
+// ruleSpans is the minutes a rule can be set to last, an hour, a day and a
+// week. Anything else lasts until it's removed.
+var ruleSpans = []int{60, 1440, 10080}
 
 // safeBack keeps a redirect on this site. A backslash is refused since
 // browsers read /\evil.com as //evil.com.

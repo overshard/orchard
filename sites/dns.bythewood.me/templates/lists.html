@@ -55,7 +55,7 @@
           <td class="nw small" data-l="for">{{deviceName $.Names .Device}}</td>
           <td class="r n" data-l="hits">{{comma .Hits}}</td>
           <td class="nw mono small o-muted" data-l="last hit">{{if eq .Action "allow"}}&ndash;{{else}}{{ago .Last}}{{end}}</td>
-          <td class="nw mono small o-muted" data-l="added">{{ago .Created}}</td>
+          <td class="nw mono small o-muted" data-l="added">{{ago .Created}}{{if not .Expires.IsZero}}<span class="sub">{{left .Expires}} left</span>{{end}}</td>
           <td class="r"><form method="post" action="/rules/{{.ID}}/delete" data-undo="Removed {{.Domain}}" class="inl"><button class="o-btn o-btn-sm" type="submit">Remove</button></form></td>
         </tr>
       {{else}}
@@ -76,6 +76,7 @@
         </fieldset>
         <label class="o-field"><span>Points at <span class="hint">rewrite only, an address or a name</span></span><input class="mono" type="text" name="target" placeholder="192.168.1.20" autocomplete="off"></label>
         <label class="o-field"><span>For</span><select name="device"><option value="0">every device</option>{{range .Devices}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></label>
+        <label class="o-field"><span>Lasts</span><select name="for">{{template "spans"}}</select></label>
         <label class="o-field"><span>Note <span class="hint">optional, why</span></span><input type="text" name="note" maxlength="120"></label>
         <div class="o-formbar"><button class="o-btn o-btn-p o-btn-sm" type="submit">Add</button></div>
       </form>
