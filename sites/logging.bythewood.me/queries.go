@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -146,7 +147,7 @@ func escapeLike(s string) string {
 // queryFailed logs a broken read so one dead panel does not cost the page. A
 // nil error and sql.ErrNoRows are both no-ops.
 func queryFailed(what string, err error) {
-	if err == nil || err == sql.ErrNoRows {
+	if err == nil || err == sql.ErrNoRows || errors.Is(err, context.Canceled) {
 		return
 	}
 	slog.Error("query failed", slog.String("component", "query"),
