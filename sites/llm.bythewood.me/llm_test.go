@@ -708,11 +708,29 @@ func TestPagesRender(t *testing.T) {
 		{"calls", s.callsPage, "/calls?failed=1", "upstream timeout"},
 		{"keys", s.keysPage, "/keys", "1 live key"},
 		{"landing", s.root, "/", "written down"},
+		{"404", s.notFound, "/nope", "No such page"},
 	} {
 		rec := httptest.NewRecorder()
 		c.h(rec, httptest.NewRequest("GET", c.path, nil))
 		if body := rec.Body.String(); !strings.Contains(body, "</html>") || !strings.Contains(body, c.want) {
 			t.Errorf("%s didn't render, or is missing %q", c.name, c.want)
+		}
+	}
+}
+
+func TestNotFound(t *testing.T) {
+	s := &site{store: testStore(t), auth: web.NewAuthenticatorAt("http://127.0.0.1:1/verify")}
+	if err := s.loadTemplates(); err != nil {
+		t.Fatal(err)
+	}
+	for path, html := range map[string]bool{"/nope": true, "/v1/nope": false} {
+		rec := httptest.NewRecorder()
+		s.notFound(rec, httptest.NewRequest("GET", path, nil))
+		if rec.Code != http.StatusNotFound || rec.Header().Get("Cache-Control") != "no-store" {
+			t.Errorf("%s answered %d with %q", path, rec.Code, rec.Header().Get("Cache-Control"))
+		}
+		if got := strings.Contains(rec.Body.String(), "</html>"); got != html {
+			t.Errorf("%s rendered a page: %v", path, got)
 		}
 	}
 }

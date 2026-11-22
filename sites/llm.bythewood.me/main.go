@@ -178,6 +178,7 @@ func realMain() error {
 	// The root is the one public page, and a signed in visitor gets the dashboard
 	// there instead of the pitch.
 	mux.HandleFunc("GET /{$}", s.root)
+	mux.HandleFunc("GET /", s.notFound)
 	mux.HandleFunc("GET /calls", s.auth.RequireAuth(s.callsPage))
 	mux.Handle("GET /static/", s.static())
 	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
@@ -294,6 +295,10 @@ func (s *site) static() http.Handler {
 }
 
 func (s *site) render(w http.ResponseWriter, name string, data map[string]any) {
+	s.renderStatus(w, http.StatusOK, name, data)
+}
+
+func (s *site) renderStatus(w http.ResponseWriter, code int, name string, data map[string]any) {
 	if Reloaded {
 		if err := s.loadTemplates(); err != nil {
 			http.Error(w, err.Error(), 500)
@@ -304,9 +309,21 @@ func (s *site) render(w http.ResponseWriter, name string, data map[string]any) {
 	data["Model"] = s.model
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(code)
 	if err := s.tpl.ExecuteTemplate(w, name, data); err != nil {
 		slog.Error("render", "name", name, "err", err)
 	}
+}
+
+// notFound is the suite's 404, except under /v1/ where the caller is a program.
+func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/v1/") {
+		w.Header().Set("Cache-Control", "no-store")
+		http.NotFound(w, r)
+		return
+	}
+	s.renderStatus(w, http.StatusNotFound, "notfound.html", map[string]any{"Title": "Not found",
+		"Suite": suite.Page{Tool: "llm", SignedIn: s.auth.Authenticated(r), Source: sourceURL, Author: author, Year: time.Now().Year()}})
 }
 
 func (s *site) root(w http.ResponseWriter, r *http.Request) {
