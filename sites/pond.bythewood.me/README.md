@@ -189,7 +189,9 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   The finish says what a round landed by kind. The server checks those
   fish's points fit under the score, rolls a size for each and keeps the
   count, the biggest and the first day in `fish`. A kind that wasn't biting
-  is dropped.
+  is dropped, and so is a rare fish past what a round that size could
+  believably land (`believable`), but the page still says which kinds it
+  landed, so a script can claim one of each rare that's biting.
   The book is a shelf in the collection and counts in power at the hat rate
   by tier, as `fish_<kind>` wherever found things are kept together.
   Every fish has a pond record off a hash, held by a neighbour and mostly by

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"maps"
 	"os"
 	"regexp"
 	"strconv"
@@ -192,6 +193,23 @@ func TestTheCatchHasToFitTheScore(t *testing.T) {
 	}
 	if v, _ := s.view(id); v.Fishing.Found != 0 {
 		t.Errorf("the book has %d fish", v.Fishing.Found)
+	}
+}
+
+func TestARoundCantClaimEveryRareFish(t *testing.T) {
+	plain := []map[string]float64{fishTable(fishDay{})}
+	got := believable(map[string]int{"koi": 2, "monster": 2, "sturgeon": 2, "wels": 1, "minnow": 1}, plain)
+	rare := got["koi"] + got["monster"] + got["sturgeon"] + got["wels"]
+	if rare >= 7 || got["minnow"] != 1 {
+		t.Errorf("eight fish with seven rares kept %+v", got)
+	}
+	if got := believable(map[string]int{"wels": 3, "roach": 20}, plain); got["wels"] != 1 || got["roach"] != 20 {
+		t.Errorf("three giant catfish in a round kept %+v", got)
+	}
+	// An honest round is left alone.
+	honest := map[string]int{"roach": 6, "perch": 5, "minnow": 4, "koi": 1}
+	if got := believable(honest, plain); !maps.Equal(got, honest) {
+		t.Errorf("an honest round came out as %+v", got)
 	}
 }
 

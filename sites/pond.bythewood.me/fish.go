@@ -167,9 +167,70 @@ func sedgeSays(f fishKind, who int) string {
 	return lines[seedPick(uint32(f.lo+f.hi), "sedge "+f.kind, len(lines))]
 }
 
+// rareFrom is the tier a fish counts as rare from, for how many of them a
+// round can believably land.
+const rareFrom = 3
+
+// rareRoom is the most rare fish a round of n fish can land, three times
+// what the day's best table and the best bait would hand out on average and
+// one more, so an honest lucky round all but never meets it.
+func rareRoom(n int, tables []map[string]float64) int {
+	share := 0.0
+	for _, t := range tables {
+		all, rare := 0.0, 0.0
+		for k, w := range baited(t, "bait_lure") {
+			all += w
+			if f, _ := fishOf(k); f.tier >= rareFrom {
+				rare += w
+			}
+		}
+		if all > 0 {
+			share = max(share, rare/all)
+		}
+	}
+	return int(math.Ceil(3*float64(n)*share)) + 1
+}
+
+// believable trims what a round says it landed to what it could have. A kind
+// that wasn't biting is left out, a legendary comes once a round and any
+// other rare twice, and the rare fish together stay under rareRoom, with the
+// rarest dropped first.
+func believable(landed map[string]int, tables []map[string]float64) map[string]int {
+	out, n := map[string]int{}, 0
+	for _, f := range fishKinds {
+		biting := false
+		for _, t := range tables {
+			biting = biting || t[f.kind] > 0
+		}
+		if c := landed[f.kind]; c > 0 && biting {
+			if f.tier >= rareFrom {
+				c = min(c, 1+4-f.tier)
+			}
+			out[f.kind] = c
+			n += c
+		}
+	}
+	room := rareRoom(n, tables)
+	for _, f := range fishKinds {
+		if f.tier >= rareFrom {
+			room -= out[f.kind]
+		}
+	}
+	for i := len(fishKinds) - 1; i >= 0 && room < 0; i-- {
+		f := fishKinds[i]
+		if f.tier < rareFrom {
+			continue
+		}
+		cut := min(out[f.kind], -room)
+		out[f.kind] -= cut
+		room += cut
+	}
+	return out
+}
+
 // landFish puts a round's catch in the fish book and rolls each one's size.
-// The book pays nothing, so the only check is that the fish's points fit
-// under the score. A kind that wasn't biting is left out.
+// The book pays nothing, so the checks are that the fish's points fit under
+// the score and that the rare ones are believable for a round that size.
 func landFish(tx *sql.Tx, p *pond, landed map[string]int, score int, tables []map[string]float64) ([]caught, error) {
 	pts, n := 0, 0
 	for _, f := range fishKinds {
@@ -183,14 +244,11 @@ func landFish(tx *sql.Tx, p *pond, landed map[string]int, score int, tables []ma
 	if pts > score || n > fishMost {
 		return nil, nil
 	}
+	landed = believable(landed, tables)
 	var out []caught
 	for _, f := range fishKinds {
 		c := landed[f.kind]
-		biting := false
-		for _, t := range tables {
-			biting = biting || t[f.kind] > 0
-		}
-		if c == 0 || !biting {
+		if c == 0 {
 			continue
 		}
 		size := 0
