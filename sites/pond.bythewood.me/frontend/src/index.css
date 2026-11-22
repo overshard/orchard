@@ -239,7 +239,7 @@ a.pill.lit {
   color: var(--muted);
   font-family: var(--ui);
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: var(--track);
   text-transform: uppercase;
@@ -549,7 +549,7 @@ button.powerplate:active:not(:disabled) {
 .powerplate span {
   font-family: var(--ui);
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: var(--track);
 }
@@ -842,7 +842,7 @@ button.powerplate:active:not(:disabled) {
 
 .dev button {
   min-height: 32px;
-  font-size: 11px;
+  font-size: 0.75rem;
 }
 
 /* Dive takes a tap anywhere in its view, so the browser is told not to
@@ -1192,31 +1192,6 @@ body:has(.dock) main {
   text-align: center;
 }
 
-.swap {
-  margin: 12px 0;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--card);
-}
-
-.swap p {
-  margin: 0 0 6px;
-}
-
-.swap p:first-child {
-  color: var(--text);
-}
-
-.swap .row {
-  margin-bottom: 0;
-}
-
-.swap .row > * {
-  flex: 1;
-  text-align: center;
-}
-
 .keywords {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1248,7 +1223,7 @@ body:has(.dock) main {
   margin-right: 6px;
   color: var(--muted);
   font-family: var(--ui);
-  font-size: 10px;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-shadow: none;
 }
@@ -1619,7 +1594,7 @@ body:has(.dock) main {
   flex: none;
   padding: 2px 6px 1px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 0.75rem;
 }
 
 .fcard-st {
@@ -1749,7 +1724,7 @@ body:has(.dock) main {
 .fstat span {
   overflow: hidden;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: var(--track);
   text-overflow: ellipsis;
@@ -2023,7 +1998,7 @@ h2 .m {
   border-radius: 4px;
   background: var(--ok);
   color: #0b2212;
-  font-size: 10px;
+  font-size: 0.75rem;
   font-style: normal;
   font-weight: 700;
   letter-spacing: var(--track);
@@ -2144,7 +2119,7 @@ button.big {
   padding: 0 5px;
   background: rgba(10, 9, 8, 0.4);
   color: var(--text);
-  font-size: 10px;
+  font-size: 0.75rem;
   letter-spacing: 0.06em;
   transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2), opacity 0.35s;
 }
@@ -2589,7 +2564,7 @@ button.big {
   font-family: var(--ui);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 0.75rem;
   letter-spacing: var(--track);
 }
 
@@ -3174,7 +3149,7 @@ button.nrow.primary {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  font-size: 10px;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -3221,7 +3196,7 @@ button.nrow.primary {
 .paper-photo {
   flex: none;
   margin: 0;
-  font-size: 10px;
+  font-size: 0.75rem;
   font-style: italic;
   text-align: center;
 }
@@ -3276,7 +3251,7 @@ button.nrow.primary {
 .paper-biz b {
   margin-right: 4px;
   font-style: normal;
-  font-size: 10px;
+  font-size: 0.75rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -3297,7 +3272,7 @@ button.nrow.primary {
 
 .paper-sec h5 {
   margin: 8px 0 2px;
-  font-size: 10px;
+  font-size: 0.75rem;
   font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -3423,7 +3398,7 @@ button.nrow.primary {
 
 .paper-puzzle b {
   align-self: end;
-  font-size: 10px;
+  font-size: 0.75rem;
   font-style: normal;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -3573,7 +3548,7 @@ a.prow:active {
   border-radius: 12px;
   font-family: var(--ui);
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -3797,7 +3772,7 @@ div.slot {
   font-family: var(--ui);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  font-size: 10px;
+  font-size: 0.75rem;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
@@ -4331,7 +4306,7 @@ div.slot {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: var(--track);
   text-transform: uppercase;
@@ -4476,7 +4451,7 @@ div.slot {
 
 .pricekeys small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -5271,7 +5246,7 @@ button.big {
 
 .derbyboard .dodds i {
   color: var(--dim);
-  font-size: 11px;
+  font-size: 0.75rem;
   font-style: normal;
   white-space: nowrap;
 }
@@ -5328,7 +5303,7 @@ button.big {
 
 .derbycard .order li i {
   color: var(--lamp);
-  font-size: 11px;
+  font-size: 0.75rem;
   font-style: normal;
 }
 
@@ -5641,7 +5616,7 @@ button.big {
 
 .jline {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: 0.04em;
@@ -5706,7 +5681,7 @@ button.big {
   border-radius: 3px;
   background: var(--lamp);
   color: var(--lamp-ink);
-  font-size: 10px;
+  font-size: 0.75rem;
   font-style: normal;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -5807,7 +5782,7 @@ button.big {
   border-radius: 4px;
   background: var(--well);
   color: var(--text);
-  font-size: 10px;
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 
@@ -5930,7 +5905,7 @@ button.big {
 
 .board .pr span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -5964,7 +5939,7 @@ button.big {
 
 .folktape small {
   color: var(--dim);
-  font-size: 11px;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -6182,7 +6157,7 @@ button#mkt-tiles:active {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.75rem;
   letter-spacing: var(--track);
   text-transform: uppercase;
 }
@@ -6331,7 +6306,7 @@ button#mkt-tiles:active {
   min-width: 0;
   overflow: hidden;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -6405,7 +6380,7 @@ button#mkt-tiles:active {
   background: var(--card-2);
   box-shadow: var(--sunk);
   color: var(--dim);
-  font-size: 10px;
+  font-size: 0.75rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -6493,7 +6468,7 @@ button#mkt-tiles:active {
   font-variant-numeric: tabular-nums;
   margin: 14px 0 6px;
   color: var(--lamp);
-  font-size: 10px;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: var(--track);
   text-transform: uppercase;
