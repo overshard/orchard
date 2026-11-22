@@ -98,7 +98,10 @@ make new SITE=notes.bythewood.me     a new site from template/, ready to run
 There is no default `SITE`, so a bare `make deploy` cannot replace the wrong
 one. `up` does not pass `--build`, so it starts what is missing and reuses
 existing images, which makes it both safe on a healthy system and the repair
-command on a broken one, and `deploy` is the only thing that rebuilds. Each site
+command on a broken one, and `deploy` is the only thing that rebuilds. `deploy`
+and `edge` take a lock in `/tmp/orchard-build.lock` so only one build runs at a
+time, and a deploy that comes up unhealthy puts the site back on the image it
+had, which it keeps tagged `:prev`. Each site
 has `run`, `build` and `clean` in its own `Makefile`, but no `serve` target,
 since `go run .` without Vite leaves no manifest and that is fatal.
 

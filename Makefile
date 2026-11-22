@@ -126,17 +126,45 @@ up: require-tunnel util
 up-one: require-site require-env
 	cd $(SITE_DIR) && $(COMPOSE) up --detach
 
+# Builds take one at a time, since two at once can run the box out of memory and
+# take every site down with it. A second one waits up to 15 minutes for the lock.
+BUILD_LOCK = /tmp/orchard-build.lock
+LOCK = exec 9>$(BUILD_LOCK); flock -w 900 9 || { echo "another build held $(BUILD_LOCK) for 15 minutes" >&2; exit 1; }
+
 # --force-recreate because compose will otherwise leave the old container in
 # place and still report success, so the image builds, nothing is replaced, and
 # the deploy reads as done. The checks after it are there for the same reason.
+#
+# The image that was running is kept as :prev, and a container that comes up
+# unhealthy or not at all is put back on it so the site keeps serving the last
+# good build. Rolling back by hand is the same two commands:
+#
+#   sudo docker tag orchard-blog-app:prev orchard-blog-app:latest
+#   cd sites/blog.bythewood.me && sudo docker compose up --no-build --force-recreate --detach
 deploy: require-site require-env
-	cd $(SITE_DIR) && $(COMPOSE) up --build --force-recreate --detach
-	@echo ""
-	@running=$$($(DOCKER) inspect $(CONTAINER) --format '{{.Image}}' 2>/dev/null); \
-	built=$$($(DOCKER) image inspect $(CONTAINER)-app --format '{{.Id}}' 2>/dev/null); \
-	if [ -z "$$running" ]; then \
-		echo "$(SITE): $(CONTAINER) is not there after the deploy" >&2; \
+	@$(LOCK); \
+	image=$(CONTAINER)-app; \
+	prev=""; \
+	if $(DOCKER) image inspect $$image:latest >/dev/null 2>&1; then \
+		$(DOCKER) tag $$image:latest $$image:prev && prev=yes; \
+	fi; \
+	rollback() { \
+		echo "$(SITE): $$1" >&2; \
+		if [ -z "$$prev" ]; then echo "$(SITE): there is no earlier image to go back to" >&2; exit 1; fi; \
+		echo "$(SITE): putting $(CONTAINER) back on the image it had" >&2; \
+		$(DOCKER) tag $$image:prev $$image:latest && \
+			(cd $(SITE_DIR) && $(COMPOSE) up --no-build --force-recreate --detach) || \
+			echo "$(SITE): the rollback failed too, see docker logs $(CONTAINER)" >&2; \
 		exit 1; \
+	}; \
+	(cd $(SITE_DIR) && $(COMPOSE) build) || exit 1; \
+	(cd $(SITE_DIR) && $(COMPOSE) up --no-build --force-recreate --detach) || \
+		rollback "compose could not start it"; \
+	echo ""; \
+	running=$$($(DOCKER) inspect $(CONTAINER) --format '{{.Image}}' 2>/dev/null); \
+	built=$$($(DOCKER) image inspect $$image --format '{{.Id}}' 2>/dev/null); \
+	if [ -z "$$running" ]; then \
+		rollback "$(CONTAINER) is not there after the deploy"; \
 	fi; \
 	if [ -n "$$built" ] && [ "$$running" != "$$built" ]; then \
 		echo "$(SITE): $(CONTAINER) is still on the image it had, so the deploy did not take" >&2; \
@@ -151,8 +179,7 @@ deploy: require-site require-env
 		sleep 2; \
 	done; \
 	if [ "$$st" != "healthy" ] && [ "$$st" != "none" ]; then \
-		echo "$(SITE): $(CONTAINER) came up $$st" >&2; \
-		exit 1; \
+		rollback "$(CONTAINER) came up $$st"; \
 	fi; \
 	echo "$(SITE) rebuilt and replaced as $(CONTAINER), $$st"
 
@@ -165,7 +192,8 @@ deploy: require-site require-env
 # leave the tunnel serving the old ingress, where a newly added hostname 404s
 # with nothing to say why. Changing that config means `make tunnel` first.
 edge: require-tunnel
-	$(EDGE_COMPOSE) up --build --detach
+	@$(LOCK); \
+	$(EDGE_COMPOSE) up --build --detach && \
 	$(DOCKER) restart orchard-cloudflared
 	@echo ""
 	@echo "edge rebuilt: caddy, ntfy, cloudflared"
