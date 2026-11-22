@@ -20,7 +20,7 @@ blog and the portfolio are separate identities and nothing here applies to them.
 
 - **Dark only, on cool charcoal.** Ground `#111315`, top bar `#0c0e10`, sunken
   `#090a0c`, panels `#171a1d` and `#1f2327`, lines `#262a2f`, `#1c1f23` and
-  `#363b42`, text `#e9ebee`, muted `#979ca4`. Warm greys went muddy beside sage.
+  `#363b42`, `#646a73` for a field's edge, text `#e9ebee`, muted `#979ca4`. Warm greys went muddy beside sage.
 - **One meaning per colour.** Brass `#d9b45a` is an action, the primary button,
   the active tab, the `//` label and the soft tint behind a title's key word.
   Sage `#9fcbb0` means ok and nothing else, orange `#f0904b` warn and red
@@ -220,8 +220,10 @@ doesn't set it apart from muted text. Chrome, tables and hbars keep bare links.
 **Focus and selection.** `:focus-visible` is a 2px brass outline at 2px offset,
 and `::selection` is brass at 30%.
 
-**Fields** sit on the sunken colour with a `#363b42` edge, and the focused one
-turns brass with a soft ring. On a phone they're 16px so iOS doesn't zoom.
+**Fields** sit on the sunken colour with a `#646a73` edge, the one line that
+reaches 3:1 against both the field and a panel, and the focused one turns brass
+with a soft ring. Segmented controls and the jump button use the same edge, and
+placeholders are the full muted colour. On a phone they're 16px so iOS doesn't zoom.
 
 **Notifications are a switch somebody presses.** A browser only asks for
 permission from inside a press, and a public page asking on load is a prompt

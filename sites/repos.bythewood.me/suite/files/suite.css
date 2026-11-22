@@ -15,6 +15,8 @@
   --o-line: #262a2f;
   --o-line-soft: #1c1f23;
   --o-line-strong: #363b42;
+  /* A field's edge has to reach 3:1 against both the sunk fill and a panel. */
+  --o-line-field: #646a73;
   --o-text: #e9ebee;
   --o-muted: #979ca4;
   --o-brass: #d9b45a;
@@ -126,7 +128,7 @@
 .o-jump {
   display: flex; align-items: center; gap: 8px; flex: none; align-self: center;
   width: 280px; height: 28px; padding: 0 6px 0 10px; margin-left: 12px;
-  background: var(--o-sunk); border: 1px solid var(--o-line-strong); color: var(--o-muted);
+  background: var(--o-sunk); border: 1px solid var(--o-line-field); color: var(--o-muted);
   font: 0.74rem var(--o-mono); cursor: pointer; text-align: left;
 }
 .o-jump:hover { border-color: var(--o-muted); color: var(--o-text); }
@@ -363,14 +365,14 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 .o-in { display: block; }
 .o-in, .o-field input:is([type="text"], [type="url"], [type="search"], [type="date"], [type="datetime-local"], [type="number"], [type="password"]), .o-field textarea, .o-field select {
   width: 100%; font: 400 0.86rem/1.4 var(--o-sans); color: var(--o-text);
-  background: var(--o-sunk); border: 1px solid var(--o-line-strong); border-radius: 0;
+  background: var(--o-sunk); border: 1px solid var(--o-line-field); border-radius: 0;
   padding: 8px 10px; color-scheme: dark;
 }
 .o-field input.mono, .o-in.mono { font-family: var(--o-mono); font-size: 0.82rem; }
 .o-field textarea { resize: vertical; min-height: 6rem; }
 .o-in:focus, .o-field :is(input, textarea, select):focus { outline: none; border-color: var(--o-brass); box-shadow: 0 0 0 3px rgba(217, 180, 90, 0.14); }
 .o-body ::placeholder { color: var(--o-muted); opacity: 0.7; }
-.o-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--o-line-strong); align-self: flex-start; }
+.o-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--o-line-field); align-self: flex-start; }
 .o-seg label { position: relative; cursor: pointer; }
 .o-seg input { position: absolute; opacity: 0; pointer-events: none; }
 .o-seg label span { display: block; padding: 6px 14px; font-size: 0.8rem; font-weight: 500; color: var(--o-muted); border-right: 1px solid var(--o-line-strong); }
