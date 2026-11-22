@@ -395,3 +395,19 @@ func TestHumanCron(t *testing.T) {
 		}
 	}
 }
+
+func TestNotFound(t *testing.T) {
+	s, _ := newTestSite(t)
+	for path, want := range map[string]string{"/nope": "No such page", "/api/nope": `"error"`} {
+		w := httptest.NewRecorder()
+		s.routes().ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if w.Code != http.StatusNotFound || w.Header().Get("Cache-Control") != "no-store" || !strings.Contains(w.Body.String(), want) {
+			t.Errorf("%s answered %d %q without %q", path, w.Code, w.Header().Get("Cache-Control"), want)
+		}
+	}
+	w := httptest.NewRecorder()
+	s.pathJob(w, httptest.NewRequest("GET", "/jobs/999", nil))
+	if w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), "That job fired") {
+		t.Errorf("a missing job answered %d", w.Code)
+	}
+}

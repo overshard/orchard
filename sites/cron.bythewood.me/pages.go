@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"log/slog"
@@ -381,11 +382,22 @@ func (s *site) newJobPage(w http.ResponseWriter, r *http.Request) {
 	s.jobForm(w, 200, j, "")
 }
 
+// notFound is the suite's 404, except under /api/ where the caller is a program.
+func (s *site) notFound(w http.ResponseWriter, r *http.Request, why string) {
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		w.Header().Set("Cache-Control", "no-store")
+		fail(w, http.StatusNotFound, errors.New("no such endpoint"))
+		return
+	}
+	s.render(w, http.StatusNotFound, "notfound.html", map[string]any{"Title": "Not found",
+		"Suite": suite.Page{Tool: "cron", SignedIn: s.auth.Authenticated(r), Source: sourceURL, Author: author, Year: time.Now().Year()}, "Why": why})
+}
+
 func (s *site) pathJob(w http.ResponseWriter, r *http.Request) (Job, bool) {
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	j, err := s.store.Job(id)
 	if err != nil {
-		http.Error(w, "no such job, it may have fired and been removed", http.StatusNotFound)
+		s.notFound(w, r, "That job fired and was removed, or never was.")
 		return j, false
 	}
 	return j, true

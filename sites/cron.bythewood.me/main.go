@@ -148,6 +148,7 @@ func realMain() error {
 func (s *site) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.root)
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) { s.notFound(w, r, "That page does not exist.") })
 	mux.HandleFunc("GET /jobs/new", s.auth.RequireAuth(s.newJobPage))
 	mux.HandleFunc("GET /jobs/{id}", s.auth.RequireAuth(s.jobPage))
 	mux.HandleFunc("POST /jobs", s.auth.RequireAuth(s.jobCreate))
