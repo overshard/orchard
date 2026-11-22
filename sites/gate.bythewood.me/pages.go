@@ -91,7 +91,9 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	bans, _ := s.store.Bans()
 	nets, netTotal := s.store.NetworksByHour(24*time.Hour, now)
 	sv := s.store.Solves(24*time.Hour, now)
-	s.render(w, 200, "overview.html", map[string]any{"Suite": page, "Day": day, "Headline": headline(day, len(waiting), s.engine.Mode()),
+	held, _ := s.store.HeldChanges()
+	s.render(w, 200, "overview.html", map[string]any{"Suite": page, "Day": day, "Headline": headline(day, len(waiting)+len(held), s.engine.Mode()),
+		"Held": held, "Msg": r.URL.Query().Get("msg"),
 		"Rules": uses, "Waiting": waiting, "Labels": hourLabels(24, now), "Solves": sv, "Watched": watched, "Would": would,
 		"RuleHits": hits, "Shadowed": shadowed, "NetSeries": nets, "NetTotal": netTotal,
 		"Networks": s.store.Groups("asn", f, "refused", 5, now), "Countries": s.store.Groups("country", f, "refused", 5, now),
@@ -132,7 +134,7 @@ func headline(d Day, waiting int, mode string) template.HTML {
 	case mode == modeWatch:
 		return template.HTML(fmt.Sprintf(`Watching only, <em>%s would have been refused</em>.`, comma(d.Refused())))
 	case waiting > 0:
-		return template.HTML(fmt.Sprintf(`%s refused today, <em>%s waiting</em>.`, comma(d.Refused()), count(waiting, "proposal", "proposals")))
+		return template.HTML(fmt.Sprintf(`%s refused today, <em>%s waiting</em>.`, comma(d.Refused()), count(waiting, "change", "changes")))
 	case d.Checked == 0:
 		return `Nothing checked yet, <em>waiting on Caddy</em>.`
 	}
@@ -605,12 +607,14 @@ func (s *site) suiteState(r *http.Request) suite.State {
 		}
 		st.Items = append(st.Items, it)
 	}
+	held, _ := s.store.HeldChanges()
+	waiting += len(held)
 	switch {
 	case s.engine.Mode() == modeOff:
 		st.Level, st.Note = "warn", "off for "+left(s.engine.until.Load(), now)+", every request goes through"
 	case waiting > 0:
 		st.Level, st.Count = "warn", waiting
-		st.Note = count(waiting, "proposal", "proposals") + " waiting, " + st.Note
+		st.Note = count(waiting, "change", "changes") + " waiting, " + st.Note
 	case s.engine.Mode() == modeWatch:
 		st.Level, st.Note = "warn", "watching only for "+left(s.engine.until.Load(), now)+", "+st.Note
 	}

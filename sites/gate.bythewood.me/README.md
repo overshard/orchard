@@ -33,8 +33,9 @@ of checked requests, kept in memory only, and `tester.go` runs a rule over it
 for the rule form's test, finds shadowed rules and warns when a rule would
 catch signing in. `mode.go` is the watching and off modes that run out, and
 `changes.go` is the change log's before and after and its Restore. `seed.go` is the rules an empty
-database starts with. `api.go` is the markdown reports and the propose
-endpoint the mcp connector uses. `suite/` and `web/` are this site's copies of
+database starts with. `api.go` is the markdown reports and the propose and
+edit endpoints the mcp connector uses, and `held.go` keeps an agent's edits
+to an enforcing rule until they're applied or dropped on the overview. `suite/` and `web/` are this site's copies of
 the shared look and HTTP layer.
 
 ## Things that will bite you

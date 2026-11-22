@@ -1,4 +1,5 @@
 {{define "overview.html"}}{{template "head" (dict "Title" "Overview" "Suite" .Suite)}}
+{{if .Msg}}<span hidden data-toast="{{.Msg}}"></span>{{end}}
 <div class="o-ph">
   <div>
     <span class="o-lab">gate &middot; overview &middot; 24h</span>
@@ -65,16 +66,17 @@
 <p class="o-foot"><span data-xs-when>sparks are the last 24 hours by UTC hour</span></p>
 </div>
 
-<div class="{{if .Waiting}}o-band b2{{end}}">
+<div class="{{if or .Waiting .Held}}o-band b2{{end}}">
   <section class="o-panel flush">
     <div class="o-ph2"><h2>Rules</h2><span class="o-pm"><span>in the order they run</span><span>24h</span></span></div>
     {{template "ruletable" (dict "Rules" .Rules "Back" "/")}}
     <p class="o-hint"><span>allow first, then block, limit and challenge</span><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>enter</kbd>open</span></p>
   </section>
-  {{if .Waiting}}
+  {{if or .Waiting .Held}}
   <div class="side">
     <section class="o-panel flush waitp">
-      <div class="o-ph2"><h2>Waiting on you</h2><span class="o-pm"><span>proposed<b class="warn">{{len .Waiting}}</b></span></span></div>
+      <div class="o-ph2"><h2>Waiting on you</h2><span class="o-pm">{{if .Held}}<span>edits<b class="warn">{{len .Held}}</b></span>{{end}}{{if .Waiting}}<span>proposed<b class="warn">{{len .Waiting}}</b></span>{{end}}</span></div>
+      {{range .Held}}{{template "held" .}}{{end}}
       {{range .Waiting}}{{template "proposal" .}}{{end}}
     </section>
   </div>
@@ -109,6 +111,17 @@
 {{template "foot" .}}{{end}}
 
 {{define "grow"}}<div class="o-hbar" data-tip="{{.G.Label}}: {{comma .G.Refused}} refused of {{comma .G.Total}}"><span class="k o-mono"><a href="{{.Href}}">{{.G.Label}}</a></span><span class="bar"><i class="bad" style="width: {{printf "%.0f" .G.Share}}%"></i></span><span class="v">{{comma .G.Refused}}</span><span class="d">{{.G.RefusedPct}}</span></div>{{end}}
+
+{{define "held"}}<div class="prop">
+  <div class="ph"><span class="o-dot warn"></span><a class="o-mono" href="/rules/{{.RuleID}}">{{.Name}}</a><span class="o-chip brass">claude</span><span class="o-sp"></span><span class="o-mono o-muted small">{{ago .At}}</span></div>
+  <p>{{.Why}}</p>
+  {{with .Change.Diff}}<div class="diff">{{range .}}<div class="{{if eq .Op "+"}}add{{else}}del{{end}}"><span>{{.Op}}</span><code>{{.Text}}</code></div>{{end}}</div>{{end}}
+  <p class="o-mono small">The rule runs as it was until you apply this.</p>
+  <div class="crop-btns">
+    <form method="post" action="/held/{{.ID}}/apply"><button class="o-btn o-btn-p o-btn-sm" type="submit">Apply</button></form>
+    <form method="post" action="/held/{{.ID}}/drop"><button class="o-btn o-btn-sm" type="submit">Drop</button></form>
+  </div>
+</div>{{end}}
 
 {{define "proposal"}}<div class="prop">
   <div class="ph"><span class="o-dot mute"></span><a class="o-mono" href="/rules/{{.ID}}">{{.Name}}</a><span class="o-chip {{actionKind .Action}}">{{.Then}}</span><span class="o-sp"></span><span class="o-mono o-muted small">{{ago .Created}}</span></div>

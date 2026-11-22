@@ -60,6 +60,16 @@ func (s *site) apiReport(w http.ResponseWriter, r *http.Request) {
 	writeGroups(&b, "Hosts", s.store.Groups("host", f, "", 15, now))
 	writeGroups(&b, "Addresses refused or watched most", s.store.TopIPs(f, 10, now))
 
+	if held, _ := s.store.HeldChanges(); len(held) > 0 {
+		b.WriteString("\n## Edits waiting on Isaac\n\nNot applied until he does it on gate's overview.\n\n")
+		for _, h := range held {
+			fmt.Fprintf(&b, "- %s to %s, why: %s\n", h.At.Format("01-02 15:04"), h.Name, h.Why)
+			for _, d := range h.Change.Diff() {
+				fmt.Fprintf(&b, "  %s %s\n", d.Op, d.Text)
+			}
+		}
+	}
+
 	bans, _ := s.store.Bans()
 	b.WriteString("\n## Bans\n\n")
 	if len(bans) == 0 {
@@ -225,9 +235,9 @@ type edit struct {
 	Watching *bool   `json:"watching"`
 }
 
-// apiEdit changes the fields the connector sends on an existing rule. It goes
-// live at once, so it can only make a rule refuse less, see onlyNarrows, and it
-// can't touch an allow rule or save one that catches signing in.
+// apiEdit changes the fields the connector sends on an existing rule. It can
+// only make a rule refuse less, see onlyNarrows, and an edit to a rule that's
+// enforcing waits for Isaac on the overview, see holds.
 func (s *site) apiEdit(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
@@ -299,7 +309,18 @@ func (s *site) apiEdit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := s.store.UpdateRuleWhy(&rule, "claude", strings.Join(strings.Fields(e.Why), " ")); err != nil {
+	why := strings.Join(strings.Fields(e.Why), " ")
+	if holds(old, rule) {
+		id, err := s.store.Hold(old, rule, why)
+		if err != nil {
+			fail(http.StatusTooManyRequests, err.Error())
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": rule.ID, "name": rule.Name, "held": id, "url": baseURL + "/",
+			"state": "waiting on Isaac, the rule is unchanged until he applies it on gate's overview"})
+		return
+	}
+	if err := s.store.UpdateRuleWhy(&rule, "claude", why); err != nil {
 		fail(http.StatusBadRequest, err.Error())
 		return
 	}
@@ -342,6 +363,12 @@ func onlyNarrows(old, rule Rule, watching *bool) error {
 	}
 	if old.Action == actLimit && rule.Rate < old.Rate {
 		return fmt.Errorf("an agent can only raise a limit's rate, it's %d a minute now", old.Rate)
+	}
+	if old.BanAfter == 0 && rule.BanAfter > 0 {
+		return fmt.Errorf("an agent can't start a rule banning, since a ban covers every site")
+	}
+	if rule.Action == actChallenge && rule.BanAfter > 0 && rule.BanAfter != old.BanAfter {
+		return fmt.Errorf("an agent can't set a ban on a challenge rule, since readers trip those")
 	}
 	if rule.BanAfter != old.BanAfter && rule.BanAfter != 0 {
 		floor := 3

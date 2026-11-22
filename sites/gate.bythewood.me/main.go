@@ -188,6 +188,7 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /rules/{id}/{op}", s.auth.RequireAuth(s.ruleOp))
 	mux.HandleFunc("POST /rules/test", s.auth.RequireAuth(s.testRulePage))
 	mux.HandleFunc("POST /changes/{id}/restore", s.auth.RequireAuth(s.restore))
+	mux.HandleFunc("POST /held/{id}/{op}", s.auth.RequireAuth(s.heldOp))
 	mux.HandleFunc("GET /traffic", s.auth.RequireAuth(s.trafficPage))
 	mux.HandleFunc("GET /bans", s.auth.RequireAuth(s.bansPage))
 	mux.HandleFunc("POST /bans", s.auth.RequireAuth(s.addBan))

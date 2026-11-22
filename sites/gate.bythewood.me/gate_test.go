@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -500,15 +501,35 @@ func TestAPIEdit(t *testing.T) {
 		s.signedInHandler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/edit", strings.NewReader(body)))
 		return w
 	}
-	if w := post(`{"name":"scanners","why":"repeat probers","ban_after":20}`); w.Code != 200 {
-		t.Fatalf("edit = %d %s", w.Code, w.Body.String())
+	if w := post(`{"name":"scanners","why":"x","ban_after":20}`); w.Code != 403 {
+		t.Fatalf("an agent started a rule banning, %d", w.Code)
 	}
 	r, _ := s.store.RuleNamed("scanners")
-	if r.BanAfter != 20 || r.BanFor != 24*time.Hour || r.Watching {
-		t.Fatalf("edit stored wrong: %+v", r)
+	r.BanAfter, r.BanFor = 20, 24*time.Hour
+	_ = s.store.UpdateRule(&r, "you")
+	if w := post(`{"name":"scanners","why":"repeat probers","ban_after":10}`); w.Code != 200 || !strings.Contains(w.Body.String(), "waiting on Isaac") {
+		t.Fatalf("edit = %d %s", w.Code, w.Body.String())
 	}
-	if c, _, _ := s.store.Changes(1); len(c) != 1 || c[0].Who != "claude" || !strings.Contains(c[0].What, "why: repeat probers") || c[0].Before == "" {
-		t.Fatalf("change not logged: %+v", c)
+	if r, _ = s.store.RuleNamed("scanners"); r.BanAfter != 20 {
+		t.Fatalf("a held edit went live: %+v", r)
+	}
+	held, _ := s.store.HeldChanges()
+	if len(held) != 1 || held[0].Why != "repeat probers" {
+		t.Fatalf("held = %+v", held)
+	}
+	if c, _, _ := s.store.Changes(1); len(c) != 1 || c[0].Who != "claude" || !strings.Contains(c[0].What, "waiting on you") {
+		t.Fatalf("hold not logged: %+v", c)
+	}
+	w := httptest.NewRecorder()
+	s.signedInHandler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, fmt.Sprintf("/held/%d/apply", held[0].ID), nil))
+	if w.Code != 303 {
+		t.Fatalf("apply = %d %s", w.Code, w.Body.String())
+	}
+	if r, _ = s.store.RuleNamed("scanners"); r.BanAfter != 10 || r.Watching {
+		t.Fatalf("applied edit stored wrong: %+v", r)
+	}
+	if c, _, _ := s.store.Changes(1); len(c) != 1 || !strings.Contains(c[0].What, "why: repeat probers, applied by you") || c[0].Before == "" {
+		t.Fatalf("apply not logged: %+v", c)
 	}
 	for body, code := range map[string]int{
 		`{"name":"scanners","ban_after":5}`:                           400,
@@ -522,20 +543,49 @@ func TestAPIEdit(t *testing.T) {
 			t.Errorf("%s = %d, want %d %s", body, w.Code, code, w.Body.String())
 		}
 	}
-	w := httptest.NewRecorder()
+	w = httptest.NewRecorder()
 	s.signedInHandler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/propose", strings.NewReader(`{"name":"cloud-crawl","when":"asn is 14061","then":"challenge","note":"x"}`)))
 	if w := post(`{"name":"cloud-crawl","why":"x","watching":false}`); w.Code != 403 {
 		t.Errorf("a proposal was turned on, %d", w.Code)
 	}
-	if w := post(`{"name":"cloud-crawl","why":"x","when":"asn is 14061\nnot path prefix /feed"}`); w.Code != 200 {
-		t.Errorf("a proposal's condition couldn't be narrowed, %d %s", w.Code, w.Body.String())
+	if w := post(`{"name":"cloud-crawl","why":"x","when":"asn is 14061\nnot path prefix /feed"}`); w.Code != 200 || strings.Contains(w.Body.String(), "waiting") {
+		t.Errorf("a proposal's condition couldn't be narrowed at once, %d %s", w.Code, w.Body.String())
 	}
 	if w := post(`{"name":"cloud-crawl","why":"x","when":"asn is 14061 16509"}`); w.Code != 403 {
 		t.Errorf("a proposal's condition was widened, %d %s", w.Code, w.Body.String())
 	}
 }
 
-// An agent's edit goes live at once, so it can only make a rule refuse less.
+// A held edit made against a rule that changed since is dropped, not applied.
+func TestHeldGoesStale(t *testing.T) {
+	s := testSite(t)
+	body := `{"name":"scanners","why":"x","watching":true}`
+	w := httptest.NewRecorder()
+	s.signedInHandler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/edit", strings.NewReader(body)))
+	held, _ := s.store.HeldChanges()
+	if len(held) != 1 {
+		t.Fatalf("held = %+v %s", held, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	s.signedInHandler().ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	if w.Code != 200 || !strings.Contains(w.Body.String(), fmt.Sprintf("/held/%d/apply", held[0].ID)) || !strings.Contains(w.Body.String(), "only watching") {
+		t.Fatalf("overview doesn't offer the held edit, %d", w.Code)
+	}
+	r, _ := s.store.RuleNamed("scanners")
+	r.Note = "changed by hand"
+	_ = s.store.UpdateRule(&r, "you")
+	w = httptest.NewRecorder()
+	s.signedInHandler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, fmt.Sprintf("/held/%d/apply", held[0].ID), nil))
+	if r, _ = s.store.RuleNamed("scanners"); r.Watching {
+		t.Fatal("a stale held edit was applied")
+	}
+	if held, _ = s.store.HeldChanges(); len(held) != 0 {
+		t.Fatalf("a stale held edit stayed: %+v", held)
+	}
+}
+
+// An agent's edit can only make a rule refuse less, and on a rule that's
+// enforcing it waits for Isaac.
 func TestAPIEditOnlyNarrows(t *testing.T) {
 	s := testSite(t)
 	post := func(v map[string]any) *httptest.ResponseRecorder {
@@ -546,6 +596,10 @@ func TestAPIEditOnlyNarrows(t *testing.T) {
 		return w
 	}
 	scanners, _ := s.store.RuleNamed("scanners")
+	scanners.BanAfter, scanners.BanFor = 20, 24*time.Hour
+	_ = s.store.UpdateRule(&scanners, "you")
+	bots := Rule{Name: "bots", When: "ua contains curl", Action: actChallenge, BanAfter: 50, BanFor: time.Hour}
+	_ = s.store.AddRule(&bots, "you")
 	for _, c := range []struct {
 		why  string
 		edit map[string]any
@@ -559,6 +613,8 @@ func TestAPIEditOnlyNarrows(t *testing.T) {
 		{"lower a rate", map[string]any{"name": "sign-in-rate", "rate": 5}, 403},
 		{"ban after one hit", map[string]any{"name": "scanners", "ban_after": 1}, 403},
 		{"ban for a year", map[string]any{"name": "scanners", "ban_after": 5, "ban_hours": 8760}, 403},
+		{"start banning", map[string]any{"name": "sign-in-us", "ban_after": 5}, 403},
+		{"ban on a challenge", map[string]any{"name": "bots", "ban_after": 60}, 403},
 		{"the whole attack", map[string]any{"name": "scanners", "when": "host is isaacbythewood.com", "watching": false, "ban_after": 1, "ban_hours": 8760}, 403},
 		{"add a line", map[string]any{"name": "scanners", "when": scanners.When + "\nnot host is repos.bythewood.me"}, 200},
 		{"raise a rate", map[string]any{"name": "sign-in-rate", "rate": 20}, 200},
@@ -572,8 +628,11 @@ func TestAPIEditOnlyNarrows(t *testing.T) {
 		}
 	}
 	r, _ := s.store.RuleNamed("scanners")
-	if !r.Watching || r.BanAfter != 0 || !strings.HasPrefix(r.When, scanners.When) {
-		t.Fatalf("scanners ended up wrong: %+v", r)
+	if r.Watching || r.BanAfter != 20 || r.When != scanners.When {
+		t.Fatalf("a held edit changed scanners: %+v", r)
+	}
+	if held, _ := s.store.HeldChanges(); len(held) != 6 {
+		t.Fatalf("%d edits held, want 6", len(held))
 	}
 
 	// A ban Isaac set longer than a day stays his, and an agent can't ban
@@ -585,8 +644,11 @@ func TestAPIEditOnlyNarrows(t *testing.T) {
 	if w := post(map[string]any{"name": "scanners", "ban_after": 5}); w.Code != 403 {
 		t.Errorf("banned sooner under a year long ban, %d", w.Code)
 	}
-	if w := post(map[string]any{"name": "scanners", "note": "still a year"}); w.Code != 200 {
-		t.Errorf("a note edit was refused, %d %s", w.Code, w.Body.String())
+	if w := post(map[string]any{"name": "scanners", "note": "still a year"}); w.Code != 200 || strings.Contains(w.Body.String(), "waiting") {
+		t.Errorf("a note edit wasn't applied at once, %d %s", w.Code, w.Body.String())
+	}
+	if r, _ = s.store.RuleNamed("scanners"); r.Note != "still a year" {
+		t.Errorf("note = %q", r.Note)
 	}
 }
 
