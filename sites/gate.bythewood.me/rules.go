@@ -91,6 +91,10 @@ type cond struct {
 var fields = []string{"host", "path", "query", "method", "ip", "asn", "country", "ua", "crawler", "header"}
 var ops = []string{"is", "in", "prefix", "contains", "suffix", "regex"}
 
+// setsFlags is a regex that opens with its own flags, like (?i) or (?-i), which
+// is left alone. Every other regex ignores case like the other tests do.
+var setsFlags = regexp.MustCompile(`^\(\?[a-zA-Z-]+[:)]`)
+
 // parseWhen reads the condition lines of a rule, one per line, every line has
 // to hold. A line is `[not] field op values...`, with header written as
 // header:Name, and a regex taking the rest of the line as it is.
@@ -152,7 +156,11 @@ func parseCond(line string) (cond, error) {
 		return c, fmt.Errorf("%s %s needs a value", c.field, c.op)
 	}
 	if c.op == "regex" {
-		re, err := regexp.Compile(rest)
+		pat := rest
+		if !setsFlags.MatchString(pat) {
+			pat = "(?i)" + pat
+		}
+		re, err := regexp.Compile(pat)
 		if err != nil {
 			return c, fmt.Errorf("the regex doesn't compile: %v", err)
 		}

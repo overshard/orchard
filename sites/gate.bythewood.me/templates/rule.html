@@ -58,7 +58,7 @@
     <label class="o-field full">
       <span>When <span class="hint">one condition a line, every line has to hold</span></span>
       <textarea class="mono" name="when" rows="5" required spellcheck="false" placeholder="host is blog.bythewood.me&#10;asn is 14061 16509&#10;not path prefix /feed">{{.Rule.When}}</textarea>
-      <span class="hint">field test values, with <code>not</code> in front to flip it. Fields are host, path, query, method, ip, asn, country, ua, crawler and header:Name. Tests are is, prefix, contains, suffix and regex. See <a href="/docs">the docs</a>.</span>
+      <span class="hint">field test values, with <code>not</code> in front to flip it. Fields are host, path, query, method, ip, asn, country, ua, crawler and header:Name. Tests are is, prefix, contains, suffix and regex, and all of them ignore case. See <a href="/docs">the docs</a>.</span>
     </label>
     <fieldset class="o-field full">
       <legend>Then</legend>

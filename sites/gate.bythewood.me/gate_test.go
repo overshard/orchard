@@ -241,6 +241,24 @@ func TestParseWhen(t *testing.T) {
 	}
 }
 
+func TestRegexIgnoresCase(t *testing.T) {
+	q := &req{Path: "/Admin", Header: func(string) string { return "" }}
+	for when, want := range map[string]bool{
+		"path regex ^/admin":      true,
+		"path regex (?i)^/admin":  true,
+		"path regex (?-i)^/admin": false,
+		"path regex (?:^/admin)":  true,
+	} {
+		conds, err := parseWhen(when)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := (&Rule{conds: conds}).match(q); got != want {
+			t.Errorf("%s matched %v, want %v", when, got, want)
+		}
+	}
+}
+
 func TestUnknownCountryNeverTripsNot(t *testing.T) {
 	conds, _ := parseWhen("not country is US")
 	r := Rule{conds: conds}

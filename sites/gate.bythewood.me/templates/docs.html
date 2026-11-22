@@ -33,9 +33,9 @@ not country is US</pre>
       <dt>prefix</dt><dd>starts with one of them</dd>
       <dt>contains</dt><dd>has one of them anywhere</dd>
       <dt>suffix</dt><dd>ends with one of them</dd>
-      <dt>regex</dt><dd>the rest of the line is one Go regex, add <code>(?i)</code> to ignore case</dd>
+      <dt>regex</dt><dd>the rest of the line is one Go regex, which ignores case unless it starts with its own flags, like <code>(?-i)</code></dd>
     </dl>
-    <p class="o-muted small">Crawlers are checked against the ranges each owner publishes, fetched daily, then reverse DNS that resolves back for Bing, Yandex, Baidu, Apple, Amazon and Common Crawl, and Meta's own network. Everything but regex ignores case. A field gate doesn't know, like the country of an address no database has, fails its line either way, so <code>not country is US</code> never catches an address with no country.</p>
+    <p class="o-muted small">Crawlers are checked against the ranges each owner publishes, fetched daily, then reverse DNS that resolves back for Bing, Yandex, Baidu, Apple, Amazon and Common Crawl, and Meta's own network. Every test ignores case. A field gate doesn't know, like the country of an address no database has, fails its line either way, so <code>not country is US</code> never catches an address with no country.</p>
   </section>
   <section class="o-panel">
     <div class="o-ph2"><h2>What a rule does</h2><span class="o-lab">in this order</span></div>
