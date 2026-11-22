@@ -4,6 +4,7 @@ package ntfy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,6 +18,10 @@ import (
 const URL = "http://orchard-ntfy:8000"
 
 const Timeout = 5 * time.Second
+
+// Waits are the pauses between Deliver's attempts, long enough to ride out ntfy
+// or the bridge stalling for a few minutes.
+var Waits = []time.Duration{5 * time.Second, 30 * time.Second, 2 * time.Minute, 10 * time.Minute}
 
 // titleMax keeps a title to what fits on a lock screen.
 const titleMax = 200
@@ -53,6 +58,7 @@ type Client struct {
 	Base  string
 	Topic string
 	Token string
+	Waits []time.Duration
 }
 
 // New publishes to topic over the bridge. ntfy is deny-all, so an empty token
@@ -63,6 +69,7 @@ func New(topic, token string) *Client {
 		Base:  URL,
 		Topic: topic,
 		Token: token,
+		Waits: Waits,
 	}
 }
 
@@ -122,6 +129,37 @@ func (c *Client) Publish(ctx context.Context, m Message) error {
 		return refusal{resp.StatusCode}
 	}
 	return nil
+}
+
+// Deliver publishes and tries again after each of c.Waits when the publish
+// failed in a way that might pass later. It gives up the moment ctx ends, so
+// a caller shutting down cancels it and is not held up.
+func (c *Client) Deliver(ctx context.Context, m Message) error {
+	err := c.Publish(ctx, m)
+	for _, wait := range c.Waits {
+		if err == nil || !retryable(err) {
+			return err
+		}
+		t := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			return errors.Join(err, ctx.Err())
+		case <-t.C:
+		}
+		err = c.Publish(ctx, m)
+	}
+	return err
+}
+
+// retryable is false for a 4xx other than 429, since a bad token or a refused
+// topic answers the same way every time.
+func retryable(err error) bool {
+	var r refusal
+	if errors.As(err, &r) {
+		return r.status == http.StatusTooManyRequests || r.status >= 500
+	}
+	return true
 }
 
 // Preview writes what Publish would send to topic, for checking the wording

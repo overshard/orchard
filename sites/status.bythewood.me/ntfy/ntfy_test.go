@@ -2,11 +2,13 @@ package ntfy
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 type seen struct {
@@ -132,5 +134,56 @@ func TestPublishCleansAHeaderAModelWrote(t *testing.T) {
 	}
 	if v := (*got)[1].header.Get("Title"); len([]rune(v)) != titleMax {
 		t.Errorf("a long title came out %d runes", len([]rune(v)))
+	}
+}
+
+func TestDeliverTriesAgainUntilItGoesOut(t *testing.T) {
+	n := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		if n < 3 {
+			w.WriteHeader(http.StatusBadGateway)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c := New("alerts", "tk_test")
+	c.Base = srv.URL
+	c.Waits = []time.Duration{time.Millisecond, time.Millisecond, time.Millisecond}
+	if err := c.Deliver(t.Context(), Message{Title: "t", Body: "b"}); err != nil {
+		t.Fatal(err)
+	}
+	if n != 3 {
+		t.Errorf("%d attempts, want 3", n)
+	}
+}
+
+func TestDeliverStopsOnARefusal(t *testing.T) {
+	srv, got := server(t, http.StatusForbidden)
+	c := New("alerts", "tk_test")
+	c.Base = srv.URL
+	c.Waits = []time.Duration{time.Millisecond}
+	if err := c.Deliver(t.Context(), Message{Title: "t", Body: "b"}); err == nil {
+		t.Fatal("a 403 delivered")
+	}
+	if len(*got) != 1 {
+		t.Errorf("%d attempts at a 403, want 1", len(*got))
+	}
+}
+
+func TestDeliverGivesUpWhenTheContextEnds(t *testing.T) {
+	srv, got := server(t, http.StatusServiceUnavailable)
+	c := New("alerts", "tk_test")
+	c.Base = srv.URL
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	if err := c.Deliver(ctx, Message{Title: "t", Body: "b"}); err == nil {
+		t.Fatal("delivered to a 503")
+	}
+	if d := time.Since(start); d > time.Second {
+		t.Errorf("took %s after the context ended", d)
+	}
+	if len(*got) != 1 {
+		t.Errorf("%d attempts, want 1 before the first wait", len(*got))
 	}
 }
