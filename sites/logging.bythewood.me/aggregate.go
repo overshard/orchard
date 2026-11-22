@@ -12,7 +12,7 @@ import (
 
 // dash reads /aggregate for its health strip and dash is public, so this hands
 // over counts per source and never a message, path, IP address or request id.
-// It's unauthenticated like /ingest, and Caddy refuses it on the public hostname.
+// It needs the bridge token like /ingest, and Caddy refuses it on the public hostname.
 
 const (
 	// aggregateWindow is what "recent" means on the dash strip.
@@ -111,12 +111,33 @@ func (s *site) aggregate(w http.ResponseWriter, r *http.Request) {
 	}
 	s.slow.fill(ctx, s.db, out)
 
+	free, total := s.watchdog.Disk()
+	beats := map[string]int64{}
+	for source := range heartbeats {
+		beats[source] = lastSeen(ctx, s.db, source)
+	}
+
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"window_hours": int(aggregateWindow / time.Hour),
 		"sources":      out,
+		"box": aggregateBox{
+			DiskFree:   free,
+			DiskTotal:  total,
+			DiskLow:    total > 0 && diskIsLow(free, total),
+			Heartbeats: beats,
+		},
 	})
+}
+
+// aggregateBox is the host as logging sees it, for dash's box row. Heartbeats
+// are each heartbeat source's newest record in unix millis, zero if none.
+type aggregateBox struct {
+	DiskFree   uint64           `json:"disk_free"`
+	DiskTotal  uint64           `json:"disk_total"`
+	DiskLow    bool             `json:"disk_low"`
+	Heartbeats map[string]int64 `json:"heartbeats"`
 }
 
 // lifecycleState reads the "state|millis" the watchdog last wrote for a source
