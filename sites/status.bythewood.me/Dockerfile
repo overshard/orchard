@@ -1,9 +1,5 @@
 # Build context is this directory alone: the site is its own Go module with its
 # own copy of web/. Base images are pinned by digest because :1-debian floats.
-#
-# This is the heaviest image in the repo and Lighthouse is all of it: the audit
-# is Google's own JavaScript driving a real Chromium over DevTools, so the
-# runtime carries a browser, a JavaScript runtime and the CLI.
 
 # Typst is copied into the runtime image rather than discarded after the build,
 # because a report describes a live monitoring state that changes every three
@@ -28,13 +24,6 @@ COPY frontend/package.json frontend/bun.lock frontend/bunfig.toml ./
 RUN bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
-
-# Its own stage so a CSS change does not reinstall the Lighthouse dependency
-# tree, which changes only when the Lighthouse version does.
-FROM oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e AS lighthouse
-WORKDIR /src
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
 
 # PNG, not SVG, since no social platform accepts image/svg+xml for og:image.
 # Geist comes out of the frontend stage's node_modules because @fontsource ships
@@ -67,13 +56,10 @@ RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
 
 FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 
-# chromium is for Lighthouse and nothing else, and typst wants the font packages
-# instead. No nodejs and no npm anywhere, because `bun run --bun` symlinks node
-# to bun so the lighthouse shim's `#!/usr/bin/env node` shebang resolves.
+# typst wants the font packages, and the audit and crawler want the CA roots.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       ca-certificates \
-      chromium \
       fonts-jetbrains-mono \
       fonts-dejavu \
       fonts-liberation \
@@ -81,21 +67,16 @@ RUN apt-get update && \
       && rm -rf /var/lib/apt/lists/* && \
     fc-cache -f
 
-COPY --from=oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=typst /usr/local/bin/typst /usr/local/bin/typst
 COPY --from=build /app /app
 
-# SITE_ROOT is where lighthouse.go looks for node_modules/.bin/lighthouse and
-# what typst resolves absolute paths against, so it doubles as the fence on what
-# a compile is allowed to read.
+# SITE_ROOT is what typst resolves absolute paths against, so it doubles as the
+# fence on what a compile is allowed to read.
 WORKDIR /srv
-COPY --from=lighthouse /src/node_modules /srv/node_modules
 COPY reports/ /srv/reports/
 
 ENV SITE_DATA=/data
 ENV SITE_ROOT=/srv
-# Chromium ships in the image, so findChromium has nothing to walk.
-ENV CHROMIUM_BIN=/usr/bin/chromium
 # fontconfig wants somewhere writable, or typst warns on every compile.
 ENV XDG_CACHE_HOME=/tmp
 

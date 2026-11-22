@@ -14,10 +14,6 @@ services:
     # queue and commits what the writer holds. Without it a slow drain means
     # SIGKILL and a skipped db.Close().
     stop_grace_period: 30s
-    # Chromium spawns a tree of processes per audit, and without an init as PID 1
-    # they become zombies that nothing reaps until the container hits its process
-    # limit. lighthouse.go's process-group kill covers the timeout case only.
-    init: true
     environment:
       LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       # Read from .env in this directory, which compose picks up as the project
@@ -27,15 +23,15 @@ services:
       NTFY_TOKEN: ${NTFY_TOKEN:-}
     volumes:
       - data:/data
-    # A ceiling to fail against rather than a target, since this machine is also
-    # a workstation. The high one here is Chromium: an OOM kill mid-audit would
-    # leave a property looking down when it is not.
+    # A ceiling to fail against rather than a target. An OOM kill mid-check
+    # would leave a property looking down when it is not, so typst renders and
+    # a crawl's worth of pages in memory set the size.
     deploy:
       resources:
         limits:
           cpus: "1.0"
-          memory: 1536M
-          pids: 512
+          memory: 512M
+          pids: 128
     # The binary probes itself, since the scratch images here have no shell for a
     # check to call, and `restart` only catches a process that has exited.
     healthcheck:
