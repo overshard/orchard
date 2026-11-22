@@ -3,11 +3,13 @@
 
 <!-- Rendered server-side, since these nine words are the page's layout and
      having them pop in after JS would reflow the column. -->
-<div class="about-words">
+<div class="about-words" aria-hidden="true">
   {{- range .Words }}
-  <h2 class="about-word" style="{{ .Style }}"><span class="about-wordText">{{ .Text }}</span></h2>
+  <div class="about-word" style="{{ .Style }}"><span class="about-wordText">{{ .Text }}</span></div>
   {{- end }}
 </div>
+
+<h1 class="visually-hidden">About</h1>
 
 <p class="about-paragraph">
   I am a <span class="about-strong">senior solutions architect</span> at

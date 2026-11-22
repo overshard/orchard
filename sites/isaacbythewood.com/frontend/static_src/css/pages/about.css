@@ -82,6 +82,8 @@
   margin: 0;
   position: absolute;
   left: 0;
+  font-size: 1.5em;
+  font-weight: bold;
 }
 
 .about-wordText {
