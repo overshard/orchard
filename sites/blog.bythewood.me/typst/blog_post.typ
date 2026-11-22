@@ -7,6 +7,13 @@
   cover_image: none,
   body: [],
 ) = {
+  set document(
+    title: title,
+    author: "Isaac Bythewood",
+    description: description,
+    keywords: tags,
+  )
+
   set page(
     paper: "a4",
     margin: (top: 2cm, bottom: 2.5cm, left: 2cm, right: 2cm),
