@@ -232,6 +232,9 @@ document.addEventListener("focusin", (e) => {
 });
 document.addEventListener("focusout", hideTip);
 addEventListener("scroll", hideTip, { passive: true });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && tipFor) hideTip();
+});
 
 // ------------------------------------------------------------------ crosshair
 
