@@ -9,7 +9,7 @@ inbound port.
 | `sites/isaacbythewood.com/` | Portfolio. Go and Vite, no third party Go dependencies |
 | `sites/blog.bythewood.me/` | Markdown blog. A PDF and a social card are built per post |
 | `sites/analytics.bythewood.me/` | Analytics. SQLite, GeoIP, Typst PDF reports |
-| `sites/status.bythewood.me/` | Uptime monitoring. SQLite, Lighthouse audits, crawler |
+| `sites/status.bythewood.me/` | Uptime monitoring. SQLite, a daily audit, crawler |
 | `sites/logging.bythewood.me/` | Log aggregation. Every site ships its records here |
 | `sites/repos.bythewood.me/` | Git remote you push to over HTTPS. Also mirrors GitHub |
 | `sites/dash.bythewood.me/` | Dashboard. Markets, news, weather and the health of the rest, live over SSE |

@@ -21,7 +21,7 @@ tunnel with no public web ports.
 | `sites/isaacbythewood.com/` | Portfolio. Animation heavy, framework free, no third party Go dependency |
 | `sites/blog.bythewood.me/` | Markdown blog. A PDF and a social card per post, and an Atom feed |
 | `sites/analytics.bythewood.me/` | Self hosted analytics. SQLite, GeoIP, Typst PDF reports, and an ntfy alert when real people arrive in unusual numbers |
-| `sites/status.bythewood.me/` | Self hosted uptime monitoring. SQLite, Lighthouse audits, crawler |
+| `sites/status.bythewood.me/` | Self hosted uptime monitoring. SQLite, a daily audit in plain Go, crawler, and real visitor vitals read from analytics |
 | `sites/logging.bythewood.me/` | Self hosted log aggregation. Every other site ships its slog records here. SQLite, retention and rollups, Typst PDF reports |
 | `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token, and it mirrors the GitHub account as a backup. Everything git is a subprocess |
 | `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, a markets line and a news summary Claude Haiku writes four times a day, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
@@ -144,6 +144,7 @@ lookup table.
 `web/shipper.go` in every site posts to `http://orchard-logging:8000/ingest`,
 `web/session.go` in every site asks `http://orchard-auth:8000/verify`,
 `ntfy/ntfy.go` in every site that pushes publishes to `http://orchard-ntfy:8000`,
+`sites/status.bythewood.me/realusers.go` reads `http://orchard-analytics:8000/bridge/vitals`,
 `sites/dash.bythewood.me/systems.go` reads `http://orchard-logging:8000/aggregate`
 and probes every other site at `http://orchard-<label>:8000/healthz`, and
 `sites/pond.bythewood.me/day.go` reads
@@ -277,7 +278,7 @@ dot paths, the US only sign in and the sign in rate limit are rules in gate's
 database, seeded from `seed.go` on an empty one and changed on its page after
 that. With orchard-gate down every site answers 502, the same as a site of its
 own being down. What stays in Caddy is routing, the routes only the bridge may
-reach (`/verify`, `/ingest`, `/aggregate`) and ntfy's publish fence, since
+reach (`/verify`, `/ingest`, `/aggregate`, analytics' `/bridge`) and ntfy's publish fence, since
 those are about where a request may go and not who it's from. The one route
 with no `forward_auth` is `/q/` on dns.bythewood.me, since dns checks the
 device token itself and asks gate only about the network once it matches, and
@@ -331,7 +332,7 @@ clean` deletes it. A dev build reads it off disk, and `make build` passes
 `-tags embed`, swapping `assets_disk.go` for `assets_embed.go` so `//go:embed`
 compiles the directory into the binary. blog and isaacbythewood.com come out as
 a single self-contained file, while analytics, status and logging still need
-typst on disk, status also bun and chromium, and repos git, because those are
+typst on disk, and repos git, because those are
 programs and not assets. The tag exists so a fresh clone still builds, since
 `//go:embed` fails at compile time on a missing directory, and it lives under
 `build/` because a directive cannot reference a path above its own package.
