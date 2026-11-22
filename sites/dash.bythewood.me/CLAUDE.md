@@ -195,7 +195,8 @@ doesn't) and writes a read of about twenty words on
 what the page as a whole is about and what the commenters make of it. BLS answers 403 to any User-Agent without a contact
 address in it, browsers included. The latest brief per desk lives
 in `briefs.json` on the volume, so a deploy shows them rather than nothing, and
-a missed slot runs on start. Every brief is also appended to `briefs.jsonl`, and
+a missed slot runs on start. Every brief is also appended to a file for its
+month, `briefs-2026-11.jsonl`, and
 every forward lean to `leans.json`, where it's scored against the S&P's close
 the day after its session and logged as `brief lean scored` with the running
 record, so how often the leans are right is a query and not a guess. Every

@@ -124,9 +124,41 @@ func TestArchiveKeepsEachSlotOnce(t *testing.T) {
 	saved, _ := json.Marshal(Briefs{News: b})
 	os.WriteFile(filepath.Join(dir, "briefs.json"), saved, 0o644)
 	NewBriefer(NewStore(NewHub()), nil, nil, dir)
-	raw, _ := os.ReadFile(a.path)
+	raw, _ := os.ReadFile(a.month(100))
 	if n := strings.Count(string(raw), "\n"); n != 1 {
 		t.Errorf("%d lines, want 1", n)
+	}
+}
+
+// The one file the archive used to be is split into months on open, and since
+// reads across the month boundary.
+func TestArchiveSplitsIntoMonths(t *testing.T) {
+	dir := t.TempDir()
+	oct := time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC).Unix()
+	nov := time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC).Unix()
+	var legacy []byte
+	for _, slot := range []int64{oct, nov} {
+		raw, _ := json.Marshal(archived{"news", Brief{Slot: slot, Points: []Point{{Text: "x"}}}})
+		legacy = append(append(legacy, raw...), '\n')
+	}
+	legacy = append(legacy, []byte("{\"desk\":\"news\",\"brief\":{\"sl")...)
+	os.WriteFile(filepath.Join(dir, "briefs.jsonl"), legacy, 0o644)
+
+	a := openArchive(dir)
+	if _, err := os.Stat(filepath.Join(dir, "briefs.jsonl")); err == nil {
+		t.Error("the single file is still there after the split")
+	}
+	if !a.has("news", oct) || !a.has("news", nov) {
+		t.Error("a slot went missing in the split")
+	}
+	if _, err := os.Stat(a.month(oct)); err != nil {
+		t.Errorf("no October file: %v", err)
+	}
+	if got := a.since("news", time.Unix(oct, 0).Add(-time.Hour)); len(got) != 2 || got[0].Slot != oct {
+		t.Errorf("since across months = %+v", got)
+	}
+	if got := a.since("news", time.Unix(nov, 0)); len(got) != 1 {
+		t.Errorf("since November = %d briefs, want 1", len(got))
 	}
 }
 

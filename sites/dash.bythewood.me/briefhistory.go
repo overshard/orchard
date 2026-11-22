@@ -1,11 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"cmp"
 	"encoding/json"
 	"fmt"
-	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -24,19 +23,20 @@ const (
 
 // since is every brief a desk wrote from from on, oldest first.
 func (a briefArchive) since(desk string, from time.Time) []Brief {
-	f, err := os.Open(a.path)
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
 	var out []Brief
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-	for sc.Scan() {
-		var line archived
-		if json.Unmarshal(sc.Bytes(), &line) == nil && line.Desk == desk && line.Brief.Slot >= from.Unix() {
-			out = append(out, line.Brief)
+	first := a.month(from.Unix())
+	files, _ := filepath.Glob(filepath.Join(a.dir, "briefs-*.jsonl"))
+	for _, path := range files {
+		// The names sort by month, so this skips every month before from's.
+		if path < first {
+			continue
 		}
+		a.lines(path, func(raw []byte) {
+			var line archived
+			if json.Unmarshal(raw, &line) == nil && line.Desk == desk && line.Brief.Slot >= from.Unix() {
+				out = append(out, line.Brief)
+			}
+		})
 	}
 	slices.SortStableFunc(out, func(a, b Brief) int { return cmp.Compare(a.Slot, b.Slot) })
 	return out
