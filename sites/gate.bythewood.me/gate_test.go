@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -604,5 +606,51 @@ func TestPutBack(t *testing.T) {
 	}
 	if bans, _ := s.store.Bans(); len(bans) != 1 {
 		t.Fatalf("a put back ban was lost: %+v", bans)
+	}
+}
+
+func TestReverseLooksUpOnce(t *testing.T) {
+	c := NewCrawlers()
+	var calls atomic.Int32
+	c.resolve = func(ctx context.Context, ip netip.Addr) rdnsAnswer {
+		calls.Add(1)
+		time.Sleep(50 * time.Millisecond)
+		return rdnsAnswer{at: time.Now(), keep: rdnsRetry}
+	}
+	ip := netip.MustParseAddr("203.0.113.5")
+	var wg sync.WaitGroup
+	for range 10 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			c.reverse(context.Background(), ip)
+		}()
+	}
+	wg.Wait()
+	if n := calls.Load(); n != 1 {
+		t.Fatalf("%d lookups for one address, want 1", n)
+	}
+	c.rdns[ip] = rdnsAnswer{at: time.Now().Add(-rdnsRetry), keep: rdnsRetry}
+	c.reverse(context.Background(), ip)
+	if n := calls.Load(); n != 2 {
+		t.Fatalf("a failed lookup wasn't tried again, %d", n)
+	}
+}
+
+func TestReverseEvictsOldest(t *testing.T) {
+	c := NewCrawlers()
+	now := time.Now()
+	for i := range maxRDNS {
+		a := netip.AddrFrom4([4]byte{10, byte(i >> 16), byte(i >> 8), byte(i)})
+		c.rdns[a] = rdnsAnswer{at: now.Add(time.Duration(i) * time.Millisecond), keep: rdnsKeep}
+	}
+	last := maxRDNS - 1
+	newest := netip.AddrFrom4([4]byte{10, byte(last >> 16), byte(last >> 8), byte(last)})
+	c.evict()
+	if len(c.rdns) >= maxRDNS || len(c.rdns) < maxRDNS-2*rdnsEvicted {
+		t.Fatalf("%d answers left", len(c.rdns))
+	}
+	if _, ok := c.rdns[newest]; !ok {
+		t.Fatal("the newest answer was evicted")
 	}
 }

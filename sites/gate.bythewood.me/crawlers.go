@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -64,20 +65,41 @@ var previews = regexp.MustCompile(`(?i)slackbot|slack-imgproxy|discordbot|twitte
 // Crawlers knows each crawler's published ranges and remembers reverse DNS
 // answers, so a check never waits on the network twice for one address.
 type Crawlers struct {
-	mu     sync.RWMutex
-	ranges map[string][]netip.Prefix
-	rdns   map[netip.Addr]rdnsAnswer
-	looked time.Time
+	mu       sync.RWMutex
+	ranges   map[string][]netip.Prefix
+	rdns     map[netip.Addr]rdnsAnswer
+	inFlight map[netip.Addr]*lookup
+	looked   time.Time
+	resolve  func(ctx context.Context, ip netip.Addr) rdnsAnswer
 }
 
 type rdnsAnswer struct {
 	host string
 	ok   bool
 	at   time.Time
+	keep time.Duration
 }
 
+// lookup is one reverse DNS check that every request from the address waits
+// on, instead of each starting its own.
+type lookup struct {
+	done chan struct{}
+	ans  rdnsAnswer
+}
+
+// A real answer is kept a day. A resolver that timed out or failed is asked
+// again after ten minutes, so a slow PTR doesn't mark a real crawler fake for
+// a whole day.
+const (
+	rdnsKeep    = 24 * time.Hour
+	rdnsRetry   = 10 * time.Minute
+	maxRDNS     = 50000
+	rdnsEvicted = maxRDNS / 10
+)
+
 func NewCrawlers() *Crawlers {
-	return &Crawlers{ranges: map[string][]netip.Prefix{}, rdns: map[netip.Addr]rdnsAnswer{}}
+	return &Crawlers{ranges: map[string][]netip.Prefix{}, rdns: map[netip.Addr]rdnsAnswer{}, inFlight: map[netip.Addr]*lookup{},
+		resolve: forwardConfirmed}
 }
 
 // Classify names what a request is: a crawler's name when it checks out, fake
@@ -129,42 +151,100 @@ func (c *Crawlers) verify(ctx context.Context, cr *crawler, ip netip.Addr, asn i
 }
 
 // reverse is forward confirmed reverse DNS, a PTR whose name resolves back to
-// the same address, cached for a day either way.
+// the same address.
 func (c *Crawlers) reverse(ctx context.Context, ip netip.Addr) (string, bool) {
-	c.mu.RLock()
-	a, seen := c.rdns[ip]
-	c.mu.RUnlock()
-	if seen && time.Since(a.at) < 24*time.Hour {
+	c.mu.Lock()
+	if a, seen := c.rdns[ip]; seen && time.Since(a.at) < a.keep {
+		c.mu.Unlock()
 		return a.host, a.ok
 	}
+	l, waiting := c.inFlight[ip]
+	if !waiting {
+		l = &lookup{done: make(chan struct{})}
+		c.inFlight[ip] = l
+	}
+	c.mu.Unlock()
+	if waiting {
+		select {
+		case <-l.done:
+			return l.ans.host, l.ans.ok
+		case <-ctx.Done():
+			return "", false
+		}
+	}
+
+	// Detached from the request, since others may be waiting on the answer.
+	ans := c.resolve(context.WithoutCancel(ctx), ip)
+	l.ans = ans
+	c.mu.Lock()
+	if len(c.rdns) >= maxRDNS {
+		c.evict()
+	}
+	c.rdns[ip] = ans
+	delete(c.inFlight, ip)
+	c.mu.Unlock()
+	close(l.done)
+	return ans.host, ans.ok
+}
+
+// evict drops answers that ran out, then the oldest, under c.mu.
+func (c *Crawlers) evict() {
+	now := time.Now()
+	for ip, a := range c.rdns {
+		if now.Sub(a.at) >= a.keep {
+			delete(c.rdns, ip)
+		}
+	}
+	if len(c.rdns) < maxRDNS {
+		return
+	}
+	ats := make([]time.Time, 0, len(c.rdns))
+	for _, a := range c.rdns {
+		ats = append(ats, a.at)
+	}
+	slices.SortFunc(ats, func(a, b time.Time) int { return a.Compare(b) })
+	cut := ats[rdnsEvicted]
+	for ip, a := range c.rdns {
+		if !a.at.After(cut) {
+			delete(c.rdns, ip)
+		}
+	}
+}
+
+func forwardConfirmed(ctx context.Context, ip netip.Addr) rdnsAnswer {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	var r net.Resolver
-	ans := rdnsAnswer{at: time.Now()}
-	if names, err := r.LookupAddr(ctx, ip.String()); err == nil {
-		for _, n := range names {
-			n = strings.ToLower(strings.TrimSuffix(n, "."))
-			addrs, err := r.LookupNetIP(ctx, "ip", n)
-			if err != nil {
-				continue
+	ans := rdnsAnswer{at: time.Now(), keep: rdnsKeep}
+	names, err := r.LookupAddr(ctx, ip.String())
+	if err != nil {
+		if !notFound(err) {
+			ans.keep = rdnsRetry
+		}
+		return ans
+	}
+	for _, n := range names {
+		n = strings.ToLower(strings.TrimSuffix(n, "."))
+		addrs, err := r.LookupNetIP(ctx, "ip", n)
+		if err != nil {
+			if !notFound(err) {
+				ans.keep = rdnsRetry
 			}
-			for _, back := range addrs {
-				if back.Unmap() == ip {
-					ans.host, ans.ok = n, true
-				}
-			}
-			if ans.ok {
-				break
+			continue
+		}
+		for _, back := range addrs {
+			if back.Unmap() == ip {
+				ans.host, ans.ok, ans.keep = n, true, rdnsKeep
+				return ans
 			}
 		}
 	}
-	c.mu.Lock()
-	if len(c.rdns) > 50000 {
-		c.rdns = map[netip.Addr]rdnsAnswer{}
-	}
-	c.rdns[ip] = ans
-	c.mu.Unlock()
-	return ans.host, ans.ok
+	return ans
+}
+
+func notFound(err error) bool {
+	var de *net.DNSError
+	return errors.As(err, &de) && de.IsNotFound
 }
 
 var prefixField = regexp.MustCompile(`ipv[46]Prefix\\?"?\s*:\s*\\?"([0-9a-fA-F.:/]+)`)
