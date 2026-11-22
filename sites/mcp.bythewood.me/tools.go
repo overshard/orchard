@@ -278,7 +278,7 @@ var tools = []tool{
 	},
 	{
 		Name: "status_report", Title: "Uptime report for one property",
-		Description: "status.bythewood.me's report for one property: current state, response times, uptime, TLS, security headers, Lighthouse scores and SEO crawl issues.",
+		Description: "status.bythewood.me's report for one property: current state, response times, uptime, TLS, security headers, audit scores and findings, real visitor vitals and errors from analytics, and SEO crawl issues.",
 		Schema: obj(map[string]any{
 			"property": str("The property's name, like blog.bythewood.me. Part of the name works."),
 			"insights": enum("How to list crawl issues, grouped by rule with a few example pages if left out, or every page.", "grouped", "all"),
