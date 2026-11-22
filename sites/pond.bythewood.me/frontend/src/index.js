@@ -664,14 +664,23 @@ const NEXT_DAY = { egg: 2, tadpole: 9, froglet: 13, frog: 29 };
 function renderPond(p) {
   const f = p.frog;
   $("frog-name").textContent = titled(f.name);
-  const tier = $("frog-tier");
+  const tier = $("frog-tier"), egg = f.stage === "egg";
   tier.textContent = TIERS[f.rarity.tier]; tier.className = "tier t" + f.rarity.tier;
   $("frog-odds").textContent = "1 in " + f.rarity.n.toLocaleString("en-US");
-  // An egg doesn't say what colour or back it'll have. That's for hatching.
-  const bits = [STAGE[f.stage], "Day " + f.day];
-  if (f.stage !== "egg") bits.push(titled(f.morph), titled(f.nature));
-  if (NEXT_DAY[f.stage]) bits.push("grows on day " + NEXT_DAY[f.stage]);
+  // An egg doesn't say what it'll be, not even how rare. That's for hatching,
+  // and what it shows is when that is.
+  tier.parentElement.hidden = egg;
+  const bits = [STAGE[f.stage]];
+  if (egg) bits.push("what it'll be is a surprise");
+  else bits.push("Day " + f.day, titled(f.morph), titled(f.nature));
+  if (NEXT_DAY[f.stage] && !egg) bits.push("grows on day " + NEXT_DAY[f.stage]);
   $("frog-what").textContent = bits.join(" · ");
+  $("eggclock").hidden = !egg;
+  if (egg) {
+    const left = Math.max(0, p.hatch_in || 0), h = Math.floor(left / 3600), m = Math.floor((left % 3600) / 60);
+    $("hatch-in").textContent = left < 60 ? "a moment" : h ? h + "h " + m + "m" : m + "m";
+    $("hatch-fill").style.transform = "scaleX(" + Math.min(1, 1 - left / 86400) + ")";
+  }
 
   applyOpen(p.open);
   drawBond();

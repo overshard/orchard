@@ -41,7 +41,11 @@ func goalsOf(v *view, p *pond) []goal {
 	out := []goal{}
 	if v.Starter != nil {
 		for _, st := range v.Starter.Steps {
-			out = append(out, goal{Kind: st.Kind, Icon: st.Icon, Label: st.Label, To: st.To, Done: st.Done, First: true})
+			label := st.Label
+			if st.Kind == "wheel" && v.Frog.Stage == "egg" {
+				label = "While it hatches, spin the wheel"
+			}
+			out = append(out, goal{Kind: st.Kind, Icon: st.Icon, Label: label, To: st.To, Done: st.Done, First: true})
 		}
 		return out
 	}

@@ -1026,7 +1026,9 @@ type mealView struct {
 }
 
 type view struct {
-	Frog    frogView `json:"frog"`
+	Frog frogView `json:"frog"`
+	// HatchIn is seconds until the frog out front hatches, while it's an egg.
+	HatchIn int64    `json:"hatch_in,omitempty"`
 	Bond    bondView `json:"bond"`
 	Pebbles int      `json:"pebbles"`
 	Wheel   struct {
@@ -1147,6 +1149,9 @@ func frogViewOf(f frogRow, now time.Time) frogView {
 func viewOf(q querier, p pond, now time.Time, key []byte) (*view, error) {
 	p.settle(now)
 	v := &view{Frog: frogOf(&p, now), Pebbles: p.Pebbles, Visited: p.DaysVisited, Rested: p.rested(now), Dev: devBuild}
+	if v.Frog.Stage == "egg" {
+		v.HatchIn = growsIn(p.HatchedAt, now)
+	}
 	v.Wheel.Slices = wheelSlices
 	dayHat, dayDye := wheelOfDay(dayOf(now))
 	v.Wheel.Hat = hatView{hat: dayHat, Name: dayHat.name(), Tier: dayHat.tier()}

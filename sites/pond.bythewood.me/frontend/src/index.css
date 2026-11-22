@@ -672,6 +672,28 @@ button.powerplate:active:not(:disabled) {
   flex: 0 0 100%;
 }
 
+#v-pond .who .eggclock {
+  flex: 0 0 100%;
+  margin: 4px 0 8px;
+}
+
+.eggline {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.eggclock .meter {
+  height: 6px;
+}
+
+.eggclock .meter i {
+  box-shadow: 0 0 6px var(--ok);
+}
+
 @media (max-width: 380px) {
   #v-pond .who h1 {
     font-size: 1.7rem;
@@ -1143,6 +1165,31 @@ body:has(.dock) main {
 .prose p,
 .steps {
   color: var(--muted);
+}
+
+.swap {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.swap p {
+  margin: 0 0 6px;
+}
+
+.swap p:first-child {
+  color: var(--text);
+}
+
+.swap .row {
+  margin-bottom: 0;
+}
+
+.swap .row > * {
+  flex: 1;
+  text-align: center;
 }
 
 .swap {
