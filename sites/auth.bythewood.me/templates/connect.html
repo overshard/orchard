@@ -16,15 +16,16 @@
   {{ else }}
   <div class="o-cols even">
     <section class="o-panel">
-      <div class="o-ph2"><h2>What it gets</h2><span class="o-lab">read, and propose</span></div>
+      <div class="o-ph2"><h2>What it gets</h2><span class="o-lab">{{ if .Connect.Write }}read, and change gate{{ else }}read only{{ end }}</span></div>
       <div class="o-note brass consent-check" role="note">
         <span class="o-lab">only if you started it</span>
         {{ if not .Connect.Started.IsZero }}This sign in started {{ ago .Connect.Started }}, at <span class="o-mono">{{ when .Connect.Started }}</span>. {{ end }}Only allow it if you just clicked Connect in Claude yourself. A link somebody sent you opens this same page, and allowing it would give their Claude your tools.
       </div>
       <ul class="connectlist">
         {{ range .Consent.Tools }}<li><b>{{ .Name }}</b> <span class="o-muted">{{ .What }}</span></li>{{ end }}
+        {{ if .Connect.Write }}<li><label><input type="checkbox" name="write" value="yes" form="connect-form" checked> <b>gate:write</b> <span class="o-muted">propose a rule that watches until you turn it on, and loosen or narrow a live rule at once</span></label></li>{{ end }}
       </ul>
-      <p class="o-muted small">Proposing a gate rule only watches until you turn it on. Nothing else it can do changes anything. It can read the sign ins and sessions here, but it can't revoke one, rename the account or see a code.</p>
+      <p class="o-muted small">{{ if .Connect.Write }}Untick gate:write to connect it read only. {{ end }}Nothing else it can do changes anything. It can read the sign ins and sessions here, but it can't revoke one, rename the account or see a code.</p>
       <dl class="o-kv">
         <dt>session</dt><dd>its own, listed on the sessions page as a connector</dd>
         <dt>expires</dt><dd class="o-mono">{{ when .Consent.Expires }}</dd>
@@ -32,18 +33,19 @@
       {{ with .Consent.Existing }}
       <div class="o-note" role="status">{{ $.Connect.Client }} is already allowed {{ if eq (len .) 1 }}once{{ else }}{{ len . }} times{{ end }}, most recently {{ ago (index . 0).Created }}{{ with (index . 0).City }} from {{ . }}{{ end }}. Allowing again adds another, and the old one stays until it expires or you <a href="/sessions#connectors">revoke it</a>.</div>
       {{ end }}
-      <form method="POST" action="/connect" class="o-formbar">
+      <form method="POST" action="/connect" class="o-formbar" id="connect-form">
         <input type="hidden" name="req" value="{{ .Connect.Req }}">
         <input type="hidden" name="client" value="{{ .Connect.Client }}">
         <input type="hidden" name="host" value="{{ .Connect.Host }}">
+        {{ if .Connect.Write }}<input type="hidden" name="scope" value="read gate:write">{{ end }}
         <input type="hidden" name="back" value="https://mcp.bythewood.me/oauth/back">
-        <button type="submit" name="allow" value="yes" class="o-btn o-btn-p">Allow read access</button>
+        <button type="submit" name="allow" value="yes" class="o-btn o-btn-p">Allow</button>
         <button type="submit" name="allow" value="no" class="o-btn">Don't allow</button>
       </form>
     </section>
     <section class="o-panel">
       <div class="o-ph2"><h2>Worth knowing</h2></div>
-      <p class="o-muted small">Log lines, referrers and crawl results are written by strangers, and an agent reads them as they are. Nothing here lets it act on what it reads, and the one thing it can write is a gate proposal that waits for you.</p>
+      <p class="o-muted small">Log lines, referrers and crawl results are written by strangers, and an agent reads them as they are. {{ if .Connect.Write }}With gate:write it can act on what it reads through gate, and every change lands in gate's change log with its reason. Without it, nothing here lets it act on what it reads.{{ else }}Nothing here lets it act on what it reads.{{ end }}</p>
     </section>
   </div>
   {{ end }}

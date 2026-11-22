@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,7 +28,15 @@ const connectorUA = "connector: "
 type connectRequest struct {
 	Req, Client, Host string
 	Started           time.Time
+	// Write is whether the agent asked for scopeGateWrite, which the consent
+	// page then offers as its own line to tick or leave.
+	Write bool
 }
+
+const (
+	scopeRead      = "read"
+	scopeGateWrite = "gate:write"
+)
 
 // handoffs are sessions minted for a connector, waiting for mcp to collect
 // them over the bridge. Memory is enough since each lives a minute.
@@ -37,11 +46,11 @@ type handoffs struct {
 }
 
 type handoff struct {
-	session string
-	expires time.Time
+	session, scope string
+	expires        time.Time
 }
 
-func (h *handoffs) put(session string) (string, error) {
+func (h *handoffs) put(session, scope string) (string, error) {
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return "", err
@@ -58,19 +67,19 @@ func (h *handoffs) put(session string) (string, error) {
 			delete(h.m, k)
 		}
 	}
-	h.m[code] = handoff{session: session, expires: now.Add(time.Minute)}
+	h.m[code] = handoff{session: session, scope: scope, expires: now.Add(time.Minute)}
 	return code, nil
 }
 
-func (h *handoffs) take(code string) (string, bool) {
+func (h *handoffs) take(code string) (handoff, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	v, ok := h.m[code]
 	delete(h.m, code)
 	if !ok || time.Now().After(v.expires) {
-		return "", false
+		return handoff{}, false
 	}
-	return v.session, true
+	return v, true
 }
 
 func readConnect(r *http.Request) (connectRequest, bool) {
@@ -81,6 +90,7 @@ func readConnect(r *http.Request) (connectRequest, bool) {
 	if c.Client == "" {
 		c.Client = "an agent"
 	}
+	c.Write = slices.Contains(strings.Fields(r.FormValue("scope")), scopeGateWrite)
 	if n, err := strconv.ParseInt(r.FormValue("started"), 10, 64); err == nil && n > 0 {
 		c.Started = time.Unix(n, 0)
 	}
@@ -112,7 +122,7 @@ var connectorReads = []consentTool{
 	{"cron", "the jobs and their runs"},
 	{"llm", "spend and calls"},
 	{"repos", "a repository's README"},
-	{"gate", "rules, traffic and what it refused, proposing a rule, and loosening or narrowing a live rule at once"},
+	{"gate", "rules, traffic and what it refused"},
 	{"dns", "lookups, blocks and devices on the resolver"},
 	{"dash", "the briefs and advisories"},
 	{"auth", "the sign ins and sessions on the activity page"},
@@ -149,12 +159,16 @@ func (s *site) connectSubmit(w http.ResponseWriter, r *http.Request, l live) {
 		s.handBack(w, r, c, mcpBack+"?"+back.Encode())
 		return
 	}
+	scope := scopeRead
+	if c.Write && r.FormValue("write") == "yes" {
+		scope += " " + scopeGateWrite
+	}
 	value, err := newConnectorSession(s.db, r, c.Client)
 	if err != nil {
 		s.fail(w, r, "making the connector's session", err)
 		return
 	}
-	code, err := s.handoffs.put(value)
+	code, err := s.handoffs.put(value, scope)
 	if err != nil {
 		s.fail(w, r, "handing the session over", err)
 		return
@@ -177,13 +191,13 @@ func (s *site) handBack(w http.ResponseWriter, r *http.Request, c connectRequest
 // everything under /verify on the public hostname.
 func (s *site) collectHandoff(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	value, ok := s.handoffs.take(r.URL.Query().Get("code"))
+	h, ok := s.handoffs.take(r.URL.Query().Get("code"))
 	if !ok {
 		http.Error(w, "no such handoff", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]string{"session": value})
+	_ = json.NewEncoder(w).Encode(map[string]string{"session": h.session, "scope": h.scope})
 }
 
 // newConnectorSession is newSession for an agent. It never gets sudo, and its

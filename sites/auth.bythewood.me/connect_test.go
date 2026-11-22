@@ -134,3 +134,44 @@ func TestConsentSaysWhenItStartedAndWarns(t *testing.T) {
 		t.Fatalf("consent page: %d %s", rec.Code, body)
 	}
 }
+
+// gate:write only reaches mcp when the agent asked for it and it stayed ticked.
+func TestConnectGrantsGateWriteOnlyWhenTicked(t *testing.T) {
+	s, stub := newTestSite(t)
+	_ = runInit(s.db)
+	cookie := signIn(t, s, stub)
+
+	page := httptest.NewRequest("GET", "/connect?"+url.Values{"req": {"r1"}, "client": {"Claude"}, "back": {mcpBack}, "scope": {"read gate:write"}}.Encode(), nil)
+	page.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	s.handler().ServeHTTP(rec, page)
+	if !strings.Contains(rec.Body.String(), `name="write"`) {
+		t.Fatalf("the consent page doesn't offer gate:write: %d", rec.Code)
+	}
+
+	for _, c := range []struct {
+		scope, write, want string
+	}{
+		{"read gate:write", "yes", "read gate:write"},
+		{"read gate:write", "", "read"},
+		{"read", "yes", "read"},
+	} {
+		form := url.Values{"req": {"r1"}, "client": {"Claude"}, "back": {mcpBack}, "allow": {"yes"}, "scope": {c.scope}, "write": {c.write}}
+		req := postForm("/connect", form)
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		s.handler().ServeHTTP(rec, req)
+		m := regexp.MustCompile(`http-equiv="refresh" content="0; url=([^"]+)"`).FindStringSubmatch(rec.Body.String())
+		if m == nil {
+			t.Fatalf("no refresh in %s", rec.Body.String())
+		}
+		loc, _ := url.Parse(html.UnescapeString(m[1]))
+		rec = httptest.NewRecorder()
+		s.handler().ServeHTTP(rec, httptest.NewRequest("GET", "/verify/handoff?code="+url.QueryEscape(loc.Query().Get("handoff")), nil))
+		var got map[string]string
+		_ = json.Unmarshal(rec.Body.Bytes(), &got)
+		if got["scope"] != c.want {
+			t.Errorf("asked %q, write=%q: granted %q, want %q", c.scope, c.write, got["scope"], c.want)
+		}
+	}
+}
