@@ -132,6 +132,37 @@ function days() {
     }
     show(t.dataset.day);
   });
+
+  // One tab stop for the bar, arrows to move along it and enter to open a day,
+  // so the drill in isn't mouse only.
+  const ticks = bar.querySelectorAll("i[data-day]");
+  for (const t of ticks) {
+    t.tabIndex = -1;
+    t.setAttribute("role", "button");
+    t.setAttribute("aria-label", (t.dataset.tip || t.dataset.day).replace(/\n/g, ", "));
+  }
+  // Today, which both the 30 and 90 day views show.
+  if (ticks.length) ticks[ticks.length - 1].tabIndex = 0;
+  bar.addEventListener("keydown", (e) => {
+    const t = e.target.closest("i[data-day]");
+    if (!t) return;
+    const all = [...bar.querySelectorAll("i[data-day]")].filter((x) => x.offsetParent !== null);
+    const i = all.indexOf(t);
+    let to = null;
+    if (e.key === "ArrowLeft") to = all[Math.max(0, i - 1)];
+    else if (e.key === "ArrowRight") to = all[Math.min(all.length - 1, i + 1)];
+    else if (e.key === "Home") to = all[0];
+    else if (e.key === "End") to = all[all.length - 1];
+    else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      t.click();
+      return;
+    } else return;
+    e.preventDefault();
+    t.tabIndex = -1;
+    to.tabIndex = 0;
+    to.focus();
+  });
 }
 
 // ------------------------------------------------------------------ phases

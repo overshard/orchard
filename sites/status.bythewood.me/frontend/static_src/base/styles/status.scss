@@ -42,6 +42,7 @@
 .days i.none { background: var(--o-line-strong); opacity: 1; cursor: default; }
 .days i:hover { opacity: 1; outline: 1px solid var(--o-text); }
 .days i.pick { outline: 1px solid var(--o-brass); opacity: 1; }
+.days i:focus-visible { opacity: 1; outline: 2px solid var(--o-brass); outline-offset: 1px; }
 .days.r30 i:nth-child(-n + 60) { display: none; }
 .dayrange { margin-bottom: 8px; }
 .dayrange label span { padding: 3px 10px; font-size: 0.72rem; }
