@@ -68,12 +68,10 @@
           data.user_id = collectorUserId;
         }
         // keepalive lets the pagehide-triggered page_leave survive the page
-        // being torn down; without it browsers drop the request mid-unload.
+        // being torn down. A string body is sent as text/plain, which skips
+        // the CORS preflight a JSON content type costs on every event.
         fetch(window.collectorServer + "/collect/", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify(data),
           keepalive: true,
         });
