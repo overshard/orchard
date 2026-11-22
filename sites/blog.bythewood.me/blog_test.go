@@ -228,3 +228,15 @@ func TestEveryListedTemplateParses(t *testing.T) {
 		t.Fatalf("the template set does not parse: %v", err)
 	}
 }
+
+func TestByYearMatchesWholeYear(t *testing.T) {
+	posts := []*Post{{Slug: "a", Date: "2026-01-01"}, {Slug: "b", Date: "2022-05-01"}}
+	for _, year := range []string{"2", "20", "202", "20260"} {
+		if matched, _ := byYear(posts, year); len(matched) != 0 {
+			t.Errorf("byYear(%q) matched %d posts, want 0", year, len(matched))
+		}
+	}
+	if matched, _ := byYear(posts, "2026"); len(matched) != 1 || matched[0].Slug != "a" {
+		t.Errorf("byYear(2026) = %v", matched)
+	}
+}

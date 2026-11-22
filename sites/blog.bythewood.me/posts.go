@@ -255,9 +255,13 @@ func byTag(posts []*Post, tag string) (matched, others []*Post) {
 	return matched, others
 }
 
+// byYear matches the whole year, so /blog/year/2/ isn't a page of every post.
 func byYear(posts []*Post, year string) (matched, others []*Post) {
+	if len(year) != 4 {
+		return nil, posts
+	}
 	for _, p := range posts {
-		if strings.HasPrefix(p.Date, year) {
+		if len(p.Date) >= 4 && p.Date[:4] == year {
 			matched = append(matched, p)
 		} else {
 			others = append(others, p)
