@@ -261,7 +261,7 @@ const (
 	// maxBytes caps any download, and a list we already have can only come
 	// back four times its size. Container memory is 320M.
 	maxBytes   = 40 << 20
-	maxEntries = 2_000_000
+	maxEntries = 3_000_000
 )
 
 var errSwing = errors.New("refused")
