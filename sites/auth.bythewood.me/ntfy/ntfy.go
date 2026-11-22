@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // URL is the bridge address, never the public hostname, since Caddy refuses
@@ -16,6 +17,9 @@ import (
 const URL = "http://orchard-ntfy:8000"
 
 const Timeout = 5 * time.Second
+
+// titleMax keeps a title to what fits on a lock screen.
+const titleMax = 200
 
 // Message is one notification. ntfy takes the body as the message and
 // everything else as a header.
@@ -68,6 +72,26 @@ func (c *Client) endpoint() string {
 	return strings.TrimSuffix(c.Base, "/") + "/" + c.Topic
 }
 
+// header makes a value safe to send, since Go refuses a request whose header
+// holds a CR or LF and a title can come from a model.
+func header(v string) string {
+	return strings.TrimSpace(strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ").Replace(v))
+}
+
+func title(v string) string {
+	v = header(v)
+	if utf8.RuneCountInString(v) <= titleMax {
+		return v
+	}
+	return string([]rune(v)[:titleMax-1]) + "…"
+}
+
+// refusal is ntfy answering with a status no retry will change.
+type refusal struct{ status int }
+
+func (r refusal) Error() string { return fmt.Sprintf("ntfy returned %d", r.status) }
+
+// Publish makes one attempt, for a caller that is waiting on the answer.
 func (c *Client) Publish(ctx context.Context, m Message) error {
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
@@ -79,10 +103,10 @@ func (c *Client) Publish(ctx context.Context, m Message) error {
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
 	}
-	req.Header.Set("Title", m.Title)
-	req.Header.Set("Priority", m.Priority)
-	req.Header.Set("Tags", m.Tags)
-	if a := m.Action(); a != "" {
+	req.Header.Set("Title", title(m.Title))
+	req.Header.Set("Priority", header(m.Priority))
+	req.Header.Set("Tags", header(m.Tags))
+	if a := header(m.Action()); a != "" {
 		req.Header.Set("Actions", a)
 	}
 
@@ -95,7 +119,7 @@ func (c *Client) Publish(ctx context.Context, m Message) error {
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("ntfy returned %d", resp.StatusCode)
+		return refusal{resp.StatusCode}
 	}
 	return nil
 }
@@ -104,10 +128,10 @@ func (c *Client) Publish(ctx context.Context, m Message) error {
 // without sending anything.
 func Preview(w io.Writer, topic string, m Message) {
 	fmt.Fprintf(w, "POST %s/%s\n", URL, topic)
-	fmt.Fprintf(w, "Title:    %s\n", m.Title)
-	fmt.Fprintf(w, "Priority: %s\n", m.Priority)
-	fmt.Fprintf(w, "Tags:     %s\n", m.Tags)
-	if a := m.Action(); a != "" {
+	fmt.Fprintf(w, "Title:    %s\n", title(m.Title))
+	fmt.Fprintf(w, "Priority: %s\n", header(m.Priority))
+	fmt.Fprintf(w, "Tags:     %s\n", header(m.Tags))
+	if a := header(m.Action()); a != "" {
 		fmt.Fprintf(w, "Actions:  %s\n", a)
 	}
 	fmt.Fprintf(w, "\n%s\n", m.Body)

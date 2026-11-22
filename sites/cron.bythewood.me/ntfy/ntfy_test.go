@@ -115,3 +115,22 @@ func TestPreviewMatchesWhatIsSent(t *testing.T) {
 		t.Error("previewed a button with no link")
 	}
 }
+
+func TestPublishCleansAHeaderAModelWrote(t *testing.T) {
+	srv, got := server(t, http.StatusOK)
+	c := New("alerts", "tk_test")
+	c.Base = srv.URL
+	long := strings.Repeat("a", 300)
+	if err := c.Publish(t.Context(), Message{Title: "two\r\nlines\n", Body: "b"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Publish(t.Context(), Message{Title: long, Body: "b"}); err != nil {
+		t.Fatal(err)
+	}
+	if v := (*got)[0].header.Get("Title"); v != "two lines" {
+		t.Errorf("title is %q", v)
+	}
+	if v := (*got)[1].header.Get("Title"); len([]rune(v)) != titleMax {
+		t.Errorf("a long title came out %d runes", len([]rune(v)))
+	}
+}
