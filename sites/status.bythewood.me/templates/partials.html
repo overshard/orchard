@@ -18,4 +18,6 @@
 </span>
 {{ end }}
 
+{{/* The bad days in a strip of days as text, since a tick only says it on hover. */}}
+{{ define "dayNote" }}{{ $bad := dayList . "bad" }}{{ $warn := dayList . "warn" }}{{ if or $bad $warn }} &middot; {{ with $bad }}<span class="o-bad">down</span> {{ . }}{{ end }}{{ if and $bad $warn }} &middot; {{ end }}{{ with $warn }}<span class="o-warn">under 99.9%</span> {{ . }}{{ end }}{{ end }}{{ end }}
 {{ define "stateChip" }}{{ if eq .CurrentStatus 200 }}<span class="o-chip ok">up &middot; 200</span>{{ else }}<span class="o-chip bad">down &middot; {{ .CurrentStatus }}</span>{{ end }}{{ end }}

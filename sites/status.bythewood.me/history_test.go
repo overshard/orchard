@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -208,5 +209,30 @@ func TestHistoryDayKinds(t *testing.T) {
 	}
 	if h.Up30 == nil || *h.Up30 > 99.9 || h.Inc30 != 1 || h.BudgetLeft == nil {
 		t.Errorf("30d uptime %v, %d incidents, budget %v", h.Up30, h.Inc30, h.BudgetLeft)
+	}
+}
+
+func TestDayListAndAria(t *testing.T) {
+	days := []DayView{
+		{Label: "Mon Nov 3", Kind: "bad"},
+		{Label: "Tue Nov 4", Kind: "ok"},
+		{Label: "Wed Nov 5", Kind: "warn"},
+	}
+	if got := dayList(days, "bad"); got != "Nov 3" {
+		t.Errorf("bad days = %q", got)
+	}
+	if got, want := daysAria(days), "3 days, an outage on Nov 3, under 99.9% on Nov 5"; got != want {
+		t.Errorf("aria = %q, want %q", got, want)
+	}
+	if got := daysAria(days[1:2]); got != "1 day, no bad days" {
+		t.Errorf("quiet aria = %q", got)
+	}
+
+	var many []DayView
+	for i := 1; i <= 6; i++ {
+		many = append(many, DayView{Label: fmt.Sprintf("Mon Nov %d", i), Kind: "bad"})
+	}
+	if got := dayList(many, "bad"); got != "Nov 4, Nov 5, Nov 6 and 3 more" {
+		t.Errorf("long list = %q", got)
 	}
 }

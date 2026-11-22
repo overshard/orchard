@@ -56,6 +56,8 @@ var templateFuncs = template.FuncMap{
 	"msClock":      func(ms int64) string { return time.UnixMilli(ms).UTC().Format("15:04:05") },
 	"phaseText":    phaseText,
 	"certClass":    certClass,
+	"daysAria":     daysAria,
+	"dayList":      dayList,
 	"tickHeight":   func(v float64) int { return max(6, min(100, int(math.Round(v)))) },
 	"pct2":         func(v *float64) string { return strconv.FormatFloat(*v, 'f', 2, 64) },
 	"deref64": func(p *int64) int64 {
@@ -398,4 +400,36 @@ func phaseText(c Check) string {
 		parts = append(parts, strconv.FormatInt(*v, 10))
 	}
 	return strings.Join(parts, "/")
+}
+
+// dayList names the days of one kind in a strip, the newest last, for the text
+// under it that says what a red or amber tick only says on hover.
+func dayList(days []DayView, kind string) string {
+	var names []string
+	for _, d := range days {
+		if d.Kind == kind {
+			_, md, _ := strings.Cut(d.Label, " ")
+			names = append(names, md)
+		}
+	}
+	if len(names) > 4 {
+		return fmt.Sprintf("%s and %d more", strings.Join(names[len(names)-3:], ", "), len(names)-3)
+	}
+	return strings.Join(names, ", ")
+}
+
+// daysAria is a strip of days read aloud, since its ticks only say it on hover.
+func daysAria(days []DayView) string {
+	out := count(len(days), "day", "days")
+	bad, warn := dayList(days, "bad"), dayList(days, "warn")
+	if bad == "" && warn == "" {
+		return out + ", no bad days"
+	}
+	if bad != "" {
+		out += ", an outage on " + bad
+	}
+	if warn != "" {
+		out += ", under 99.9% on " + warn
+	}
+	return out
 }

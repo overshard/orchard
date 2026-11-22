@@ -61,14 +61,14 @@
       <small>uptime &middot; 30d</small>
       <b class="{{ if $h.Up30 }}{{ if lt (deref64f $h.Up30) 99.9 }}warn{{ end }}{{ end }}">{{ if $h.Up30 }}{{ pct2 $h.Up30 }}%{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ if $h.Up30 }}down {{ $h.Down30 }}{{ if lt $h.Covered30 30 }} &middot; {{ $h.Covered30 }}d kept{{ end }}{{ else }}waiting on the rollup{{ end }}</span>
-      <span class="o-ticks" aria-hidden="true">{{ range $h.Ticks30 }}<i class="{{ .Kind }}" data-tip="{{ .Tip }}"></i>{{ end }}</span>
+      <span class="o-ticks" role="img" aria-label="{{ daysAria $h.Ticks30 }}">{{ range $h.Ticks30 }}<i class="{{ .Kind }}" data-tip="{{ .Tip }}"></i>{{ end }}</span>
     </div>
     {{ if $authed }}
     <div class="o-tile">
       <small>error budget</small>
       <b class="{{ if $h.BudgetLeft }}{{ if ne $h.BudgetKind "ok" }}{{ $h.BudgetKind }}{{ end }}{{ end }}">{{ if $h.BudgetLeft }}{{ printf "%.0f" (deref64f $h.BudgetLeft) }}%{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ if $h.BudgetLeft }}of {{ $h.BudgetMins }} &middot; {{ $h.Burn24 }}{{ else }}waiting on the rollup{{ end }}</span>
-      <span class="o-ticks" aria-hidden="true">{{ range $h.BudgetTicks }}<i class="{{ .Kind }}" style="height: {{ .Height }}%" data-tip="{{ .Tip }}"></i>{{ end }}</span>
+      <span class="o-ticks" role="img" aria-label="failed checks by day{{ range $h.BudgetTicks }}{{ if eq .Kind "warn" }}, {{ .Tip }}{{ end }}{{ end }}">{{ range $h.BudgetTicks }}<i class="{{ .Kind }}" style="height: {{ .Height }}%" data-tip="{{ .Tip }}"></i>{{ end }}</span>
     </div>
     {{ end }}
     <div class="o-tile">
@@ -99,11 +99,11 @@
       <small>headers</small>
       <b class="{{ if .HasSecurityIssue }}warn{{ end }}">{{ secPass . }}/{{ len (secChecks .) }}</b>
       <span class="o-delta">{{ with secFirstFail . }}fails {{ . }}{{ else }}every check passes{{ end }}</span>
-      <span class="o-ticks" aria-hidden="true">{{ range secChecks . }}<i class="{{ if not .OK }}bad{{ end }}" data-tip="{{ .Name }}{{ if not .OK }} · missing{{ end }}"></i>{{ end }}</span>
+      <span class="o-ticks" role="img" aria-label="{{ with secFirstFail . }}fails {{ . }}{{ else }}every header check passes{{ end }}">{{ range secChecks . }}<i class="{{ if not .OK }}bad{{ end }}" data-tip="{{ .Name }}{{ if not .OK }} · missing{{ end }}"></i>{{ end }}</span>
     </div>
     {{ end }}
   </div>
-  <p class="o-foot stripfoot"><span data-xs-when>sparks are the last 24 hours by hour &middot; times are UTC</span></p>
+  <p class="o-foot stripfoot"><span data-xs-when>sparks are the last 24 hours by hour &middot; times are UTC</span>{{ template "dayNote" $h.Ticks30 }}</p>
 
   <section class="o-panel">
     <div class="o-ph2">
@@ -119,7 +119,7 @@
       <label><input type="radio" name="dr" value="30"><span>30d</span></label>
       <label><input type="radio" name="dr" value="90" checked><span>90d</span></label>
     </div>
-    <div class="days" id="days">{{ range $h.Days }}<i class="{{ .Kind }}" data-day="{{ .Day }}" data-tip="{{ .Tip }}"></i>{{ end }}</div>
+    <div class="days" id="days" role="group" aria-label="{{ daysAria $h.Days }}">{{ range $h.Days }}<i class="{{ .Kind }}" data-day="{{ .Day }}" data-tip="{{ .Tip }}"></i>{{ end }}</div>
     <p class="o-foot">90 days &middot; red is an outage over 5 minutes &middot; amber is under 99.9%{{ if $h.HasSince }} &middot; history kept from {{ $h.Since }}{{ end }}<span class="drill-hint d-none"> &middot; click a day for its hours</span></p>
     <div class="daydet" id="day-detail" hidden></div>
   </section>

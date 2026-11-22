@@ -32,7 +32,7 @@
       <small>up now</small>
       <b class="{{ if lt .Up .Total }}bad{{ end }}">{{ .Up }}/{{ .Total }}</b>
       <span class="o-delta {{ if .DownName }}o-bad{{ end }}">{{ if .DownName }}{{ .DownName }} down{{ else }}every site answering{{ end }}</span>
-      <span class="o-ticks" aria-hidden="true">{{ range .Sites }}<i class="{{ if .Down }}bad{{ end }}" data-tip="{{ .Name }}{{ if .Down }} · down{{ end }}"></i>{{ end }}</span>
+      <span class="o-ticks" role="img" aria-label="{{ len .Sites }} sites{{ range .Sites }}{{ if .Down }}, {{ .Name }} down{{ end }}{{ end }}">{{ range .Sites }}<i class="{{ if .Down }}bad{{ end }}" data-tip="{{ .Name }}{{ if .Down }} · down{{ end }}"></i>{{ end }}</span>
     </div>
     <div class="o-tile">
       <small>uptime &middot; 24h</small>
@@ -44,13 +44,13 @@
       <small>uptime &middot; 30d</small>
       <b class="{{ if and .HasUp30 (lt .Up30 99.9) }}warn{{ end }}">{{ if .HasUp30 }}{{ printf "%.2f" .Up30 }}%{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ .BadDays }} bad {{ if eq .BadDays 1 }}day{{ else }}days{{ end }}</span>
-      <span class="o-ticks" aria-hidden="true">{{ range .Days30 }}<i class="{{ .Kind }}" data-tip="{{ .Label }}{{ if eq .Kind "none" }} · no data{{ else if eq .Kind "bad" }} · an outage{{ else if eq .Kind "warn" }} · under 99.9%{{ end }}"></i>{{ end }}</span>
+      <span class="o-ticks" role="img" aria-label="{{ daysAria .Days30 }}">{{ range .Days30 }}<i class="{{ .Kind }}" data-tip="{{ .Label }}{{ if eq .Kind "none" }} · no data{{ else if eq .Kind "bad" }} · an outage{{ else if eq .Kind "warn" }} · under 99.9%{{ end }}"></i>{{ end }}</span>
     </div>
     <div class="o-tile">
       <small>error budget</small>
       <b class="{{ if .HasBudget }}{{ if ne .BudgetKind "ok" }}{{ .BudgetKind }}{{ end }}{{ end }}">{{ if .HasBudget }}{{ printf "%.0f" .Budget }}%{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ if .HasBudget }}of 43m, lowest {{ .BudgetName }}{{ else }}waiting on the rollup{{ end }}</span>
-      <span class="o-ticks" aria-hidden="true">{{ range .Sites }}<i class="{{ if ne .BudgetK "ok" }}{{ .BudgetK }}{{ end }}" style="height: {{ tickHeight .Budget }}%" data-tip="{{ .Name }} · {{ printf "%.0f" .Budget }}% left"></i>{{ end }}</span>
+      <span class="o-ticks" role="img" aria-label="budget left by site{{ range .Sites }}, {{ .Name }} {{ printf "%.0f" .Budget }}%{{ end }}">{{ range .Sites }}<i class="{{ if ne .BudgetK "ok" }}{{ .BudgetK }}{{ end }}" style="height: {{ tickHeight .Budget }}%" data-tip="{{ .Name }} · {{ printf "%.0f" .Budget }}% left"></i>{{ end }}</span>
     </div>
     <div class="o-tile">
       <small>p95 &middot; 24h</small>
@@ -62,22 +62,22 @@
       <small>incidents &middot; 30d</small>
       <b class="{{ if .Inc30 }}warn{{ end }}">{{ .Inc30 }}</b>
       <span class="o-delta">mttr {{ .MTTR }}</span>
-      <span class="o-ticks" aria-hidden="true">{{ range .Days30 }}<i class="{{ if eq .Kind "bad" }}bad{{ else if eq .Kind "none" }}none{{ end }}" data-tip="{{ .Label }}"></i>{{ end }}</span>
+      <span class="o-ticks" role="img" aria-label="{{ with dayList .Days30 "bad" }}incidents on {{ . }}{{ else }}no incident days in 30{{ end }}">{{ range .Days30 }}<i class="{{ if eq .Kind "bad" }}bad{{ else if eq .Kind "none" }}none{{ end }}" data-tip="{{ .Label }}"></i>{{ end }}</span>
     </div>
     <div class="o-tile">
       <small>certs &lt; 14d</small>
       <b class="{{ if .CertsSoon }}warn{{ end }}">{{ .CertsSoon }}</b>
       <span class="o-delta">{{ if .CertNote }}next, {{ .CertNote }}{{ else }}not read yet{{ end }}</span>
-      <span class="o-ticks" aria-hidden="true">{{ range .Sites }}{{ if .HasCert }}<i class="{{ .CertKind }}" style="height: {{ .CertHeight }}%" data-tip="{{ .Name }} · {{ .CertDays }} days"></i>{{ else }}<i class="none" style="height: 8%" data-tip="{{ .Name }} · not read yet"></i>{{ end }}{{ end }}</span>
+      <span class="o-ticks" role="img" aria-label="cert days left{{ range .Sites }}{{ if .HasCert }}, {{ .Name }} {{ .CertDays }}{{ end }}{{ end }}">{{ range .Sites }}{{ if .HasCert }}<i class="{{ .CertKind }}" style="height: {{ .CertHeight }}%" data-tip="{{ .Name }} · {{ .CertDays }} days"></i>{{ else }}<i class="none" style="height: 8%" data-tip="{{ .Name }} · not read yet"></i>{{ end }}{{ end }}</span>
     </div>
     <div class="o-tile">
       <small>lighthouse &middot; avg</small>
       <b>{{ if .HasLH }}{{ .Lighthouse }}{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ .SEOIssues }} seo issues &middot; {{ .SecIssues }} header</span>
-      <span class="o-ticks" aria-hidden="true">{{ range .Sites }}{{ if .HasLH }}<i class="{{ if lt .Score 50 }}bad{{ else if lt .Score 90 }}warn{{ end }}" style="height: {{ .Score }}%" data-tip="{{ .Name }} · {{ .Score }}"></i>{{ else }}<i class="none" style="height: 8%" data-tip="{{ .Name }} · not run"></i>{{ end }}{{ end }}</span>
+      <span class="o-ticks" role="img" aria-label="lighthouse by site{{ range .Sites }}{{ if .HasLH }}, {{ .Name }} {{ .Score }}{{ end }}{{ end }}">{{ range .Sites }}{{ if .HasLH }}<i class="{{ if lt .Score 50 }}bad{{ else if lt .Score 90 }}warn{{ end }}" style="height: {{ .Score }}%" data-tip="{{ .Name }} · {{ .Score }}"></i>{{ else }}<i class="none" style="height: 8%" data-tip="{{ .Name }} · not run"></i>{{ end }}{{ end }}</span>
     </div>
   </div>
-  <p class="o-foot stripfoot"><span data-xs-when>sparks are the last 24 hours by hour, uptime and budget from the daily rollup</span></p>
+  <p class="o-foot stripfoot"><span data-xs-when>sparks are the last 24 hours by hour, uptime and budget from the daily rollup</span>{{ template "dayNote" .Days30 }}</p>
   {{ end }}
   {{ end }}
 
@@ -94,7 +94,7 @@
             {{ if .IsPublic }}<span class="o-chip">public</span>{{ end }}
           </td>
           <td data-l="last 30">{{ template "uptimeStrip" . }}</td>
-          <td data-l="30 days"><span class="o-ds" aria-label="Last 30 days">{{ range .H.Ticks30 }}<i class="{{ .Kind }}" data-tip="{{ .Tip }}"></i>{{ end }}</span></td>
+          <td data-l="30 days"><span class="o-ds" role="img" aria-label="{{ daysAria .H.Ticks30 }}">{{ range .H.Ticks30 }}<i class="{{ .Kind }}" data-tip="{{ .Tip }}"></i>{{ end }}</span></td>
           <td data-l="state">{{ template "stateChip" . }}</td>
           <td class="r n" data-l="24h">{{ uptimeCell .H.Up24 }}</td>
           <td class="r n" data-l="30d">{{ uptimeCell .H.Up30 }}</td>
