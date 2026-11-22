@@ -126,7 +126,7 @@ the certificate and nothing else, refuses any name without a device token at
 the handshake and hands each query to `orchard-dns` over the bridge, since the
 tunnel only carries HTTP. It's IPv4 only so Docker keeps the client's address.
 Docker's published ports skip ufw, so a port published anywhere else here is
-open to the internet whatever ufw says.
+open to the internet whatever ufw says, and `make check` fails on one.
 
 **Everything is named `orchard-<first label>`.** `orchard-caddy` and
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,

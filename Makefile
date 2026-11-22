@@ -63,7 +63,7 @@ COMPOSE      = $(DOCKER) compose
 COMPOSE_DOWN = $(DOCKER) compose
 
 .DEFAULT_GOAL := help
-.PHONY: help install up up-one deploy edge doctor down down-one run build check shared-check frog frog-check template-check new fmt fmt-check vet vuln deps test \
+.PHONY: help install up up-one deploy edge doctor down down-one run build check shared-check ports-check frog frog-check template-check new fmt fmt-check vet vuln deps test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
 	auth-init auth-recovery dash-key pond-key cron-key llm-key logging-token util require-site require-env require-tunnel
 
@@ -560,7 +560,7 @@ build: require-site
 # the working directory, and build/ is gitignored.
 # check reports and does not repair, so it must not depend on fmt, which runs
 # gofmt -w and would make the answer yes by rewriting. Use `make fmt` for that.
-check: fmt-check shared-check frog-check template-check vet vuln
+check: fmt-check shared-check ports-check frog-check template-check vet vuln
 	for s in $(SITES); do echo "build $$s"; \
 		(cd sites/$$s && mkdir -p build && go build -o build/ ./...) || exit 1; done
 
@@ -596,6 +596,24 @@ shared-check:
 		exit 1; \
 	fi; \
 	echo "$(SHARED) copies match"
+
+# Docker's published ports skip ufw, so anything published is open to the
+# internet. DNS over TLS is the one port allowed, and host networking skips it too.
+PORTS_ALLOWED = sites/dns.bythewood.me/docker-compose.yml:"0.0.0.0:853:8853/tcp"
+
+ports-check:
+	@found=$$(awk ' \
+		/^[ \t]*network_mode:[ \t]*"?host/ { print FILENAME ":" $$0 } \
+		/^[ \t]*ports:/ { p = 1; n = match($$0, /[^ ]/); next } \
+		p && match($$0, /[^ ]/) <= n { p = 0 } \
+		p && /^[ \t]*-/ { sub(/^[ \t]*-[ \t]*/, ""); print FILENAME ":" $$0 } \
+	' edge/docker-compose.yml sites/*/docker-compose.yml | grep -vxF '$(PORTS_ALLOWED)'); \
+	if [ -n "$$found" ]; then \
+		echo "published ports that ufw cannot stop:" >&2; \
+		echo "$$found" | sed 's/^/  /' >&2; \
+		exit 1; \
+	fi; \
+	echo "no published ports but DNS over TLS"
 
 # The other sites draw frogs with a copy of pond's sprite code, so a change to
 # how a frog looks has to land in every copy. `make frog` copies pond's over
