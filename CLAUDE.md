@@ -278,7 +278,10 @@ database, seeded from `seed.go` on an empty one and changed on its page after
 that. With orchard-gate down every site answers 502, the same as a site of its
 own being down. What stays in Caddy is routing, the routes only the bridge may
 reach (`/verify`, `/ingest`, `/aggregate`) and ntfy's publish fence, since
-those are about where a request may go and not who it's from.
+those are about where a request may go and not who it's from. The one route
+with no `forward_auth` is `/q/` on dns.bythewood.me, since dns checks the
+device token itself and asks gate only about the network once it matches, and
+the DoT front does the same after the handshake.
 
 **Caddy ships, cloudflared and ntfy do not.** Caddy can't carry a Go handler, so
 it writes its access log to a socket with its own `net` writer and
@@ -374,7 +377,9 @@ in this public repository, so anyone can post it to `/login`. One code is
 outstanding at a time and a repeat request publishes nothing, and at most five
 notifications go out per hour whatever address they are asked from. A per IP
 limit is bypassed by sending one request from each of a thousand proxies, so on
-its own it bounds nothing. gate still caps each address at ten sign in POSTs a
+its own it bounds nothing. Both ceilings count only browsers without
+auth's `bw_device` cookie, a signed host only cookie set on a good sign in, so
+a stranger's failures can't lock out a browser that has signed in before. gate still caps each address at ten sign in POSTs a
 minute, and auth keeps no shared request limit, because one that any prober can
 spend locks the real user out with it. Codes
 publish at ntfy priority `low` so a flood is silent, and only a session that

@@ -84,7 +84,9 @@ blog and the portfolio are separate identities and nothing here applies to them.
   redirect, or from a site's own script dispatching an `o-toast` event on
   `document` with `{text, kind, ms}` in its detail.
 - **Anything with `data-tip`** shows its text in the suite tooltip on hover or
-  focus, which is how a tick or a day says what happened on it.
+  focus, which is how a tick or a day says what happened on it. A tip only
+  shows on hover or focus, so a strip of days also names its red and amber
+  days in text under it and carries an `aria-label` in place of `aria-hidden`.
 - **A table with `data-keys`** moves with j and k, opens a row with enter, which
   is its `data-href` or the `tr.o-drawer` under it, and picks a row's checkbox
   with x. `?` lists the keys and esc clears. A switch in that list turns the
@@ -1077,7 +1079,7 @@ below live as tokens at the top of `frontend/src/index.css`.
   is the share card PNG the server draws.
 - **Inter bold on a canvas.** Words a game draws are Inter bold at the
   canvas's own pixel size, scores and readouts included.
-- **Anything read is 14px or more.** 10 to 12px are for section labels, the
+- **Anything read is 14px or more.** 12px is the floor, for section labels, the
   rarity box, a key's legend under an icon and the caption under a picture in
   a slot or a jar, all in Inter semibold caps, which would wrap at 14.
 - Rarity is a word in a box as well as a colour: common grey, uncommon green,
