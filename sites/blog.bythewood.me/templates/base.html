@@ -14,7 +14,17 @@
   <link rel="alternate" type="application/atom+xml" title="Isaac Bythewood's Blog" href="/feed.xml">
 
   {{- if .ShowSocial }}
+  {{- with .Post }}
   <meta property="og:type" content="article">
+  <meta property="article:published_time" content="{{ .PublishDate }}">
+  <meta property="article:modified_time" content="{{ .Modified }}">
+  <meta property="article:author" content="https://isaacbythewood.com/">
+  {{- range .Tags }}
+  <meta property="article:tag" content="{{ . }}">
+  {{- end }}
+  {{- else }}
+  <meta property="og:type" content="website">
+  {{- end }}
   <meta property="og:site_name" content="Isaac Bythewood's Blog">
   <meta property="og:title" content="{{ .Title }}">
   <meta property="og:description" content="{{ .Description }}">
