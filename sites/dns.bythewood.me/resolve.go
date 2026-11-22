@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -283,6 +284,9 @@ func (r *resolver) answer(d *Device, req *dns.Msg, name string, l *Lookup) *dns.
 			m.SetRcode(req, dns.RcodeServerFailure)
 			return m
 		}
+		// unbound drops private answers for public names and Quad9 doesn't,
+		// so a slow rebinding server would otherwise get through here.
+		dropPrivate(resp)
 		r.fellBack.Add(1)
 		if l.Reason == "" {
 			l.Reason = "fallback"
@@ -425,6 +429,47 @@ func (r *resolver) fallback(req *dns.Msg) (*dns.Msg, error) {
 	}
 	resp.Id = req.Id
 	return resp, nil
+}
+
+// rebindNets is the same ranges as private-address in unbound.conf.
+var rebindNets = []netip.Prefix{
+	netip.MustParsePrefix("10.0.0.0/8"),
+	netip.MustParsePrefix("172.16.0.0/12"),
+	netip.MustParsePrefix("192.168.0.0/16"),
+	netip.MustParsePrefix("169.254.0.0/16"),
+	netip.MustParsePrefix("127.0.0.0/8"),
+	netip.MustParsePrefix("100.64.0.0/10"),
+	netip.MustParsePrefix("fd00::/8"),
+	netip.MustParsePrefix("fe80::/10"),
+	netip.MustParsePrefix("::ffff:0:0/96"),
+}
+
+// dropPrivate removes A and AAAA records that point into a private range.
+func dropPrivate(m *dns.Msg) {
+	kept := m.Answer[:0]
+	for _, rr := range m.Answer {
+		var a netip.Addr
+		switch v := rr.(type) {
+		case *dns.A:
+			a, _ = netip.AddrFromSlice(v.A.To4())
+		case *dns.AAAA:
+			a, _ = netip.AddrFromSlice(v.AAAA.To16())
+		}
+		if a.IsValid() && rebinding(a) {
+			continue
+		}
+		kept = append(kept, rr)
+	}
+	m.Answer = kept
+}
+
+func rebinding(a netip.Addr) bool {
+	for _, n := range rebindNets {
+		if n.Contains(a) {
+			return true
+		}
+	}
+	return false
 }
 
 // designate answers the DDR question with this device's DoT name first and

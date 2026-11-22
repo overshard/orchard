@@ -114,3 +114,25 @@ func TestNewNetsNeedASettledDevice(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+func TestDropPrivate(t *testing.T) {
+	m := new(dns.Msg)
+	for _, s := range []string{
+		"evil.example. 60 IN A 192.168.1.1",
+		"evil.example. 60 IN A 93.184.216.34",
+		"evil.example. 60 IN A 100.64.0.9",
+		"evil.example. 60 IN AAAA fd00::1",
+		"evil.example. 60 IN AAAA ::ffff:10.0.0.1",
+		"evil.example. 60 IN AAAA 2606:4700::1",
+	} {
+		rr, err := dns.NewRR(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m.Answer = append(m.Answer, rr)
+	}
+	dropPrivate(m)
+	if len(m.Answer) != 2 {
+		t.Fatalf("kept %v", m.Answer)
+	}
+}
