@@ -62,6 +62,11 @@
 #let page-width = px(816)
 #let page-height = px(1056)
 
+#set document(
+  title: data.name + ", " + data.title,
+  author: data.name,
+  keywords: ("resume", data.title),
+)
 #set page(width: page-width, height: page-height, margin: 0pt)
 #set text(
   font: "Liberation Sans",
