@@ -13,9 +13,12 @@
 </p>
 <div class="art-artGrid">
   {{- range .Pours }}
-  <div
+  {{/* A link to the full size image, so it opens without JS too, and the
+       script turns the click into the lightbox. */}}
+  <a
     class="art-artItem"
-    data-lightbox="{{ .LightboxSrc }}"
+    href="{{ .LightboxSrc }}"
+    data-lightbox
     data-lightbox-alt="{{ .Title }}"
   >
     <span class="art-cardImage">
@@ -34,7 +37,7 @@
       />
     </span>
     <h3 class="art-artItemHeader">{{ .Title }} <span>{{ .Number }}</span></h3>
-  </div>
+  </a>
   {{- end }}
 </div>
 
@@ -64,11 +67,11 @@
 {{- end }}
 
 <!-- One lightbox, reused by every card. -->
-<div class="art-lightboxOverlay" hidden>
+<dialog class="art-lightboxOverlay" aria-label="Artwork">
   <span class="art-lightboxImageWrapper">
     <div class="art-lightboxLoading">Loading...</div>
     <img class="art-lightboxImage" alt="" />
-    <button class="art-lightboxClose" type="button" aria-label="Close">&#10005;</button>
+    <button class="art-lightboxClose" type="button" aria-label="Close" autofocus>&#10005;</button>
   </span>
-</div>
+</dialog>
 {{ end }}

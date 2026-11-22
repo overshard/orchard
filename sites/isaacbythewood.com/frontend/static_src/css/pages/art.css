@@ -156,15 +156,25 @@
 }
 
 .art-artItem {
+  display: block;
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-2);
+  color: inherit;
+  text-decoration: none;
   transition: transform 300ms, box-shadow 300ms;
 }
 
-.art-artItem:hover {
+.art-artItem:hover,
+.art-artItem:focus-visible {
   transform: translateY(-3px);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* overflow: hidden would clip an outline drawn outside, so it sits inside. */
+.art-artItem:focus-visible {
+  outline: 3px solid var(--color-purple);
+  outline-offset: -3px;
 }
 
 .art-cardImage {
@@ -283,11 +293,9 @@ html[data-js] .art-cardImage img.art-imgLoaded {
 
 /* Lightbox */
 
-/* The hidden attribute sets display:none from the UA stylesheet, which any
-   author display rule outranks. Without this the lightbox is open on arrival.
-   The React version had no equivalent because it rendered the portal only
-   while an image was selected, so there was nothing to hide. */
-.art-lightboxOverlay[hidden] {
+/* A closed dialog is display:none from the UA stylesheet, which the display
+   rule below would outrank and leave the lightbox open on arrival. */
+.art-lightboxOverlay:not([open]) {
   display: none;
 }
 
@@ -297,6 +305,14 @@ html[data-js] .art-cardImage img.art-imgLoaded {
   left: 0;
   right: 0;
   bottom: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: white;
   background: rgba(0, 0, 0, 0.92);
   display: flex;
   align-items: center;
@@ -366,6 +382,15 @@ html[data-js] .art-cardImage img.art-imgLoaded {
   justify-content: center;
   transition: border-color 200ms, background 200ms;
   z-index: 1;
+}
+
+.art-lightboxOverlay::backdrop {
+  background: transparent;
+}
+
+.art-lightboxClose:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
 }
 
 .art-lightboxClose:hover {

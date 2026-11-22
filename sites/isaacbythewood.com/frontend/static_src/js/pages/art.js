@@ -64,20 +64,19 @@ const initCanvases = () => {
   });
 };
 
+// The overlay is a <dialog> opened with showModal, so the browser moves focus
+// in, closes it on Escape and hands focus back to the card that opened it.
 const initLightbox = () => {
   const overlay = document.querySelector(".art-lightboxOverlay");
-  if (!overlay) return;
+  if (!overlay || typeof overlay.showModal !== "function") return;
 
   const image = overlay.querySelector(".art-lightboxImage");
   const loading = overlay.querySelector(".art-lightboxLoading");
   const close = overlay.querySelector(".art-lightboxClose");
 
-  const hide = () => {
-    overlay.hidden = true;
-    image.classList.remove("art-show");
-    loading.classList.remove("art-hide");
-    image.removeAttribute("src");
-    document.body.style.overflowY = "scroll";
+  const revealed = () => {
+    image.classList.add("art-show");
+    loading.classList.add("art-hide");
   };
 
   const show = (src, alt) => {
@@ -85,7 +84,8 @@ const initLightbox = () => {
     loading.classList.remove("art-hide");
     image.alt = alt || "";
     image.src = src;
-    overlay.hidden = false;
+    overlay.setAttribute("aria-label", alt || "Artwork");
+    overlay.showModal();
     document.body.style.overflowY = "hidden";
 
     // A cached image can be complete before the load listener attaches, and
@@ -93,32 +93,30 @@ const initLightbox = () => {
     if (image.complete && image.naturalWidth > 0) revealed();
   };
 
-  const revealed = () => {
-    image.classList.add("art-show");
-    loading.classList.add("art-hide");
-  };
-
   image.addEventListener("load", revealed);
   image.addEventListener("error", revealed);
 
   document.querySelectorAll("[data-lightbox]").forEach((item) => {
-    item.addEventListener("click", () => {
-      show(item.dataset.lightbox, item.dataset.lightboxAlt);
+    item.addEventListener("click", (e) => {
+      // A modified click still opens the file in a new tab.
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+      e.preventDefault();
+      show(item.getAttribute("href"), item.dataset.lightboxAlt);
     });
   });
 
-  overlay.addEventListener("click", hide);
-  close.addEventListener("click", (e) => {
-    e.stopPropagation();
-    hide();
+  overlay.addEventListener("close", () => {
+    image.classList.remove("art-show");
+    loading.classList.remove("art-hide");
+    image.removeAttribute("src");
+    document.body.style.overflowY = "scroll";
   });
-  overlay
-    .querySelector(".art-lightboxImageWrapper")
-    .addEventListener("click", (e) => e.stopPropagation());
 
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !overlay.hidden) hide();
+  // A click on the dimmed area lands on the dialog itself, outside the image.
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.close();
   });
+  close.addEventListener("click", () => overlay.close());
 };
 
 const initCardFades = () => {
