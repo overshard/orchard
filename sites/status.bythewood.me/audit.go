@@ -136,7 +136,9 @@ func auditFetch(ctx context.Context, client *http.Client, rawURL, kind string, k
 		f.Err = err.Error()
 		return f
 	}
-	req.Header.Set("User-Agent", crawlerUserAgent)
+	// The probe's browser agent, since the audit stands in for a visit and a
+	// site that turns crawlers away would otherwise never be audited.
+	req.Header.Set("User-Agent", probeUserAgent)
 	req.Header.Set("Accept-Encoding", "gzip")
 
 	var start, first time.Time
