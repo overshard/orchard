@@ -866,6 +866,15 @@ func (s *store) create() (string, int64, error) {
 	return key, id, err
 }
 
+// fullFor is how long until the oldest egg of the last hour drops out of
+// the count and another can be laid.
+func (s *store) fullFor() (time.Duration, error) {
+	now := s.now().Unix()
+	var oldest int64
+	err := s.r.QueryRow(`SELECT COALESCE(MIN(created_at), ?) FROM ponds WHERE created_at > ?`, now, now-3600).Scan(&oldest)
+	return time.Duration(oldest+3600-now) * time.Second, err
+}
+
 // rotate gives the pond a new key, and the old one stops opening anything.
 func (s *store) rotate(id int64) (string, error) {
 	key := newKey()

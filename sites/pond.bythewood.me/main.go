@@ -88,6 +88,7 @@ type site struct {
 	assets   *web.Assets
 	store    *store
 	restores *limiter
+	eggs     *limiter
 }
 
 func main() {
@@ -187,7 +188,8 @@ func newSite(dist fs.FS, db *store) (*site, error) {
 	}
 	return &site{
 		renderer: renderer, dist: dist, assets: assets, store: db,
-		restores: newLimiter(10*time.Minute, 10, 600),
+		restores: newLimiter(10*time.Minute, 10, 30, 600),
+		eggs:     newLimiter(time.Hour, 10, 30, pondsAnHour),
 	}, nil
 }
 

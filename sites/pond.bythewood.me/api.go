@@ -142,7 +142,19 @@ func (s *site) apiGreet(w http.ResponseWriter, r *http.Request) {
 	id, key, err := s.pondOf(r)
 	first := errors.Is(err, errNoPond)
 	if first {
+		now := s.store.now()
+		if !s.eggs.allow(web.ClientIP(r), now) {
+			writeFull(w, s.eggs.left(now))
+			return
+		}
 		key, id, err = s.store.create()
+		if errors.Is(err, errFull) {
+			wait, werr := s.store.fullFor()
+			if werr == nil {
+				writeFull(w, wait)
+				return
+			}
+		}
 	}
 	if err != nil {
 		fail(w, r, err)
@@ -155,6 +167,14 @@ func (s *site) apiGreet(w http.ResponseWriter, r *http.Request) {
 	}
 	setKeyCookie(w, key)
 	writeJSON(w, http.StatusOK, g)
+}
+
+// writeFull turns away a newcomer while eggs are rationed, with a time to
+// come back that's never under a minute.
+func writeFull(w http.ResponseWriter, wait time.Duration) {
+	mins := max(1, int((wait+time.Minute-1)/time.Minute))
+	writeError(w, http.StatusTooManyRequests, "Lots of eggs went out just now. Yours is next, come back in about "+
+		plural(mins, "minute")+" and it'll be waiting.")
 }
 
 func (s *site) apiSpin(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
@@ -603,21 +623,27 @@ func (s *site) apiRotate(id int64, r *http.Request, w http.ResponseWriter) (any,
 // limiter counts tries in a fixed window, for one caller and for everybody.
 // There is no username to key a restore on, so it is per network and site
 // wide, and never per address alone, which IPv6 rotation walks straight past.
+// A /48 has its own count too, since one holds 65,536 /64s.
 type limiter struct {
 	mu      sync.Mutex
 	window  time.Duration
 	each    int
+	wide    int
 	all     int
 	started time.Time
 	total   int
 	seen    map[string]int
 }
 
-func newLimiter(window time.Duration, each, all int) *limiter {
-	return &limiter{window: window, each: each, all: all, seen: map[string]int{}}
+func newLimiter(window time.Duration, each, wide, all int) *limiter {
+	return &limiter{window: window, each: each, wide: wide, all: all, seen: map[string]int{}}
 }
 
 func network(ip string) string {
+	return prefixOf(ip, 64)
+}
+
+func prefixOf(ip string, bits int) string {
 	addr, err := netip.ParseAddr(ip)
 	if err != nil {
 		return ip
@@ -625,7 +651,7 @@ func network(ip string) string {
 	if addr.Is4() || addr.Is4In6() {
 		return addr.Unmap().String()
 	}
-	p, _ := addr.Prefix(64)
+	p, _ := addr.Prefix(bits)
 	return p.String()
 }
 
@@ -635,13 +661,21 @@ func (l *limiter) allow(ip string, now time.Time) bool {
 	if now.Sub(l.started) >= l.window {
 		l.started, l.total, l.seen = now, 0, map[string]int{}
 	}
-	net := network(ip)
-	if l.total >= l.all || l.seen[net] >= l.each {
+	net, wide := network(ip), "wide "+prefixOf(ip, 48)
+	if l.total >= l.all || l.seen[net] >= l.each || l.seen[wide] >= l.wide {
 		return false
 	}
 	l.total++
 	l.seen[net]++
+	l.seen[wide]++
 	return true
+}
+
+// left is how long until the window starts over.
+func (l *limiter) left(now time.Time) time.Duration {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return max(0, l.started.Add(l.window).Sub(now))
 }
 
 // ---------------------------------------------------------------- dev

@@ -341,6 +341,42 @@ func TestRestoreIsRateLimited(t *testing.T) {
 	}
 }
 
+func TestOneWideNetworkCantUseUpTheRestores(t *testing.T) {
+	l := newLimiter(time.Minute, 10, 30, 600)
+	now := time.Unix(1_800_000_000, 0)
+	n := 0
+	for i := range 100 {
+		if l.allow(fmt.Sprintf("2001:db8:7:%x::1", i), now) {
+			n++
+		}
+	}
+	if n != 30 {
+		t.Errorf("one /48 got %d tries, want 30", n)
+	}
+	if !l.allow("2001:db8:8::1", now) {
+		t.Error("another /48 was shut out")
+	}
+}
+
+func TestOneNetworkCantLayEveryEgg(t *testing.T) {
+	b, _, _ := testSite(t)
+	lay := func(ip string) *httptest.ResponseRecorder {
+		return (&browser{t: t, h: b.h}).do(http.MethodPost, "/api/greet", "{}", "CF-Connecting-IP", ip)
+	}
+	for i := range 10 {
+		if rec := lay("198.51.100.7"); rec.Code != http.StatusOK {
+			t.Fatalf("egg %d: %d", i+1, rec.Code)
+		}
+	}
+	rec := lay("198.51.100.7")
+	if rec.Code != http.StatusTooManyRequests || !strings.Contains(rec.Body.String(), "come back in about 60 minutes") {
+		t.Errorf("the eleventh egg from one network: %d %s", rec.Code, rec.Body)
+	}
+	if rec := lay("198.51.100.8"); rec.Code != http.StatusOK {
+		t.Errorf("another network was turned away: %d", rec.Code)
+	}
+}
+
 func TestPanelIsTheVisitorsOwnFrog(t *testing.T) {
 	b, _, _ := testSite(t)
 	var house panel
