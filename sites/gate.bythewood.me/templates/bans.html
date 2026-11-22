@@ -3,7 +3,7 @@
   <div>
     <span class="o-lab">gate &middot; bans</span>
     <h1>{{if .Bans}}{{count (len .Bans) "address" "addresses"}}, <em>{{comma .Refused}} refused</em> since they started.{{else}}No bans, <em>nobody refused everywhere</em>.{{end}}</h1>
-    <p>A rule with ban after set bans an address that keeps tripping it. A ban refuses that address on every host until it runs out, unless it's signed in.</p>
+    <p>A rule with ban after set bans an address that keeps tripping it. A ban refuses that address on every host until it runs out, unless it's signed in. An IPv6 ban covers the address's whole /64.</p>
   </div>
 </div>
 {{if .Error}}<div class="o-note bad"><span class="o-lab plain o-bad">not banned</span><span>{{.Error}}</span></div>{{end}}
@@ -21,7 +21,7 @@
       {{range .Bans}}
         <tr data-id="{{.IP}}">
           <td class="pick"><input type="checkbox" value="{{.IP}}" aria-label="Pick {{.IP}}"></td>
-          <td class="lead n"><a href="/traffic?ip={{.IP}}">{{.IP}}</a><span class="sub">since {{ago .Created}}</span></td>
+          <td class="lead n"><a href="/traffic?ip={{.IP}}">{{.IP}}</a><span class="sub">since {{ago .Created}}{{with .Covers}} &middot; all of {{.}}{{end}}</span></td>
           <td class="nw mono small" data-l="by">{{.Rule}}</td>
           <td class="r n" data-l="refused" data-tip="refused since it started, from the sampled events">{{comma .Refused}}</td>
           <td class="left" data-l="left"><span class="o-hbar"><span class="bar"><i class="bad" style="width: {{.Left}}%"></i></span><span class="v" data-tip="{{utc .Until}}">{{until .Until}}</span></span></td>

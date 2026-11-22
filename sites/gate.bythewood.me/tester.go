@@ -193,7 +193,7 @@ func testRule(r *Rule, hour []seen, live []*Rule, now time.Time, ids ...identity
 			res.Solved++
 		}
 		if r.Action == actLimit {
-			k := windowKey{x.At / 60, x.IP}
+			k := windowKey{x.At / 60, banKey(x.IP)}
 			perMin[k]++
 			if perMin[k] > r.Rate {
 				res.OverRate++

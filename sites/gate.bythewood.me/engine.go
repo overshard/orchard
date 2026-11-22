@@ -51,7 +51,7 @@ type engine struct {
 
 	mu      sync.Mutex
 	windows map[windowKey]*window
-	bans    map[netip.Addr]Ban
+	bans    map[netip.Addr]Ban // keyed by banKey
 }
 
 type windowKey struct {
@@ -62,6 +62,25 @@ type windowKey struct {
 type window struct {
 	start time.Time
 	n     int
+}
+
+// banKey is what bans and limits count against, the address on IPv4 and its
+// /64 on IPv6, since one IPv6 client can rotate through a whole /64.
+func banKey(ip netip.Addr) netip.Addr {
+	ip = ip.Unmap()
+	if ip.Is6() {
+		p, _ := ip.Prefix(64)
+		return p.Addr()
+	}
+	return ip
+}
+
+// Covers is the range an IPv6 ban refuses, empty for IPv4.
+func (b Ban) Covers() string {
+	if k := banKey(b.IP); k.Is6() {
+		return netip.PrefixFrom(k, 64).String()
+	}
+	return ""
 }
 
 // Ban is an address refused on every host until it runs out, set by a rule
@@ -248,7 +267,7 @@ func (e *engine) decide(q *req, r *http.Request) verdict {
 	now := time.Now()
 
 	e.mu.Lock()
-	ban, banned := e.bans[q.IP]
+	ban, banned := e.bans[banKey(q.IP)]
 	e.mu.Unlock()
 	if banned && now.Before(ban.Until) && mode == modeOn {
 		return e.unlessSignedIn(r, verdict{kind: vBanned, ban: ban.Rule})
@@ -379,7 +398,7 @@ func (c *noCache) add(k [32]byte, now time.Time) {
 func (e *engine) over(rule *Rule, ip netip.Addr, now time.Time) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	k := windowKey{rule.ID, ip}
+	k := windowKey{rule.ID, banKey(ip)}
 	win := e.windows[k]
 	if win == nil || now.Sub(win.start) >= time.Minute {
 		win = &window{start: now}
@@ -393,7 +412,7 @@ func (e *engine) over(rule *Rule, ip netip.Addr, now time.Time) bool {
 // it passes the rule's ban after inside the window.
 func (e *engine) maybeBan(rule *Rule, ip netip.Addr, now time.Time) {
 	e.mu.Lock()
-	k := windowKey{-rule.ID, ip}
+	k := windowKey{-rule.ID, banKey(ip)}
 	win := e.windows[k]
 	if win == nil || now.Sub(win.start) >= banWindow {
 		win = &window{start: now}
@@ -402,9 +421,9 @@ func (e *engine) maybeBan(rule *Rule, ip netip.Addr, now time.Time) {
 	win.n++
 	var b *Ban
 	if win.n >= rule.BanAfter {
-		if old, ok := e.bans[ip]; !ok || old.Until.Before(now) {
+		if old, ok := e.bans[banKey(ip)]; !ok || old.Until.Before(now) {
 			nb := Ban{IP: ip, Until: now.Add(rule.BanFor), Rule: rule.Name, Created: now}
-			e.bans[ip] = nb
+			e.bans[banKey(ip)] = nb
 			b = &nb
 		}
 		delete(e.windows, k)
@@ -420,19 +439,19 @@ func (e *engine) setBans(bans []Ban) {
 	defer e.mu.Unlock()
 	e.bans = map[netip.Addr]Ban{}
 	for _, b := range bans {
-		e.bans[b.IP] = b
+		e.bans[banKey(b.IP)] = b
 	}
 }
 
 func (e *engine) addBan(b Ban) {
 	e.mu.Lock()
-	e.bans[b.IP] = b
+	e.bans[banKey(b.IP)] = b
 	e.mu.Unlock()
 }
 
 func (e *engine) lift(ip netip.Addr) {
 	e.mu.Lock()
-	delete(e.bans, ip)
+	delete(e.bans, banKey(ip))
 	e.mu.Unlock()
 }
 

@@ -440,8 +440,20 @@ func (s *Store) AddBan(b Ban) error {
 	return err
 }
 
+// Lift ends every ban that covers ip, which on IPv6 is any in its /64.
 func (s *Store) Lift(ip netip.Addr) error {
-	_, err := s.db.Exec(`DELETE FROM bans WHERE ip = ?`, ip.String())
+	bans, err := s.Bans()
+	if err != nil {
+		return err
+	}
+	for _, b := range bans {
+		if banKey(b.IP) == banKey(ip) {
+			if _, err := s.db.Exec(`DELETE FROM bans WHERE ip = ?`, b.IP.String()); err != nil {
+				return err
+			}
+		}
+	}
+	_, err = s.db.Exec(`DELETE FROM bans WHERE ip = ?`, ip.String())
 	return err
 }
 

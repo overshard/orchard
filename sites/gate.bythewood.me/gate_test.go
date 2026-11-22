@@ -198,6 +198,34 @@ func TestBanAfter(t *testing.T) {
 	}
 }
 
+func TestBanCoversTheSlash64(t *testing.T) {
+	s := testSite(t)
+	r, _ := s.store.RuleNamed("scanners")
+	r.BanAfter, r.BanFor = 3, time.Hour
+	_ = s.store.UpdateRule(&r, "you")
+	_ = s.reload()
+	for _, ip := range []string{"2001:db8:1:2::1", "2001:db8:1:2::2", "2001:db8:1:2::3"} {
+		ask(s, "GET", "blog.bythewood.me", "/wp-login.php", ip)
+	}
+	if w := ask(s, "GET", "pond.bythewood.me", "/", "2001:db8:1:2:ffff::9"); w.Code != 403 {
+		t.Fatalf("an address in a banned /64 got %d", w.Code)
+	}
+	if w := ask(s, "GET", "pond.bythewood.me", "/", "2001:db8:1:3::1"); w.Code != 204 {
+		t.Fatalf("the next /64 over got %d", w.Code)
+	}
+	if err := s.store.Flush(s.engine.stats.take()); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.store.Lift(netip.MustParseAddr("2001:db8:1:2::77"))
+	s.engine.lift(netip.MustParseAddr("2001:db8:1:2::77"))
+	if bans, _ := s.store.Bans(); len(bans) != 0 {
+		t.Fatalf("lifting inside the /64 left %+v", bans)
+	}
+	if w := ask(s, "GET", "pond.bythewood.me", "/", "2001:db8:1:2::1"); w.Code != 204 {
+		t.Fatalf("a lifted /64 got %d", w.Code)
+	}
+}
+
 func TestParseWhen(t *testing.T) {
 	bad := []string{"", "colour is red", "path near /x", "path is", "ip is nope", "asn is cloud", "path regex ("}
 	for _, w := range bad {
