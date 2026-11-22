@@ -130,3 +130,20 @@ if (ticking.length) {
     }
   }, 20000);
 }
+
+// ------------------------------------------------------------ event drawers
+
+// The time in each event row is a real button for its drawer, so Tab reaches
+// it. The suite's row click and j/k toggle the drawer too, so the button
+// follows the drawer's hidden attribute.
+for (const b of $$("button.evx[aria-controls]")) {
+  const d = document.getElementById(b.getAttribute("aria-controls"));
+  if (!d) continue;
+  const sync = () => b.setAttribute("aria-expanded", String(!d.hidden));
+  new MutationObserver(sync).observe(d, { attributes: true, attributeFilter: ["hidden"] });
+  b.addEventListener("click", () => {
+    d.hidden = !d.hidden;
+    d.previousElementSibling?.setAttribute("aria-expanded", String(!d.hidden));
+  });
+  sync();
+}

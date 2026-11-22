@@ -82,3 +82,8 @@ h3.sub { font-size: 0.86rem; margin: 14px 0 6px; }
 .bans td.left { min-width: 9rem; }
 .bans td.left .o-hbar { display: flex; gap: 8px; align-items: center; }
 .bans td.left .bar { flex: 1; }
+
+.evx { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.evx::before { content: "\25B8"; display: inline-block; width: 1em; color: var(--o-muted); }
+.evx[aria-expanded="true"] { color: var(--o-text); }
+.evx[aria-expanded="true"]::before { content: "\25BE"; }

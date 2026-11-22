@@ -168,15 +168,15 @@
 <table class="o-tbl stack evs" data-keys>
   <thead><tr><th>When</th><th>What</th><th>Request</th><th>From</th><th>Why</th></tr></thead>
   <tbody>
-  {{range .Events}}
+  {{range $i, $e := .Events}}
     <tr>
-      <td class="n o-muted nw" data-tip="{{utc .At}}">{{clock .At}}</td>
+      <td class="n o-muted nw" data-tip="{{utc .At}}"><button type="button" class="evx" aria-expanded="false" aria-controls="ev-{{$i}}" aria-label="Why, {{.Verdict}} at {{clock .At}}">{{clock .At}}</button></td>
       <td class="nw">{{if .Watch}}<span class="o-chip">would {{.Verdict}}</span>{{else}}<span class="o-chip {{actionKind .Verdict}}">{{.Verdict}}</span>{{end}}</td>
       <td class="lead clip mono" data-tip="{{.Method}} {{.Host}}{{.Path}}">{{.Method}} {{.Host}}{{.Path}}</td>
       <td class="nw mono small" data-l="from">{{.IP}} <span class="o-muted">{{.Country}}{{if .ASN}} AS{{.ASN}}{{end}}</span></td>
       <td class="nw mono small" data-l="why">{{if eq .Verdict "banned"}}<span class="o-muted">ban</span> {{.BanFrom}}{{else}}{{.Rule}}{{end}}{{with .Summary}} <span class="o-muted">&middot; {{.}}</span>{{end}}</td>
     </tr>
-    <tr class="o-drawer">
+    <tr class="o-drawer" id="ev-{{$i}}">
       <td colspan="5">
         <div class="o-band b3e drawer">
           <div>
@@ -213,5 +213,5 @@
   </tbody>
 </table>
 </div>
-<p class="o-hint"><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>enter</kbd>open why</span><span><kbd>?</kbd>every key</span></p>
+<p class="o-hint"><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>enter</kbd>or the time opens why</span><span><kbd>?</kbd>every key</span></p>
 {{end}}
