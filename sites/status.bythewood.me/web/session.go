@@ -1,7 +1,9 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -77,6 +79,10 @@ func (a *Authenticator) check(r *http.Request) (ok, connector bool) {
 
 	resp, err := a.client.Do(req)
 	if err != nil {
+		// A visitor closing the tab is not auth failing.
+		if errors.Is(err, context.Canceled) {
+			return false, false
+		}
 		slog.Error("verifying a session failed",
 			slog.String("component", "auth"),
 			slog.Any("err", err))
