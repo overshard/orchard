@@ -1110,7 +1110,7 @@ func testWatchdog(t *testing.T, db *sql.DB, clock *time.Time) (*Watchdog, *[]rec
 // Every kind renders and an unknown kind is refused. The click URL has to be
 // absolute, since it's opened from a phone with no idea what the origin is.
 func TestRenderAlertKinds(t *testing.T) {
-	for _, kind := range []string{"silence", "resumed", "restart", "crash"} {
+	for _, kind := range []string{"silence", "resumed", "restart", "crash", "errors"} {
 		body, ok := renderAlert(kind, AlertContext{Source: "blog", Silent: 7 * time.Minute})
 		if !ok {
 			t.Fatalf("%s: not rendered", kind)

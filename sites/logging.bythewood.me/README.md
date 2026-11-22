@@ -5,7 +5,9 @@ Log aggregation for every site here. Each one tees its slog records to
 port 9001, and it all lands in SQLite. Raw records are kept 30 days and hourly
 rollups forever, so a graph can cover a year while the database stays about the
 same size. It alerts over ntfy when a source goes quiet or restarts without
-shutting down, and the dashboard is behind auth.bythewood.me.
+shutting down, when one source logs ten errors inside five minutes, and when
+the data disk drops under 15% or 3GB free. The dashboard is behind
+auth.bythewood.me.
 
 ## Requirements
 
@@ -22,7 +24,7 @@ make clean    delete build/ and node_modules
 ```
 
 `go run . -preview-alert silence` prints an alert without waiting for one, and
-so do `resumed` and `restart`.
+so do `resumed`, `restart`, `crash`, `errors` and `disk`.
 
 ## Layout
 
@@ -44,6 +46,10 @@ any attrs key, a comma means any of, and `*` is a wildcard in `path:` and
 - This site gives itself a local sink, since posting its own records to
   `/ingest` would log a request that becomes another ingest.
 - Caddy refuses `/ingest` and `/aggregate` on the public hostname.
+- A job that isn't a site, like the nightly backup, can post one record to
+  `/ingest` as a heartbeat when it finishes. Its source needs an entry in
+  `heartbeats` in `watchdog.go` with how long it may go quiet, 26 hours for
+  `backup`, or it pages five minutes after every run.
 - Caddy's line for a hostname whose site is shipping only goes to the rollups,
   since the site logged the same request, so searching `caddy` finds the 5xx
   and the hostnames nothing behind ships for, like the apex and ntfy.

@@ -42,8 +42,22 @@ func renderAlert(kind string, ctx AlertContext) (ntfy.Message, bool) {
 	// Absolute, since it's opened from a phone that has no idea what the origin is.
 	link := baseURL + "/sources/" + ctx.Source
 
+	_, heartbeat := heartbeats[ctx.Source]
+
 	switch kind {
 	case "silence":
+		if heartbeat {
+			return ntfy.Message{
+				Title: ctx.Source + " has not checked in",
+				Body: fmt.Sprintf(
+					"No heartbeat for %s.\nThe job that sends it has failed, stopped running, or can't reach ingest.",
+					humanDuration(ctx.Silent)),
+				Priority: "high",
+				Tags:     "mute",
+				Link:     link,
+				Label:    "Open logs",
+			}, true
+		}
 		return ntfy.Message{
 			Title: ctx.Source + " has stopped logging",
 			Body: fmt.Sprintf(
@@ -57,6 +71,16 @@ func renderAlert(kind string, ctx AlertContext) (ntfy.Message, bool) {
 		}, true
 
 	case "resumed":
+		if heartbeat {
+			return ntfy.Message{
+				Title:    ctx.Source + " checked in again",
+				Body:     fmt.Sprintf("A heartbeat arrived after %s without one.", humanDuration(ctx.Silent)),
+				Priority: "default",
+				Tags:     "white_check_mark",
+				Link:     link,
+				Label:    "Open logs",
+			}, true
+		}
 		return ntfy.Message{
 			Title: ctx.Source + " is logging again",
 			Body: fmt.Sprintf(
@@ -78,6 +102,26 @@ func renderAlert(kind string, ctx AlertContext) (ntfy.Message, bool) {
 			Body:     body,
 			Priority: "high",
 			Tags:     "rotating_light",
+			Link:     link,
+			Label:    "Open logs",
+		}, true
+
+	case "errors":
+		return ntfy.Message{
+			Title:    ctx.Source + " is logging a burst of errors",
+			Body:     ctx.Detail + "\nNot told again for this source for an hour.",
+			Priority: "high",
+			Tags:     "warning",
+			Link:     link,
+			Label:    "Open logs",
+		}, true
+
+	case "disk":
+		return ntfy.Message{
+			Title:    "The data disk is nearly full",
+			Body:     ctx.Detail + "\nIt's the host filesystem Docker writes to, so every site with a database stops writing when it fills. Check docker system df and build cache first.",
+			Priority: "high",
+			Tags:     "floppy_disk",
 			Link:     link,
 			Label:    "Open logs",
 		}, true
@@ -139,7 +183,7 @@ func previewAlert(kind string) error {
 		Detail: "Previous record seen 12 minutes ago.",
 	})
 	if !ok {
-		return fmt.Errorf("unknown alert kind %q (use 'silence', 'resumed' or 'restart')", kind)
+		return fmt.Errorf("unknown alert kind %q (use 'silence', 'resumed', 'restart', 'crash', 'errors' or 'disk')", kind)
 	}
 	ntfy.Preview(os.Stdout, ntfyTopic, body)
 	return nil

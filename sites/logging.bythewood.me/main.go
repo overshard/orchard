@@ -186,6 +186,7 @@ func realMain() error {
 	// Must exist before anything is observed, since the watchdog is fed from
 	// ingest. A failed bootstrap only loses the seeded source list.
 	s.watchdog = NewWatchdog(db, NewNotifier().Fire)
+	s.watchdog.diskPath = dataDir
 	if err := s.watchdog.Bootstrap(context.Background()); err != nil {
 		slog.Error("watchdog bootstrap failed; watching only what ships from now on",
 			slog.String("component", "watchdog"),

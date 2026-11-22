@@ -8,14 +8,15 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"logging.bythewood.me/web"
 )
 
-// The rules are a source going silent and a start with no preceding shutdown.
-// There's no error rate rule, since these sites log almost no ERROR or WARN
-// records and a rule that never fires can't be told from a broken one.
+// The rules are a source going silent, a start with no preceding shutdown, a
+// burst of ERROR records from one source and the data disk running low. A steady
+// error rate isn't one, since these sites log almost no ERROR records at all.
 
 const (
 	// A healthy source is seen roughly every thirty-five seconds, from its own
@@ -28,6 +29,17 @@ const (
 	caddySilenceAfter = 15 * time.Minute
 
 	watchInterval = 30 * time.Second
+
+	// A burst is errorBurst ERROR records from one source inside errorWindow,
+	// told at most once per errorRepeat so a stuck loop isn't a page a minute.
+	errorBurst  = 10
+	errorWindow = 5 * time.Minute
+	errorRepeat = time.Hour
+
+	// The volume shares the host filesystem with Docker's data root, so this is
+	// also the room every other container has to write in.
+	diskLowFraction = 0.15
+	diskLowBytes    = 3 << 30
 
 	// Nothing alerts for this long after start. While this site is restarting,
 	// every other site's shipper is dropping into a refused connection, so both
@@ -46,6 +58,12 @@ const (
 	msgListening = "listening"
 	msgShutdown  = "shutting down"
 )
+
+// heartbeats are sources that report a job finishing rather than a process
+// running, each with how long it may go quiet. A backup runs once a day.
+var heartbeats = map[string]time.Duration{
+	"backup": 26 * time.Hour,
+}
 
 type lifecycleEvent struct {
 	source string
@@ -69,6 +87,14 @@ type Watchdog struct {
 	// Sources currently reported silent, and when they went quiet, so the
 	// recovery message can state the gap.
 	quietSince map[string]time.Time
+	// The arrival times of each source's latest ERROR records, at most errorBurst.
+	errs      map[string][]time.Time
+	burstSent map[string]time.Time
+
+	// diskPath is statted every tick, and an empty one skips the disk rule.
+	diskPath string
+	statDisk func(path string) (free, total uint64, err error)
+	diskLow  bool
 
 	startedAt time.Time
 }
@@ -81,6 +107,9 @@ func NewWatchdog(db *sql.DB, notify func(kind string, ctx AlertContext)) *Watchd
 		events:     make(chan lifecycleEvent, lifecycleQueue),
 		seen:       map[string]time.Time{},
 		quietSince: map[string]time.Time{},
+		errs:       map[string][]time.Time{},
+		burstSent:  map[string]time.Time{},
+		statDisk:   statfs,
 		startedAt:  time.Now(),
 	}
 }
@@ -96,6 +125,15 @@ func (w *Watchdog) Observe(source string, records []web.Record) {
 
 	w.mu.Lock()
 	w.seen[source] = now
+	for _, rec := range records {
+		if rec.Level == "ERROR" {
+			e := append(w.errs[source], now)
+			if len(e) > errorBurst {
+				e = e[len(e)-errorBurst:]
+			}
+			w.errs[source] = e
+		}
+	}
 	w.mu.Unlock()
 
 	for _, rec := range records {
@@ -162,11 +200,19 @@ func (w *Watchdog) Bootstrap(ctx context.Context) error {
 		return err
 	}
 
+	beats, err := w.lastHeartbeats(ctx, start)
+	if err != nil {
+		return err
+	}
+
 	w.mu.Lock()
 	for _, source := range found {
 		// Seeded as seen now, since this process can't tell a site that's down
 		// from one it wasn't running to receive. silenceAfter settles it.
 		w.seen[source] = start
+	}
+	for source, at := range beats {
+		w.seen[source] = at
 	}
 	w.mu.Unlock()
 
@@ -175,6 +221,32 @@ func (w *Watchdog) Bootstrap(ctx context.Context) error {
 		slog.Int("sources", len(found)),
 		slog.String("silence_after", silenceAfter.String()))
 	return nil
+}
+
+// lastHeartbeats reads when each heartbeat source last arrived, since one that
+// pings once a day is older than knownSourceWindow for most of it. A heartbeat
+// never heard is seeded as now, so a job that never runs is reported too.
+func (w *Watchdog) lastHeartbeats(ctx context.Context, start time.Time) (map[string]time.Time, error) {
+	out := map[string]time.Time{}
+	for source, limit := range heartbeats {
+		var hour sql.NullInt64
+		err := w.db.QueryRowContext(ctx,
+			`SELECT MAX(hour) FROM rollups WHERE source = ? AND hour >= ?`,
+			source, hourFloor(start.Add(-2*limit).UnixMilli())).Scan(&hour)
+		if err != nil {
+			return nil, err
+		}
+		at := start
+		if hour.Valid {
+			// The end of the rollup hour, which can only report it late, never early.
+			at = time.UnixMilli(hour.Int64).Add(time.Hour)
+			if at.After(start) {
+				at = start
+			}
+		}
+		out[source] = at
+	}
+	return out, nil
 }
 
 // Run evaluates the silence rule on a ticker and handles lifecycle events in
@@ -192,6 +264,8 @@ func (w *Watchdog) Run(ctx context.Context) {
 			w.handleLifecycle(context.WithoutCancel(ctx), ev)
 		case <-t.C:
 			w.checkSilence()
+			w.checkErrors()
+			w.checkDisk()
 		}
 	}
 }
@@ -250,10 +324,97 @@ func (w *Watchdog) checkSilence() {
 // silenceFor is how long a source may go quiet before it is reported, which
 // depends on what its heartbeat is and not on the source itself.
 func silenceFor(source string) time.Duration {
+	if limit, ok := heartbeats[source]; ok {
+		return limit
+	}
 	if source == caddySource {
 		return caddySilenceAfter
 	}
 	return silenceAfter
+}
+
+// checkErrors reports a source whose last errorBurst ERROR records all arrived
+// inside errorWindow.
+func (w *Watchdog) checkErrors() {
+	now := w.now()
+	if now.Sub(w.startedAt) < startupGrace {
+		return
+	}
+
+	var fire []string
+	w.mu.Lock()
+	for source, e := range w.errs {
+		if len(e) < errorBurst || now.Sub(e[0]) > errorWindow {
+			continue
+		}
+		if sent, ok := w.burstSent[source]; ok && now.Sub(sent) < errorRepeat {
+			continue
+		}
+		w.burstSent[source] = now
+		fire = append(fire, source)
+	}
+	w.mu.Unlock()
+
+	for _, source := range fire {
+		w.notify("errors", AlertContext{Source: source,
+			Detail: fmt.Sprintf("%d or more ERROR records in %s.", errorBurst, humanDuration(errorWindow))})
+	}
+}
+
+// checkDisk reports once when free space drops under the floor and re-arms
+// once it's back above it.
+func (w *Watchdog) checkDisk() {
+	if w.diskPath == "" {
+		return
+	}
+	free, total, err := w.statDisk(w.diskPath)
+	if err != nil || total == 0 {
+		return
+	}
+	low := diskIsLow(free, total)
+	if low == w.diskLow {
+		return
+	}
+	w.diskLow = low
+	if low {
+		w.notify("disk", AlertContext{Source: selfSource,
+			Detail: fmt.Sprintf("%s free of %s (%.0f%%).", humanBytes(free), humanBytes(total), 100*float64(free)/float64(total))})
+	}
+}
+
+func diskIsLow(free, total uint64) bool {
+	return free < diskLowBytes || float64(free) < diskLowFraction*float64(total)
+}
+
+func statfs(path string) (free, total uint64, err error) {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(path, &st); err != nil {
+		return 0, 0, err
+	}
+	return st.Bavail * uint64(st.Bsize), st.Blocks * uint64(st.Bsize), nil
+}
+
+func humanBytes(n uint64) string {
+	switch {
+	case n >= 1<<30:
+		return fmt.Sprintf("%.1fG", float64(n)/(1<<30))
+	case n >= 1<<20:
+		return fmt.Sprintf("%dM", n>>20)
+	default:
+		return fmt.Sprintf("%dK", n>>10)
+	}
+}
+
+// Disk is the data volume's free and total bytes, zero when it can't be read.
+func (w *Watchdog) Disk() (free, total uint64) {
+	if w == nil || w.diskPath == "" {
+		return 0, 0
+	}
+	free, total, err := w.statDisk(w.diskPath)
+	if err != nil {
+		return 0, 0
+	}
+	return free, total
 }
 
 // handleLifecycle applies the restart rule. State lives in meta instead of in
@@ -346,7 +507,7 @@ func (w *Watchdog) HeardWithin(source string, d time.Duration) bool {
 
 func (s *site) markHeard(rows []SourceRow) {
 	for i := range rows {
-		if !rows[i].IsLive && s.watchdog.HeardWithin(rows[i].Source, 15*time.Minute) {
+		if !rows[i].IsLive && s.watchdog.HeardWithin(rows[i].Source, max(15*time.Minute, silenceFor(rows[i].Source))) {
 			rows[i].IsLive = true
 		}
 	}
