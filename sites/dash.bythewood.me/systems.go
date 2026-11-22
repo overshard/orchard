@@ -89,7 +89,22 @@ type SystemRow struct {
 	Trend    string `json:"trend"`
 }
 
+// Box is the host itself as logging sees it, its data disk and how long since
+// the nightly backup checked in, since a full disk or a stale backup leaves
+// every site row green.
+type Box struct {
+	Known       bool   `json:"known"`
+	Disk        string `json:"disk"`
+	DiskState   string `json:"disk_state"`
+	Backup      string `json:"backup"`
+	BackupState string `json:"backup_state"`
+}
+
+// backupStale matches the silence window logging gives the backup heartbeat.
+const backupStale = 26 * time.Hour
+
 type Systems struct {
+	Box      Box         `json:"box"`
 	Rows     []SystemRow `json:"rows"`
 	Up       int         `json:"up"`
 	Total    int         `json:"total"`
@@ -244,6 +259,33 @@ type aggregatePayload struct {
 		BaselineDaily float64 `json:"baseline_daily"`
 		P95MS         float64 `json:"p95_ms"`
 	} `json:"sources"`
+	Box struct {
+		DiskFree   uint64           `json:"disk_free"`
+		DiskTotal  uint64           `json:"disk_total"`
+		DiskLow    bool             `json:"disk_low"`
+		Heartbeats map[string]int64 `json:"heartbeats"`
+	} `json:"box"`
+}
+
+func buildBox(p aggregatePayload, now time.Time) Box {
+	// A logging too old to send the box sends no heartbeat map either.
+	b := Box{Known: p.Box.Heartbeats != nil, Disk: "—", Backup: "NEVER", BackupState: "bad"}
+	if p.Box.DiskTotal > 0 {
+		b.Disk = fmt.Sprintf("%.0fG FREE", float64(p.Box.DiskFree)/(1<<30))
+		b.DiskState = "ok"
+		if p.Box.DiskLow {
+			b.DiskState = "bad"
+		}
+	}
+	if ms := p.Box.Heartbeats["backup"]; ms > 0 {
+		age := now.Sub(time.UnixMilli(ms))
+		b.Backup = strings.ToUpper(shortAge(age)) + " AGO"
+		b.BackupState = "ok"
+		if age > backupStale {
+			b.BackupState = "bad"
+		}
+	}
+	return b
 }
 
 // buildSystems probes every site at once and folds in the error counts logging
@@ -277,6 +319,7 @@ func buildSystems(ctx context.Context, g *Guard, now time.Time) Systems {
 		}
 
 		s.Window = payload.WindowHours
+		s.Box = buildBox(payload, now)
 		for i, m := range monitored {
 			c, ok := by[m.Source]
 			if !ok {

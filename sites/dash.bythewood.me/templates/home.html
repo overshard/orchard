@@ -281,6 +281,12 @@
         <span class="rule"></span>
         <span class="panel-meta" data-systems-summary>{{.State.Systems.Up}}/{{.State.Systems.Total}} UP</span>
       </header>
+      {{with .State.Systems.Box}}
+      <div class="box" data-box{{if not .Known}} hidden{{end}}>
+        <span class="cell" data-box-disk data-state="{{.DiskState}}"><b>DISK</b><span>{{.Disk}}</span></span>
+        <span class="cell" data-box-backup data-state="{{.BackupState}}"><b>BACKUP</b><span>{{.Backup}}</span></span>
+      </div>
+      {{end}}
       <ul class="rows" data-systems>
         {{range .State.Systems.Rows}}
         <li data-state="{{.State}}">

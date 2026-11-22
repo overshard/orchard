@@ -600,7 +600,23 @@ function renderSystems(systems) {
   renderSystemsSummary(systems);
 }
 
+function renderBox(box) {
+  const host = document.querySelector("[data-box]");
+  if (!host || !box) return;
+  host.hidden = !box.known;
+  for (const [key, text, state] of [
+    ["disk", box.disk, box.disk_state],
+    ["backup", box.backup, box.backup_state],
+  ]) {
+    const cell = host.querySelector(`[data-box-${key}]`);
+    if (!cell) continue;
+    cell.dataset.state = state || "";
+    setText(cell.querySelector("span"), text || "—");
+  }
+}
+
 function renderSystemsSummary(systems) {
+  renderBox(systems.box);
   setText(document.querySelector("[data-systems-summary]"), `${systems.up}/${systems.total} UP`);
 
   // The window is zero whenever logging did not answer, and a footnote reading

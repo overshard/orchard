@@ -44,7 +44,11 @@ record, error and 5xx count per source plus the watchdog's up flag, never a
 message, a path, a status code or an address, because dash publishes it to the
 internet. Caddy refuses the path on the public hostname the same way it refuses
 `/ingest`, and a test on each side asserts the field list rather than trusting
-the handler to stay honest.
+the handler to stay honest. It also sends the data disk's free space and when
+the nightly backup last checked in, which the BOX cells over the SYSTEMS rows
+show, since a full disk or a stale backup leaves every site row green. Host disk
+outside the Docker volume and the tunnel aren't visible from here, so they
+aren't shown.
 
 **Everything is fetched once and pushed to every browser.** One poller per
 source writes into a store and the store broadcasts the whole state as JSON over
