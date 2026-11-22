@@ -212,7 +212,10 @@ one, solid brass with `#1b1505` text for the primary, and a red edge for one
 that deletes. One primary per page head at most.
 
 **Caps labels** are Geist Mono at `0.7rem`, `0.12em` tracking, brass, with `// `
-in front. A label inside a crowded row can drop the slashes with `plain`.
+in front. A label inside a crowded row can drop the slashes with `plain`. The
+muted caps lines on a working page, tile names, table heads, panel summaries and
+footers, never go under `0.66rem` and table heads are `0.7rem`, since the dense
+size is set in rem and doesn't shrink them for you.
 
 **Links** are the text colour and brass on hover. One inside a paragraph, an
 empty state or a note also gets a thin brass underline, since colour alone
