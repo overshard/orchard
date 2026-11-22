@@ -53,6 +53,7 @@ func (s *site) search(w http.ResponseWriter, r *http.Request) {
 		// An empty query offers somewhere to go instead of no results.
 		data.RandomPosts = pickRandom(published, 6)
 	} else {
+		data.NoIndex = true
 		data.Posts = search(published, query, 0)
 		data.NoResults = len(data.Posts) == 0
 	}

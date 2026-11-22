@@ -43,6 +43,9 @@ type PageData struct {
 	ShowSocial bool
 	OGImage    string
 
+	// NoIndex keeps a page out of search results while its links still count.
+	NoIndex bool
+
 	// The site graph by default, overridden with the article graph on a post.
 	JSONLD template.JS
 
@@ -241,6 +244,7 @@ func (s *site) postPDF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Link", canonicalLink(post))
 	w.Header().Set("Content-Disposition", `inline; filename="`+post.Slug+`.pdf"`)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	// A zero modtime sends no Last-Modified, since an embedded file has no
@@ -262,9 +266,16 @@ func (s *site) postMarkdown(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	w.Header().Set("Link", canonicalLink(post))
 	w.Header().Set("Content-Disposition", `inline; filename="`+post.Slug+`.md"`)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	_, _ = w.Write(raw)
+}
+
+// canonicalLink points search engines at the HTML page from a post's PDF and
+// Markdown copies, which can't carry a canonical tag of their own.
+func canonicalLink(post *Post) string {
+	return "<" + baseURL + post.URL() + `>; rel="canonical"`
 }
 
 func (s *site) lookup(r *http.Request) (*Post, bool) {
