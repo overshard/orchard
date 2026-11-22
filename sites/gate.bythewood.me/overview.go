@@ -178,6 +178,17 @@ func (e EventRow) Summary() string {
 	return ""
 }
 
+// BanFrom says where a banned request's ban came from.
+func (e Event) BanFrom() string {
+	switch e.Rule {
+	case "":
+		return "from before rules were named on bans"
+	case "by hand":
+		return "by hand"
+	}
+	return "from " + e.Rule
+}
+
 func (s *site) eventRows(events []Event, now time.Time) []EventRow {
 	rules, _ := s.store.Rules()
 	byName := map[string]Rule{}
@@ -202,7 +213,7 @@ func (s *site) eventRows(events []Event, now time.Time) []EventRow {
 		if e.Also != "" {
 			row.AlsoL = strings.Split(e.Also, ",")
 		}
-		if r, ok := byName[e.Rule]; ok {
+		if r, ok := byName[e.Rule]; ok && e.Verdict != vBanned {
 			q := e.req()
 			for _, c := range r.conds {
 				l := WhyLine{N: c.line, Text: lineAt(r.When, c.line), Decided: c.line == e.Line}

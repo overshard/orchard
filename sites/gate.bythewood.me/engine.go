@@ -134,7 +134,8 @@ type verdict struct {
 	kind    string
 	rule    *Rule
 	quiet   bool
-	orchard bool // never checked, and left out of the hour ring
+	orchard bool   // never checked, and left out of the hour ring
+	ban     string // the rule that made the ban, for a banned request
 }
 
 // check is what Caddy asks before every request. A 2xx lets the request on to
@@ -250,7 +251,7 @@ func (e *engine) decide(q *req, r *http.Request) verdict {
 	ban, banned := e.bans[q.IP]
 	e.mu.Unlock()
 	if banned && now.Before(ban.Until) && mode == modeOn {
-		return e.unlessSignedIn(r, verdict{kind: vBanned})
+		return e.unlessSignedIn(r, verdict{kind: vBanned, ban: ban.Rule})
 	}
 
 	var out verdict

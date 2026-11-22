@@ -160,7 +160,7 @@
       <td class="nw">{{if .Watch}}<span class="o-chip">would {{.Verdict}}</span>{{else}}<span class="o-chip {{actionKind .Verdict}}">{{.Verdict}}</span>{{end}}</td>
       <td class="lead clip mono" data-tip="{{.Method}} {{.Host}}{{.Path}}">{{.Method}} {{.Host}}{{.Path}}</td>
       <td class="nw mono small" data-l="from">{{.IP}} <span class="o-muted">{{.Country}}{{if .ASN}} AS{{.ASN}}{{end}}</span></td>
-      <td class="nw mono small" data-l="why">{{.Rule}}{{with .Summary}} <span class="o-muted">&middot; {{.}}</span>{{end}}</td>
+      <td class="nw mono small" data-l="why">{{if eq .Verdict "banned"}}<span class="o-muted">ban</span> {{.BanFrom}}{{else}}{{.Rule}}{{end}}{{with .Summary}} <span class="o-muted">&middot; {{.}}</span>{{end}}</td>
     </tr>
     <tr class="o-drawer">
       <td colspan="5">
@@ -168,7 +168,7 @@
           <div>
             <span class="o-lab plain o-muted">why</span>
             {{if .Lines}}<div class="why">{{range .Lines}}<div class="{{.State}}{{if .Decided}} on{{end}}"><span class="ln">{{.N}}</span><code>{{.Text}}</code>{{if .Piece}}<mark>{{short .Piece 60}}</mark>{{else if eq .State "unknown"}}<span class="o-muted">not kept</span>{{end}}</div>{{end}}</div>
-            {{else}}<p class="o-muted small">{{if .Rule}}{{.Rule}} isn't a rule any more.{{else}}Banned, so no rule ran.{{end}}</p>{{end}}
+            {{else}}<p class="o-muted small">{{if eq .Verdict "banned"}}A ban {{.BanFrom}}, so no rule ran. One request an address a minute is kept.{{else if .Rule}}{{.Rule}} isn't a rule any more.{{else}}No rule ran.{{end}}</p>{{end}}
             <dl class="o-kv">
               <dt>agent</dt><dd class="mono small">{{or .UA "none sent"}}</dd>
               <dt>also</dt><dd class="mono small">{{if .AlsoL}}{{range $i, $a := .AlsoL}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}no other rule{{end}}</dd>

@@ -180,8 +180,10 @@ func TestBanAfter(t *testing.T) {
 	for range 3 {
 		ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger)
 	}
-	if w := ask(s, "GET", "pond.bythewood.me", "/", stranger); w.Code != 403 {
-		t.Fatalf("banned address got %d on another host", w.Code)
+	for range 5 {
+		if w := ask(s, "GET", "pond.bythewood.me", "/", stranger); w.Code != 403 {
+			t.Fatalf("banned address got %d on another host", w.Code)
+		}
 	}
 	if err := s.store.Flush(s.engine.stats.take()); err != nil {
 		t.Fatal(err)
@@ -189,6 +191,10 @@ func TestBanAfter(t *testing.T) {
 	bans, _ := s.store.Bans()
 	if len(bans) != 1 || bans[0].IP.String() != stranger {
 		t.Fatalf("ban not kept: %+v", bans)
+	}
+	ev := s.store.Events(TrafficFilter{Window: time.Hour, Verdict: vBanned}, "", 10, time.Now())
+	if len(ev) != 1 || ev[0].Rule != "scanners" {
+		t.Fatalf("banned events = %+v, want one from scanners", ev)
 	}
 }
 

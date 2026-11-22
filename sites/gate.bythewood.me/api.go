@@ -133,8 +133,12 @@ func writeEvents(b *strings.Builder, es []Event) {
 		if e.Watch {
 			what = "would " + e.Verdict
 		}
-		fmt.Fprintf(b, "- %s %s %s %s%s by %s, %s AS%d %s %s, ua %q\n", e.At.Format("01-02 15:04:05"), what, e.Method, e.Host, e.Path,
-			e.Rule, e.IP, e.ASN, e.Org, e.Country, e.UA)
+		by := "by " + e.Rule
+		if e.Verdict == vBanned {
+			by = "ban " + e.BanFrom()
+		}
+		fmt.Fprintf(b, "- %s %s %s %s%s %s, %s AS%d %s %s, ua %q\n", e.At.Format("01-02 15:04:05"), what, e.Method, e.Host, e.Path,
+			by, e.IP, e.ASN, e.Org, e.Country, e.UA)
 	}
 }
 

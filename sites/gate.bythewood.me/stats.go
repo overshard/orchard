@@ -23,6 +23,8 @@ type stats struct {
 	solves  map[solveKey]*solveCount
 	people  map[peopleKey]struct{}
 	pHour   int64
+	banMin  time.Time
+	banSeen map[netip.Addr]struct{}
 }
 
 type solveKey struct {
@@ -84,7 +86,7 @@ const maxEventsPerMinute = 600
 
 func newStats() *stats {
 	return &stats{traffic: map[trafficKey]int{}, hits: map[hitKey]*hitCount{}, orgs: map[int]string{}, ring: newRing(ringSize),
-		rules: func() []*Rule { return nil }, solves: map[solveKey]*solveCount{}, people: map[peopleKey]struct{}{}}
+		rules: func() []*Rule { return nil }, solves: map[solveKey]*solveCount{}, people: map[peopleKey]struct{}{}, banSeen: map[netip.Addr]struct{}{}}
 }
 
 func hourOf(t time.Time) int64 { return t.UTC().Truncate(time.Hour).Unix() }
@@ -101,11 +103,29 @@ func (s *stats) count(q *req, v verdict) {
 		s.ring.add(now, q, v)
 	}
 	switch v.kind {
-	case vBlock, vLimit, vChallenge, vBanned:
+	case vBlock, vLimit, vChallenge:
 		s.event(now, q, v.rule, v.kind, false)
+	case vBanned:
+		s.bannedEvent(now, q, v.ban)
 	}
 	if v.kind == vChallenge && v.rule != nil {
 		s.challenged(now, q, v.rule.ID)
+	}
+}
+
+// bannedEvent samples a banned address once a minute, since a ban already
+// handles it and a flood from one would crowd new blocks out of the sample.
+func (s *stats) bannedEvent(now time.Time, q *req, rule string) {
+	if m := now.Truncate(time.Minute); !m.Equal(s.banMin) {
+		s.banMin = m
+		clear(s.banSeen)
+	}
+	if _, ok := s.banSeen[q.IP]; ok || len(s.banSeen) >= maxPeople {
+		return
+	}
+	s.banSeen[q.IP] = struct{}{}
+	if s.event(now, q, nil, vBanned, false) {
+		s.events[len(s.events)-1].Rule = rule
 	}
 }
 
@@ -165,12 +185,12 @@ func (s *stats) hit(q *req, r *Rule, watch bool) {
 
 // event keeps a sampled request and works out why it matched. The why and the
 // other rules it matched are only worked out here, past the per minute cap.
-func (s *stats) event(now time.Time, q *req, r *Rule, verdict string, watch bool) {
+func (s *stats) event(now time.Time, q *req, r *Rule, verdict string, watch bool) bool {
 	if m := now.Truncate(time.Minute); !m.Equal(s.minute) {
 		s.minute, s.inMin = m, 0
 	}
 	if s.inMin >= maxEventsPerMinute {
-		return
+		return false
 	}
 	s.inMin++
 	ip := ""
@@ -190,6 +210,7 @@ func (s *stats) event(now time.Time, q *req, r *Rule, verdict string, watch bool
 		e.Also = strings.Join(also, ",")
 	}
 	s.events = append(s.events, e)
+	return true
 }
 
 func (s *stats) ban(b Ban) {
