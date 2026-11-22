@@ -81,8 +81,7 @@
 /* ------------------------------------------------------------------ chrome */
 
 .o-top { background: var(--o-top); border-bottom: 1px solid var(--o-line); }
-.o-bar { display: flex; align-items: stretch; min-height: 44px; max-width: var(--o-wrap); margin: 0 auto; overflow-x: auto; scrollbar-width: none; }
-.o-bar::-webkit-scrollbar { display: none; }
+.o-bar { display: flex; align-items: stretch; min-height: 44px; max-width: var(--o-wrap); margin: 0 auto; }
 .o-brand {
   display: flex; align-items: center; gap: 8px; flex: none;
   padding: 0 16px 0 max(18px, env(safe-area-inset-left, 0px)); border-right: 1px solid var(--o-line);
@@ -90,7 +89,11 @@
 }
 .o-body .o-brand { color: var(--o-text); }
 .o-glyph { color: var(--o-brass); flex: none; }
-.o-tools { display: flex; align-items: stretch; flex: none; }
+/* Only the tools scroll, so the account and Sign in stay on a phone's screen,
+   and suite.js fades the edge while there are more off to the right. */
+.o-tools { display: flex; align-items: stretch; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.o-tools::-webkit-scrollbar { display: none; }
+.o-tools.more { -webkit-mask-image: linear-gradient(90deg, #000 78%, transparent); mask-image: linear-gradient(90deg, #000 78%, transparent); }
 .o-tools a {
   display: flex; align-items: center;
   padding: 0 12px; font-size: 0.8rem; font-weight: 500;

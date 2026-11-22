@@ -38,10 +38,14 @@ if (document.querySelector(".o-cw")) {
 }
 
 // On a narrow screen the tool tabs scroll, so start with this tool in view.
-const on = document.querySelector(".o-tools a.on");
-if (on) {
-  const bar = on.closest(".o-bar");
-  bar.scrollLeft = on.offsetLeft - bar.clientWidth / 2 + on.offsetWidth / 2;
+const toolTabs = document.querySelector(".o-tools");
+if (toolTabs) {
+  const on = toolTabs.querySelector("a.on");
+  if (on) toolTabs.scrollLeft += on.getBoundingClientRect().left - toolTabs.getBoundingClientRect().left - toolTabs.clientWidth / 2 + on.offsetWidth / 2;
+  const fade = () => toolTabs.classList.toggle("more", toolTabs.scrollLeft + toolTabs.clientWidth < toolTabs.scrollWidth - 2);
+  toolTabs.addEventListener("scroll", fade, { passive: true });
+  addEventListener("resize", fade);
+  fade();
 }
 
 // A table row marked data-href opens on a click anywhere in it, and the link
@@ -500,6 +504,7 @@ const paint = (data) => {
     a.append(m);
     a.title = st.note || "";
   }
+  toolTabs?.dispatchEvent(new Event("scroll"));
 };
 
 if (jumpBtn) {

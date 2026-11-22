@@ -33,7 +33,9 @@ blog and the portfolio are separate identities and nothing here applies to them.
 - **Square corners and subtle solid hairlines.** No radius on anything inside
   the page and no dashed borders. No background grid either.
 - **Two rows of header.** The first is the orchard mark and every tool as a tab,
-  this one in `[brackets]` in brass, with the account on the right. The second
+  this one in `[brackets]` in brass, with the account on the right. On a phone
+  only the tools scroll, faded at the edge while there are more, so the
+  account, jump and Sign in never leave the screen. The second
   is this tool's own pages and a mono line of what matters right now. Inside a
   repository on repos the second row is that repository's pages.
 - **No sidebar.** A working page runs as wide as dash, 1760px, and a home page
