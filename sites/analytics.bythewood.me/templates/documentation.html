@@ -6,7 +6,8 @@
       <p>
         All events are sent as JSON to a single <code>POST /collect/</code>
         endpoint. The site tag pushes page_view, click, scroll, and page_leave
-        automatically, and everything else is a one-liner on
+        automatically, plus one perf event with the page's web vitals and any
+        errors when it's closed, and everything else is a one-liner on
         <code>collectorQueue</code>, or a raw HTTP call from any language.
       </p></div></div>
 

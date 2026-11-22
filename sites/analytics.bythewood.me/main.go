@@ -220,6 +220,7 @@ func realMain() error {
 		mux.HandleFunc("OPTIONS "+path, s.collectOptions)
 	}
 	mux.HandleFunc("GET /static/collector.js", s.collectorScript)
+	mux.HandleFunc("GET /bridge/vitals", s.bridgeVitals)
 
 	// The mux only answers 405 by itself when nothing else matches, and the
 	// "GET /" catch-all below matches every GET path there is.

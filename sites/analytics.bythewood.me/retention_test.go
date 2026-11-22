@@ -31,9 +31,14 @@ func retentionTestDB(t *testing.T) (*sql.DB, uuid.UUID) {
 
 func seedEvent(t *testing.T, db *sql.DB, table string, id uuid.UUID, at int64) {
 	t.Helper()
-	if _, err := db.Exec(
-		`INSERT INTO `+table+` (property_id, event, created_at) VALUES (?,?,?)`,
-		id[:], "page_view", at); err != nil {
+	stmt := `INSERT INTO ` + table + ` (property_id, event, created_at) VALUES (?,'page_view',?)`
+	switch table {
+	case "vitals":
+		stmt = `INSERT INTO vitals (property_id, created_at) VALUES (?,?)`
+	case "page_errors":
+		stmt = `INSERT INTO page_errors (property_id, created_at, kind, message) VALUES (?,?,'js','x')`
+	}
+	if _, err := db.Exec(stmt, id[:], at); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -81,6 +81,45 @@ CREATE TABLE IF NOT EXISTS alerts (
 );
 CREATE INDEX IF NOT EXISTS alerts_property_created ON alerts(property_id, created_at);
 
+-- One row per page view that reported its timings, from the perf event the
+-- collector sends when the page is hidden. A metric the browser couldn't
+-- measure is NULL, not zero.
+CREATE TABLE IF NOT EXISTS vitals (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    property_id  BLOB NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    created_at   INTEGER NOT NULL,
+    url          TEXT,
+    device       TEXT,
+    browser      TEXT,
+    nav          TEXT,
+    lcp_ms       INTEGER,
+    inp_ms       INTEGER,
+    cls          REAL,
+    fcp_ms       INTEGER,
+    ttfb_ms      INTEGER,
+    load_ms      INTEGER,
+    lcp_el       TEXT,
+    cls_el       TEXT,
+    bf_reasons   TEXT,
+    overflow     INTEGER NOT NULL DEFAULT 0,
+    big_img      TEXT
+);
+CREATE INDEX IF NOT EXISTS vitals_property_created ON vitals(property_id, created_at);
+
+-- Errors, CSP violations, failed loads, deprecations and interventions seen
+-- in visitors' browsers, at most ten distinct ones per page view.
+CREATE TABLE IF NOT EXISTS page_errors (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    property_id  BLOB NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    created_at   INTEGER NOT NULL,
+    url          TEXT,
+    kind         TEXT NOT NULL,
+    message      TEXT NOT NULL,
+    source       TEXT,
+    browser      TEXT
+);
+CREATE INDEX IF NOT EXISTS page_errors_property_created ON page_errors(property_id, created_at);
+
 CREATE TABLE IF NOT EXISTS goals (
     property_id  BLOB NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
     event        TEXT NOT NULL,

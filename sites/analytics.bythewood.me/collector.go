@@ -91,6 +91,12 @@ func (s *site) collect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Event == "perf" {
+		s.collectPerf(ctx, r, propertyID, req.Data)
+		corsStatus(w, r, http.StatusNoContent)
+		return
+	}
+
 	data := map[string]any{}
 	if len(req.Data) > 0 {
 		// A non-object data field is ignored, the event is still worth recording.

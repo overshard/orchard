@@ -35,7 +35,7 @@ const (
 
 // sweptTables are the tables that grow with traffic, properties is operator
 // sized and never swept.
-var sweptTables = []string{"events", "bot_events"}
+var sweptTables = []string{"events", "bot_events", "vitals", "page_errors"}
 
 type Sweeper struct {
 	db *sql.DB
