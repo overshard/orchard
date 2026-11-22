@@ -37,7 +37,13 @@ func fullPageData(t *testing.T) PageData {
 	now := time.Now()
 	score := 0.42
 
+	var ru RealUsers
+	if err := json.Unmarshal([]byte(realUsersFixture), &ru); err != nil {
+		t.Fatal(err)
+	}
+
 	return PageData{
+		RealUsers:     &ru,
 		Title:         "Example",
 		Description:   "A description.",
 		Path:          "/",
@@ -77,25 +83,26 @@ func fullPageData(t *testing.T) PageData {
 			LastCrawlPagesCount: &pages,
 			NextRunAtCrawler:    &now,
 
-			LighthouseState: "idle",
-			LighthouseScores: &Scores{
+			AuditState: "idle",
+			AuditScores: &Scores{
 				Performance: 98, Accessibility: 100, BestPractices: 96, SEO: 91,
 			},
-			LighthouseDetails: &Details{
+			AuditDetails: &Details{
 				Metrics: []Metric{{
-					ID: "largest-contentful-paint", Acronym: "LCP",
-					Title: "Largest Contentful Paint", DisplayValue: "1.2 s",
-					Score: &score, Weight: 25,
+					ID: "page-weight", Acronym: "Weight",
+					Title: "Everything the page loads", DisplayValue: "412 KB",
+					Score: &score, Weight: 30,
 				}},
-				Opportunities: []Opportunity{{
-					ID: "unused-css-rules", Title: "Reduce unused CSS",
-					DisplayValue: "Potential savings of 12 KiB", SavingsMS: 1350,
+				Findings: []Finding{{
+					Category: "Performance", Title: "Images over 250 KB",
+					Detail: "/hero.jpg 600 KB", Severity: "warning",
 				}},
+				Passed: 30, Checked: 36,
 			},
-			LastLighthouseSuccessAt:  &now,
-			LastLighthouseDurationMS: &dur,
-			NextLighthouseRunAt:      &now,
-			AvgLighthouseScore:       &avg,
+			LastAuditSuccessAt:  &now,
+			LastAuditDurationMS: &dur,
+			NextAuditRunAt:      &now,
+			AvgAuditScore:       &avg,
 
 			AlertState: "up",
 			CreatedAt:  now,
@@ -915,7 +922,7 @@ func TestDuplicateChecksAreOrdered(t *testing.T) {
 	}
 }
 
-func TestLighthouseScorePairsAreOrdered(t *testing.T) {
+func TestAuditScorePairsAreOrdered(t *testing.T) {
 	s := &Scores{Performance: 1, Accessibility: 2, BestPractices: 3, SEO: 4}
 	want := []string{"Performance", "Accessibility", "Best practices", "SEO"}
 	for run := range 8 {
@@ -924,73 +931,6 @@ func TestLighthouseScorePairsAreOrdered(t *testing.T) {
 				t.Fatalf("run %d: score %d is %q, want %q", run, i, pair.Label, want[i])
 			}
 		}
-	}
-}
-
-func TestParseScoresRejectsNulls(t *testing.T) {
-	report := map[string]any{"categories": map[string]any{
-		"performance":    map[string]any{"score": 0.98},
-		"accessibility":  map[string]any{"score": nil},
-		"best-practices": map[string]any{"score": 0.96},
-		"seo":            map[string]any{"score": 0.91},
-	}}
-
-	// A null score means the category could not be evaluated, so storing zero
-	// would claim the site scored nothing.
-	if _, err := parseScores(report); err == nil {
-		t.Fatal("a null score was accepted instead of failing the audit")
-	}
-}
-
-func TestParseScoresRounds(t *testing.T) {
-	report := map[string]any{"categories": map[string]any{
-		"performance":    map[string]any{"score": 0.985},
-		"accessibility":  map[string]any{"score": 1.0},
-		"best-practices": map[string]any{"score": 0.0},
-		"seo":            map[string]any{"score": 0.914},
-	}}
-	s, err := parseScores(report)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s.Performance != 99 || s.Accessibility != 100 || s.BestPractices != 0 || s.SEO != 91 {
-		t.Errorf("scores rounded to %+v", s)
-	}
-}
-
-func TestParseDetailsFiltersNonActionableAudits(t *testing.T) {
-	report := map[string]any{
-		"categories": map[string]any{"performance": map[string]any{"auditRefs": []any{
-			map[string]any{"id": "lcp", "group": "metrics", "weight": 25.0, "acronym": "LCP"},
-			map[string]any{"id": "passing", "weight": 0.0},
-			map[string]any{"id": "hidden-audit", "group": "hidden", "weight": 0.0},
-			map[string]any{"id": "diagnostic", "weight": 0.0},
-			map[string]any{"id": "real-opportunity", "weight": 0.0},
-		}}},
-		"audits": map[string]any{
-			"lcp":     map[string]any{"score": 0.4, "title": "Largest Contentful Paint", "displayValue": "3.1 s"},
-			"passing": map[string]any{"score": 0.95, "title": "Already fine"},
-			// Kept by Lighthouse but no longer scored, so it must not show up
-			// as a win the site never earned.
-			"hidden-audit": map[string]any{"score": 0.1, "title": "Time to Interactive"},
-			// Scores badly but carries no actionable saving.
-			"diagnostic": map[string]any{"score": 0.1, "title": "Avoid forced reflow"},
-			"real-opportunity": map[string]any{
-				"score": 0.2, "title": "Reduce unused CSS",
-				"details": map[string]any{"overallSavingsMs": 1350.0},
-			},
-		},
-	}
-
-	d := parseDetails(report)
-	if d == nil {
-		t.Fatal("details did not parse")
-	}
-	if len(d.Metrics) != 1 || d.Metrics[0].Acronym != "LCP" {
-		t.Errorf("metrics = %+v", d.Metrics)
-	}
-	if len(d.Opportunities) != 1 || d.Opportunities[0].ID != "real-opportunity" {
-		t.Errorf("opportunities = %+v; only the one with a real saving should survive", d.Opportunities)
 	}
 }
 
@@ -1099,7 +1039,7 @@ func TestJSONBlockCannotCloseTheScriptElement(t *testing.T) {
 func TestStatusPayloadShape(t *testing.T) {
 	pages := int64(12)
 	p := &Property{
-		CrawlState: "running", LighthouseState: "idle",
+		CrawlState: "running", AuditState: "idle",
 		LastCrawlPagesCount: &pages,
 	}
 	encoded, err := json.Marshal(buildStatusPayload(p))
@@ -1111,7 +1051,7 @@ func TestStatusPayloadShape(t *testing.T) {
 	if err := json.Unmarshal(encoded, &payload); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"crawler", "lighthouse", "server_time"} {
+	for _, key := range []string{"crawler", "audit", "server_time"} {
 		if _, ok := payload[key]; !ok {
 			t.Errorf("status payload is missing %q", key)
 		}

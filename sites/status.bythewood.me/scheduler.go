@@ -13,20 +13,20 @@ import (
 const (
 	cycleInterval = 30 * time.Second
 
-	// Separate pools, so a long crawl can't starve a three-minute ping. Lighthouse
-	// gets one slot, since two Chromiums at once pin both CPUs and the memory cap.
-	fastWorkers       = 2
-	slowWorkers       = 2
-	lighthouseWorkers = 1
+	// Separate pools, so a long crawl can't starve a three-minute ping, and one
+	// audit at a time since each fetches a whole page's worth of files.
+	fastWorkers  = 2
+	slowWorkers  = 2
+	auditWorkers = 1
 
-	checkInterval      = 3 * time.Minute
-	lighthouseInterval = 24 * time.Hour
-	crawlInterval      = 7 * 24 * time.Hour
+	checkInterval = 3 * time.Minute
+	auditInterval = 24 * time.Hour
+	crawlInterval = 7 * 24 * time.Hour
 
 	// Watchdog cutoffs, both past the work's own deadline, so a slow but living
 	// job records its own result instead of being declared dead underneath it.
-	crawlWedgeAfter      = 15 * time.Minute
-	lighthouseWedgeAfter = 5 * time.Minute
+	crawlWedgeAfter = 15 * time.Minute
+	auditWedgeAfter = 5 * time.Minute
 
 	cleanupInterval = 24 * time.Hour
 	checkRetention  = 3 * 24 * time.Hour
@@ -37,26 +37,24 @@ const (
 type Scheduler struct {
 	db       *sql.DB
 	notifier *Notifier
-	root     string
 
 	// Buffered channels as semaphores, a full one blocks the goroutine that wants
 	// to work until a slot frees up.
-	fast       chan struct{}
-	slow       chan struct{}
-	lighthouse chan struct{}
+	fast  chan struct{}
+	slow  chan struct{}
+	audit chan struct{}
 
 	// The loop and every job it started, so shutdown can wait for their writes.
 	jobs sync.WaitGroup
 }
 
-func NewScheduler(db *sql.DB, notifier *Notifier, root string) *Scheduler {
+func NewScheduler(db *sql.DB, notifier *Notifier) *Scheduler {
 	return &Scheduler{
-		db:         db,
-		notifier:   notifier,
-		root:       root,
-		fast:       make(chan struct{}, fastWorkers),
-		slow:       make(chan struct{}, slowWorkers),
-		lighthouse: make(chan struct{}, lighthouseWorkers),
+		db:       db,
+		notifier: notifier,
+		fast:     make(chan struct{}, fastWorkers),
+		slow:     make(chan struct{}, slowWorkers),
+		audit:    make(chan struct{}, auditWorkers),
 	}
 }
 
@@ -68,7 +66,7 @@ func (s *Scheduler) ResetOnBoot(ctx context.Context) error {
 		return err
 	}
 	_, err := s.db.ExecContext(ctx,
-		"UPDATE properties SET lighthouse_state = 'idle' WHERE lighthouse_state IN ('queued', 'running')")
+		"UPDATE properties SET audit_state = 'idle' WHERE audit_state IN ('queued', 'running')")
 	return err
 }
 
@@ -110,12 +108,12 @@ func (s *Scheduler) run(ctx context.Context) {
 
 func (s *Scheduler) cycle(ctx context.Context, lastCleanup *time.Time) {
 	// Each step logs and continues instead of returning, so a failure
-	// enqueuing Lighthouse doesn't also skip the uptime checks.
+	// enqueuing Audit doesn't also skip the uptime checks.
 	if err := s.enqueueChecks(ctx); err != nil {
 		slog.Info("enqueue checks", slog.Any("err", err), slog.String("component", "scheduler"))
 	}
-	if err := s.enqueueLighthouse(ctx); err != nil {
-		slog.Info("enqueue lighthouse", slog.Any("err", err), slog.String("component", "scheduler"))
+	if err := s.enqueueAudit(ctx); err != nil {
+		slog.Info("enqueue audit", slog.Any("err", err), slog.String("component", "scheduler"))
 	}
 	if err := s.enqueueCrawls(ctx); err != nil {
 		slog.Info("enqueue crawls", slog.Any("err", err), slog.String("component", "scheduler"))
@@ -181,92 +179,83 @@ func (s *Scheduler) enqueueChecks(ctx context.Context) error {
 	return nil
 }
 
-func (s *Scheduler) enqueueLighthouse(ctx context.Context) error {
+func (s *Scheduler) enqueueAudit(ctx context.Context) error {
 	now := nowMS()
 	props, err := s.due(ctx,
-		`(last_lighthouse_run_at IS NULL OR next_lighthouse_run_at IS NULL
-		  OR next_lighthouse_run_at <= ?)
-		 AND lighthouse_state NOT IN ('queued', 'running')`, now)
+		`(last_audit_run_at IS NULL OR next_audit_run_at IS NULL
+		  OR next_audit_run_at <= ?)
+		 AND audit_state NOT IN ('queued', 'running')`, now)
 	if err != nil {
 		return err
 	}
 
 	for _, p := range props {
-		next := now + lighthouseInterval.Milliseconds()
+		next := now + auditInterval.Milliseconds()
 		if _, err := s.db.ExecContext(ctx,
-			`UPDATE properties SET next_lighthouse_run_at = ?, last_lighthouse_run_at = ?,
-			  lighthouse_state = 'queued', updated_at = ? WHERE id = ?`,
+			`UPDATE properties SET next_audit_run_at = ?, last_audit_run_at = ?,
+			  audit_state = 'queued', updated_at = ? WHERE id = ?`,
 			next, now, now, p.ID[:]); err != nil {
-			slog.Info("claim lighthouse", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
+			slog.Info("claim audit", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 			continue
 		}
 
 		s.jobs.Go(func() {
 			select {
-			case s.lighthouse <- struct{}{}:
-				defer func() { <-s.lighthouse }()
+			case s.audit <- struct{}{}:
+				defer func() { <-s.audit }()
 			case <-ctx.Done():
 				return
 			}
-			s.runLighthouseFor(ctx, p)
+			s.runAuditFor(ctx, p)
 		})
 	}
 	return nil
 }
 
-func (s *Scheduler) runLighthouseFor(ctx context.Context, p *Property) {
-	slog.Info("lighthouse", slog.Any("url", p.URL), slog.String("component", "scheduler"))
+func (s *Scheduler) runAuditFor(ctx context.Context, p *Property) {
+	slog.Info("audit", slog.Any("url", p.URL), slog.String("component", "scheduler"))
 	started := time.Now()
 
 	now := nowMS()
 	if _, err := s.db.ExecContext(ctx,
-		`UPDATE properties SET lighthouse_state = 'running', lighthouse_started_at = ?,
+		`UPDATE properties SET audit_state = 'running', audit_started_at = ?,
 		  updated_at = ? WHERE id = ?`, now, now, p.ID[:]); err != nil {
-		slog.Info("mark lighthouse running", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
+		slog.Info("mark audit running", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 	}
 
 	fail := func(err error) {
-		slog.Error("lighthouse failed", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
+		slog.Error("audit failed", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 		if _, dbErr := s.db.ExecContext(ctx,
-			`UPDATE properties SET lighthouse_state = 'idle', last_lighthouse_error = ?,
-			  last_lighthouse_duration_ms = ?, updated_at = ? WHERE id = ?`,
+			`UPDATE properties SET audit_state = 'idle', last_audit_error = ?,
+			  last_audit_duration_ms = ?, updated_at = ? WHERE id = ?`,
 			err.Error(), elapsedMS(started), nowMS(), p.ID[:]); dbErr != nil {
-			slog.Error("record lighthouse error", slog.Any("url", p.URL), slog.Any("err", dbErr), slog.String("component", "scheduler"))
+			slog.Error("record audit error", slog.Any("url", p.URL), slog.Any("err", dbErr), slog.String("component", "scheduler"))
 		}
 	}
 
-	report, err := runLighthouse(ctx, s.root, p.URL)
+	scores, details, err := runAudit(ctx, newCrawlClient(), p.URL)
 	if err != nil {
 		fail(err)
 		return
 	}
-	scores, err := parseScores(report)
-	if err != nil {
-		fail(err)
-		return
-	}
-
 	scoresJSON, err := json.Marshal(scores)
 	if err != nil {
 		fail(err)
 		return
 	}
-	// Details are best effort, since a Lighthouse release that reshapes auditRefs
-	// mustn't throw away a good audit. The template tests for "null".
-	detailsJSON := []byte("null")
-	if details := parseDetails(report); details != nil {
-		if encoded, err := json.Marshal(details); err == nil {
-			detailsJSON = encoded
-		}
+	detailsJSON, err := json.Marshal(details)
+	if err != nil {
+		fail(err)
+		return
 	}
 
 	if _, err := s.db.ExecContext(ctx,
-		`UPDATE properties SET lighthouse_scores = ?, lighthouse_details = ?,
-		  last_lighthouse_success_at = ?, last_lighthouse_error = NULL,
-		  last_lighthouse_duration_ms = ?, lighthouse_state = 'idle', updated_at = ?
+		`UPDATE properties SET audit_scores = ?, audit_details = ?,
+		  last_audit_success_at = ?, last_audit_error = NULL,
+		  last_audit_duration_ms = ?, audit_state = 'idle', updated_at = ?
 		 WHERE id = ?`,
 		string(scoresJSON), string(detailsJSON), nowMS(), elapsedMS(started), nowMS(), p.ID[:]); err != nil {
-		slog.Info("store lighthouse", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
+		slog.Info("store audit", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 	}
 }
 
@@ -366,11 +355,11 @@ func (s *Scheduler) resetWedged(ctx context.Context) error {
 	}
 
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE properties SET lighthouse_state = 'idle',
-		   last_lighthouse_error = 'Lighthouse run timed out or was interrupted'
-		 WHERE lighthouse_state = 'running' AND lighthouse_started_at IS NOT NULL
-		   AND lighthouse_started_at < ?`,
-		now-lighthouseWedgeAfter.Milliseconds())
+		`UPDATE properties SET audit_state = 'idle',
+		   last_audit_error = 'Audit run timed out or was interrupted'
+		 WHERE audit_state = 'running' AND audit_started_at IS NOT NULL
+		   AND audit_started_at < ?`,
+		now-auditWedgeAfter.Milliseconds())
 	return err
 }
 

@@ -1,5 +1,5 @@
 // status.bythewood.me is single-operator uptime monitoring. An in-process
-// scheduler probes every tracked URL, audits it with Lighthouse and crawls it
+// scheduler probes every tracked URL, audits it with Audit and crawls it
 // for SEO, the handlers mostly render what the scheduler wrote.
 package main
 
@@ -61,7 +61,8 @@ type site struct {
 	assets   *web.Assets
 	typst    *Typst
 
-	auth *web.Authenticator
+	auth      *web.Authenticator
+	realUsers *realUsersReader
 
 	baseScript  string
 	baseStyles  []string
@@ -149,6 +150,7 @@ func realMain() error {
 		assets:      assets,
 		typst:       NewTypst(),
 		auth:        web.NewAuthenticator(),
+		realUsers:   newRealUsersReader(),
 		baseScript:  assets.Script("static_src/base/index.js"),
 		baseStyles:  assets.Styles("static_src/base/index.js"),
 		pagesScript: assets.Script("static_src/pages/index.js"),
@@ -165,7 +167,7 @@ func realMain() error {
 	alertCtx, endAlerts := context.WithCancel(context.Background())
 	defer endAlerts()
 	notifier := NewNotifier(alertCtx)
-	scheduler := NewScheduler(db, notifier, dir("SITE_ROOT", "."))
+	scheduler := NewScheduler(db, notifier)
 	if err := scheduler.ResetOnBoot(ctx); err != nil {
 		return fmt.Errorf("reset wedged states: %w", err)
 	}
@@ -201,15 +203,15 @@ func realMain() error {
 	// check itself, because it needs the property row to know.
 	mux.HandleFunc("GET /properties/{id}/status", s.propertyStatus)
 	mux.HandleFunc("POST /properties/{id}/recrawl", s.auth.RequireAuthJSON(s.propertyRecrawl))
-	mux.HandleFunc("POST /properties/{id}/rerun-lighthouse", s.auth.RequireAuthJSON(s.propertyRerunLighthouse))
+	mux.HandleFunc("POST /properties/{id}/rerun-audit", s.auth.RequireAuthJSON(s.propertyRerunAudit))
 
 	// A wrong method on an existing route should be 405 with Allow. The mux only
 	// does that when nothing else matches, and "GET /" below always matches.
 	for path, allow := range map[string]string{
-		"/properties/{id}/delete":           "POST",
-		"/properties/{id}/public":           "POST",
-		"/properties/{id}/recrawl":          "POST",
-		"/properties/{id}/rerun-lighthouse": "POST",
+		"/properties/{id}/delete":      "POST",
+		"/properties/{id}/public":      "POST",
+		"/properties/{id}/recrawl":     "POST",
+		"/properties/{id}/rerun-audit": "POST",
 	} {
 		mux.HandleFunc("GET "+path, methodNotAllowed(allow))
 	}

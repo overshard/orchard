@@ -41,15 +41,15 @@ type PropertyView struct {
 	NextRunAtCrawler    *time.Time
 	CrawlStartedAt      *time.Time
 
-	LighthouseState          string
-	LighthouseScores         *Scores
-	LighthouseDetails        *Details
-	LastLighthouseSuccessAt  *time.Time
-	LastLighthouseError      string
-	LastLighthouseDurationMS *int64
-	NextLighthouseRunAt      *time.Time
-	LighthouseStartedAt      *time.Time
-	AvgLighthouseScore       *int64
+	AuditState          string
+	AuditScores         *Scores
+	AuditDetails        *Details
+	LastAuditSuccessAt  *time.Time
+	LastAuditError      string
+	LastAuditDurationMS *int64
+	NextAuditRunAt      *time.Time
+	AuditStartedAt      *time.Time
+	AvgAuditScore       *int64
 
 	AlertState string
 	CreatedAt  time.Time
@@ -145,12 +145,12 @@ func (s *site) buildPropertyView(ctx context.Context, p *Property) (*PropertyVie
 		NextRunAtCrawler:    msToTime(p.NextRunAtCrawler),
 		CrawlStartedAt:      msToTime(p.CrawlStartedAt),
 
-		LighthouseState:          p.LighthouseState,
-		LastLighthouseSuccessAt:  msToTime(p.LastLighthouseSuccessAt),
-		LastLighthouseError:      deref(p.LastLighthouseError),
-		LastLighthouseDurationMS: p.LastLighthouseDurationMS,
-		NextLighthouseRunAt:      msToTime(p.NextLighthouseRunAt),
-		LighthouseStartedAt:      msToTime(p.LighthouseStartedAt),
+		AuditState:          p.AuditState,
+		LastAuditSuccessAt:  msToTime(p.LastAuditSuccessAt),
+		LastAuditError:      deref(p.LastAuditError),
+		LastAuditDurationMS: p.LastAuditDurationMS,
+		NextAuditRunAt:      msToTime(p.NextAuditRunAt),
+		AuditStartedAt:      msToTime(p.AuditStartedAt),
 
 		AlertState: p.AlertState,
 		CreatedAt:  time.UnixMilli(p.CreatedAt).UTC(),
@@ -279,22 +279,22 @@ func (v *PropertyView) applyStoredJSON(p *Property) {
 		}
 	}
 
-	if p.LighthouseScores != nil {
+	if p.AuditScores != nil {
 		var scores Scores
-		if err := json.Unmarshal([]byte(*p.LighthouseScores), &scores); err == nil {
-			v.LighthouseScores = &scores
+		if err := json.Unmarshal([]byte(*p.AuditScores), &scores); err == nil {
+			v.AuditScores = &scores
 			avg := int64(math.Round(float64(
 				scores.Performance+scores.Accessibility+scores.BestPractices+scores.SEO) / 4))
-			v.AvgLighthouseScore = &avg
+			v.AvgAuditScore = &avg
 		} else {
-			slog.Info("property: lighthouse scores did not decode", slog.Any("id", v.ID), slog.Any("err", err))
+			slog.Info("property: audit scores did not decode", slog.Any("id", v.ID), slog.Any("err", err))
 		}
 	}
 
-	if p.LighthouseDetails != nil && *p.LighthouseDetails != "null" {
+	if p.AuditDetails != nil && *p.AuditDetails != "null" {
 		var details Details
-		if err := json.Unmarshal([]byte(*p.LighthouseDetails), &details); err == nil {
-			v.LighthouseDetails = &details
+		if err := json.Unmarshal([]byte(*p.AuditDetails), &details); err == nil {
+			v.AuditDetails = &details
 		}
 	}
 }
@@ -379,6 +379,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	data.Property = view
 	if authed {
 		data.InsightGroups = groupInsights(view.CrawlerInsights)
+		data.RealUsers = s.realUsers.For(r.Context(), p.URL)
 	}
 
 	// Report export is operator-only even for a public property, since the PDF
@@ -438,11 +439,11 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 // statusPayload is what the dashboard's polling JavaScript reads. Its shape is
 // fixed by frontend/static_src/properties/scripts/property_crawl_status.js.
 type statusPayload struct {
-	Crawler    crawlerStatus    `json:"crawler"`
-	Lighthouse lighthouseStatus `json:"lighthouse"`
-	ServerTime string           `json:"server_time"`
-	OK         *bool            `json:"ok,omitempty"`
-	Reason     string           `json:"reason,omitempty"`
+	Crawler    crawlerStatus `json:"crawler"`
+	Audit      auditStatus   `json:"audit"`
+	ServerTime string        `json:"server_time"`
+	OK         *bool         `json:"ok,omitempty"`
+	Reason     string        `json:"reason,omitempty"`
 }
 
 type crawlerStatus struct {
@@ -460,7 +461,7 @@ type crawlerStatus struct {
 	Progress           *float64       `json:"progress"`
 }
 
-type lighthouseStatus struct {
+type auditStatus struct {
 	State          string  `json:"state"`
 	StartedAt      *string `json:"started_at"`
 	LastAttemptAt  *string `json:"last_attempt_at"`
@@ -540,23 +541,23 @@ func buildStatusPayload(p *Property) statusPayload {
 			InsightsBySeverity: severity,
 			Progress:           crawlProgress(p),
 		},
-		Lighthouse: lighthouseStatus{
-			State:          p.LighthouseState,
-			StartedAt:      isoOrNil(p.LighthouseStartedAt),
-			LastAttemptAt:  isoOrNil(p.LastLighthouseRunAt),
-			LastSuccessAt:  isoOrNil(p.LastLighthouseSuccessAt),
-			LastError:      nilIfEmpty(p.LastLighthouseError),
-			LastDurationMS: p.LastLighthouseDurationMS,
-			NextRunAt:      isoOrNil(p.NextLighthouseRunAt),
-			IsOverdue:      overdue(p.NextLighthouseRunAt),
+		Audit: auditStatus{
+			State:          p.AuditState,
+			StartedAt:      isoOrNil(p.AuditStartedAt),
+			LastAttemptAt:  isoOrNil(p.LastAuditRunAt),
+			LastSuccessAt:  isoOrNil(p.LastAuditSuccessAt),
+			LastError:      nilIfEmpty(p.LastAuditError),
+			LastDurationMS: p.LastAuditDurationMS,
+			NextRunAt:      isoOrNil(p.NextAuditRunAt),
+			IsOverdue:      overdue(p.NextAuditRunAt),
 		},
 		ServerTime: time.Now().UTC().Format(time.RFC3339),
 	}
 
-	if p.LighthouseScores != nil {
+	if p.AuditScores != nil {
 		var scores Scores
-		if err := json.Unmarshal([]byte(*p.LighthouseScores), &scores); err == nil {
-			payload.Lighthouse.Scores = &scores
+		if err := json.Unmarshal([]byte(*p.AuditScores), &scores); err == nil {
+			payload.Audit.Scores = &scores
 		}
 	}
 
@@ -622,7 +623,7 @@ func (s *site) requeue(w http.ResponseWriter, r *http.Request, kind string) {
 	case "crawl":
 		state, dueColumn, errColumn = p.CrawlState, "next_run_at_crawler", "last_crawl_error"
 	default:
-		state, dueColumn, errColumn = p.LighthouseState, "next_lighthouse_run_at", "last_lighthouse_error"
+		state, dueColumn, errColumn = p.AuditState, "next_audit_run_at", "last_audit_error"
 	}
 
 	if state == "queued" || state == "running" {
@@ -657,6 +658,6 @@ func (s *site) propertyRecrawl(w http.ResponseWriter, r *http.Request) {
 	s.requeue(w, r, "crawl")
 }
 
-func (s *site) propertyRerunLighthouse(w http.ResponseWriter, r *http.Request) {
-	s.requeue(w, r, "lighthouse")
+func (s *site) propertyRerunAudit(w http.ResponseWriter, r *http.Request) {
+	s.requeue(w, r, "audit")
 }

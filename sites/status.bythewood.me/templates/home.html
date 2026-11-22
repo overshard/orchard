@@ -5,7 +5,7 @@
     <div>
       <span class="o-lab">status &middot; self-hosted</span>
       <h1>Every site you run, <em>in one quiet place</em>.</h1>
-      <p class="o-lede">HTTP checks every three minutes, Lighthouse audits, a weekly SEO crawl and one push to your phone when something changes. Flip a property public and the same page becomes its status page.</p>
+      <p class="o-lede">HTTP checks every three minutes, a daily audit, a weekly SEO crawl and one push to your phone when something changes. Flip a property public and the same page becomes its status page.</p>
       <div class="o-ctas">
         <a href="/login" class="o-btn o-btn-p">Access dashboard &rarr;</a>
         <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="o-btn">Source</a>
@@ -55,15 +55,15 @@
   </div>
   <div class="o-frow flip">
     <div class="o-ftxt">
-      <span class="o-lab">lighthouse</span>
+      <span class="o-lab">audit</span>
       <h3>Four scores and what would move them</h3>
-      <p>Audits run on a schedule, and the opportunities come back ranked by how much time each one would save.</p>
+      <p>A daily audit in plain Go, no browser, reads the page and everything it loads. Paint times and errors come from real visitors through analytics.</p>
     </div>
     <div class="o-crop">
       <span class="o-staged">STAGED</span>
       <div class="rings">{{ ring "performance" 98 }}{{ ring "accessibility" 100 }}{{ ring "best practices" 96 }}{{ ring "seo" 100 }}</div>
-      <div class="o-hbar"><span class="k">Serve images in modern formats</span><span class="bar"><i style="width:72%;background:var(--o-warn)"></i></span><span class="v">410ms</span></div>
-      <div class="o-hbar"><span class="k">Reduce unused JavaScript</span><span class="bar"><i style="width:40%;background:var(--o-warn)"></i></span><span class="v">180ms</span></div>
+      <div class="o-hbar"><span class="k">Large PNG that could be WebP</span><span class="bar"><i style="width:72%;background:var(--o-warn)"></i></span><span class="v">410 KB</span></div>
+      <div class="o-hbar"><span class="k">LCP p75 from real visitors</span><span class="bar"><i style="width:40%;background:var(--o-ok)"></i></span><span class="v">1.4 s</span></div>
     </div>
   </div>
   <div class="o-frow">
@@ -101,7 +101,7 @@
 
 <section class="o-hsec">
   <div class="o-run">
-    <div class="o-hh"><span class="o-lab">run your own</span><h2 class="o-big">One Go binary and one SQLite file</h2><p>Part of orchard, BSD 2-Clause. Clone it, run make and point it at the sites you care about. Lighthouse needs Chromium beside it.</p></div>
+    <div class="o-hh"><span class="o-lab">run your own</span><h2 class="o-big">One Go binary and one SQLite file</h2><p>Part of orchard, BSD 2-Clause. Clone it, run make and point it at the sites you care about. PDF reports need typst beside it.</p></div>
     <pre class="o-code"><span class="a">git</span> clone https://github.com/overshard/orchard
 <span class="a">cd</span> orchard
 <span class="a">make</span> run SITE=status.bythewood.me

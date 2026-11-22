@@ -770,7 +770,7 @@ func checkMissingCompression(ctx *checkCtx) []Insight {
 }
 
 // checkOversizedPages measures the HTML document alone and not the page weight
-// a browser reports, since images and scripts are Lighthouse's job.
+// a browser reports, since images and scripts are the audit's job.
 func checkOversizedPages(ctx *checkCtx) []Insight {
 	var out []Insight
 	for _, p := range ctx.pages {

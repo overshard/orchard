@@ -71,10 +71,10 @@
       <span class="o-ticks" role="img" aria-label="cert days left{{ range .Sites }}{{ if .HasCert }}, {{ .Name }} {{ .CertDays }}{{ end }}{{ end }}">{{ range .Sites }}{{ if .HasCert }}<i class="{{ .CertKind }}" style="height: {{ .CertHeight }}%" data-tip="{{ .Name }} · {{ .CertDays }} days"></i>{{ else }}<i class="none" style="height: 8%" data-tip="{{ .Name }} · not read yet"></i>{{ end }}{{ end }}</span>
     </div>
     <div class="o-tile">
-      <small>lighthouse &middot; avg</small>
-      <b>{{ if .HasLH }}{{ .Lighthouse }}{{ else }}&mdash;{{ end }}</b>
+      <small>audit &middot; avg</small>
+      <b>{{ if .HasAudit }}{{ .Audit }}{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ .SEOIssues }} seo issues &middot; {{ .SecIssues }} header</span>
-      <span class="o-ticks" role="img" aria-label="lighthouse by site{{ range .Sites }}{{ if .HasLH }}, {{ .Name }} {{ .Score }}{{ end }}{{ end }}">{{ range .Sites }}{{ if .HasLH }}<i class="{{ if lt .Score 50 }}bad{{ else if lt .Score 90 }}warn{{ end }}" style="height: {{ .Score }}%" data-tip="{{ .Name }} · {{ .Score }}"></i>{{ else }}<i class="none" style="height: 8%" data-tip="{{ .Name }} · not run"></i>{{ end }}{{ end }}</span>
+      <span class="o-ticks" role="img" aria-label="audit by site{{ range .Sites }}{{ if .HasAudit }}, {{ .Name }} {{ .Score }}{{ end }}{{ end }}">{{ range .Sites }}{{ if .HasAudit }}<i class="{{ if lt .Score 50 }}bad{{ else if lt .Score 90 }}warn{{ end }}" style="height: {{ .Score }}%" data-tip="{{ .Name }} · {{ .Score }}"></i>{{ else }}<i class="none" style="height: 8%" data-tip="{{ .Name }} · not run"></i>{{ end }}{{ end }}</span>
     </div>
   </div>
   <p class="o-foot stripfoot"><span data-xs-when>sparks are the last 24 hours by hour, uptime and budget from the daily rollup</span>{{ template "dayNote" .Days30 }}</p>
@@ -100,7 +100,7 @@
           <td class="r n" data-l="30d">{{ uptimeCell .H.Up30 }}</td>
           <td class="o-cell-spark n" data-l="response">{{ sparkT (or (and (gt .AvgResponseTime 500) "warn") "") .H.HourP50 .H.HourLabels }} {{ if .H.P50 }}{{ .H.P50 }}ms{{ else }}{{ .AvgResponseTime }}ms{{ end }}</td>
           <td class="r n" data-l="cert">{{ if .CertDays }}<span class="{{ certClass .CertDays }}" data-tip="{{ .CertIssuer }} · expires {{ .CertExpires }}">{{ .CertDays }}d</span>{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
-          <td class="r n" data-l="lighthouse">{{ if .AvgLighthouseScore }}<span class="{{ if lt (deref64 .AvgLighthouseScore) 90 }}o-warn{{ end }}">{{ .AvgLighthouseScore }}</span>{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
+          <td class="r n" data-l="audit">{{ if .AvgAuditScore }}<span class="{{ if lt (deref64 .AvgAuditScore) 90 }}o-warn{{ end }}">{{ .AvgAuditScore }}</span>{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
           <td class="r n {{ if gt (len .CrawlerInsights) 25 }}o-warn{{ else if not .CrawlerInsights }}o-muted{{ end }}" data-l="seo">{{ len .CrawlerInsights }}</td>
           <td data-l="headers">{{ if .HasSecurityIssue }}<span class="o-chip warn">issues</span>{{ else }}<span class="o-chip">clean</span>{{ end }}</td>
           <td class="act">

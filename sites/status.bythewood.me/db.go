@@ -36,15 +36,15 @@ CREATE TABLE IF NOT EXISTS properties (
     last_crawl_duration_ms      INTEGER,
     last_crawl_pages_count      INTEGER,
 
-    lighthouse_scores           TEXT,
-    lighthouse_details          TEXT,
-    last_lighthouse_run_at      INTEGER,
-    last_lighthouse_success_at  INTEGER,
-    last_lighthouse_error       TEXT,
-    last_lighthouse_duration_ms INTEGER,
-    next_lighthouse_run_at      INTEGER,
-    lighthouse_state            TEXT NOT NULL DEFAULT 'idle',
-    lighthouse_started_at       INTEGER,
+    audit_scores           TEXT,
+    audit_details          TEXT,
+    last_audit_run_at      INTEGER,
+    last_audit_success_at  INTEGER,
+    last_audit_error       TEXT,
+    last_audit_duration_ms INTEGER,
+    next_audit_run_at      INTEGER,
+    audit_state            TEXT NOT NULL DEFAULT 'idle',
+    audit_started_at       INTEGER,
 
     alert_state                 TEXT NOT NULL DEFAULT 'up',
     last_alert_sent             INTEGER,
@@ -163,6 +163,9 @@ func openDB(path string) (*sql.DB, error) {
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
+	if err := renameAuditColumns(db); err != nil {
+		return nil, err
+	}
 	if err := ensureColumns(db, "checks", phaseColumns); err != nil {
 		return nil, err
 	}
@@ -175,10 +178,43 @@ func openDB(path string) (*sql.DB, error) {
 	return db, nil
 }
 
-func ensureColumns(db *sql.DB, table string, cols []addedColumn) error {
+// renameAuditColumns moves a database written by the Lighthouse runner onto
+// the audit_ names. The old scores are cleared and the run made due, since a
+// Lighthouse score and a Go audit score aren't the same number.
+func renameAuditColumns(db *sql.DB) error {
+	have, err := tableColumns(db, "properties")
+	if err != nil || !have["lighthouse_scores"] {
+		return err
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, suffix := range []string{"scores", "details", "state", "started_at"} {
+		if _, err := tx.Exec("ALTER TABLE properties RENAME COLUMN lighthouse_" + suffix + " TO audit_" + suffix); err != nil {
+			return fmt.Errorf("rename lighthouse_%s: %w", suffix, err)
+		}
+	}
+	for _, mid := range []string{"run_at", "success_at", "error", "duration_ms"} {
+		if _, err := tx.Exec("ALTER TABLE properties RENAME COLUMN last_lighthouse_" + mid + " TO last_audit_" + mid); err != nil {
+			return fmt.Errorf("rename last_lighthouse_%s: %w", mid, err)
+		}
+	}
+	if _, err := tx.Exec("ALTER TABLE properties RENAME COLUMN next_lighthouse_run_at TO next_audit_run_at"); err != nil {
+		return fmt.Errorf("rename next_lighthouse_run_at: %w", err)
+	}
+	if _, err := tx.Exec(`UPDATE properties SET audit_scores = NULL, audit_details = NULL,
+	    last_audit_success_at = NULL, last_audit_error = NULL, next_audit_run_at = NULL`); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func tableColumns(db *sql.DB, table string) (map[string]bool, error) {
 	rows, err := db.Query("PRAGMA table_info(" + table + ")")
 	if err != nil {
-		return fmt.Errorf("inspect %s table: %w", table, err)
+		return nil, fmt.Errorf("inspect %s table: %w", table, err)
 	}
 	defer rows.Close()
 
@@ -192,15 +228,21 @@ func ensureColumns(db *sql.DB, table string, cols []addedColumn) error {
 			pk         int
 		)
 		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultVal, &pk); err != nil {
-			return fmt.Errorf("inspect %s table: %w", table, err)
+			return nil, fmt.Errorf("inspect %s table: %w", table, err)
 		}
 		have[name] = true
 	}
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("inspect %s table: %w", table, err)
+		return nil, fmt.Errorf("inspect %s table: %w", table, err)
 	}
-	rows.Close()
+	return have, nil
+}
 
+func ensureColumns(db *sql.DB, table string, cols []addedColumn) error {
+	have, err := tableColumns(db, table)
+	if err != nil {
+		return err
+	}
 	for _, col := range cols {
 		if have[col.name] {
 			continue
@@ -235,15 +277,15 @@ type Property struct {
 	LastCrawlDurationMS *int64
 	LastCrawlPagesCount *int64
 
-	LighthouseScores         *string
-	LighthouseDetails        *string
-	LastLighthouseRunAt      *int64
-	LastLighthouseSuccessAt  *int64
-	LastLighthouseError      *string
-	LastLighthouseDurationMS *int64
-	NextLighthouseRunAt      *int64
-	LighthouseState          string
-	LighthouseStartedAt      *int64
+	AuditScores         *string
+	AuditDetails        *string
+	LastAuditRunAt      *int64
+	LastAuditSuccessAt  *int64
+	LastAuditError      *string
+	LastAuditDurationMS *int64
+	NextAuditRunAt      *int64
+	AuditState          string
+	AuditStartedAt      *int64
 
 	AlertState    string
 	LastAlertSent *int64
@@ -270,10 +312,10 @@ const propertyColumns = `id, url, is_public, is_protected,
 	last_run_at_crawler, next_run_at_crawler, crawler_insights, crawl_state,
 	crawl_started_at, last_crawl_success_at, last_crawl_error,
 	last_crawl_duration_ms, last_crawl_pages_count,
-	lighthouse_scores, lighthouse_details, last_lighthouse_run_at,
-	last_lighthouse_success_at, last_lighthouse_error,
-	last_lighthouse_duration_ms, next_lighthouse_run_at, lighthouse_state,
-	lighthouse_started_at,
+	audit_scores, audit_details, last_audit_run_at,
+	last_audit_success_at, last_audit_error,
+	last_audit_duration_ms, next_audit_run_at, audit_state,
+	audit_started_at,
 	alert_state, last_alert_sent, cert_not_after, cert_issuer, created_at, updated_at`
 
 func scanProperty(scan func(...any) error) (*Property, error) {
@@ -289,10 +331,10 @@ func scanProperty(scan func(...any) error) (*Property, error) {
 		&p.LastRunAtCrawler, &p.NextRunAtCrawler, &p.CrawlerInsights, &p.CrawlState,
 		&p.CrawlStartedAt, &p.LastCrawlSuccessAt, &p.LastCrawlError,
 		&p.LastCrawlDurationMS, &p.LastCrawlPagesCount,
-		&p.LighthouseScores, &p.LighthouseDetails, &p.LastLighthouseRunAt,
-		&p.LastLighthouseSuccessAt, &p.LastLighthouseError,
-		&p.LastLighthouseDurationMS, &p.NextLighthouseRunAt, &p.LighthouseState,
-		&p.LighthouseStartedAt,
+		&p.AuditScores, &p.AuditDetails, &p.LastAuditRunAt,
+		&p.LastAuditSuccessAt, &p.LastAuditError,
+		&p.LastAuditDurationMS, &p.NextAuditRunAt, &p.AuditState,
+		&p.AuditStartedAt,
 		&p.AlertState, &p.LastAlertSent, &p.CertNotAfter, &p.CertIssuer, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {

@@ -19,4 +19,4 @@
 
 #place(dx: 80pt, dy: 470pt, line(length: 1040pt, stroke: 1pt + rgb("#30363d")))
 #place(dx: 80pt, dy: 508pt, text(size: 24pt, fill: rgb("#c9d1d9"))[status.bythewood.me])
-#place(dx: 80pt, dy: 550pt, text(size: 20pt, fill: rgb("#6f7789"))[Uptime, response times, Lighthouse audits and crawl findings])
+#place(dx: 80pt, dy: 550pt, text(size: 20pt, fill: rgb("#6f7789"))[Uptime, response times, audits and crawl findings])

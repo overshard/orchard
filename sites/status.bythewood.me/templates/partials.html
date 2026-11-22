@@ -21,3 +21,31 @@
 {{/* The bad days in a strip of days as text, since a tick only says it on hover. */}}
 {{ define "dayNote" }}{{ $bad := dayList . "bad" }}{{ $warn := dayList . "warn" }}{{ if or $bad $warn }} &middot; {{ with $bad }}<span class="o-bad">down</span> {{ . }}{{ end }}{{ if and $bad $warn }} &middot; {{ end }}{{ with $warn }}<span class="o-warn">under 99.9%</span> {{ . }}{{ end }}{{ end }}{{ end }}
 {{ define "stateChip" }}{{ if eq .CurrentStatus 200 }}<span class="o-chip ok">up &middot; 200</span>{{ else }}<span class="o-chip bad">down &middot; {{ .CurrentStatus }}</span>{{ end }}{{ end }}
+
+{{ define "realusers" }}
+<section class="o-panel">
+  <div class="o-ph2"><h2>Real visitors</h2><span class="o-pm">{{ if . }}<span>7d<b>{{ num .Samples }} views</b></span><span>errors 24h<b class="{{ if .Errors24h }}bad{{ end }}">{{ .Errors24h }}</b></span>{{ else }}<span>from analytics</span>{{ end }}</span></div>
+  {{ if and . .Samples }}
+  <div class="metrics">
+    {{ range .Metrics }}
+    <div class="metric {{ if eq .Class "ok" }}green{{ else if eq .Class "warn" }}amber{{ else if eq .Class "bad" }}danger{{ else }}muted{{ end }}" data-tip="p75 over {{ .N }} views">
+      <small class="o-mono">{{ .Name }} &middot; p75</small>
+      <b class="o-mono">{{ .Value }}</b>
+    </div>
+    {{ end }}
+  </div>
+  {{ else if . }}
+  <p class="o-empty"><b>No timings yet.</b>They show once visitors with the analytics tag have closed a page here.</p>
+  {{ else }}
+  <p class="o-empty"><b>Analytics didn't answer.</b>Or it doesn't track this host, since the property has to be named after it.</p>
+  {{ end }}
+  {{ if and . .TopErrors }}
+  <table class="o-tbl stack">
+    <tbody>
+    {{ range .TopErrors }}<tr><td class="lead clip" title="{{ .Message }}"><span class="o-chip {{ if or (eq .Kind "js") (eq .Kind "promise") }}bad{{ else }}warn{{ end }}">{{ .Kind }}</span> {{ .Message }}</td><td class="r n" data-l="7d">{{ num .Count }}</td></tr>{{ end }}
+    </tbody>
+  </table>
+  {{ end }}
+  {{ if . }}<div class="o-foot"><a href="{{ .Dashboard }}">open in analytics &nearr;</a></div>{{ end }}
+</section>
+{{ end }}

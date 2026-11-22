@@ -176,11 +176,11 @@
 
     {{ if $authed }}
     <section class="o-panel">
-      <div class="o-ph2"><h2>Lighthouse</h2><span class="o-lab">{{ if .LastLighthouseSuccessAt }}{{ naturaltime .LastLighthouseSuccessAt }}{{ else }}not run yet{{ end }}</span></div>
-      {{ with .LighthouseScores }}
+      <div class="o-ph2"><h2>Audit</h2><span class="o-lab">{{ if .LastAuditSuccessAt }}{{ naturaltime .LastAuditSuccessAt }}{{ else }}not run yet{{ end }}</span></div>
+      {{ with .AuditScores }}
       <div class="rings">{{ range .Pairs }}{{ ring (lower .Label) .Score }}{{ end }}</div>
       {{ else }}
-      <p class="o-empty"><b>No audit yet.</b>Lighthouse runs daily, or from Rerun further down.</p>
+      <p class="o-empty"><b>No audit yet.</b>It runs daily, or from Rerun further down.</p>
       {{ end }}
     </section>
     {{ end }}
@@ -224,21 +224,21 @@
   <div class="o-band b3e d-print-none">
     <section class="o-panel">
       <div class="o-ph2">
-        <h2>Lighthouse runs</h2>
+        <h2>Audits</h2>
         <span class="monitor-acts">
-          <span class="o-chip" data-field="lighthouse.state_badge"></span>
-          <button type="button" id="rerun-lighthouse-btn" class="o-btn o-btn-sm" data-act="rerun lighthouse">
-            <span class="rerun-lh-label">Rerun</span>
-            <span class="rerun-lh-spinner spinner d-none" role="status" aria-hidden="true"></span>
+          <span class="o-chip" data-field="audit.state_badge"></span>
+          <button type="button" id="rerun-audit-btn" class="o-btn o-btn-sm" data-act="rerun audit">
+            <span class="rerun-audit-label">Rerun</span>
+            <span class="rerun-audit-spinner spinner d-none" role="status" aria-hidden="true"></span>
           </button>
         </span>
       </div>
-      <div class="o-note bad d-none" data-field="lighthouse.error_box" role="alert">Last run failed: <code data-field="lighthouse.error_text"></code></div>
+      <div class="o-note bad d-none" data-field="audit.error_box" role="alert">Last run failed: <code data-field="audit.error_text"></code></div>
       <dl class="o-kv">
-        <dt>last success</dt><dd class="o-mono" data-field="lighthouse.last_success">&mdash;</dd>
-        <dt>last attempt</dt><dd class="o-mono" data-field="lighthouse.last_attempt">&mdash;</dd>
-        <dt>took</dt><dd class="o-mono" data-field="lighthouse.duration">&mdash;</dd>
-        <dt>next run</dt><dd class="o-mono" data-field="lighthouse.next_run">&mdash;</dd>
+        <dt>last success</dt><dd class="o-mono" data-field="audit.last_success">&mdash;</dd>
+        <dt>last attempt</dt><dd class="o-mono" data-field="audit.last_attempt">&mdash;</dd>
+        <dt>took</dt><dd class="o-mono" data-field="audit.duration">&mdash;</dd>
+        <dt>next run</dt><dd class="o-mono" data-field="audit.next_run">&mdash;</dd>
       </dl>
     </section>
     <section class="o-panel">
@@ -269,9 +269,10 @@
     </section>
   </div>
 
-  {{ with .LighthouseDetails }}
+  <div class="o-band b2r">
+  {{ with .AuditDetails }}
   <section class="o-panel">
-    <div class="o-ph2"><h2>What would move performance</h2><span class="o-lab">lighthouse</span></div>
+    <div class="o-ph2"><h2>What the audit found</h2><span class="o-pm"><span>passed<b>{{ .Passed }} of {{ .Checked }}</b></span><span>no browser</span></span></div>
     {{ if .Metrics }}
     <div class="metrics">
       {{ range .Metrics }}
@@ -282,26 +283,30 @@
       {{ end }}
     </div>
     {{ end }}
-    {{ if .Opportunities }}
+    {{ if .Findings }}
     <div class="o-scroll">
     <table class="o-tbl stack">
-      <thead><tr><th>Opportunity</th><th>Detail</th><th class="r">Saves</th></tr></thead>
+      <thead><tr><th>Finding</th><th>Where</th><th>Category</th></tr></thead>
       <tbody>
-      {{ range .Opportunities }}
+      {{ range .Findings }}
         <tr>
-          <td class="lead">{{ .Title }}</td>
-          <td class="clip o-muted" title="{{ .DisplayValue }}">{{ if .DisplayValue }}{{ .DisplayValue }}{{ else }}&mdash;{{ end }}</td>
-          <td class="r n">{{ $saved := msSavings .SavingsMS }}{{ if $saved }}<span class="o-warn">{{ $saved }}</span>{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
+          <td class="lead"><span class="o-chip {{ if eq .Severity "error" }}bad{{ else }}warn{{ end }}">{{ .Severity }}</span> {{ .Title }}</td>
+          <td class="clip o-muted" data-l="where" title="{{ .Detail }}">{{ if .Detail }}{{ .Detail }}{{ else }}&mdash;{{ end }}</td>
+          <td class="n o-muted nw" data-l="category">{{ lower .Category }}</td>
         </tr>
       {{ end }}
       </tbody>
     </table>
     </div>
     {{ else }}
-    <p class="o-empty"><b>Nothing to fix.</b>Every audit with a saving passes at this URL.</p>
+    <p class="o-empty"><b>Nothing to fix.</b>Every check passes at this URL.</p>
     {{ end }}
   </section>
+  {{ else }}
+  <section class="o-panel"><div class="o-ph2"><h2>What the audit found</h2></div><p class="o-empty"><b>No audit yet.</b>The first one runs within a minute of a deploy, then daily.</p></section>
   {{ end }}
+  {{ template "realusers" $.RealUsers }}
+  </div>
   {{ end }}
 </main>
 {{ end }}

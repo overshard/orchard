@@ -39,6 +39,7 @@ type PageData struct {
 	Properties    []*PropertyView
 	Query         string
 	Property      *PropertyView
+	RealUsers     *RealUsers
 	InsightGroups []InsightGroup
 	ResponseTimes []ResponseTimePoint
 	StatusCodes   []CodeBar
@@ -59,7 +60,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 
 	data := s.page(r, "uptime, speed and crawls",
 		"Self-hosted uptime monitoring with public status pages, response time history, "+
-			"Lighthouse audits and crawl findings.")
+			"daily audits and crawl findings.")
 
 	data.Footer = suite.Footer{Tool: "status", About: "Watches the sites I run, audits them and tells my phone when one goes down or comes back.",
 		Source: sourceURL, Author: authorName, Year: data.Year, Pages: []suite.Tab{{Name: "Home", Href: "/"}}}

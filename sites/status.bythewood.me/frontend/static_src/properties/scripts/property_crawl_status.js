@@ -1,4 +1,4 @@
-// Polls the crawl and lighthouse status endpoint and updates the monitoring
+// Polls the crawl and audit status endpoint and updates the monitoring
 // panel in place, every 2s while a job runs and every 30s while idle. No CSRF
 // token, since auth here is a SameSite=Strict cookie.
 
@@ -136,37 +136,37 @@ function renderCrawler(root, crawler, serverNow) {
   }
 }
 
-function renderLighthouse(root, lh, serverNow) {
-  const badge = root.querySelector('[data-field="lighthouse.state_badge"]');
+function renderAudit(root, au, serverNow) {
+  const badge = root.querySelector('[data-field="audit.state_badge"]');
   if (badge) {
-    const s = stateBadge(lh.state);
+    const s = stateBadge(au.state);
     badge.className = s.cls;
     badge.textContent = s.label;
   }
 
-  show(root, "lighthouse.error_box", !!lh.last_error);
-  if (lh.last_error) {
-    setText(root, "lighthouse.error_text", lh.last_error);
+  show(root, "audit.error_box", !!au.last_error);
+  if (au.last_error) {
+    setText(root, "audit.error_text", au.last_error);
   }
 
-  renderWhen(root, "lighthouse.last_success", lh.last_success_at, serverNow);
-  renderWhen(root, "lighthouse.last_attempt", lh.last_attempt_at, serverNow);
-  setText(root, "lighthouse.duration", humanDuration(lh.last_duration_ms));
+  renderWhen(root, "audit.last_success", au.last_success_at, serverNow);
+  renderWhen(root, "audit.last_attempt", au.last_attempt_at, serverNow);
+  setText(root, "audit.duration", humanDuration(au.last_duration_ms));
 
-  const nextEl = root.querySelector('[data-field="lighthouse.next_run"]');
+  const nextEl = root.querySelector('[data-field="audit.next_run"]');
   if (nextEl) {
-    if (!lh.next_run_at) {
+    if (!au.next_run_at) {
       nextEl.textContent = "—";
       nextEl.removeAttribute("title");
-    } else if (lh.state === "running" || lh.state === "queued") {
+    } else if (au.state === "running" || au.state === "queued") {
       nextEl.textContent = "— (running now)";
-      nextEl.title = formatAbsolute(lh.next_run_at);
-    } else if (lh.is_overdue) {
+      nextEl.title = formatAbsolute(au.next_run_at);
+    } else if (au.is_overdue) {
       nextEl.innerHTML = `<span class="text-amber">due now</span>`;
-      nextEl.title = formatAbsolute(lh.next_run_at);
+      nextEl.title = formatAbsolute(au.next_run_at);
     } else {
-      nextEl.textContent = relativeTime(lh.next_run_at, serverNow);
-      nextEl.title = formatAbsolute(lh.next_run_at);
+      nextEl.textContent = relativeTime(au.next_run_at, serverNow);
+      nextEl.title = formatAbsolute(au.next_run_at);
     }
   }
 }
@@ -198,15 +198,15 @@ function updateRecrawlButton(data) {
   }
 }
 
-function updateRerunLighthouseButton(data) {
-  const btn = document.getElementById("rerun-lighthouse-btn");
+function updateRerunAuditButton(data) {
+  const btn = document.getElementById("rerun-audit-btn");
   if (!btn) return;
-  const state = data.lighthouse.state;
-  const waitingForScheduler = state === "idle" && data.lighthouse.is_overdue;
+  const state = data.audit.state;
+  const waitingForScheduler = state === "idle" && data.audit.is_overdue;
   const busy = state === "queued" || state === "running" || waitingForScheduler;
   btn.disabled = busy;
-  const label = btn.querySelector(".rerun-lh-label");
-  const spinner = btn.querySelector(".rerun-lh-spinner");
+  const label = btn.querySelector(".rerun-audit-label");
+  const spinner = btn.querySelector(".rerun-audit-spinner");
   if (busy) {
     spinner.classList.remove("d-none");
     if (state === "running") label.textContent = "Running…";
@@ -244,18 +244,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const statusUrl = `/properties/${propertyId}/status`;
   const recrawlUrl = `/properties/${propertyId}/recrawl`;
-  const rerunLighthouseUrl = `/properties/${propertyId}/rerun-lighthouse`;
+  const rerunAuditUrl = `/properties/${propertyId}/rerun-audit`;
 
   let prevCrawlState = null;
-  let prevLhState = null;
+  let prevAuditState = null;
   let timer = null;
 
   function schedule(data) {
     const active =
       data.crawler.state !== "idle" ||
-      data.lighthouse.state !== "idle" ||
+      data.audit.state !== "idle" ||
       data.crawler.is_overdue ||
-      data.lighthouse.is_overdue;
+      data.audit.is_overdue;
     const delay = active ? FAST_POLL_MS : SLOW_POLL_MS;
     clearTimeout(timer);
     timer = setTimeout(poll, delay);
@@ -266,18 +266,18 @@ document.addEventListener("DOMContentLoaded", function () {
       ? new Date(data.server_time).getTime()
       : Date.now();
     renderCrawler(root, data.crawler, serverNow);
-    renderLighthouse(root, data.lighthouse, serverNow);
+    renderAudit(root, data.audit, serverNow);
     updateRecrawlButton(data);
-    updateRerunLighthouseButton(data);
+    updateRerunAuditButton(data);
 
     // A subsystem that just went idle means new data, and the tables around
     // this panel are server rendered, so the page has to reload to show it.
     const crawlerFinished =
       prevCrawlState && prevCrawlState !== "idle" && data.crawler.state === "idle";
     const lhFinished =
-      prevLhState && prevLhState !== "idle" && data.lighthouse.state === "idle";
+      prevAuditState && prevAuditState !== "idle" && data.audit.state === "idle";
     prevCrawlState = data.crawler.state;
-    prevLhState = data.lighthouse.state;
+    prevAuditState = data.audit.state;
     if (crawlerFinished || lhFinished) {
       window.location.reload();
       return;
@@ -311,11 +311,11 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  const rerunLhBtn = document.getElementById("rerun-lighthouse-btn");
-  if (rerunLhBtn) {
-    rerunLhBtn.addEventListener("click", () => {
-      rerunLhBtn.disabled = true;
-      triggerPost(rerunLighthouseUrl, applyData);
+  const rerunAuditBtn = document.getElementById("rerun-audit-btn");
+  if (rerunAuditBtn) {
+    rerunAuditBtn.addEventListener("click", () => {
+      rerunAuditBtn.disabled = true;
+      triggerPost(rerunAuditUrl, applyData);
     });
   }
 

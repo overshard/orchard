@@ -136,8 +136,8 @@
 ))
 {{ end }}
 
-== Lighthouse
-{{ with .LighthouseScores }}
+== Audit
+{{ with .AuditScores }}
 #grid(
   columns: (1fr, 1fr, 1fr, 1fr),
   gutter: 4pt,
@@ -150,9 +150,9 @@
   {{- end }}
 )
 {{ else }}
-#text(size: 8pt, fill: muted, style: "italic")[No lighthouse data yet.]
+#text(size: 8pt, fill: muted, style: "italic")[No audit data yet.]
 {{ end }}
-{{- with .LighthouseDetails }}
+{{- with .AuditDetails }}
 {{- if .Metrics }}
 === Performance metrics
 
@@ -171,20 +171,21 @@
   {{- end }}
 ))
 {{ end }}
-{{- if .Opportunities }}
-=== Top opportunities
+{{- if .Findings }}
+=== Findings
 
 #block(breakable: false, table(
-  columns: (1fr, auto),
-  align: (left + top, right + top),
+  columns: (auto, 1fr, 1fr),
+  align: (left + top, left + top, left + top),
   inset: (x: 3pt, y: 2pt),
   stroke: (x, y) => if y == 0 { (bottom: 0.8pt + black) } else { (bottom: 0.3pt + rgb("#ddd")) },
   table.header(
-    text(size: 6.5pt, tracking: 0.3pt, fill: dim, weight: "bold", upper("Opportunity")),
-    text(size: 6.5pt, tracking: 0.3pt, fill: dim, weight: "bold", upper("Savings")),
+    text(size: 6.5pt, tracking: 0.3pt, fill: dim, weight: "bold", upper("Category")),
+    text(size: 6.5pt, tracking: 0.3pt, fill: dim, weight: "bold", upper("Finding")),
+    text(size: 6.5pt, tracking: 0.3pt, fill: dim, weight: "bold", upper("Where")),
   ),
-  {{- range .Opportunities }}
-  text(size: 7.5pt)[{{ typstMD .Title }}], text(size: 7.5pt)[{{ typstMD (msSavings .SavingsMS) }}],
+  {{- range .Findings }}
+  text(size: 7pt)[{{ typstMD .Category }}], text(size: 7.5pt)[{{ typstMD .Title }}], text(size: 7pt)[{{ typstMD .Detail }}],
   {{- end }}
 ))
 {{ end }}

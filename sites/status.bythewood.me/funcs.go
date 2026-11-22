@@ -11,32 +11,31 @@ import (
 )
 
 var templateFuncs = template.FuncMap{
-	"dict":            dict,
-	"json":            jsonBlock,
-	"naturaltime":     naturalTime,
-	"num":             formatNum,
-	"msSavings":       msSavings,
-	"urlPath":         urlPath,
-	"pct":             pct,
-	"pct1":            pct1,
-	"metricClass":     metricClass,
-	"scoreClass":      scoreClass,
-	"uptimeClass":     uptimeClass,
-	"lighthouseClass": lighthouseClass,
-	"countClass":      countClass,
-	"seq":             seq,
-	"add":             func(a, b int) int { return a + b },
-	"upper":           strings.ToUpper,
-	"hasPrefix":       strings.HasPrefix,
-	"listHeadline":    listHeadline,
-	"count":           count,
-	"secChecks":       secChecks,
-	"secPass":         secPass,
-	"insightTitle":    insightTitle,
-	"lower":           strings.ToLower,
-	"ints":            ints,
-	"ring":            ring,
-	"uptimeCell":      uptimeCell,
+	"dict":         dict,
+	"json":         jsonBlock,
+	"naturaltime":  naturalTime,
+	"num":          formatNum,
+	"urlPath":      urlPath,
+	"pct":          pct,
+	"pct1":         pct1,
+	"metricClass":  metricClass,
+	"scoreClass":   scoreClass,
+	"uptimeClass":  uptimeClass,
+	"auditClass":   auditClass,
+	"countClass":   countClass,
+	"seq":          seq,
+	"add":          func(a, b int) int { return a + b },
+	"upper":        strings.ToUpper,
+	"hasPrefix":    strings.HasPrefix,
+	"listHeadline": listHeadline,
+	"count":        count,
+	"secChecks":    secChecks,
+	"secPass":      secPass,
+	"insightTitle": insightTitle,
+	"lower":        strings.ToLower,
+	"ints":         ints,
+	"ring":         ring,
+	"uptimeCell":   uptimeCell,
 	"deref64f": func(p *float64) float64 {
 		if p == nil {
 			return 0
@@ -200,31 +199,6 @@ func formatNum(v any) string {
 	return b.String()
 }
 
-// msSavings renders a Lighthouse saving as "1.2 s" or "420 ms". Zero renders as
-// the empty string, so the template can show a placeholder instead.
-func msSavings(v any) string {
-	var ms float64
-	switch t := v.(type) {
-	case float64:
-		ms = t
-	case int64:
-		ms = float64(t)
-	case int:
-		ms = float64(t)
-	default:
-		return ""
-	}
-
-	switch {
-	case ms <= 0:
-		return ""
-	case ms >= 1000:
-		return fmt.Sprintf("%.1f s", ms/1000)
-	default:
-		return fmt.Sprintf("%.0f ms", ms)
-	}
-}
-
 // urlPath reduces an absolute URL to its path and query.
 func urlPath(raw string) string {
 	u, err := parseHTTPURL(raw)
@@ -278,10 +252,10 @@ func uptimeClass(pct *float64) string {
 	}
 }
 
-// lighthouseClass bands the average of the Lighthouse scores at 90 and 80 instead
-// of Lighthouse's 90 and 50, since an average of 60 across four categories is
-// worse than 60 in one. scoreClass keeps Lighthouse's bands.
-func lighthouseClass(score *int64) string {
+// auditClass bands the average of the audit scores at 90 and 80 instead of
+// 90 and 50, since an average of 60 across four categories is worse than 60
+// in one. scoreClass keeps the 90 and 50 bands for a single score.
+func auditClass(score *int64) string {
 	if score == nil {
 		return "muted"
 	}
@@ -309,7 +283,7 @@ func countClass(n, warnAbove, downAbove int) string {
 }
 
 // metricClass bands one weighted metric's 0-to-1 score. A nil score means
-// Lighthouse could not measure it, which is not the same as measuring it bad.
+// the audit could not measure it, which is not the same as measuring it bad.
 func metricClass(score *float64) string {
 	switch {
 	case score == nil:
@@ -323,8 +297,7 @@ func metricClass(score *float64) string {
 	}
 }
 
-// scoreClass maps a Lighthouse score to Lighthouse's own three bands, so the
-// dashboard colours match the tool the numbers came from.
+// scoreClass maps one audit score to three bands at 90 and 50.
 func scoreClass(score int64) string {
 	switch {
 	case score >= 90:
@@ -336,7 +309,7 @@ func scoreClass(score int64) string {
 	}
 }
 
-// ring draws one Lighthouse score as a dial, coloured by the band it falls in.
+// ring draws one audit score as a dial, coloured by the band it falls in.
 func ring(label string, score int64) template.HTML {
 	kind := "ok"
 	switch {

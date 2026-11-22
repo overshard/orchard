@@ -85,7 +85,7 @@
 .fill .phases .chart-wrap svg.ch { flex: 1; height: auto; min-height: 170px; }
 .fill .phases .chart-wrap .vl { height: calc(100% - 16px); }
 
-// A Lighthouse score as a dial, coloured by its band.
+// An audit score as a dial, coloured by its band.
 .rings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; justify-items: center; padding: 6px 0; }
 @media (max-width: 560px) { .rings { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; } }
 
@@ -127,7 +127,7 @@
 
 .o-panel > .o-note { margin-bottom: 12px; }
 
-// Lighthouse's weighted metrics, one cell each.
+// The audit's weighted metrics, one cell each.
 .metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));

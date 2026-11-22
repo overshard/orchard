@@ -23,7 +23,6 @@ var reportFuncs = texttemplate.FuncMap{
 	"upper":       strings.ToUpper,
 	"naturaltime": naturalTime,
 	"num":         formatNum,
-	"msSavings":   msSavings,
 	"urlPath":     urlPath,
 	"pct":         pct,
 	"pct1":        pct1,

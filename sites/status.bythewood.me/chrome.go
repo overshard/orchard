@@ -113,10 +113,10 @@ type listSummary struct {
 	CertsSoon int
 	CertNote  string
 
-	Lighthouse int64
-	HasLH      bool
-	SEOIssues  int
-	SecIssues  int
+	Audit     int64
+	HasAudit  bool
+	SEOIssues int
+	SecIssues int
 }
 
 // siteMark is one site as a tick in a tile.
@@ -124,7 +124,7 @@ type siteMark struct {
 	Name     string
 	Down     bool
 	Score    int64
-	HasLH    bool
+	HasAudit bool
 	Budget   float64
 	BudgetK  string
 	CertDays int
@@ -149,8 +149,8 @@ func certKind(days int) string {
 
 func summarize(views []*PropertyView) listSummary {
 	out := listSummary{Total: len(views), MTTR: "none"}
-	var up24, up30, lhSum, p95, p50, yday float64
-	var n24, n30, lhN, nP, nY int
+	var up24, up30, auditSum, p95, p50, yday float64
+	var n24, n30, auditN, nP, nY int
 	var mttrSum time.Duration
 	var mttrN int
 	hourSum := make([]float64, 24)
@@ -166,10 +166,10 @@ func summarize(views []*PropertyView) listSummary {
 		} else if out.DownName == "" {
 			out.DownName = v.Name
 		}
-		if v.AvgLighthouseScore != nil {
-			m.Score, m.HasLH = *v.AvgLighthouseScore, true
-			lhSum += float64(*v.AvgLighthouseScore)
-			lhN++
+		if v.AvgAuditScore != nil {
+			m.Score, m.HasAudit = *v.AvgAuditScore, true
+			auditSum += float64(*v.AvgAuditScore)
+			auditN++
 		}
 		if v.CertDays != nil {
 			m.CertDays, m.HasCert = *v.CertDays, true
@@ -256,8 +256,8 @@ func summarize(views []*PropertyView) listSummary {
 	if nP > 0 {
 		out.P95, out.P50, out.HasP95 = int64(p95/float64(nP)), int64(p50/float64(nP)), true
 	}
-	if lhN > 0 {
-		out.Lighthouse, out.HasLH = int64(lhSum/float64(lhN)), true
+	if auditN > 0 {
+		out.Audit, out.HasAudit = int64(auditSum/float64(auditN)), true
 	}
 	if mttrN > 0 {
 		out.MTTR = shortDur(mttrSum / time.Duration(mttrN))

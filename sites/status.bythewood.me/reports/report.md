@@ -42,14 +42,32 @@ History is kept from {{ .H.Since }}.
 {{- else -}}
 _No incidents on record._
 {{ end }}
-## Lighthouse
+## Audit
 
-{{ with .LighthouseScores -}}
+{{ with .AuditScores -}}
 {{ range .Pairs }}- {{ .Label }}: **{{ .Score }}**
 {{ end }}
 {{- else -}}
-_No lighthouse data._
+_No audit data._
 {{ end }}
+{{- with .AuditDetails }}
+{{ range .Metrics }}- {{ .Acronym }}: {{ .DisplayValue }}
+{{ end }}
+{{- if .Findings }}
+| Severity | Category | Finding | Where |
+|---|---|---|---|
+{{ range .Findings }}| {{ .Severity }} | {{ .Category }} | {{ .Title }} | {{ .Detail }} |
+{{ end }}
+{{- end }}
+{{- end }}
+{{- with $.RealUsers }}
+## Real visitors, last 7 days
+
+{{ range .Metrics }}- {{ .Name }} p75: {{ .Value }}{{ if .Class }} ({{ .Class }}){{ end }}
+{{ end }}- Errors: {{ .Errors24h }} in 24h, {{ .Errors7d }} in 7d
+{{ range .TopErrors }}- {{ .Kind }}: {{ .Message }} ({{ .Count }})
+{{ end }}
+{{- end }}
 ## Security headers
 
 | Header | State |
