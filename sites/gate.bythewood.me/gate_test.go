@@ -28,7 +28,7 @@ func testSite(t testing.TB) *site {
 	t.Cleanup(func() { store.Close() })
 	seed(store)
 	verify := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if c, err := r.Cookie(web.SessionCookie); err == nil && c.Value == "good" {
+		if c, err := r.Cookie(web.SessionCookie); err == nil && (c.Value == "good" || c.Value == goodSession) {
 			_, _ = w.Write([]byte(`{"ok":true}`))
 			return
 		}
@@ -64,6 +64,10 @@ func ask(s *site, method, host, uri, ip string, hdr ...string) *httptest.Respons
 }
 
 const stranger = "198.51.100.7"
+
+// goodSession is shaped like a session auth hands out, which gate checks
+// before it asks.
+var goodSession = "good" + strings.Repeat("A", 39)
 
 // The seeded rules carry over what Caddy did, including the clauses that look
 // wrong and aren't.
@@ -375,11 +379,20 @@ func TestConnectorWritesOnlyThroughTheAPI(t *testing.T) {
 
 func TestSignedInSkipsRules(t *testing.T) {
 	s := testSite(t)
-	if w := ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger, "Cookie", web.SessionCookie+"=good"); w.Code != 204 {
+	if w := ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger, "Cookie", web.SessionCookie+"="+goodSession); w.Code != 204 {
 		t.Fatalf("signed in got %d", w.Code)
 	}
-	if w := ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger, "Cookie", web.SessionCookie+"=stale"); w.Code != 404 {
-		t.Fatalf("a dead session got %d", w.Code)
+	stale := strings.Repeat("s", 43)
+	for range 2 {
+		if w := ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger, "Cookie", web.SessionCookie+"="+stale); w.Code != 404 {
+			t.Fatalf("a dead session got %d", w.Code)
+		}
+	}
+	if !s.engine.refusedSessions.has(sha256.Sum256([]byte("GET "+stale)), time.Now()) {
+		t.Fatal("a session auth refused wasn't remembered")
+	}
+	if w := ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger, "Cookie", web.SessionCookie+"=x"); w.Code != 404 {
+		t.Fatalf("a junk cookie got %d", w.Code)
 	}
 }
 

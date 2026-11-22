@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -45,6 +46,8 @@ type engine struct {
 	secret []byte
 	stats  *stats
 	spent  spent
+
+	refusedSessions noCache
 
 	mu      sync.Mutex
 	windows map[windowKey]*window
@@ -300,14 +303,75 @@ func (e *engine) decide(q *req, r *http.Request) verdict {
 
 // unlessSignedIn lets anyone with a live orchard session through, asked only
 // once something would have refused them, so a normal request costs nothing.
+// A cookie auth couldn't have made, or one it said no to a minute ago, isn't
+// asked about again, so a flood carrying a junk cookie can't lean on auth.
 func (e *engine) unlessSignedIn(r *http.Request, v verdict) verdict {
-	if c, err := r.Cookie(web.SessionCookie); err != nil || c.Value == "" {
+	c, err := r.Cookie(web.SessionCookie)
+	if err != nil || !sessionShaped(c.Value) {
+		return v
+	}
+	k := sha256.Sum256([]byte(r.Method + " " + c.Value))
+	now := time.Now()
+	if e.refusedSessions.has(k, now) {
 		return v
 	}
 	if e.auth.Authenticated(r) {
 		return verdict{kind: vExempt}
 	}
+	e.refusedSessions.add(k, now)
 	return v
+}
+
+// sessionShaped is the 32 random bytes in unpadded base64url auth hands out.
+func sessionShaped(v string) bool {
+	if len(v) != 43 {
+		return false
+	}
+	for i := 0; i < len(v); i++ {
+		c := v[i]
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_') {
+			return false
+		}
+	}
+	return true
+}
+
+// noCache remembers the sessions auth said no to. Only a no is kept, so a
+// session signed out elsewhere never keeps working here.
+type noCache struct {
+	mu sync.Mutex
+	m  map[[32]byte]time.Time
+}
+
+const (
+	noFor = time.Minute
+	maxNo = 10000
+)
+
+func (c *noCache) has(k [32]byte, now time.Time) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	at, ok := c.m[k]
+	return ok && now.Sub(at) < noFor
+}
+
+func (c *noCache) add(k [32]byte, now time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.m == nil {
+		c.m = map[[32]byte]time.Time{}
+	}
+	if len(c.m) >= maxNo {
+		for x, at := range c.m {
+			if now.Sub(at) >= noFor {
+				delete(c.m, x)
+			}
+		}
+		if len(c.m) >= maxNo {
+			clear(c.m)
+		}
+	}
+	c.m[k] = now
 }
 
 // over counts a request against a limit rule's minute for one address.

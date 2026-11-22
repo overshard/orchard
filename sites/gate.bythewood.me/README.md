@@ -57,7 +57,9 @@ the shared look and HTTP layer.
   are never checked. The box's own public address belongs there, or status'
   probes of the public hostnames are checked like a stranger's.
 - Anyone signed in to orchard skips every rule, but auth is only asked once
-  something would have refused them, so a normal request costs no call.
+  something would have refused them, so a normal request costs no call. A
+  cookie that isn't shaped like auth's, or that auth refused in the last
+  minute, isn't asked about at all.
 - A field gate doesn't know fails its line either way. With no country for an
   address, `not country is US` doesn't match, so the sign in rule lets it
   through to auth's own per account ceiling.
