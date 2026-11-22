@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -10,7 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -101,50 +102,85 @@ func (t *table) match(name string) (string, uint8) {
 	}
 }
 
-func build(sets [][]string) *table {
-	type e struct {
-		s string
-		m uint8
-	}
-	n := 0
-	for _, s := range sets {
-		n += len(s)
-	}
-	all := make([]e, 0, n)
-	t := &table{size: make([]int, len(sets))}
-	for i, s := range sets {
-		t.size[i] = len(s)
-		for _, d := range s {
-			all = append(all, e{d, 1 << i})
+// packer holds every list's domains in one arena and sorts small references
+// into it, so a rebuild doesn't hold a string and its header per domain.
+type packer struct {
+	arena []byte
+	// Each ref is the start in arena, then the length, then the list index.
+	refs []uint64
+	size []int
+}
+
+func newPacker(lists, bytes int) *packer {
+	return &packer{arena: make([]byte, 0, bytes), size: make([]int, lists)}
+}
+
+func (p *packer) add(list int, d string) {
+	p.refs = append(p.refs, uint64(len(p.arena))<<32|uint64(len(d))<<8|uint64(list))
+	p.arena = append(p.arena, d...)
+	p.size[list]++
+}
+
+func (p *packer) at(r uint64) []byte {
+	start, n := r>>32, r>>8&0xffffff
+	return p.arena[start : start+n]
+}
+
+func (p *packer) table() *table {
+	slices.SortFunc(p.refs, func(a, b uint64) int { return bytes.Compare(p.at(a), p.at(b)) })
+	unique, total := 0, 0
+	for i, r := range p.refs {
+		if i == 0 || !bytes.Equal(p.at(r), p.at(p.refs[i-1])) {
+			unique++
+			total += len(p.at(r))
 		}
 	}
-	sort.Slice(all, func(a, b int) bool { return all[a].s < all[b].s })
+	t := &table{size: p.size, off: make([]uint32, 0, unique), mask: make([]uint8, 0, unique)}
 	var sb strings.Builder
-	for i := 0; i < len(all); {
+	sb.Grow(total)
+	for i := 0; i < len(p.refs); {
+		d := p.at(p.refs[i])
 		j, m := i, uint8(0)
-		for ; j < len(all) && all[j].s == all[i].s; j++ {
-			m |= all[j].m
+		for ; j < len(p.refs) && bytes.Equal(p.at(p.refs[j]), d); j++ {
+			m |= 1 << (p.refs[j] & 0xff)
 		}
 		t.off = append(t.off, uint32(sb.Len()))
 		t.mask = append(t.mask, m)
-		sb.WriteString(all[i].s)
+		sb.Write(d)
 		i = j
 	}
 	t.blob = sb.String()
 	return t
 }
 
+func build(sets [][]string) *table {
+	n := 0
+	for _, s := range sets {
+		for _, d := range s {
+			n += len(d)
+		}
+	}
+	p := newPacker(len(sets), n)
+	for i, s := range sets {
+		for _, d := range s {
+			p.add(i, d)
+		}
+	}
+	return p.table()
+}
+
 // parse reads a list file, skipping comments, and gives its domains and the
 // Version line hagezi stamps on each build.
 func parse(r io.Reader) (domains []string, version string, err error) {
-	return parseUpTo(r, 0)
+	_, version, err = scan(r, 0, func(d string) { domains = append(domains, d) })
+	return domains, version, err
 }
 
 var errTooMany = errors.New("too many entries")
 
-// parseUpTo stops once a list passes max entries, so a bloated list is turned
-// away before it's all held in memory. Zero means no limit.
-func parseUpTo(r io.Reader, max int) (domains []string, version string, err error) {
+// scan hands each domain in a list file to fn and stops once it passes max
+// entries, so a bloated list is turned away early. Zero means no limit.
+func scan(r io.Reader, max int, fn func(string)) (n int, version string, err error) {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 64*1024), 64*1024)
 	for sc.Scan() {
@@ -160,13 +196,16 @@ func parseUpTo(r io.Reader, max int) (domains []string, version string, err erro
 		}
 		d := cleanName(line)
 		if looksLikeDomain(d) {
-			if max > 0 && len(domains) >= max {
-				return nil, version, fmt.Errorf("%w, over %d", errTooMany, max)
+			if max > 0 && n >= max {
+				return 0, version, fmt.Errorf("%w, over %d", errTooMany, max)
 			}
-			domains = append(domains, d)
+			n++
+			if fn != nil {
+				fn(d)
+			}
 		}
 	}
-	return domains, version, sc.Err()
+	return n, version, sc.Err()
 }
 
 // lister keeps the lists on disk and the compiled table in memory, and swaps
@@ -189,7 +228,13 @@ func (l *lister) path(key string) string { return filepath.Join(l.dir, key+".txt
 // load builds the table from the copies on disk, so a restart blocks the same
 // things straight away without waiting on the network.
 func (l *lister) load() {
-	sets := make([][]string, len(lists))
+	room := 0
+	for _, li := range lists {
+		if st, err := os.Stat(l.path(li.Key)); err == nil {
+			room += int(st.Size())
+		}
+	}
+	p := newPacker(len(lists), room)
 	var missing []string
 	for i, li := range lists {
 		f, err := os.Open(l.path(li.Key))
@@ -197,13 +242,13 @@ func (l *lister) load() {
 			missing = append(missing, li.Key)
 			continue
 		}
-		sets[i], _, err = parse(f)
+		n, _, err := scan(f, 0, func(d string) { p.add(i, d) })
 		f.Close()
-		if err != nil || len(sets[i]) == 0 {
+		if err != nil || n == 0 {
 			missing = append(missing, li.Key)
 		}
 	}
-	l.tab.Store(build(sets))
+	l.tab.Store(p.table())
 	l.missing.Store(&missing)
 }
 
@@ -284,7 +329,7 @@ func (l *lister) fetch(ctx context.Context, li List, had int) (int, string, erro
 	if had > 0 {
 		most = int(float64(had)*maxGrow) + 1
 	}
-	domains, version, err := parseUpTo(f, most)
+	n, version, err := scan(f, most, nil)
 	f.Close()
 	if errors.Is(err, errTooMany) {
 		return 0, "", fmt.Errorf("%w, %v", errSwing, err)
@@ -292,7 +337,6 @@ func (l *lister) fetch(ctx context.Context, li List, had int) (int, string, erro
 	if err != nil {
 		return 0, "", err
 	}
-	n := len(domains)
 	switch {
 	case n < minEntries:
 		return 0, "", fmt.Errorf("%w, only %d entries", errSwing, n)
