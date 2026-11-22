@@ -569,3 +569,22 @@ func TestAPIEditOnlyNarrows(t *testing.T) {
 		t.Errorf("a note edit was refused, %d %s", w.Code, w.Body.String())
 	}
 }
+
+func TestPutBack(t *testing.T) {
+	s := testSite(t)
+	for range 3 {
+		ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger)
+	}
+	s.engine.stats.ban(Ban{IP: netip.MustParseAddr(stranger), Until: time.Now().Add(time.Hour), Rule: "scanners", Created: time.Now()})
+	s.engine.stats.putBack(s.engine.stats.take())
+	ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger)
+	if err := s.store.Flush(s.engine.stats.take()); err != nil {
+		t.Fatal(err)
+	}
+	if d := s.store.Day(time.Hour, time.Now()); d.Blocked != 4 {
+		t.Fatalf("blocked = %d after a put back, want 4", d.Blocked)
+	}
+	if bans, _ := s.store.Bans(); len(bans) != 1 {
+		t.Fatalf("a put back ban was lost: %+v", bans)
+	}
+}

@@ -243,3 +243,40 @@ func (s *stats) take() pending {
 	s.solves = map[solveKey]*solveCount{}
 	return p
 }
+
+// maxHeldEvents bounds the sampled requests kept back while the database
+// won't take them. The counts are kept whole.
+const maxHeldEvents = 20000
+
+// putBack returns a batch the database refused, so the next flush tries it
+// again instead of losing its counts and bans.
+func (s *stats) putBack(p pending) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for k, n := range p.traffic {
+		s.traffic[k] += n
+	}
+	for k, c := range p.hits {
+		if x := s.hits[k]; x != nil {
+			x.Hits += c.Hits
+			x.Watched += c.Watched
+		} else {
+			s.hits[k] = c
+		}
+	}
+	for k, o := range p.orgs {
+		if _, ok := s.orgs[k]; !ok {
+			s.orgs[k] = o
+		}
+	}
+	for k, c := range p.solves {
+		x := s.solveCount(k.Hour, k.Host, k.Rule)
+		x.People += c.People
+		x.Solved += c.Solved
+		x.Failed += c.Failed
+	}
+	s.bans = append(p.bans, s.bans...)
+	if room := maxHeldEvents - len(s.events); room > 0 {
+		s.events = append(p.events[max(0, len(p.events)-room):], s.events...)
+	}
+}

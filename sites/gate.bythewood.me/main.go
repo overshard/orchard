@@ -94,7 +94,9 @@ func main() {
 	}()
 	go func() {
 		for range time.Tick(15 * time.Second) {
-			if err := store.Flush(s.engine.stats.take()); err != nil {
+			p := s.engine.stats.take()
+			if err := store.Flush(p); err != nil {
+				s.engine.stats.putBack(p)
 				slog.Error("flushing counts", slog.Any("err", err))
 			}
 		}
