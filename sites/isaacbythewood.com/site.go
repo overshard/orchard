@@ -1,5 +1,7 @@
 package main
 
+import "strings"
+
 // Identity is hardcoded instead of configured.
 const (
 	baseURL     = "https://isaacbythewood.com"
@@ -51,82 +53,154 @@ var aboutWords = []string{
 	"Security", "Developer", "Automation", "Architecture",
 }
 
-// Site is one card in the live section: something in orchard that is running
+// Site is one tile in the live section: something in orchard that is running
 // right now, as opposed to a repository you can only read.
 type Site struct {
 	Name        string
+	Symbol      string
+	Group       string
 	Dir         string
 	Description string
 	Tech        []string
-	// The site's own front door, which every one of these has, though most
-	// of the dashboards want a login.
+	// Empty for the edge, which has no page of its own to visit.
 	Visit string
 }
 
-// featured gets the wide card at the top of the code page, above the rest of
-// what's live.
-var featured = Site{
-	Name:        "pond",
-	Dir:         "pond.bythewood.me",
-	Description: "A virtual pet game where everybody who opens it gets a frog of their own, drawn from a seed as pixel art. There are no accounts, a frog is kept by six words, and you raise it, put it to work and spend pebbles on hats. Click the frog for another one.",
-	Tech:        []string{"Go", "SQLite", "Canvas"},
-	Visit:       "https://pond.bythewood.me",
+// Group is one row of the live section, in the order the page shows them.
+type Group struct {
+	Name  string
+	Blurb string
 }
 
-// Newest first, same as the archived list, which puts the ones built from
-// scratch above the ports.
+var groups = []Group{
+	{Name: "Edge", Blurb: "keeps things out"},
+	{Name: "Watch", Blurb: "knows what's happening"},
+	{Name: "Tools", Blurb: "for me"},
+	{Name: "Public", Blurb: "for everyone"},
+}
+
+// The topology draws them in this order too, so it reads top to bottom the
+// same way the tiles do.
 var sites = []Site{
 	{
-		Name:        "llm",
-		Dir:         "llm.bythewood.me",
-		Description: "One set of weights on one card in front of every service here that wants one, with a key per caller and every prompt and completion written down.",
-		Tech:        []string{"Go", "SQLite", "llama-swap"},
-		Visit:       "https://llm.bythewood.me",
+		Name:        "gate",
+		Symbol:      "Gt",
+		Group:       "Edge",
+		Dir:         "gate.bythewood.me",
+		Description: "The firewall in front of every site. Caddy asks it about each request, rules change live, and bots get a proof of work page.",
+		Tech:        []string{"Go", "SQLite"},
+		Visit:       "https://gate.bythewood.me",
+	},
+	{
+		Name:        "edge",
+		Symbol:      "Ed",
+		Group:       "Edge",
+		Description: "The cloudflared tunnel that dials out to Cloudflare, the Caddy that routes to every site, and the ntfy every alert goes through.",
+		Tech:        []string{"cloudflared", "Caddy", "ntfy"},
 	},
 	{
 		Name:        "auth",
+		Symbol:      "Au",
+		Group:       "Edge",
 		Dir:         "auth.bythewood.me",
 		Description: "The front door to the rest of these. One account, a six digit code pushed to my phone over ntfy, and a session the other sites check against this one.",
 		Tech:        []string{"Go", "SQLite", "Argon2"},
 		Visit:       "https://auth.bythewood.me",
 	},
 	{
+		Name:        "dns",
+		Symbol:      "Dn",
+		Group:       "Edge",
+		Dir:         "dns.bythewood.me",
+		Description: "A private resolver for my own devices over DoH and DoT, with blocklists, rules per device and a log of every lookup.",
+		Tech:        []string{"Go", "unbound", "SQLite"},
+		Visit:       "https://dns.bythewood.me",
+	},
+	{
+		Name:        "status",
+		Symbol:      "St",
+		Group:       "Watch",
+		Dir:         "status.bythewood.me",
+		Description: "Uptime checks and public status pages, a daily audit written in Go and an SEO crawler, with alerts to my phone.",
+		Tech:        []string{"Go", "SQLite", "Typst"},
+		Visit:       "https://status.bythewood.me",
+	},
+	{
+		Name:        "logging",
+		Symbol:      "Lg",
+		Group:       "Watch",
+		Dir:         "logging.bythewood.me",
+		Description: "Every site ships its structured logs here along with Caddy's access log, so a request I want to find is in one place instead of spread across every container.",
+		Tech:        []string{"Go", "SQLite", "Typst"},
+		Visit:       "https://logging.bythewood.me",
+	},
+	{
+		Name:        "analytics",
+		Symbol:      "An",
+		Group:       "Watch",
+		Dir:         "analytics.bythewood.me",
+		Description: "Self hosted analytics with dashboards you can share without a login, a world map, real visitor vitals and Typst PDF reports.",
+		Tech:        []string{"Go", "SQLite", "GeoIP"},
+		Visit:       "https://analytics.bythewood.me",
+	},
+	{
 		Name:        "dash",
+		Symbol:      "Da",
+		Group:       "Watch",
 		Dir:         "dash.bythewood.me",
-		Description: "One page of markets, news, the weather, and the health of everything else here, all of it pushing itself over server sent events.",
+		Description: "One page of markets, news, the weather and the health of everything else here, all of it pushing itself over server sent events.",
 		Tech:        []string{"Go", "SSE", "Vite"},
 		Visit:       "https://dash.bythewood.me",
 	},
 	{
 		Name:        "repos",
+		Symbol:      "Rp",
+		Group:       "Tools",
 		Dir:         "repos.bythewood.me",
-		Description: "A git remote I push to over HTTPS, with a browser on top: commits, diffs, blobs and atom feeds. It mirrors my GitHub account too.",
+		Description: "A git remote I push to over HTTPS with a browser on top, commits, diffs, blobs and atom feeds. It mirrors my GitHub account too.",
 		Tech:        []string{"Go", "Git", "SQLite"},
 		Visit:       "https://repos.bythewood.me",
 	},
 	{
-		Name:        "logging",
-		Dir:         "logging.bythewood.me",
-		Description: "Every site here ships its structured logs to this one, so a request I want to find is in one place instead of spread across every container's docker logs.",
-		Tech:        []string{"Go", "SQLite", "Typst"},
-		Visit:       "https://logging.bythewood.me",
+		Name:        "llm",
+		Symbol:      "Ll",
+		Group:       "Tools",
+		Dir:         "llm.bythewood.me",
+		Description: "The model gateway. Claude Haiku behind a key per caller, a monthly budget, and every call written down.",
+		Tech:        []string{"Go", "SQLite"},
+		Visit:       "https://llm.bythewood.me",
 	},
 	{
-		Name:        "status",
-		Dir:         "status.bythewood.me",
-		Description: "Uptime monitoring and public status pages, with Lighthouse audits and an SEO crawler on a timer and PDF reports out the other end.",
-		Tech:        []string{"Go", "SQLite", "Lighthouse"},
-		Visit:       "https://status.bythewood.me",
+		Name:        "mcp",
+		Symbol:      "Mc",
+		Group:       "Tools",
+		Dir:         "mcp.bythewood.me",
+		Description: "Every tool here, read only, as one MCP server for Claude, signed in through auth.",
+		Tech:        []string{"Go", "OAuth", "MCP"},
+		Visit:       "https://mcp.bythewood.me",
 	},
 	{
-		Name:        "analytics",
-		Dir:         "analytics.bythewood.me",
-		Description: "Self-hosted website analytics: a collector, dashboards you can share without a login, a world map, and Typst PDF reports.",
-		Tech:        []string{"Go", "SQLite", "GeoIP"},
-		Visit:       "https://analytics.bythewood.me",
+		Name:        "cron",
+		Symbol:      "Cr",
+		Group:       "Tools",
+		Dir:         "cron.bythewood.me",
+		Description: "Reminders and scheduled checks, pushed to my phone over ntfy.",
+		Tech:        []string{"Go", "SQLite"},
+		Visit:       "https://cron.bythewood.me",
+	},
+	{
+		Name:        "pond",
+		Symbol:      "Po",
+		Group:       "Public",
+		Dir:         "pond.bythewood.me",
+		Description: "A virtual pet game where everybody who opens it gets a frog of their own, drawn from a seed as pixel art. There are no accounts, a frog is kept by six words, and you raise it, put it to work and spend pebbles on hats. Tap the frog for another one.",
+		Tech:        []string{"Go", "SQLite", "Canvas"},
+		Visit:       "https://pond.bythewood.me",
 	},
 	{
 		Name:        "blog",
+		Symbol:      "Bl",
+		Group:       "Public",
 		Dir:         "blog.bythewood.me",
 		Description: "Markdown files on disk and no database behind them, with live search, and a PDF and a social card built for every post.",
 		Tech:        []string{"Go", "Typst", "Vite"},
@@ -134,6 +208,8 @@ var sites = []Site{
 	},
 	{
 		Name:        "isaacbythewood.com",
+		Symbol:      "Ib",
+		Group:       "Public",
 		Dir:         "isaacbythewood.com",
 		Description: "The site you are reading. Go and Vite with no third party Go dependencies at all, canvas animations included.",
 		Tech:        []string{"Go", "Vite", "Canvas"},
@@ -141,10 +217,24 @@ var sites = []Site{
 	},
 }
 
+// The tile the page opens with.
+const openSite = "pond"
+
 // SourcePath is the site's directory inside the monorepo, which is both the
 // GitHub path filter for its commits and the tail of its source link.
 func (s Site) SourcePath() string {
+	if s.Dir == "" {
+		return "edge"
+	}
 	return "sites/" + s.Dir
+}
+
+// Host is what the tile prints under its symbol.
+func (s Site) Host() string {
+	if s.Dir == "" {
+		return "edge/"
+	}
+	return s.Dir
 }
 
 func (s Site) CommitTarget() CommitTarget {
@@ -164,15 +254,9 @@ type Project struct {
 
 var projects = []Project{
 	{
-		Name:        "orchard",
-		Slug:        "orchard",
-		Description: "Every site I run, in one repo, along with the shared Cloudflare Tunnel and Caddy that front them. It all runs from a desktop at home, this site included.",
-		Tech:        []string{"Go", "Vite", "SQLite"},
-	},
-	{
 		Name:        "taproot",
 		Slug:        "taproot",
-		Description: "The dotfiles and containers I use to set up a machine for development, one to write code in and one that runs a local coding model.",
+		Description: "The container the VPS runs for development, the setup for every thin client that talks to it, and my dotfiles.",
 		Tech:        []string{"Docker", "Shell"},
 	},
 
@@ -403,4 +487,8 @@ var contactMethods = []ContactMethod{
 	{Key: "LinkedIn", Value: "Isaac Bythewood", Href: "https://www.linkedin.com/in/ibythewood/", External: true},
 	{Key: "GitHub", Value: "/" + githubUser, Href: "https://github.com/" + githubUser, External: true},
 	{Key: "Discord", Value: "Overshard#4907", Href: "https://discordapp.com/", External: true},
+}
+
+func (s Site) Stack() string {
+	return strings.Join(s.Tech, ", ")
 }

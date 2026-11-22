@@ -101,8 +101,7 @@ func realMain() error {
 
 	// An archived repo doesn't change, so polling it would spend the rate limit
 	// re-reading the same commit.
-	targets := make([]CommitTarget, 0, len(sites)+len(projects)+1)
-	targets = append(targets, featured.CommitTarget())
+	targets := make([]CommitTarget, 0, len(sites)+len(projects))
 	for _, live := range sites {
 		targets = append(targets, live.CommitTarget())
 	}
@@ -113,12 +112,16 @@ func realMain() error {
 	}
 	commits.Start(ctx, targets)
 
+	probes := NewProbeCache()
+	probes.Start(ctx, sites)
+
 	latest := NewLatestCache(blogLatestSources)
 	latest.Start(ctx)
 
 	s := &site{
 		renderer: renderer,
 		commits:  commits,
+		probes:   probes,
 		latest:   latest,
 		script:   assets.Script("index.js"),
 		styles:   assets.Styles("index.js"),

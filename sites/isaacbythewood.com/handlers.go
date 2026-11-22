@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"isaacbythewood.com/web"
 )
@@ -37,8 +40,10 @@ type PageData struct {
 
 	Latest     *LatestPost
 	Words      []AboutWord
-	Featured   *SiteView
-	Live       []SiteView
+	Groups     []GroupView
+	Tape       []TapeLine
+	Topo       Topology
+	Stats      CodeStats
 	Active     []ProjectView
 	Archived   []ProjectView
 	Pours      []PourView
@@ -53,11 +58,29 @@ type AboutWord struct {
 	Style template.CSS
 }
 
-type SiteView struct {
+type TileView struct {
 	Site
 	Source string
 	Commit string
+	Health Health
+	Open   bool
 	Delay  template.CSS
+}
+
+type GroupView struct {
+	Group
+	Tiles []TileView
+}
+
+// TapeLine is one row of the commit tape, the latest commit under one site.
+type TapeLine struct {
+	SHA, Where, Message, Age string
+	when                     time.Time
+	more                     int
+}
+
+type CodeStats struct {
+	Sites, Commits, Median int
 }
 
 type ProjectView struct {
@@ -79,6 +102,7 @@ type PourView struct {
 type site struct {
 	renderer *web.Renderer
 	commits  *CommitCache
+	probes   *ProbeCache
 	latest   *LatestCache
 	// Resolves Next.js era /_next/image requests onto the built files.
 	nextImages *nextImageIndex
@@ -194,21 +218,46 @@ func (s *site) code(w http.ResponseWriter, r *http.Request) {
 		return style
 	}
 
-	data.Featured = &SiteView{
-		Site:   featured,
-		Source: "https://github.com/" + githubUser + "/" + monorepo + "/tree/main/" + featured.SourcePath(),
-		Commit: s.commits.JSON(featured.SourcePath()),
-		Delay:  nextDelay(),
+	health := func(site Site) Health {
+		if site.Visit == "" {
+			return s.probes.Edge()
+		}
+		return s.probes.Health(site.Name)
 	}
 
-	data.Live = make([]SiteView, 0, len(sites))
-	for _, live := range sites {
-		data.Live = append(data.Live, SiteView{
-			Site:   live,
-			Source: "https://github.com/" + githubUser + "/" + monorepo + "/tree/main/" + live.SourcePath(),
-			Commit: s.commits.JSON(live.SourcePath()),
-			Delay:  nextDelay(),
-		})
+	var medians []int
+	for _, g := range groups {
+		view := GroupView{Group: g}
+		for _, site := range sites {
+			if site.Group != g.Name {
+				continue
+			}
+			h := health(site)
+			if h.Median > 0 && site.Visit != "" {
+				medians = append(medians, h.Median)
+			}
+			view.Tiles = append(view.Tiles, TileView{
+				Site:   site,
+				Source: "https://github.com/" + githubUser + "/" + monorepo + "/tree/main/" + site.SourcePath(),
+				Commit: s.commits.JSON(site.SourcePath()),
+				Health: h,
+				Open:   site.Name == openSite,
+				Delay:  nextDelay(),
+			})
+		}
+		data.Groups = append(data.Groups, view)
+	}
+
+	data.Topo = buildTopology(health)
+	data.Tape = s.tape(time.Now())
+	data.Stats = CodeStats{Commits: s.commits.Total()}
+	for _, site := range sites {
+		if site.Visit != "" {
+			data.Stats.Sites++
+		}
+	}
+	if len(medians) > 0 {
+		data.Stats.Median = median(medians)
 	}
 
 	for _, project := range projects {
@@ -230,6 +279,47 @@ func (s *site) code(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.renderer.Render(w, http.StatusOK, "code.html", data)
+}
+
+// tape is the latest commit under each site, newest first, with a commit
+// that touched several sites shown once.
+func (s *site) tape(now time.Time) []TapeLine {
+	var lines []TapeLine
+	seen := map[string]int{}
+	for _, site := range sites {
+		c, ok := s.commits.Get(site.SourcePath())
+		if !ok {
+			continue
+		}
+		if i, dup := seen[c.SHA]; dup {
+			lines[i].more++
+			continue
+		}
+		seen[c.SHA] = len(lines)
+		when, err := time.Parse(time.RFC3339, c.Date)
+		if err != nil {
+			continue
+		}
+		lines = append(lines, TapeLine{SHA: c.SHA, Where: site.SourcePath(), Message: c.Message, Age: age(now.Sub(when)), when: when})
+	}
+	for i := range lines {
+		if lines[i].more > 0 {
+			lines[i].Where += fmt.Sprintf(" +%d", lines[i].more)
+		}
+	}
+	slices.SortStableFunc(lines, func(a, b TapeLine) int { return b.when.Compare(a.when) })
+	return lines
+}
+
+func age(d time.Duration) string {
+	switch {
+	case d < time.Hour:
+		return fmt.Sprintf("%dm", max(1, int(d.Minutes())))
+	case d < 48*time.Hour:
+		return fmt.Sprintf("%dh", int(d.Hours()))
+	default:
+		return fmt.Sprintf("%dd", int(d.Hours()/24))
+	}
 }
 
 func (s *site) art(w http.ResponseWriter, r *http.Request) {
@@ -311,4 +401,13 @@ func (s *site) manifest(w http.ResponseWriter, r *http.Request) {
   "theme_color": %q
 }
 `, siteTitle, siteTitle, themeColor, themeColor)
+}
+
+// Thousands get a comma, the way the counter renders them once it lands.
+func (c CodeStats) CommitsText() string {
+	n := strconv.Itoa(c.Commits)
+	for i := len(n) - 3; i > 0; i -= 3 {
+		n = n[:i] + "," + n[i:]
+	}
+	return n
 }

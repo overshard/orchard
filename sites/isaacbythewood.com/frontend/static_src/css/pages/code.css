@@ -216,7 +216,8 @@
   gap: 16px;
 }
 
-.code-project-live .code-projectButton {
+.code-detail .code-projectButton,
+.code-orchard .code-projectButton {
   width: auto;
   min-width: 120px;
   padding-left: 16px;
@@ -366,53 +367,628 @@
   }
 }
 
-/* The featured card runs the full width with its frog beside it, and stacks
-   on a phone. */
-.code-project-featured {
+/* The spec strip under the intro. */
+.code-spec {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   width: 100%;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 40px;
+  margin: 0 0 10px;
+  border-top: 2px solid black;
 }
 
-.code-featuredArt {
-  flex: none;
-  margin: 40px 0 0;
+.code-stat {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 16px 14px 4px;
+  border-left: 1px solid rgba(0, 0, 0, 0.12);
 }
 
-.code-featuredArt canvas {
-  width: 264px;
-  height: 204px;
-  padding: 16px;
-  background: #123a3d;
-  border-radius: var(--radius-2);
-  image-rendering: pixelated;
-  cursor: pointer;
+.code-stat:first-child {
+  border-left: 0;
+  padding-left: 0;
 }
 
-.code-featuredArt figcaption {
+.code-stat dt {
   font-family: monospace;
-  font-size: 0.8em;
+  font-size: 0.75em;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 0.55);
 }
 
-.code-featuredBody {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
+.code-stat dd {
+  margin: 0;
+  font-size: 2.6em;
+  font-weight: 800;
+  line-height: 1;
+  color: black;
+  font-variant-numeric: tabular-nums;
+}
+
+.code-stat dd small {
+  font-size: 0.4em;
+  font-weight: 700;
+  margin-left: 4px;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.code-statGrad {
+  background: linear-gradient(90deg, var(--color-blue), var(--color-purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
 }
 
 @media (max-width: 767.98px) {
-  .code-project-featured {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
+  .code-spec {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .code-stat:nth-child(odd) {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .code-stat:nth-child(n + 3) {
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    padding-top: 14px;
+    margin-top: 10px;
+  }
+  .code-stat dd {
+    font-size: 2.2em;
+  }
+}
+
+/* The map. Two drawings, wide and tall, and CSS picks one. */
+.code-machine {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  margin: 40px 0 0;
+  background: var(--color-primary);
+  border-radius: var(--radius-2);
+  overflow: hidden;
+  color: white;
+}
+
+.code-machineBar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: monospace;
+  font-size: 0.75em;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.code-topo {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.code-topo-tall {
+  display: none;
+}
+
+@media (max-width: 767.98px) {
+  .code-topo-wide {
+    display: none;
+  }
+  .code-topo-tall {
+    display: block;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+}
+
+.code-topo text {
+  font-family: monospace;
+  font-size: 11px;
+  fill: white;
+}
+
+.code-topo .code-topoSub {
+  font-size: 9px;
+  letter-spacing: 1px;
+  fill: rgba(255, 255, 255, 0.5);
+}
+
+.code-topoNode {
+  fill: #2a2e3c;
+  stroke: #3a3f52;
+}
+
+.code-topoNode-edge {
+  stroke: #4d6dff;
+}
+
+.code-topoWall {
+  fill: none;
+  stroke: #f5b93b;
+  stroke-opacity: 0.7;
+  stroke-dasharray: 3 5;
+}
+
+.code-topoWire {
+  fill: none;
+  stroke: #3a3f52;
+}
+
+.code-topoWire-hot {
+  stroke: url(#topo-grad);
+  stroke-width: 1.5;
+}
+
+.code-topo-tall .code-topoWire-hot {
+  stroke: #4d6dff;
+}
+
+.code-topoPacket {
+  fill: #4d6dff;
+}
+
+.code-topoPacket-alt {
+  fill: var(--color-purple);
+}
+
+.code-topoSite {
+  cursor: pointer;
+  outline: none;
+}
+
+.code-topoSite .code-topoNode {
+  transition: stroke 200ms, fill 200ms;
+}
+
+.code-topoSite:hover .code-topoNode,
+.code-topoSite:focus-visible .code-topoNode,
+.code-topoSite.is-on .code-topoNode {
+  stroke: var(--color-purple);
+  fill: #33284d;
+}
+
+.code-topoSite:focus-visible .code-topoNode {
+  stroke: white;
+}
+
+.code-topoDot.code-dot-up {
+  fill: #00ff00;
+}
+
+.code-topoDot.code-dot-down {
+  fill: #ff4d4d;
+}
+
+.code-topoDot.code-dot-unknown {
+  fill: rgba(255, 255, 255, 0.35);
+}
+
+.code-readout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 16px;
+  margin: 0;
+  padding: 14px 16px;
+  min-height: 7.5em;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: monospace;
+  font-size: 0.85em;
+  line-height: 1.5;
+  color: #00ff00;
+}
+
+.code-readout dt {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.code-readout dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767.98px) {
+  .code-machine {
+    margin-top: 30px;
+  }
+  .code-readout {
+    min-height: 10em;
+  }
+}
+
+.code-orchard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 30px;
+  align-items: center;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.code-orchard .code-projectParagraph,
+.code-orchard .code-projectButtons {
+  margin: 0;
+}
+
+@media (max-width: 1023.98px) {
+  .code-orchard {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+}
+
+.code-rules {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  width: 100%;
+  margin-top: 30px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.code-rule {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.code-rule code {
+  font-family: monospace;
+  font-size: 0.8em;
+  color: var(--color-blue);
+}
+
+.code-rule p {
+  margin: 0;
+  font-size: 0.95em;
+  line-height: 1.5;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+@media (max-width: 1023.98px) {
+  .code-rules {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* The live matrix. */
+.code-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  width: 100%;
+  margin-top: 30px;
+}
+
+.code-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.code-groupLabel {
+  margin: 0;
+  font-family: monospace;
+  font-size: 0.75em;
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.code-groupLabel b {
+  color: black;
+}
+
+.code-cells {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 1023.98px) {
+  .code-cells {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.code-cell {
+  display: flex;
+  gap: 14px;
+  min-width: 0;
+  padding: 12px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-2);
+  background: white;
+  color: black;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 250ms, transform 250ms;
+  animation: code-cardEnter 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.code-cell:hover {
+  border-color: rgba(0, 0, 0, 0.35);
+  transform: translateY(-2px);
+}
+
+.code-cell[aria-expanded="true"] {
+  border-color: transparent;
+  background:
+    linear-gradient(white, white) padding-box,
+    linear-gradient(90deg, var(--color-blue), var(--color-purple)) border-box;
+}
+
+.code-cell:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+.code-cellBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.code-cellTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.code-sym {
+  font-size: 1.7em;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.code-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.code-dot.code-dot-up {
+  background: #1fc46a;
+  box-shadow: 0 0 0 3px rgba(31, 196, 106, 0.18);
+}
+
+.code-dot.code-dot-down {
+  background: #e5484d;
+  box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.18);
+}
+
+.code-dot.code-dot-unknown {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.code-cellHost,
+.code-cellMs {
+  font-family: monospace;
+  font-size: 0.8em;
+  color: rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-cellMs {
+  font-size: 0.72em;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.code-spark {
+  display: block;
+  width: 100%;
+  height: 20px;
+}
+
+.code-spark path {
+  fill: none;
+  stroke: var(--color-blue);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.code-cell-pond {
+  grid-column: span 2;
+}
+
+.code-cell-pond canvas {
+  flex: none;
+  align-self: center;
+  width: 132px;
+  height: 102px;
+  padding: 8px;
+  background: #123a3d;
+  border-radius: var(--radius-2);
+  image-rendering: pixelated;
+}
+
+@media (max-width: 1023.98px) {
+  .code-cell {
+    padding: 10px;
+  }
+  .code-sym {
+    font-size: 1.5em;
+  }
+  .code-cellHost {
+    font-size: 0.72em;
+  }
+}
+
+@media (max-width: 400px) {
+  .code-cell-pond canvas {
+    width: 88px;
+    height: 68px;
+    padding: 5px;
+  }
+}
+
+/* Without the script every detail shows, so nothing is unreachable. */
+.code-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 30px;
+  align-items: start;
+  margin-top: 8px;
+  padding-top: 22px;
+  border-top: 2px solid black;
+}
+
+html[data-js] .code-detail:not(.is-open) {
+  display: none;
+}
+
+html[data-js] .code-detail.is-open {
+  animation: code-cardEnter 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.code-detail .code-projectHeading {
+  margin-top: 0;
+}
+
+@media (max-width: 1023.98px) {
+  .code-detail {
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 18px;
+  }
+  .code-detail .code-projectHeading {
+    font-size: 1.7em;
+  }
+  .code-detail .code-projectParagraph {
+    font-size: 1.15em;
+  }
+}
+
+/* The commit tape. */
+.code-tape {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  margin: 24px 0 0;
+  padding: 10px 0;
+  list-style: none;
+  background: var(--color-primary);
+  border-radius: var(--radius-2);
+  font-family: monospace;
+  font-size: 0.85em;
+}
+
+.code-tapeLine {
+  display: grid;
+  grid-template-columns: 70px 190px minmax(0, 1fr) 40px;
+  gap: 14px;
+  padding: 5px 16px;
+  animation: code-tapeIn 500ms ease-out both;
+}
+
+.code-tapeSha {
+  color: #c48bff;
+}
+
+.code-tapeWhere {
+  color: #7d94ff;
+}
+
+.code-tapeMsg {
+  color: #00ff00;
+}
+
+.code-tapeWhere,
+.code-tapeMsg {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-tapeAge {
+  text-align: right;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.code-tapePrompt {
+  display: flex;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.code-tapeCursor {
+  width: 8px;
+  height: 1.1em;
+  background: #00ff00;
+  animation: code-blink 1s steps(1) infinite;
+}
+
+@keyframes code-tapeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes code-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* A phone gets two lines per commit, where it is with its hash on top and the
+   message under it, so nothing is cut short. */
+@media (max-width: 767.98px) {
+  .code-tapeLine {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 2px 10px;
+    padding: 7px 14px;
+  }
+  .code-tapeAge {
+    grid-row: 1;
+    grid-column: 3;
+  }
+  .code-tapeMsg {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+  .code-tapeLine + .code-tapeLine {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .code-cell,
+  .code-tapeLine,
+  .code-tapeCursor,
+  html[data-js] .code-detail.is-open {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .code-machineBar span + span {
+    display: none;
+  }
+  .code-detail .code-projectButtons,
+  .code-orchard .code-projectButtons {
+    flex-wrap: nowrap;
+  }
+  .code-detail .code-projectButton,
+  .code-orchard .code-projectButton {
+    flex: 1 1 0;
+    min-width: 0;
   }
 }

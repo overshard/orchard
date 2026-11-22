@@ -2,7 +2,8 @@
 
 My portfolio, five pages heavy on animation with no framework and no third
 party Go dependency. The code page shows each project's latest commit off
-GitHub, and the home page the blog's latest post.
+GitHub and times every site's /healthz through Cloudflare every five minutes,
+and the home page shows the blog's latest post.
 
 ## Requirements
 

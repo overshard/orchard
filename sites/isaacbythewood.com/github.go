@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +42,7 @@ type Commit struct {
 type CommitCache struct {
 	mu      sync.RWMutex
 	commits map[string]Commit
+	total   int
 	client  *http.Client
 }
 
@@ -49,6 +51,13 @@ func NewCommitCache() *CommitCache {
 		commits: make(map[string]Commit),
 		client:  &http.Client{Timeout: commitFetchTimeout},
 	}
+}
+
+// Total is the monorepo's commit count, zero until the first fetch lands.
+func (c *CommitCache) Total() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.total
 }
 
 func (c *CommitCache) Get(key string) (Commit, bool) {
@@ -118,6 +127,15 @@ func (c *CommitCache) refresh(ctx context.Context, targets []CommitTarget) {
 			results[i].ok = true
 		})
 	}
+	total := 0
+	wg.Go(func() {
+		n, err := c.fetchTotal(ctx)
+		if err != nil {
+			slog.Info("github", slog.Any("target", "total"), slog.Any("err", err))
+			return
+		}
+		total = n
+	})
 	wg.Wait()
 
 	// A failed repo keeps its previous value so a 502 doesn't blank a card.
@@ -128,6 +146,49 @@ func (c *CommitCache) refresh(ctx context.Context, targets []CommitTarget) {
 			c.commits[r.key] = r.commit
 		}
 	}
+	if total > 0 {
+		c.total = total
+	}
+}
+
+// fetchTotal asks for one commit a page and reads the count off the last
+// page number in the Link header, so it costs one request whatever the size.
+func (c *CommitCache) fetchTotal(ctx context.Context) (int, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?per_page=1", githubUser, monorepo)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "isaacbythewood.com")
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("status %d", resp.StatusCode)
+	}
+	return lastPage(resp.Header.Get("Link"))
+}
+
+func lastPage(link string) (int, error) {
+	for part := range strings.SplitSeq(link, ",") {
+		if !strings.Contains(part, `rel="last"`) {
+			continue
+		}
+		_, after, ok := strings.Cut(part, "&page=")
+		if !ok {
+			_, after, ok = strings.Cut(part, "?page=")
+		}
+		if !ok {
+			break
+		}
+		num, _, _ := strings.Cut(after, ">")
+		num, _, _ = strings.Cut(num, "&")
+		return strconv.Atoi(num)
+	}
+	return 0, fmt.Errorf("no last page in %q", link)
 }
 
 func (c *CommitCache) fetch(ctx context.Context, target CommitTarget) (Commit, error) {

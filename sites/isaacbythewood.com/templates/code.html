@@ -2,87 +2,230 @@
 <div class="code-background"></div>
 <h1 class="code-heading">Code</h1>
 <p class="code-paragraph">
-  Outside of work I build self-hosted tools, personal websites, and whatever
-  else catches my interest. Side projects are where I experiment with new
-  technology and stay sharp since at work I stick to stable, mature frameworks.
-  There is plenty more to see on
+  Everything I run lives in one open source repo called orchard, Go sites and
+  the edge in front of them, all on one small VPS with no web port open to the
+  internet. Below is how it fits together, what's running right now, and the
+  older stuff on
   <a href="https://github.com/overshard" rel="noopener noreferrer" target="_blank">my GitHub account</a>.
 </p>
 
-{{- /*
-  Three sections rather than one grid. Most of what is below is a read-only
-  snapshot now, and letting those cards sit at full strength beside the things
-  actually running would overstate all of them. The count uses the same zero
-  padded numbering as the sidebar.
-*/ -}}
-
-{{- with .Featured }}
-<div class="code-sectionHead">
-  <h2 class="code-sectionTitle">Featured</h2>
-  <span class="code-sectionRule"></span>
-</div>
-<div class="code-projects">
-  <div class="code-project code-project-live code-project-featured" style="{{ .Delay }}">
-    <figure class="code-featuredArt">
-      <canvas data-pond-frog width="264" height="204" aria-label="A frog from the pond. Click it for another."></canvas>
-      <figcaption data-pond-name></figcaption>
-    </figure>
-    <div class="code-featuredBody">
-      <h3 class="code-projectHeading">{{ .Name }}</h3>
-      <div class="code-tags">
-        {{- range .Tech }}
-        <span class="code-tag">{{ . }}</span>
-        {{- end }}
-      </div>
-      <p class="code-projectParagraph">{{ .Description }}</p>
-      {{- if .Commit }}
-      <pre class="code-projectCommit">{{ .Commit }}</pre>
-      {{- end }}
-      <div class="code-projectButtons">
-        <a class="code-projectButton" href="{{ .Visit }}" rel="noopener noreferrer" target="_blank">Visit</a>
-        <a class="code-projectButton code-projectButton-secondary" href="{{ .Source }}" rel="noopener noreferrer" target="_blank">
-          {{ template "githubMark" }}
-          Source
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
+{{- with .Stats }}
+<dl class="code-spec">
+  <div class="code-stat"><dt>Live sites</dt><dd data-count="{{ .Sites }}">{{ .Sites }}</dd></div>
+  {{- if .Commits }}
+  <div class="code-stat"><dt>Commits</dt><dd data-count="{{ .Commits }}">{{ .CommitsText }}</dd></div>
+  {{- end }}
+  {{- if .Median }}
+  <div class="code-stat"><dt>Median response</dt><dd><span data-count="{{ .Median }}">{{ .Median }}</span><small>ms</small></dd></div>
+  {{- end }}
+  <div class="code-stat"><dt>Open web ports</dt><dd class="code-statGrad">0</dd></div>
+</dl>
 {{- end }}
 
-{{- with .Live }}
+<div class="code-sectionHead">
+  <h2 class="code-sectionTitle">orchard</h2>
+  <span class="code-sectionRule"></span>
+  <span class="code-sectionCount">BSD-2</span>
+</div>
+
+{{- with .Topo }}
+<figure class="code-machine">
+  <div class="code-machineBar">
+    <span>orchard / topology</span>
+    <span>probed every 5 min</span>
+  </div>
+  <svg class="code-topo code-topo-wide" viewBox="0 0 760 400" role="img" aria-label="A request goes from the internet through Cloudflare, an outbound tunnel, Caddy and gate to every site in orchard">
+    <defs>
+      <linearGradient id="topo-grad" x1="0" x2="1"><stop offset="0" stop-color="#0e3ff4" /><stop offset="1" stop-color="#842bff" /></linearGradient>
+    </defs>
+    <rect class="code-topoWall" x="150" y="12" width="598" height="376" />
+    <text class="code-topoSub" x="160" y="30">VPS · DEBIAN · DOCKER · ONE BRIDGE NETWORK</text>
+    <text class="code-topoSub" x="144" y="384" text-anchor="end">NO INBOUND</text>
+    <path class="code-topoWire code-topoWire-hot" d="M74 200 H96" />
+    <path class="code-topoWire code-topoWire-hot" d="M162 200 H212" />
+    <path class="code-topoWire code-topoWire-hot" d="M282 200 H326" />
+    <path class="code-topoWire" d="M361 176 V112 H400" />
+    <path class="code-topoWire code-topoWire-hot" d="M396 200 H468" />
+    {{- range .Wide }}
+    <path class="code-topoWire" d="{{ .Wire }}" />
+    {{- end }}
+    <rect class="code-topoNode" x="14" y="180" width="60" height="40" />
+    <text x="44" y="204" text-anchor="middle">WWW</text>
+    <rect class="code-topoNode code-topoNode-edge" x="96" y="172" width="66" height="56" />
+    <text x="129" y="196" text-anchor="middle">CF</text>
+    <text class="code-topoSub" x="129" y="212" text-anchor="middle">edge</text>
+    <rect class="code-topoNode code-topoNode-edge" x="212" y="172" width="70" height="56" />
+    <text x="247" y="196" text-anchor="middle">tunnel</text>
+    <text class="code-topoSub" x="247" y="212" text-anchor="middle">dials out</text>
+    <rect class="code-topoNode code-topoNode-edge" x="326" y="172" width="70" height="56" />
+    <text x="361" y="196" text-anchor="middle">Caddy</text>
+    <text class="code-topoSub" x="361" y="212" text-anchor="middle">routes</text>
+    <rect class="code-topoNode code-topoNode-edge" x="400" y="92" width="62" height="40" />
+    <text x="431" y="116" text-anchor="middle">gate</text>
+    {{- range .Wide }}
+    <g class="code-topoSite" data-site="{{ .Name }}" tabindex="0" role="button" aria-label="{{ .Name }}">
+      <rect class="code-topoNode" x="{{ .X }}" y="{{ .Y }}" width="{{ .W }}" height="20" transform="translate(0 -10)" />
+      <text x="{{ .X }}" y="{{ .Y }}" dx="10" dy="4">{{ .Label }}</text>
+      <circle class="code-topoDot code-dot-{{ .Health.State }}" cx="{{ .X }}" cy="{{ .Y }}" r="3" transform="translate(184 0)" />
+    </g>
+    {{- end }}
+    <circle class="code-topoPacket" r="3.5"><animateMotion dur="2.2s" repeatCount="indefinite" path="M74 200 H468" /></circle>
+    <circle class="code-topoPacket code-topoPacket-alt" r="3.5"><animateMotion dur="2.2s" begin="1.1s" repeatCount="indefinite" path="M74 200 H468" /></circle>
+    <circle class="code-topoPacket" r="3"><animateMotion dur="1.6s" repeatCount="indefinite" path="M361 176 V112 H400" /></circle>
+    {{- range $i, $n := .Wide }}{{ if .Packet }}
+    <circle class="code-topoPacket{{ if .PacketAlt }} code-topoPacket-alt{{ end }}" r="2.5"><animateMotion dur="1.4s" begin="{{ $i }}00ms" repeatCount="indefinite" path="{{ $n.Wire }}" /></circle>
+    {{- end }}{{ end }}
+  </svg>
+  <svg class="code-topo code-topo-tall" viewBox="0 0 360 {{ .TallHeight }}" role="img" aria-label="A request goes from the internet through Cloudflare, an outbound tunnel, Caddy and gate to every site in orchard">
+    <rect class="code-topoWall" x="4" y="122" width="352" height="{{ .TallWallHeight }}" />
+    <text class="code-topoSub" x="12" y="138">VPS · NO INBOUND</text>
+    <path class="code-topoWire code-topoWire-hot" d="M180 44 V64 M180 104 V142 M180 182 V210 M180 250 V270" />
+    <path class="code-topoWire" d="M230 230 H262" />
+    <path class="code-topoWire code-topoWire-hot" d="M14 270 H186" />
+    <path class="code-topoWire" d="M14 270 V{{ index .TallTrunkEnds 0 }} M186 270 V{{ index .TallTrunkEnds 1 }}" />
+    {{- range .Tall }}
+    <path class="code-topoWire" d="{{ .Wire }}" />
+    {{- end }}
+    <rect class="code-topoNode" x="130" y="10" width="100" height="34" />
+    <text x="180" y="31" text-anchor="middle">WWW</text>
+    <rect class="code-topoNode code-topoNode-edge" x="130" y="64" width="100" height="40" />
+    <text x="180" y="81" text-anchor="middle">CF</text>
+    <text class="code-topoSub" x="180" y="96" text-anchor="middle">edge</text>
+    <rect class="code-topoNode code-topoNode-edge" x="130" y="142" width="100" height="40" />
+    <text x="180" y="159" text-anchor="middle">tunnel</text>
+    <text class="code-topoSub" x="180" y="174" text-anchor="middle">dials out</text>
+    <rect class="code-topoNode code-topoNode-edge" x="130" y="210" width="100" height="40" />
+    <text x="180" y="227" text-anchor="middle">Caddy</text>
+    <text class="code-topoSub" x="180" y="242" text-anchor="middle">routes</text>
+    <rect class="code-topoNode code-topoNode-edge" x="262" y="212" width="80" height="36" />
+    <text x="302" y="234" text-anchor="middle">gate</text>
+    {{- range .Tall }}
+    <g class="code-topoSite" data-site="{{ .Name }}" tabindex="0" role="button" aria-label="{{ .Name }}">
+      <rect class="code-topoNode" x="{{ .X }}" y="{{ .Y }}" width="{{ .W }}" height="24" transform="translate(0 -12)" />
+      <text x="{{ .X }}" y="{{ .Y }}" dx="8" dy="4">{{ .Label }}</text>
+      <circle class="code-topoDot code-dot-{{ .Health.State }}" cx="{{ .X }}" cy="{{ .Y }}" r="3" transform="translate(140 0)" />
+    </g>
+    {{- end }}
+    <circle class="code-topoPacket" r="3"><animateMotion dur="2.4s" repeatCount="indefinite" path="M180 44 V270 H14 V{{ index .TallTrunkEnds 0 }}" /></circle>
+    <circle class="code-topoPacket code-topoPacket-alt" r="3"><animateMotion dur="2.4s" begin="1.2s" repeatCount="indefinite" path="M180 44 V270 H186 V{{ index .TallTrunkEnds 1 }}" /></circle>
+    <circle class="code-topoPacket" r="2.5"><animateMotion dur="1.2s" repeatCount="indefinite" path="M230 230 H262" /></circle>
+  </svg>
+  <dl class="code-readout" data-readout aria-live="polite">
+    <dt>path</dt><dd>browser, Cloudflare, cloudflared, Caddy, gate, site</dd>
+    <dt>ports</dt><dd>none open to the web, the tunnel dials out to Cloudflare</dd>
+    <dt>tap</dt><dd>any site on the map to see what it is</dd>
+  </dl>
+</figure>
+{{- end }}
+
+<div class="code-orchard">
+  <p class="code-projectParagraph">
+    Each site is its own Go module with its own copy of the small HTTP layer
+    they all share, so any one of them can be lifted into its own repo and still
+    build. Vite builds the assets, Go embeds them, Typst renders the PDFs and
+    social cards, and most sites ship as a single binary in an empty image.
+  </p>
+  <div class="code-projectButtons">
+    <a class="code-projectButton" href="https://github.com/overshard/orchard" rel="noopener noreferrer" target="_blank">
+      {{ template "githubMark" }}
+      Source
+    </a>
+    <a class="code-projectButton code-projectButton-secondary" href="https://github.com/overshard/orchard#readme" rel="noopener noreferrer" target="_blank">README</a>
+  </div>
+</div>
+
+<div class="code-rules">
+  <div class="code-rule"><code>sites/&lt;host&gt;/</code><p>One Go module per site, no root module, nothing shared but copies.</p></div>
+  <div class="code-rule"><code>make check</code><p>The shared copies stay byte identical or the check fails and names them.</p></div>
+  <div class="code-rule"><code>FROM scratch</code><p>Most images are one binary and a CA bundle and nothing else.</p></div>
+  <div class="code-rule"><code>cloudflared</code><p>The tunnel dials out, Caddy routes and gate decides on every request.</p></div>
+</div>
+
 <div class="code-sectionHead">
   <h2 class="code-sectionTitle">Live</h2>
   <span class="code-sectionRule"></span>
-  <span class="code-sectionCount">{{ printf "%03d" (len .) }}</span>
+  <span class="code-sectionCount">{{ printf "%03d" .Stats.Sites }}</span>
 </div>
 <p class="code-sectionNote code-sectionNote-live">
-  One repo and one desktop at home run all of these, and every one is
-  answering requests right now.
+  Every one of these is in orchard and answering requests right now. The times
+  are this server asking each one through Cloudflare over the last two hours.
 </p>
-<div class="code-projects">
-  {{- range . }}
-  <div class="code-project code-project-live" style="{{ .Delay }}">
-    <h3 class="code-projectHeading">{{ .Name }}</h3>
-    <div class="code-tags">
-      {{- range .Tech }}
-      <span class="code-tag">{{ . }}</span>
+
+<div class="code-matrix">
+  {{- range .Groups }}
+  <section class="code-group" aria-label="{{ .Name }}">
+    <h3 class="code-groupLabel"><b>{{ .Name }}</b> · {{ .Blurb }}</h3>
+    <div class="code-cells">
+      {{- range .Tiles }}
+      <button type="button" class="code-cell{{ if eq .Name "pond" }} code-cell-pond{{ end }}" style="{{ .Delay }}"
+        data-tile="{{ .Name }}" data-host="{{ .Host }}" data-stack="{{ .Stack }}" data-desc="{{ .Description }}"
+        aria-controls="detail-{{ .Symbol }}" aria-expanded="{{ if .Open }}true{{ else }}false{{ end }}">
+        {{- if eq .Name "pond" }}
+        <canvas data-pond-frog width="264" height="204" aria-label="A frog from the pond. Tap it for another."></canvas>
+        {{- end }}
+        <span class="code-cellBody">
+          <span class="code-cellTop">
+            <span class="code-sym">{{ .Symbol }}</span>
+            <span class="code-dot code-dot-{{ .Health.State }}" title="{{ .Health.State }}"></span>
+          </span>
+          <span class="code-cellHost">{{ .Host }}</span>
+          <svg class="code-spark" viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true">
+            {{- if .Health.Spark }}<path d="{{ .Health.Spark }}" />{{ end -}}
+          </svg>
+          <span class="code-cellMs">{{ if .Health.Median }}{{ .Health.Median }} ms p50{{ else }}waiting on a probe{{ end }}</span>
+        </span>
+      </button>
       {{- end }}
     </div>
-    <p class="code-projectParagraph">{{ .Description }}</p>
-    {{- if .Commit }}
-    <pre class="code-projectCommit">{{ .Commit }}</pre>
-    {{- end }}
-    <div class="code-projectButtons">
-      <a class="code-projectButton" href="{{ .Visit }}" rel="noopener noreferrer" target="_blank">Visit</a>
-      <a class="code-projectButton code-projectButton-secondary" href="{{ .Source }}" rel="noopener noreferrer" target="_blank">
-        {{ template "githubMark" }}
-        Source
-      </a>
+    {{- range .Tiles }}
+    <div class="code-detail{{ if .Open }} is-open{{ end }}" id="detail-{{ .Symbol }}" data-detail="{{ .Name }}">
+      <div class="code-detailText">
+        <h3 class="code-projectHeading">{{ .Name }}</h3>
+        <div class="code-tags">
+          {{- range .Tech }}
+          <span class="code-tag">{{ . }}</span>
+          {{- end }}
+        </div>
+        <p class="code-projectParagraph">{{ .Description }}</p>
+      </div>
+      <div class="code-detailSide">
+        {{- if .Commit }}
+        <pre class="code-projectCommit">{{ .Commit }}</pre>
+        {{- end }}
+        <div class="code-projectButtons">
+          {{- if .Visit }}
+          <a class="code-projectButton" href="{{ .Visit }}" rel="noopener noreferrer" target="_blank">Visit</a>
+          {{- end }}
+          <a class="code-projectButton code-projectButton-secondary" href="{{ .Source }}" rel="noopener noreferrer" target="_blank">
+            {{ template "githubMark" }}
+            Source
+          </a>
+        </div>
+      </div>
     </div>
-  </div>
+    {{- end }}
+  </section>
   {{- end }}
 </div>
+
+{{- with .Tape }}
+<div class="code-sectionHead">
+  <h2 class="code-sectionTitle">Commits</h2>
+  <span class="code-sectionRule"></span>
+  <span class="code-sectionCount">main</span>
+</div>
+<p class="code-sectionNote">The latest commit under each site, newest first.</p>
+<ol class="code-tape">
+  {{- range $i, $c := . }}
+  <li class="code-tapeLine" style="animation-delay: {{ $i }}20ms">
+    <span class="code-tapeSha">{{ .SHA }}</span>
+    <span class="code-tapeWhere">{{ .Where }}</span>
+    <span class="code-tapeMsg">{{ .Message }}</span>
+    <span class="code-tapeAge">{{ .Age }}</span>
+  </li>
+  {{- end }}
+  <li class="code-tapeLine code-tapePrompt" aria-hidden="true"><span>$</span><span class="code-tapeCursor"></span></li>
+</ol>
 {{- end }}
 
 {{- with .Active }}
