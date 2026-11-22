@@ -22,7 +22,7 @@
         <td class="lead"><a href="/log?status=blocked&amp;reason={{.Key}}&amp;range=7d" class="o-mono">{{.Key}}</a> {{.Name}}<span class="sub">{{.About}}</span>{{if .St.Error}}<span class="sub o-bad">last try {{ago .St.ErrorAt}}: {{.St.Error}}, still using the copy from {{ago .St.Fetched}}</span>{{end}}</td>
         <td class="r n" data-l="entries">{{comma .Loaded}}</td>
         <td class="r n" data-l="blocked">{{comma .Blocked7d}}</td>
-        <td class="nw" data-l="7 days">{{$l := .}}<span class="o-ds">{{range $i, $k := .Days}}<i class="{{$k}}" data-tip="{{index $l.DayTips $i}}"></i>{{end}}</span></td>
+        <td class="nw" data-l="7 days">{{$l := .}}<span class="o-ds" role="img" aria-label="{{.DaySum}}">{{range $i, $k := .Days}}<i class="{{$k}}" data-tip="{{index $l.DayTips $i}}"></i>{{end}}</span><span class="sub">{{.DaySum}}</span></td>
         <td class="nw mono small o-muted" data-l="fetched">{{ago .St.Fetched}}</td>
         <td class="nw mono small o-muted" data-l="changed">{{ago .St.Changed}}</td>
         <td class="nw mono small o-muted" data-l="version">{{or .St.Version "none"}}</td>

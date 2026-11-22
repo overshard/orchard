@@ -193,6 +193,9 @@ type DeviceRow struct {
 	ByHour         []float64
 	Days           []string
 	DayTips        []string
+	// DaySum says in words what the strip shows, for a screen reader or a
+	// finger that can't hover.
+	DaySum string
 }
 
 func (s *site) deviceRows(now time.Time) []DeviceRow {
@@ -203,6 +206,7 @@ func (s *site) deviceRows(now time.Time) []DeviceRow {
 		hourly, _ := s.store.Hourly(d.ID, 24, now)
 		dt, db := s.store.Daily(d.ID, 14, now)
 		row := DeviceRow{Device: d, Total: t, Blocked: b, ByHour: hourly, Quiet: isQuiet(d, now)}
+		silent := 0
 		for i := range dt {
 			kind := ""
 			if dt[i] == 0 {
@@ -211,9 +215,13 @@ func (s *site) deviceRows(now time.Time) []DeviceRow {
 					kind = "w"
 				}
 			}
+			if dt[i] == 0 {
+				silent++
+			}
 			row.Days = append(row.Days, kind)
 			row.DayTips = append(row.DayTips, fmt.Sprintf("%s: %s lookups, %s blocked", dayLabels(14, now)[i], comma(int(dt[i])), comma(int(db[i]))))
 		}
+		row.DaySum = daySum(silent, len(dt), "no lookups", "lookups every day")
 		out = append(out, row)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
@@ -704,6 +712,7 @@ type ListRow struct {
 	Loaded    int
 	Days      []string
 	DayTips   []string
+	DaySum    string
 }
 
 func (s *site) listsPage(w http.ResponseWriter, r *http.Request) {
@@ -721,6 +730,7 @@ func (s *site) listsPage(w http.ResponseWriter, r *http.Request) {
 	var rows []ListRow
 	for i, li := range lists {
 		row := ListRow{List: li, St: states[li.Key], Blocked7d: hits[li.Key]}
+		silent := 0
 		for j := 0; j < 7; j++ {
 			n := 0
 			if daily[li.Key] != nil {
@@ -729,10 +739,12 @@ func (s *site) listsPage(w http.ResponseWriter, r *http.Request) {
 			k := ""
 			if n == 0 {
 				k = "n"
+				silent++
 			}
 			row.Days = append(row.Days, k)
 			row.DayTips = append(row.DayTips, fmt.Sprintf("%s: %s blocked", labels[j], comma(n)))
 		}
+		row.DaySum = daySum(silent, 7, "nothing blocked", "blocks every day")
 		if tab != nil && i < len(tab.size) {
 			row.Loaded = tab.size[i]
 		}
@@ -925,4 +937,15 @@ func footer() suite.Footer {
 	return suite.Footer{Tool: "dns", About: "A private resolver for my own devices, with blocklists and a log of every lookup.",
 		Source: sourceURL, Author: author, Year: time.Now().Year(),
 		Pages: []suite.Tab{{Name: "Home", Href: "/"}, {Name: "Docs", Href: "/docs"}}}
+}
+
+// daySum is a day strip in words, like "2 of 14 days with no lookups".
+func daySum(silent, days int, none, every string) string {
+	switch silent {
+	case 0:
+		return every
+	case days:
+		return fmt.Sprintf("%d days, all with %s", days, none)
+	}
+	return fmt.Sprintf("%d of %d days with %s", silent, days, none)
 }

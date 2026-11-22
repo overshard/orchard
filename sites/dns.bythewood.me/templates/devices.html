@@ -22,7 +22,7 @@
           <td class="r n" data-l="lookups">{{comma .Total}}</td>
           <td class="r n" data-l="blocked">{{comma .Blocked}}<span class="sub">{{pctOf .Blocked .Total}}</span></td>
           <td class="o-cell-spark">{{spark "ok" .ByHour}}</td>
-          <td class="nw">{{$d := .}}<span class="o-ds">{{range $i, $k := .Days}}<i class="{{$k}}" data-tip="{{index $d.DayTips $i}}"></i>{{end}}</span></td>
+          <td class="nw" data-l="14 days">{{$d := .}}<span class="o-ds" role="img" aria-label="{{.DaySum}}">{{range $i, $k := .Days}}<i class="{{$k}}" data-tip="{{index $d.DayTips $i}}"></i>{{end}}</span><span class="sub">{{.DaySum}}</span></td>
         </tr>
       {{else}}
         <tr><td colspan="6"><p class="o-empty"><b>No devices.</b>Add one beside this, then follow its setup page.</p></td></tr>
