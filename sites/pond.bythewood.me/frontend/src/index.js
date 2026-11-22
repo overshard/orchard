@@ -699,6 +699,7 @@ function renderPond(p) {
   $("purse-n").textContent = (p.pebbles - state.held).toLocaleString("en-US");
   $("bag-n").textContent = p.bag.reduce((n, t) => n + t.count, 0).toLocaleString("en-US");
   $("nudge").hidden = !p.nudge;
+  $("nudge-line").textContent = titled(f.name) + (f.day > 7 ? " is a week old and" : "") + " only lives in this browser.";
   const lines = (p.day && p.day.lines) || [], today = $("today");
   today.textContent = "";
   lines.forEach((row) => {
