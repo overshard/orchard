@@ -25,7 +25,7 @@ recovery codes, and `make auth-recovery` replaces them from the machine.
 
 ## Layout
 
-`login.go` and `otp.go` are the sign in, `session.go` the cookie, `handlers.go`
+`login.go` and `otp.go` are the sign in, `device.go` the known device cookie, `session.go` the cookie, `handlers.go`
 the account pages and `/verify`, `overview.go` the checkup tiles, new place
 flags and activity filters those pages share, `connect.go` the consent page, `credentials.go` the Argon2id hashing,
 `ntfy.go` what gets pushed and `ntfy/` the push, and `init.go` the `-init`,
@@ -40,5 +40,9 @@ State is `data/db.sqlite3`, or the `orchard-auth-data` volume in production.
   fresh database or a wiped events table calls nothing new until it has history.
 - Connector call counts live on mcp. auth only knows the days a connector's
   session was used and when it was last checked, to within five minutes.
+- The day's lockout and the one outstanding code rule only hold back a browser
+  without the known device cookie, which a sign in here sets for a year. A
+  stranger's wrong codes can't lock out a browser you've used before, and that
+  browser gets its own lockout and hourly ceiling counted from its own kind.
 - Caddy refuses `/verify` on the public hostname, so only the bridge reaches it.
 - With this container down every gated site treats you as signed out.

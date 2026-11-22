@@ -26,9 +26,9 @@ const (
 	// concurrent attempts all serve it at once.
 	failedDelay = 500 * time.Millisecond
 
-	// Wrong codes across every row before codes stop working for a day. Five
-	// a code and five codes an hour otherwise adds up to a real chance over a
-	// year of quiet guessing. Recovery codes still work while this is tripped.
+	// Wrong codes before codes stop working for a day. Five a code and five
+	// codes an hour otherwise adds up to a real chance over a year of quiet
+	// guessing. Recovery codes still work while this is tripped.
 	dailyFailures = 10
 	failureWindow = 24 * time.Hour
 )
@@ -77,35 +77,43 @@ func clearPendingCookie(w http.ResponseWriter) {
 	})
 }
 
-// livePending returns the one unconsumed, unexpired row, if there is one.
-func livePending(db *sql.DB) (id int64, browser []byte, ok bool, err error) {
-	err = db.QueryRow(`
-        SELECT id, browser_hash FROM pending_logins
-        WHERE consumed = 0 AND expires > ?
-        ORDER BY id DESC LIMIT 1`, time.Now().Unix()).Scan(&id, &browser)
-	if errors.Is(err, sql.ErrNoRows) {
-		return 0, nil, false, nil
+// outstanding reports whether a code is already out. A known browser is only
+// held up by its own, so a stranger's code can't stand in the way of it.
+func outstanding(db *sql.DB, r *http.Request, known bool) (bool, error) {
+	q := `SELECT COUNT(*) FROM pending_logins WHERE consumed = 0 AND expires > ?`
+	args := []any{time.Now().Unix()}
+	if known {
+		q += ` AND browser_hash = ?`
+		args = append(args, sessionHash(pendingBrowser(r)))
 	}
-	if err != nil {
-		return 0, nil, false, err
+	var n int
+	err := db.QueryRow(q, args...).Scan(&n)
+	return n > 0, err
+}
+
+// countSince counts rows of sends or failures since a cutoff. An unknown
+// browser counts every row, and a known one only those from known browsers.
+func countSince(db *sql.DB, table string, since time.Time, known bool) (int, error) {
+	q := `SELECT COUNT(*) FROM ` + table + ` WHERE ts > ?`
+	if known {
+		q += ` AND known = 1`
 	}
-	return id, browser, true, nil
+	var n int
+	err := db.QueryRow(q, since.Unix()).Scan(&n)
+	return n, err
 }
 
 // sendsInWindow counts what has actually been published lately.
-func sendsInWindow(db *sql.DB) (int, error) {
-	var n int
-	err := db.QueryRow(`SELECT COUNT(*) FROM sends WHERE ts > ?`,
-		time.Now().Add(-sendWindow).Unix()).Scan(&n)
-	return n, err
+func sendsInWindow(db *sql.DB, known bool) (int, error) {
+	return countSince(db, "sends", time.Now().Add(-sendWindow), known)
 }
 
 // startLogin mints and stores a code, returning it and the browser token for the
 // cookie. It publishes nothing, and the caller records the send only once ntfy
 // accepts it, so a failed publish doesn't spend the ceiling.
-func startLogin(db *sql.DB, r *http.Request) (code, browser string, err error) {
+func startLogin(db *sql.DB, r *http.Request, known bool) (code, browser string, err error) {
 	// No point pushing a code that cannot be typed.
-	if locked, err := lockedOut(db); err != nil {
+	if locked, err := lockedOut(db, known); err != nil {
 		return "", "", err
 	} else if locked {
 		return "", "", errLockedOut
@@ -113,13 +121,13 @@ func startLogin(db *sql.DB, r *http.Request) (code, browser string, err error) {
 
 	// One outstanding code for the account, not per browser, so a flood of
 	// requests collapses into one notification per window.
-	if _, _, ok, err := livePending(db); err != nil {
+	if out, err := outstanding(db, r, known); err != nil {
 		return "", "", err
-	} else if ok {
+	} else if out {
 		return "", "", errOutstanding
 	}
 
-	n, err := sendsInWindow(db)
+	n, err := sendsInWindow(db, known)
 	if err != nil {
 		return "", "", err
 	}
@@ -157,20 +165,20 @@ func startLogin(db *sql.DB, r *http.Request) (code, browser string, err error) {
 
 // recordSend spends one of the hour's notifications. Called after ntfy accepted
 // the publish, never before.
-func recordSend(db *sql.DB) error {
-	_, err := db.Exec(`INSERT INTO sends (ts) VALUES (?)`, time.Now().Unix())
+func recordSend(db *sql.DB, known bool) error {
+	_, err := db.Exec(`INSERT INTO sends (ts, known) VALUES (?, ?)`, time.Now().Unix(), known)
 	return err
 }
 
 // finishLogin checks a code against the outstanding row for this browser, so
 // somebody who can see the notification can't use it from a browser that didn't ask.
-func finishLogin(db *sql.DB, r *http.Request, code string) error {
+func finishLogin(db *sql.DB, r *http.Request, code string, known bool) error {
 	browser := pendingBrowser(r)
 	if browser == "" {
 		return errNoPending
 	}
 
-	if locked, err := lockedOut(db); err != nil {
+	if locked, err := lockedOut(db, known); err != nil {
 		return err
 	} else if locked {
 		return errLockedOut
@@ -213,7 +221,7 @@ func finishLogin(db *sql.DB, r *http.Request, code string) error {
 	}
 
 	if !secretMatches(code, hash, salt) {
-		_, _ = db.Exec(`INSERT INTO failures (ts) VALUES (?)`, time.Now().Unix())
+		_, _ = db.Exec(`INSERT INTO failures (ts, known) VALUES (?, ?)`, time.Now().Unix(), known)
 		return errBadCode
 	}
 
@@ -221,16 +229,13 @@ func finishLogin(db *sql.DB, r *http.Request, code string) error {
 	return err
 }
 
-// failuresInWindow counts wrong codes across every row in the last day.
-func failuresInWindow(db *sql.DB) (int, error) {
-	var n int
-	err := db.QueryRow(`SELECT COUNT(*) FROM failures WHERE ts > ?`,
-		time.Now().Add(-failureWindow).Unix()).Scan(&n)
-	return n, err
+// failuresInWindow counts wrong codes in the last day.
+func failuresInWindow(db *sql.DB, known bool) (int, error) {
+	return countSince(db, "failures", time.Now().Add(-failureWindow), known)
 }
 
-func lockedOut(db *sql.DB) (bool, error) {
-	n, err := failuresInWindow(db)
+func lockedOut(db *sql.DB, known bool) (bool, error) {
+	n, err := failuresInWindow(db, known)
 	return n >= dailyFailures, err
 }
 

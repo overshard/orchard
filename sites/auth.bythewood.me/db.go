@@ -89,6 +89,12 @@ CREATE TABLE IF NOT EXISTS failures (
 
 CREATE INDEX IF NOT EXISTS failures_ts ON failures(ts);
 
+-- Signs the known device cookie. One row, made on first use.
+CREATE TABLE IF NOT EXISTS device_key (
+    id  INTEGER PRIMARY KEY CHECK (id = 1),
+    key BLOB    NOT NULL
+);
+
 -- The break-glass, ten at a time, Argon2id hashed like repos' push tokens.
 -- prefix is the first four characters in clear, which finds the right row
 -- without hashing all ten and gives nothing away on its own.
@@ -138,6 +144,10 @@ var columns = []struct{ table, name, def string }{
 	// method is how the session was signed in, code, recovery or connector,
 	// and empty for sessions older than the column.
 	{"sessions", "method", "TEXT NOT NULL DEFAULT ''"},
+	// known marks a send or a wrong code from a browser that has signed in
+	// before, which only counts against other known browsers.
+	{"sends", "known", "INTEGER NOT NULL DEFAULT 0"},
+	{"failures", "known", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func migrate(db *sql.DB) error {

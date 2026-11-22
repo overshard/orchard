@@ -511,7 +511,7 @@ func TestConcurrentGuessesCannotExceedTheAttemptLimit(t *testing.T) {
 		wg.Go(func() {
 			req := postForm("/code", url.Values{"code": {wrong}})
 			req.AddCookie(pending)
-			if errors.Is(finishLogin(s.db, req, wrong), errBadCode) {
+			if errors.Is(finishLogin(s.db, req, wrong, false), errBadCode) {
 				mu.Lock()
 				checked++
 				mu.Unlock()
@@ -553,5 +553,71 @@ func TestTooManyWrongCodesLockCodesForADay(t *testing.T) {
 	s.handler().ServeHTTP(rec, postForm("/login", url.Values{"username": {seedUsername}}))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("got %d, want 200 once the window passed", rec.Code)
+	}
+}
+
+// A stranger's wrong codes and outstanding code must not keep a browser that
+// has signed in before from getting a code.
+func TestStrangersCannotLockOutAKnownDevice(t *testing.T) {
+	s, stub := newTestSite(t)
+	if err := runInit(s.db); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	s.handler().ServeHTTP(rec, postForm("/login", url.Values{"username": {seedUsername}}))
+	pending := cookieNamed(rec.Result().Cookies(), pendingCookie)
+	rec = httptest.NewRecorder()
+	req := postForm("/code", url.Values{"code": {stub.lastCode(t)}})
+	req.AddCookie(pending)
+	s.handler().ServeHTTP(rec, req)
+	device := cookieNamed(rec.Result().Cookies(), deviceCookie)
+	if device == nil {
+		t.Fatal("a sign in set no known device cookie")
+	}
+	if device.Domain != "" {
+		t.Fatalf("the device cookie has domain %q, want host-only", device.Domain)
+	}
+
+	// A stranger leaves a code outstanding and burns the day's failures.
+	rec = httptest.NewRecorder()
+	s.handler().ServeHTTP(rec, postForm("/login", url.Values{"username": {seedUsername}}))
+	for range dailyFailures {
+		if _, err := s.db.Exec(`INSERT INTO failures (ts) VALUES (?)`, time.Now().Unix()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rec = httptest.NewRecorder()
+	s.handler().ServeHTTP(rec, postForm("/login", url.Values{"username": {seedUsername}}))
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("a stranger got %d, want 429 while locked out", rec.Code)
+	}
+
+	sent := len(stub.titles)
+	rec = httptest.NewRecorder()
+	req = postForm("/login", url.Values{"username": {seedUsername}})
+	req.AddCookie(device)
+	s.handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || len(stub.titles) != sent+1 {
+		t.Fatalf("the known device got %d and %d new codes, want 200 and one", rec.Code, len(stub.titles)-sent)
+	}
+	pending = cookieNamed(rec.Result().Cookies(), pendingCookie)
+	rec = httptest.NewRecorder()
+	req = postForm("/code", url.Values{"code": {stub.lastCode(t)}})
+	req.AddCookie(pending)
+	req.AddCookie(device)
+	s.handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("the known device's code got %d, want a redirect into a session", rec.Code)
+	}
+
+	// A forged cookie is a stranger.
+	forged := &http.Cookie{Name: deviceCookie, Value: device.Value + "x"}
+	rec = httptest.NewRecorder()
+	req = postForm("/login", url.Values{"username": {seedUsername}})
+	req.AddCookie(forged)
+	s.handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("a forged device cookie got %d, want 429", rec.Code)
 	}
 }

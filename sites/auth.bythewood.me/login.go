@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -94,7 +95,8 @@ func (s *site) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	code, browser, err := startLogin(s.db, r)
+	known := knownDevice(s.db, r)
+	code, browser, err := startLogin(s.db, r, known)
 	switch {
 	case errors.Is(err, errOutstanding):
 		// A code is already on its way, so send them to the form to type it
@@ -121,7 +123,7 @@ func (s *site) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	// Only after ntfy accepted it, so a failed publish does not spend one of
 	// the hour's five.
-	_ = recordSend(s.db)
+	_ = recordSend(s.db, known)
 	audit(s.db, r, evCodeSent, "")
 
 	writePendingCookie(w, browser)
@@ -137,7 +139,8 @@ func (s *site) codeSubmit(w http.ResponseWriter, r *http.Request) {
 	next := r.PostFormValue("next")
 
 	code := strings.TrimSpace(r.PostFormValue("code"))
-	err := finishLogin(s.db, r, code)
+	known := knownDevice(s.db, r)
+	err := finishLogin(s.db, r, code, known)
 	switch {
 	case errors.Is(err, errNoPending):
 		audit(s.db, r, evCodeExpired, "")
@@ -152,7 +155,7 @@ func (s *site) codeSubmit(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, errBadCode):
 		time.Sleep(failedDelay)
 		audit(s.db, r, evCodeFailed, "")
-		if n, _ := failuresInWindow(s.db); n == dailyFailures {
+		if n, _ := failuresInWindow(s.db, known); n == dailyFailures {
 			s.notifier.background(lockoutMessage(requestContext(r)))
 		}
 		s.codePage(w, r, next, "That code is not right.", http.StatusUnauthorized)
@@ -211,6 +214,9 @@ func (s *site) openSession(w http.ResponseWriter, r *http.Request, next, how, me
 		return
 	}
 	writeSessionCookie(w, value)
+	if err := writeDeviceCookie(s.db, w); err != nil {
+		slog.Warn("could not mark a known device", slog.String("error", err.Error()))
+	}
 	audit(s.db, r, evLogin, how)
 	s.notifier.background(sessionMessage(requestContext(r), how))
 
