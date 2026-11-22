@@ -41,7 +41,7 @@ const (
 type front struct {
 	certDir string
 	appURL  string
-	gateURL string
+	gate    *gateNet
 	cert    atomic.Pointer[tls.Certificate]
 	certMod time.Time
 	http    *http.Client
@@ -51,7 +51,6 @@ type front struct {
 	total  int
 	bad    map[netip.Addr]*badCount
 	tokens map[string]tokenSeen
-	gate   map[netip.Addr]gateSeen
 	good   map[netip.Addr]time.Time
 	ready  atomic.Bool
 }
@@ -67,23 +66,12 @@ type tokenSeen struct {
 	at time.Time
 }
 
-type gateSeen struct {
-	ok bool
-	at time.Time
-	nw netInfo
-}
-
-// netInfo is the network gate placed an address on.
-type netInfo struct {
-	ASN, Org, Country string
-}
-
 func newFront(certDir, app, gate string) *front {
 	return &front{
-		certDir: certDir, appURL: app, gateURL: gate,
+		certDir: certDir, appURL: app, gate: newGateNet(gate, "dot."+dotZone),
 		http:  &http.Client{Timeout: 15 * time.Second, Transport: &http.Transport{MaxIdleConnsPerHost: 64, IdleConnTimeout: 90 * time.Second}},
 		conns: map[netip.Addr]int{}, bad: map[netip.Addr]*badCount{},
-		tokens: map[string]tokenSeen{}, gate: map[netip.Addr]gateSeen{}, good: map[netip.Addr]time.Time{},
+		tokens: map[string]tokenSeen{}, good: map[netip.Addr]time.Time{},
 	}
 }
 
@@ -108,6 +96,7 @@ func runFront(certDir string) error {
 		for range time.Tick(10 * time.Minute) {
 			f.loadCert()
 			f.tidy()
+			f.gate.tidy()
 		}
 	}()
 	ln, err := net.Listen("tcp4", dotListen)
@@ -173,11 +162,6 @@ func (f *front) tidy() {
 			delete(f.good, ip)
 		}
 	}
-	for ip, g := range f.gate {
-		if now.Sub(g.at) > 10*time.Minute {
-			delete(f.gate, ip)
-		}
-	}
 }
 
 func (f *front) admit(ip netip.Addr) bool {
@@ -237,46 +221,9 @@ func (f *front) strike(ip netip.Addr, why string, tellGate bool) {
 	}
 	f.mu.Unlock()
 	if tellGate {
-		go f.askGate(ip, "/bad-token")
+		go f.gate.report(ip, "/bad-token")
 	}
 	slog.Info("dot handshake refused", slog.String("ip", ip.String()), slog.String("why", why))
-}
-
-func (f *front) gateOK(ip netip.Addr) (bool, netInfo) {
-	f.mu.Lock()
-	g, ok := f.gate[ip]
-	f.mu.Unlock()
-	if ok && time.Since(g.at) < time.Minute {
-		return g.ok, g.nw
-	}
-	allowed, nw := f.askGateNet(ip, "/")
-	f.mu.Lock()
-	f.gate[ip] = gateSeen{ok: allowed, at: time.Now(), nw: nw}
-	f.mu.Unlock()
-	return allowed, nw
-}
-
-// askGate puts a connection to gate the way Caddy puts a request, under a
-// fixed host so no token reaches gate's records. With gate down it lets the
-// connection through, since a token still has to match after it.
-func (f *front) askGate(ip netip.Addr, path string) bool {
-	ok, _ := f.askGateNet(ip, path)
-	return ok
-}
-
-func (f *front) askGateNet(ip netip.Addr, path string) (bool, netInfo) {
-	req, _ := http.NewRequest(http.MethodGet, f.gateURL, nil)
-	req.Host = "dot." + dotZone
-	req.Header.Set("X-Gate-Ip", ip.String())
-	req.Header.Set("X-Forwarded-Uri", path)
-	req.Header.Set("X-Forwarded-Method", "GET")
-	req.Header.Set("User-Agent", "dns-over-tls")
-	resp, err := f.http.Do(req)
-	if err != nil {
-		return true, netInfo{}
-	}
-	resp.Body.Close()
-	return resp.StatusCode < 300, netInfo{resp.Header.Get("Gate-Asn"), resp.Header.Get("Gate-Org"), resp.Header.Get("Gate-Country")}
 }
 
 // tokenOK says whether the app knows a token. sure is false when the app
@@ -332,10 +279,6 @@ func (f *front) serve(c net.Conn, base *tls.Config) {
 	defer f.release(ip)
 	defer c.Close()
 	_ = c.SetDeadline(time.Now().Add(handshakeLimit))
-	allowed, nw := f.gateOK(ip)
-	if !allowed {
-		return
-	}
 
 	var token string
 	unsure := false
@@ -372,6 +315,9 @@ func (f *front) serve(c net.Conn, base *tls.Config) {
 		return
 	}
 	f.markGood(ip)
+	// gate isn't asked whether to let a device in, since a ban on a shared
+	// carrier address would cut my phone off for a day. Bad tokens still reach it.
+	nw := f.gate.network(ip, "/")
 
 	var wmu sync.Mutex
 	sem := make(chan struct{}, inflightPerCon)

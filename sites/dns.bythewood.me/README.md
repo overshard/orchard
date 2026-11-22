@@ -33,8 +33,10 @@ network with the site.
 `resolve.go` decides and answers a lookup and batches the log. `lists.go`
 fetches the lists and packs them into one sorted table. `doh.go` is `/q/<token>`
 and the `/internal/` routes the front uses. `dot.go` is the front, which holds
-the certificate and nothing else, asks gate about each connection and hands
-every query to `orchard-dns` over the bridge. `acme.go` gets the certificate
+the certificate and nothing else, checks the token in the handshake and hands
+every query to `orchard-dns` over the bridge. `gatenet.go` asks gate which
+network an address is on, and reports bad DoT tokens to it, but gate never
+decides whether a device with a good token gets in. `acme.go` gets the certificate
 through Cloudflare. `store.go` is SQLite, `pages.go` and `templates/` the
 pages, `report.go` the JSON mcp reads, `metrics.go` `/internal/metrics` and
 unbound's stats. `unbound/` is its image and config.
