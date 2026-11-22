@@ -48,6 +48,15 @@ if (toolTabs) {
   fade();
 }
 
+// The skip link lands on the page's main, which no site has to give an id.
+document.querySelector(".o-skip")?.addEventListener("click", (e) => {
+  const main = document.querySelector("main");
+  if (!main) return;
+  e.preventDefault();
+  if (!main.hasAttribute("tabindex")) main.tabIndex = -1;
+  main.focus();
+});
+
 // A table row marked data-href opens on a click anywhere in it, and the link
 // inside it stays the real target for keyboards and new tabs.
 for (const tr of document.querySelectorAll("tr[data-href]")) {

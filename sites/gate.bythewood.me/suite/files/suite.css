@@ -84,6 +84,10 @@
 
 /* ------------------------------------------------------------------ chrome */
 
+.o-skip { position: absolute; left: -999px; top: 8px; z-index: 70; padding: 6px 10px; background: var(--o-brass); font: 600 0.8rem var(--o-sans); }
+.o-body .o-skip { color: var(--o-on-brass); }
+.o-skip:focus { left: 12px; }
+.o-body main[tabindex="-1"]:focus { outline: none; }
 .o-top { background: var(--o-top); border-bottom: 1px solid var(--o-line); }
 .o-bar { display: flex; align-items: stretch; min-height: 44px; max-width: var(--o-wrap); margin: 0 auto; }
 .o-brand {

@@ -13,6 +13,7 @@
 {{define "suite-glyph"}}<svg class="o-glyph" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M10 2c3 3 4 6 4 8a4 4 0 0 1-8 0c0-2 1-5 4-8Z"/><path d="M10 18v-6"/></svg>{{end}}
 
 {{define "suite-top"}}
+<a class="o-skip" href="#main">Skip to the page</a>
 <header class="o-top">
   <div class="o-bar">
     <a class="o-brand" href="{{if .SignedIn}}https://auth.bythewood.me/{{else}}/{{end}}">{{template "suite-glyph"}}<span>orchard</span></a>
