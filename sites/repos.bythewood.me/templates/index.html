@@ -81,7 +81,7 @@ git push -u origin main</pre>
     <small>repositories</small>
     <b>{{len $d.Active}}</b>
     <span class="o-delta">{{if $d.Archived}}{{len $d.Archived}} archived as well{{else}}none archived{{end}}</span>
-    <span class="o-ticks" aria-hidden="true">{{range $d.Active}}<i class="{{if .LastSyncErr}}bad{{else if .Empty}}none{{end}}" data-tip="{{.Name}}"></i>{{end}}</span>
+    <span class="o-ticks" role="img" aria-label="{{len $d.Active}} repositories{{range $d.Active}}{{if .LastSyncErr}}, {{.Name}} failing to sync{{end}}{{end}}">{{range $d.Active}}<i class="{{if .LastSyncErr}}bad{{else if .Empty}}none{{end}}" data-tip="{{.Name}}"></i>{{end}}</span>
   </div>
   <div class="o-tile">
     <small>pushed &middot; 7d</small>
@@ -106,8 +106,8 @@ git push -u origin main</pre>
   <div class="o-tile">
     <small>mirrors</small>
     <b class="{{if $d.Failing}}bad{{end}}">{{$d.Mirrors}}</b>
-    <span class="o-delta {{if $d.Failing}}o-bad{{end}}">{{if $d.Failing}}{{$d.Failing}} failing to sync{{else if $d.Mirrors}}every one syncing{{else}}nothing mirrored{{end}}</span>
-    <span class="o-ticks" aria-hidden="true">{{range $d.Repos}}{{if .Mirror}}<i class="{{if .LastSyncErr}}bad{{end}}" data-tip="{{.Name}}{{if .LastSyncErr}} &middot; failing{{end}}"></i>{{end}}{{end}}</span>
+    <span class="o-delta {{if $d.Failing}}o-bad{{end}}">{{if eq $d.Failing 1}}{{range $d.Repos}}{{if and .Mirror .LastSyncErr}}{{.Name}}{{end}}{{end}} failing to sync{{else if $d.Failing}}{{$d.Failing}} failing to sync{{else if $d.Mirrors}}every one syncing{{else}}nothing mirrored{{end}}</span>
+    <span class="o-ticks" role="img" aria-label="{{$d.Mirrors}} mirrors{{range $d.Repos}}{{if and .Mirror .LastSyncErr}}, {{.Name}} failing{{end}}{{end}}">{{range $d.Repos}}{{if .Mirror}}<i class="{{if .LastSyncErr}}bad{{end}}" data-tip="{{.Name}}{{if .LastSyncErr}} &middot; failing{{end}}"></i>{{end}}{{end}}</span>
   </div>
   <div class="o-tile">
     <small>only copy</small>
