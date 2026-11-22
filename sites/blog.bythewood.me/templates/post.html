@@ -24,6 +24,23 @@
   </div>
 </div>
 
+{{- if $.Series }}
+<div class="container mt-4">
+  <aside class="post-series" aria-label="Series">
+    <div class="section-label mb-2">Part {{ $.SeriesPart }} of {{ len $.Series }} in {{ .Series }}</div>
+    <ol class="mb-0">
+      {{- range $.Series }}
+      {{- if eq .Slug $.Post.Slug }}
+      <li aria-current="page">{{ .Title }}</li>
+      {{- else }}
+      <li><a href="{{ .URL }}">{{ .Title }}</a></li>
+      {{- end }}
+      {{- end }}
+    </ol>
+  </aside>
+</div>
+{{- end }}
+
 {{- if .CoverImage }}
 <div class="container mt-4">
   <img src="{{ .CoverURL }}" class="img-fluid rounded" alt="{{ .Title }}" width="1280" height="720" fetchpriority="high">

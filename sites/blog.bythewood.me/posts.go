@@ -6,6 +6,7 @@ import (
 	"path"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,7 +22,10 @@ type Post struct {
 	PublishDate string
 	// Updated is an optional front matter date for a post edited after it
 	// went out, empty when it never was.
-	Updated     string
+	Updated string
+	// Series names a run of posts, and Part orders a post within it.
+	Series      string
+	Part        int
 	Tags        []string
 	Description string
 	CoverImage  string
@@ -142,6 +146,7 @@ func parsePost(filename, text string) *Post {
 		Date:        meta["date"],
 		PublishDate: meta["publish_date"],
 		Updated:     meta["updated"],
+		Series:      meta["series"],
 		Description: meta["description"],
 		CoverImage:  meta["cover_image"],
 	}
@@ -150,6 +155,9 @@ func parsePost(filename, text string) *Post {
 	}
 	if post.PublishDate == "" {
 		post.PublishDate = post.Date
+	}
+	if part, err := strconv.Atoi(meta["part"]); err == nil {
+		post.Part = part
 	}
 	for tag := range strings.SplitSeq(meta["tags"], ",") {
 		if tag = strings.TrimSpace(tag); tag != "" {
@@ -317,6 +325,28 @@ func neighbours(post *Post, published []*Post) (older, newer *Post) {
 		break
 	}
 	return older, newer
+}
+
+// seriesOf returns the published posts in post's series ordered by part, and
+// nil for a post in no series or the only one of its series out so far.
+func seriesOf(post *Post, published []*Post) []*Post {
+	if post.Series == "" {
+		return nil
+	}
+	var out []*Post
+	for _, p := range published {
+		if p.Series == post.Series {
+			out = append(out, p)
+		}
+	}
+	if len(out) < 2 {
+		return nil
+	}
+	// published is newest first, so reversing it first leaves posts with the
+	// same part, or none, in the order they came out.
+	slices.Reverse(out)
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Part < out[j].Part })
+	return out
 }
 
 // related picks posts sharing the most tags, topped up with recent ones.

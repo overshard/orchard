@@ -2,6 +2,8 @@ package main
 
 import (
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -269,5 +271,64 @@ func TestNeighbours(t *testing.T) {
 	}
 	if older, newer := neighbours(oldest, published); older != nil || newer != middle {
 		t.Errorf("oldest: older %v newer %v", older, newer)
+	}
+}
+
+func TestSeriesOf(t *testing.T) {
+	one := &Post{Slug: "one", Series: "s", Part: 1}
+	two := &Post{Slug: "two", Series: "s", Part: 2}
+	other := &Post{Slug: "other"}
+	published := []*Post{two, other, one}
+
+	if got := slugsOf(seriesOf(two, published)); strings.Join(got, ",") != "one,two" {
+		t.Errorf("seriesOf = %v, want [one two]", got)
+	}
+	if got := seriesOf(other, published); got != nil {
+		t.Errorf("a post in no series got %v", slugsOf(got))
+	}
+	if got := seriesOf(one, []*Post{one, other}); got != nil {
+		t.Errorf("a series of one got %v", slugsOf(got))
+	}
+}
+
+// The post page reads the page's fields from inside {{ with .Post }}, so a
+// wrong $ is a render error at request time and not a parse error.
+func TestPostPageRenders(t *testing.T) {
+	templates, err := fs.Sub(templateFS, "templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	day := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	first := parsePost("first.md", "---\ntitle: First\nslug: first\ndate: "+day+"\nseries: Rewrites\npart: 1\n---\n\nOne.\n")
+	second := parsePost("second.md", "---\ntitle: Second\nslug: second\ndate: "+day+"\nupdated: 2099-01-01\nseries: Rewrites\npart: 2\ntags: go\n---\n\nTwo.\n")
+	lib := &Library{all: []*Post{second, first}, bySlug: map[string]*Post{"first": first, "second": second}}
+	s := &site{renderer: renderer, lib: lib}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /posts/{slug}/{$}", s.post)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/posts/second/", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"Part 2 of 2 in Rewrites",
+		`<a href="/posts/first/">First</a>`,
+		`rel="prev"`,
+		"You're on the latest",
+		`<meta property="og:type" content="article">`,
+		`<meta property="article:tag" content="go">`,
+		`datetime="2099-01-01"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("post page is missing %q", want)
+		}
 	}
 }

@@ -62,6 +62,8 @@ type PageData struct {
 	ExtraPosts  []*Post
 	RandomPosts []*Post
 	Post        *Post
+	Series      []*Post
+	SeriesPart  int
 	Older       *Post
 	Newer       *Post
 	Related     []*Post
@@ -225,6 +227,12 @@ func (s *site) post(w http.ResponseWriter, r *http.Request) {
 	data.Post = post
 	data.Related = related(post, published, 3)
 	data.Older, data.Newer = neighbours(post, published)
+	data.Series = seriesOf(post, published)
+	for i, p := range data.Series {
+		if p == post {
+			data.SeriesPart = i + 1
+		}
+	}
 
 	s.renderer.Render(w, http.StatusOK, "post.html", data)
 }

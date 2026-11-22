@@ -180,3 +180,25 @@ article {
   margin-top: 0.25rem;
   color: #ddd7cd;
 }
+
+.post-series {
+  max-width: 600px;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(107, 158, 120, 0.2);
+  border-radius: 4px;
+  font-size: 0.88rem;
+
+  ol {
+    padding-left: 1.4rem;
+  }
+
+  li {
+    margin-top: 0.2rem;
+    color: #a09890;
+  }
+
+  li[aria-current] {
+    color: #ddd7cd;
+    font-weight: 600;
+  }
+}

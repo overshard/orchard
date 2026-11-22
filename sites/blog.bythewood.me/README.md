@@ -23,7 +23,9 @@ A new post is a Markdown file with `title`, `slug`, `date`, `publish_date`,
 `tags`, `description` and `cover_image` in its front matter, and its images go
 in `content/images`. An edited post can add `updated` with the date of the
 edit, which goes into the feed, the sitemap and dateModified and shows on the
-page.
+page. Posts that belong together can share a `series` name and
+number themselves with `part`, and once two are out each one shows the run as
+a box under its title.
 
 ## Layout
 
