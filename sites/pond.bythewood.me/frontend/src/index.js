@@ -169,7 +169,7 @@ function show(next) {
   if (next === "frog") enterFrog(+one[2]); else if (next === "lay") enterLay(+one[2]); else leaveFrog();
   if (next === "town") enterTown(key); else leaveTown();
   if (next === "wizard") enterWizard(); else leaveWizard();
-  if (next === "pond") seePower();
+  if (next === "pond") { seePower(); wake(); }
   titlePlace(race ? "race" : next === "town" ? townAt() : next);
   seeOpen();
   freshen();
@@ -207,6 +207,10 @@ window.addEventListener("hashchange", () => show(location.hash.slice(1)));
 const scene = $("scene"), sx = scene.getContext("2d");
 const HEART = ["01010", "11111", "11111", "01110", "00100"];
 let greetAt = 0, croakUntil = 0, lastTick = 0;
+// The scene only draws while the pond is the view and the scene is on screen,
+// so a phone left open somewhere else lets the GPU rest.
+let greeted = false, looping = false, onScreen = true;
+if (window.IntersectionObserver) new IntersectionObserver((seen) => { onScreen = seen[seen.length - 1].isIntersecting; wake(); }).observe(scene);
 
 function grown(stage) { return stage === "froglet" || stage === "frog" || stage === "elder"; }
 
@@ -647,6 +651,13 @@ function loop(now) {
   const greeting = greetAt && now - greetAt < 2100;
   if (greetAt && !greeting) { greetAt = 0; arrive(now); }
   if (view === "pond" && (greeting || petBusy(now) || now - lastTick > 110)) { lastTick = now; drawScene(now); }
+  looping = view === "pond" && onScreen;
+  if (looping) requestAnimationFrame(loop);
+}
+
+function wake() {
+  if (looping || !greeted || view !== "pond" || !onScreen) return;
+  looping = true;
   requestAnimationFrame(loop);
 }
 
@@ -1094,5 +1105,6 @@ post("/api/greet").then((g) => {
   setPond(g.pond);
   greet(g);
   if (!g.first && g.pond.open && g.pond.open.works) greetAway(g.pond);
-  requestAnimationFrame(loop);
+  greeted = true;
+  wake();
 }, (err) => { $("greet-line").textContent = err.message; });
