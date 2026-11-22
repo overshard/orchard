@@ -266,9 +266,9 @@ http://gate.bythewood.me {
 # mcp, every tool read only for an agent. OAuth lives here too, signing in
 # through auth, and its two .well-known routes are the only ones any site serves.
 # /q/ is DNS over HTTPS, a request per lookup with the device's token in the
-# path, so it stays out of both access logs, and gate is told only /q/ so the
-# token stays out of its records too. /internal/ is the DoT front's way in and
-# only the bridge may reach it.
+# path, so it stays out of both access logs. It skips gate, since dns checks the
+# token first and asks gate for the network itself. /internal/ is the DoT front's
+# way in and only the bridge may reach it.
 http://dns.bythewood.me {
 	import headers
 	encode zstd gzip
@@ -279,23 +279,11 @@ http://dns.bythewood.me {
 		respond "not here" 404
 	}
 
-	# gate's network for the address is copied onto the request, after any
-	# a client sent itself is dropped, so dns can see a token on a new network.
+	# A gate ban on a shared carrier address would cut my own devices off, and
+	# a wrong token gets a 404 from dns anyway.
 	handle /q/* {
-		route {
-			request_header -Gate-Asn
-			request_header -Gate-Org
-			request_header -Gate-Country
-			forward_auth orchard-gate:8000 {
-				uri /check
-				header_up X-Gate-Ip {client_ip}
-				header_up X-Forwarded-Uri /q/
-				copy_headers Gate-Asn Gate-Org Gate-Country
-				import hold
-			}
-			reverse_proxy orchard-dns:8000 {
-				import hold
-			}
+		reverse_proxy orchard-dns:8000 {
+			import hold
 		}
 	}
 

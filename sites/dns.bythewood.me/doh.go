@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"io"
 	"net/http"
+	"net/netip"
 	"os"
 	"strings"
 
@@ -42,7 +43,12 @@ func (s *site) doh(w http.ResponseWriter, r *http.Request) {
 		plainNoStore(w, http.StatusBadRequest, "no DNS message")
 		return
 	}
-	s.serveWire(w, d, raw, Client{Proto: "doh", IP: web.ClientIP(r), ASN: r.Header.Get("Gate-Asn"), Org: r.Header.Get("Gate-Org"), Country: r.Header.Get("Gate-Country")})
+	c := Client{Proto: "doh", IP: web.ClientIP(r)}
+	if ip, err := netip.ParseAddr(c.IP); err == nil {
+		nw := s.gate.network(ip.Unmap(), "/q/")
+		c.ASN, c.Org, c.Country = nw.ASN, nw.Org, nw.Country
+	}
+	s.serveWire(w, d, raw, c)
 }
 
 // bridgeKey is shared by the app and the DoT front, so another container on

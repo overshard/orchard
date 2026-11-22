@@ -48,6 +48,7 @@ type site struct {
 	log   *logger
 	certs *certs
 	auth  *web.Authenticator
+	gate  *gateNet
 
 	seenMu sync.Mutex
 	seen   map[int64]Lookup
@@ -123,6 +124,11 @@ func main() {
 		}
 	}()
 	go func() {
+		for range time.Tick(10 * time.Minute) {
+			s.gate.tidy()
+		}
+	}()
+	go func() {
 		for {
 			store.Sweep(time.Now())
 			time.Sleep(time.Hour)
@@ -149,6 +155,7 @@ func newSite(store *Store, dataDir, tlsDir string, auth *web.Authenticator) (*si
 	s := &site{tpl: tpl, store: store, lists: l, log: lg, auth: auth,
 		res:   newResolver(l, env("DNS_UPSTREAM", upstreamAddr), lg),
 		certs: newCerts(tlsDir, "", ""),
+		gate:  newGateNet(env("DNS_GATE", gateCheckURL), dotZone),
 		seen:  map[int64]Lookup{},
 		nets:  map[[2]string]Lookup{},
 	}

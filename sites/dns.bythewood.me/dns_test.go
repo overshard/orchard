@@ -67,6 +67,7 @@ func testSite(t testing.TB) (*site, *Device) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	s.gate.url = ""
 	if err := os.MkdirAll(filepath.Join(dir, "lists"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -182,6 +183,14 @@ func waitLogged(t *testing.T, s *site, n int) {
 
 func TestDoH(t *testing.T) {
 	s, d := testSite(t)
+	gateAsked := make(chan string, 16)
+	gate := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gateAsked <- r.Host + " " + r.Header.Get("X-Forwarded-Uri")
+		w.Header().Set("Gate-Asn", "AS64500")
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer gate.Close()
+	s.gate.url = gate.URL
 	h := s.handler()
 	raw, _ := query("ads.example.net", dns.TypeA).Pack()
 
@@ -209,6 +218,12 @@ func TestDoH(t *testing.T) {
 	h.ServeHTTP(w, r)
 	if w.Code != 404 {
 		t.Errorf("an unknown token must get nothing, got %d", w.Code)
+	}
+	if got := <-gateAsked; got != dotZone+" /q/" {
+		t.Errorf("gate should be asked under a fixed host, got %q", got)
+	}
+	if len(gateAsked) != 0 {
+		t.Error("gate should be asked once a minute per address, and never for a bad token")
 	}
 }
 
