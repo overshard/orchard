@@ -371,7 +371,7 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 .o-field input.mono, .o-in.mono { font-family: var(--o-mono); font-size: 0.82rem; }
 .o-field textarea { resize: vertical; min-height: 6rem; }
 .o-in:focus, .o-field :is(input, textarea, select):focus { outline: none; border-color: var(--o-brass); box-shadow: 0 0 0 3px rgba(217, 180, 90, 0.14); }
-.o-body ::placeholder { color: var(--o-muted); opacity: 0.7; }
+.o-body ::placeholder { color: var(--o-muted); opacity: 1; }
 .o-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--o-line-field); align-self: flex-start; }
 .o-seg label { position: relative; cursor: pointer; }
 .o-seg input { position: absolute; opacity: 0; pointer-events: none; }
