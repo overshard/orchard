@@ -402,6 +402,14 @@ const toggleRow = (st, r) => {
   return false;
 };
 
+// Single letter keys can be turned off, since speech input types whole words
+// and would fire them.
+const LETTERS = "orchard-letter-keys";
+let letters = true;
+try {
+  letters = localStorage.getItem(LETTERS) !== "off";
+} catch {}
+
 let keysDlg = null;
 const showKeys = () => {
   if (!keysDlg) {
@@ -424,6 +432,18 @@ const showKeys = () => {
       d.append(what);
       keysDlg.append(d);
     }
+    const box = el("input");
+    box.type = "checkbox";
+    box.checked = letters;
+    box.addEventListener("change", () => {
+      letters = box.checked;
+      try {
+        localStorage.setItem(LETTERS, letters ? "on" : "off");
+      } catch {}
+    });
+    const lab = el("label", "o-check");
+    lab.append(box, "Single letter keys, off for speech input");
+    keysDlg.append(lab);
     keysDlg.addEventListener("click", (e) => {
       if (e.target === keysDlg) keysDlg.close();
     });
@@ -463,6 +483,7 @@ if (keyTables.length) {
   addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
     if (document.querySelector("dialog[open]:not(.o-keys)")) return;
+    if (!letters && e.key.length === 1) return;
     if (e.key === "?") {
       e.preventDefault();
       return showKeys();
@@ -799,7 +820,7 @@ if (jumpBtn) {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
       e.preventDefault();
       dlg.open ? dlg.close() : show();
-    } else if ((e.key === "/" || e.key === ">") && !dlg.open && !keysDlg?.open && !typing(e.target)) {
+    } else if ((e.key === "/" || e.key === ">") && letters && !dlg.open && !keysDlg?.open && !typing(e.target)) {
       e.preventDefault();
       show(e.key === ">" ? ">" : "");
     }

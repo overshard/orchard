@@ -87,7 +87,9 @@ blog and the portfolio are separate identities and nothing here applies to them.
   focus, which is how a tick or a day says what happened on it.
 - **A table with `data-keys`** moves with j and k, opens a row with enter, which
   is its `data-href` or the `tr.o-drawer` under it, and picks a row's checkbox
-  with x. `?` lists the keys and esc clears. `data-bulk="<form id>"` names a form
+  with x. `?` lists the keys and esc clears. A switch in that list turns the
+  single letter keys off for speech input, kept in the browser, and the list is
+  still in jump as show the keys. `data-bulk="<form id>"` names a form
   that gets a hidden `id` input per picked row (`data-name` on the form changes
   the name) and shows as a bar with the count while anything is picked.
 - **Jump or ask** opens on what needs you, then the tools. A leading `>` lists
