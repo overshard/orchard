@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"errors"
 	"net"
 	"net/netip"
 	"strings"
@@ -275,7 +276,7 @@ func (r *resolver) answer(d *Device, req *dns.Msg, name string, l *Lookup) *dns.
 	} else {
 		l.Status = "pass"
 	}
-	resp, err := r.forward(req)
+	resp, err := r.forwardOrFallback(req)
 	if err != nil {
 		resp, err = r.fallback(req)
 		if err != nil {
@@ -317,6 +318,17 @@ func (r *resolver) answer(d *Device, req *dns.Msg, name string, l *Lookup) *dns.
 		}
 	}
 	return resp
+}
+
+// errUpstreamDown skips straight to the fallback, so a hung unbound doesn't
+// cost every lookup the full UDP timeout first.
+var errUpstreamDown = errors.New("unbound down")
+
+func (r *resolver) forwardOrFallback(req *dns.Msg) (*dns.Msg, error) {
+	if r.upstreamDown(time.Now()) {
+		return nil, errUpstreamDown
+	}
+	return r.forward(req)
 }
 
 // forward asks unbound. The client's ECS is dropped, since unbound recurses on
@@ -398,7 +410,7 @@ func (r *resolver) rewritten(req *dns.Msg, target string) *dns.Msg {
 	sub := new(dns.Msg)
 	sub.SetQuestion(dns.Fqdn(target), q.Qtype)
 	sub.RecursionDesired = true
-	resp, err := r.forward(sub)
+	resp, err := r.forwardOrFallback(sub)
 	if err != nil {
 		if resp, err = r.fallback(sub); err != nil {
 			m.Rcode = dns.RcodeServerFailure
