@@ -50,8 +50,8 @@ func change(now, then float64, unit string) string {
 }
 
 type tick struct {
-	Kind, Tip, Href string
-	Height          float64
+	Kind, Tip, Label, Href string
+	Height                 float64
 }
 
 func (s *site) overview(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +66,7 @@ func (s *site) overview(w http.ResponseWriter, r *http.Request) {
 	}
 	ticks := make([]tick, len(days))
 	for i, d := range days {
-		t := tick{Tip: d.Day.Format("Mon Jan 2") + "\n" + usd(d.Spent), Href: "/calls?day=" + d.Day.Format("2006-01-02"), Height: 4}
+		t := tick{Tip: d.Day.Format("Mon Jan 2") + "\n" + usd(d.Spent), Label: d.Day.Format("Mon Jan 2") + ", " + usd(d.Spent), Href: "/calls?day=" + d.Day.Format("2006-01-02"), Height: 4}
 		if top > 0 && d.Spent > 0 {
 			t.Height = max(8, 100*d.Spent/top)
 		} else {

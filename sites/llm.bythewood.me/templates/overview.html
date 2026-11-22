@@ -22,7 +22,7 @@
     <small>spent &middot; month</small>
     <b>${{printf "%.2f" .Month.Spent}}</b>
     <span class="o-delta">{{if gt .Month.Budget 0.0}}{{printf "%.0f" (pct .Month.Spent .Month.Budget)}}% of ${{printf "%.0f" .Month.Budget}}{{else}}no budget set{{end}}</span>
-    <span class="o-ticks days" aria-hidden="true">{{range .Ticks}}<i class="{{.Kind}}" style="height:{{printf "%.0f" .Height}}%" data-tip="{{.Tip}}" data-href="{{.Href}}"></i>{{end}}</span>
+    <span class="o-ticks days" role="group" aria-label="spend by day, each opens that day's calls">{{range .Ticks}}<a href="{{.Href}}" style="height:{{printf "%.0f" .Height}}%" data-tip="{{.Tip}}" aria-label="{{.Label}}"><i class="{{.Kind}}"></i></a>{{end}}</span>
   </div>
   <div class="o-tile">
     <small>projected</small>

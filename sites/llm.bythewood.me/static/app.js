@@ -5,13 +5,6 @@ for (const f of document.querySelectorAll("form[data-confirm]")) {
   });
 }
 
-// A day in the month's spend opens that day's calls.
-for (const i of document.querySelectorAll(".o-ticks i[data-href]")) {
-  i.addEventListener("click", () => {
-    location.href = i.dataset.href;
-  });
-}
-
 // A link to one call, or a page holding only one, opens its drawer.
 const rows = document.querySelectorAll("table[data-keys] tbody tr[id]");
 const target = (location.hash && document.getElementById(location.hash.slice(1))) || (rows.length === 1 ? rows[0] : null);
