@@ -129,6 +129,7 @@ type Dashboard struct {
 	SessionsByCountryRegion map[string]map[string]int64
 
 	Bots BotTraffic
+	Real RealUsers
 
 	// Precomputed for the report templates, which have no charting engine and
 	// no JavaScript to compute this themselves.
@@ -321,6 +322,9 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		}
 	}
 	d.Bots = botTraffic(ctx, s.db, p.ID, startMS, endMS, 10)
+	// Error text comes from the site's own scripts, which a public dashboard
+	// has no reason to show strangers.
+	d.Real = readRealUsers(ctx, s.db, p.ID, startMS, endMS, authed)
 
 	d.fillReportExtras()
 

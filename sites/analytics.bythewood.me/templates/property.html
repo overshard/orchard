@@ -167,6 +167,51 @@
     {{ template "fpanel" dict "d" $d "title" "Referrers" "col" "visits" "key" "referrer" "items" .SessionsByReferrer "tip" "Where each visit came from, read off its first page view." }}
   </div>
 
+  <div class="o-strip six realusers" data-tip="Real visitors' browsers, the 75th percentile over this window.">
+    {{ range .Real.Vitals }}
+    <div class="o-tile" data-tip="{{ .Tip }}">
+      <small>{{ .Name }} &middot; p75</small>
+      <b class="{{ .Class }}">{{ .Value }}</b>
+      <span class="o-delta">{{ .Good }} &middot; {{ num .N }}</span>
+      <span class="o-nospark"></span>
+    </div>
+    {{ end }}
+  </div>
+
+  <div class="o-band b2r">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Errors in visitors' browsers</h2><span class="o-pm">{{ if $authed }}<span>total<b class="{{ if .Real.ErrorTotal }}bad{{ end }}">{{ num .Real.ErrorTotal }}</b></span><span>first party only</span>{{ else }}<span>signed in only</span>{{ end }}</span></div>
+      {{ if not $authed }}
+      <p class="o-empty">Error messages show once you're signed in.</p>
+      {{ else if .Real.Errors }}
+      <table class="o-tbl stack">
+        <thead><tr><th>what</th><th>where</th><th class="r">count</th><th class="r">pages</th><th class="r">last</th></tr></thead>
+        <tbody>
+        {{ range .Real.Errors }}
+        <tr{{ if .New }} class="hot"{{ end }}><td class="lead clip" title="{{ .Message }}"><span class="o-chip{{ if or (eq .Kind "js") (eq .Kind "promise") }} bad{{ else if eq .Kind "resource" }} warn{{ end }}">{{ .Kind }}</span> {{ .Message }}</td><td class="n clip" data-l="where" title="{{ .Source }}">{{ .Source }}</td><td class="n r" data-l="count">{{ num .Count }}</td><td class="n r" data-l="pages">{{ num .Pages }}</td><td class="n r" data-l="last">{{ .Last }}{{ if .New }} &middot; new{{ end }}</td></tr>
+        {{ end }}
+        </tbody>
+      </table>
+      {{ else }}
+      <p class="o-empty">No errors, failed loads or CSP violations reported in this window. They show here as soon as a visitor's browser hits one.</p>
+      {{ end }}
+      <div class="o-foot">js &middot; promise &middot; resource &middot; csp &middot; deprecation &middot; intervention</div>
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Slowest pages</h2><span class="o-pm"><span>LCP p75</span><span>3+ views</span></span></div>
+      {{ if .Real.Slowest }}
+      {{ range .Real.Slowest }}<div class="o-hbar" title="{{ .URL }} &middot; {{ .N }} views"><span class="k">{{ .URL }}</span><span class="bar"><i class="{{ .Class }}" style="width: {{ .Pct }}%"></i></span><span class="v">{{ .Value }}</span></div>{{ end }}
+      {{ else }}
+      <p class="o-empty">A page shows here once three visits have reported a paint time.</p>
+      {{ end }}
+      {{ if .Real.LCPElements }}<span class="o-lab sub">LCP element</span>{{ template "fbars" dict "d" $d "key" "" "items" .Real.LCPElements }}{{ end }}
+      {{ if .Real.CLSElements }}<span class="o-lab sub">what shifted</span>{{ template "fbars" dict "d" $d "key" "" "items" .Real.CLSElements }}{{ end }}
+      {{ if .Real.Overflow }}<span class="o-lab sub o-warn">wider than the screen</span>{{ template "fbars" dict "d" $d "key" "" "items" .Real.Overflow }}{{ end }}
+      {{ if .Real.BigImages }}<span class="o-lab sub o-warn">images shown at under half their size</span>{{ template "fbars" dict "d" $d "key" "" "items" .Real.BigImages }}{{ end }}
+      {{ if .Real.BFReasons }}<span class="o-lab sub">back button missed the cache</span>{{ template "fbars" dict "d" $d "key" "" "items" .Real.BFReasons }}{{ end }}
+    </section>
+  </div>
+
   <div class="o-band b6">
     {{ if .RegionsOf }}
     {{ template "fpanel" dict "d" $d "title" (printf "Regions · %s" .RegionsOf) "col" "visitors" "key" "region" "items" .Regions }}
