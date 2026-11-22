@@ -4,13 +4,16 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"mcp.bythewood.me/web"
 )
@@ -285,5 +288,45 @@ func TestCheckArgsHoldsCallsToTheSchema(t *testing.T) {
 		if (err == nil) != c.ok {
 			t.Errorf("%s %s: got %v, want ok=%v", c.tool, c.args, err, c.ok)
 		}
+	}
+}
+
+func TestRefreshRotatesOnceAndReuseEndsTheGrant(t *testing.T) {
+	s, _ := testSite(t)
+	g, _ := s.store.AddGrant(knownClients[1], "Claude Code", "sess-1", resourceURL)
+	_, refresh, _ := s.store.Issue(g)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	won := 0
+	for range 8 {
+		wg.Go(func() {
+			if _, err := s.store.Spend(refresh, knownClients[1]); err == nil {
+				mu.Lock()
+				won++
+				mu.Unlock()
+			}
+		})
+	}
+	wg.Wait()
+	if won != 1 {
+		t.Fatalf("%d refreshes won with one token, want 1", won)
+	}
+	if _, err := s.store.Spend(refresh, knownClients[1]); !errors.Is(err, errNoToken) {
+		t.Fatalf("a reuse inside the grace got %v, want it refused and the grant kept", err)
+	}
+
+	access, next, _ := s.store.Issue(g)
+	if _, err := s.store.db.Exec(`UPDATE spent SET at = ?`, time.Now().Add(-reuseGrace-time.Second).Unix()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.store.Spend(refresh, knownClients[1]); !errors.Is(err, errReused) {
+		t.Fatalf("a late reuse got %v, want errReused", err)
+	}
+	if _, err := s.store.Lookup(access, "access"); err == nil {
+		t.Fatal("the grant's access token still works after a reuse")
+	}
+	if _, err := s.store.Spend(next, knownClients[1]); err == nil {
+		t.Fatal("the grant's newest refresh token still works after a reuse")
 	}
 }

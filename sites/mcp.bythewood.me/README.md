@@ -44,6 +44,9 @@ and HTTP layer.
 - The raw view is rebuilt, not recorded. Only the id, the arguments (cut at
   2,000 characters) and the first 600 characters of the answer are kept, and
   the docs page says so, so keeping more means changing that note too.
+- Every refresh spends its refresh token for a new pair. One sent again more
+  than a minute after it was spent ends the grant, so a client that keeps an
+  old refresh token around gets signed out and has to connect again.
 - A connector's session on auth lasts 90 days from when it was allowed and
   doesn't slide, which is where the expiry on the overview comes from.
 - It speaks 2026-07-28 to a client that sends `_meta` and `Mcp-Method`, and the

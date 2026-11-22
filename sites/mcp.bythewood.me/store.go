@@ -37,6 +37,14 @@ CREATE TABLE IF NOT EXISTS tokens (
     expires  INTEGER NOT NULL
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS tokens_grant ON tokens(grant_id);
+-- Refresh tokens already swapped for new ones, kept until they would have
+-- expired, so a stolen copy turning up later ends the grant.
+CREATE TABLE IF NOT EXISTS spent (
+    hash     BLOB    PRIMARY KEY,
+    grant_id INTEGER NOT NULL,
+    at       INTEGER NOT NULL,
+    expires  INTEGER NOT NULL
+) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS calls (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
     at       INTEGER NOT NULL,
@@ -69,6 +77,9 @@ const keepFor = 90 * 24 * time.Hour
 const (
 	accessTTL  = time.Hour
 	refreshTTL = 60 * 24 * time.Hour
+	// A spent refresh token sent again this soon is two refreshes racing
+	// from the same client, which is refused without ending the grant.
+	reuseGrace = time.Minute
 )
 
 type Store struct{ db *sql.DB }
@@ -188,11 +199,48 @@ func (s *Store) Lookup(token, kind string) (Grant, error) {
 	return g, err
 }
 
-// Spend removes a refresh token once it's been used, since every refresh hands
-// out a new one.
-func (s *Store) Spend(token string) error {
-	_, err := s.db.Exec(`DELETE FROM tokens WHERE hash = ?`, tokenHash(token))
-	return err
+var errReused = errors.New("a spent refresh token came back")
+
+// Spend swaps a refresh token for its grant in one statement, so two refreshes
+// with the same token can't both win. A token spent past reuseGrace ago ends
+// the grant and returns errReused with the grant's id.
+func (s *Store) Spend(token, clientID string) (int64, error) {
+	now := time.Now()
+	h := tokenHash(token)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	var grant, expires int64
+	err = tx.QueryRow(`DELETE FROM tokens WHERE hash = ? AND kind = 'refresh' AND expires > ?
+		AND grant_id IN (SELECT id FROM grants WHERE revoked = 0 AND client_id = ?)
+		RETURNING grant_id, expires`, h, now.Unix(), clientID).Scan(&grant, &expires)
+	if err == nil {
+		if _, err := tx.Exec(`INSERT OR REPLACE INTO spent (hash, grant_id, at, expires) VALUES (?, ?, ?, ?)`,
+			h, grant, now.Unix(), expires); err != nil {
+			return 0, err
+		}
+		return grant, tx.Commit()
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return 0, err
+	}
+	var at int64
+	err = tx.QueryRow(`SELECT grant_id, at FROM spent WHERE hash = ? AND expires > ?`, h, now.Unix()).Scan(&grant, &at)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && now.Sub(time.Unix(at, 0)) < reuseGrace) {
+		return 0, errNoToken
+	}
+	if err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`UPDATE grants SET revoked = 1 WHERE id = ?`, grant); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`DELETE FROM tokens WHERE grant_id = ?`, grant); err != nil {
+		return 0, err
+	}
+	return grant, errors.Join(errReused, tx.Commit())
 }
 
 func (s *Store) Touch(grant int64) {
@@ -393,6 +441,7 @@ func (s *Store) Sweep(now time.Time) {
 	_, _ = s.db.Exec(`DELETE FROM calls WHERE at < ?`, cut)
 	_, _ = s.db.Exec(`DELETE FROM events WHERE at < ?`, cut)
 	_, _ = s.db.Exec(`DELETE FROM tokens WHERE expires < ?`, now.Unix())
+	_, _ = s.db.Exec(`DELETE FROM spent WHERE expires < ?`, now.Unix())
 }
 
 // GrantUse is how much each live grant has been used in the last week.

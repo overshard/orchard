@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -349,15 +350,18 @@ func (o *oauth) token(w http.ResponseWriter, r *http.Request) {
 		}
 		grant = c.Grant
 	case "refresh_token":
-		rt := r.PostForm.Get("refresh_token")
-		g, err := o.store.Lookup(rt, "refresh")
-		if err != nil || g.ClientID != r.PostForm.Get("client_id") {
-			o.store.AddEvent("refresh refused", r.PostForm.Get("client_id"), "spent, expired or revoked")
+		g, err := o.store.Spend(r.PostForm.Get("refresh_token"), r.PostForm.Get("client_id"))
+		if err != nil {
+			if errors.Is(err, errReused) {
+				slog.Warn("spent refresh token reused, grant ended", slog.Int64("grant", g))
+				o.store.AddEvent("ended", r.PostForm.Get("client_id"), "a spent refresh token was sent again, so it may have been copied")
+			} else {
+				o.store.AddEvent("refresh refused", r.PostForm.Get("client_id"), "spent, expired or revoked")
+			}
 			tokenError(w, "invalid_grant", "that refresh token is spent, expired or revoked")
 			return
 		}
-		_ = o.store.Spend(rt)
-		grant = g.ID
+		grant = g
 	default:
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unsupported_grant_type"})
 		return
