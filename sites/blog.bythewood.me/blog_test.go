@@ -240,3 +240,19 @@ func TestByYearMatchesWholeYear(t *testing.T) {
 		t.Errorf("byYear(2026) = %v", matched)
 	}
 }
+
+// An updated date earlier than the post itself is a typo, and shouldn't make
+// the post look older to a feed reader.
+func TestModifiedPrefersLaterUpdated(t *testing.T) {
+	post := parsePost("p.md", "---\ntitle: P\ndate: 2026-01-01\nupdated: 2026-03-04\n---\n\nBody.\n")
+	if got := post.Modified(); got != "2026-03-04" {
+		t.Errorf("Modified() = %q, want 2026-03-04", got)
+	}
+	if got := post.UpdatedLabel(); got != "Mar 4, 2026" {
+		t.Errorf("UpdatedLabel() = %q", got)
+	}
+	post.Updated = "2025-12-31"
+	if got := post.Modified(); got != "2026-01-01" {
+		t.Errorf("Modified() with an earlier updated = %q, want the post date", got)
+	}
+}

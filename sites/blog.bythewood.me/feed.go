@@ -80,10 +80,15 @@ func (s *site) feed(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	// Published() is already newest first, and an empty blog gets now, since
-	// the element is required.
-	if len(published) > 0 {
-		feed.Updated = feedTime(published[0].Date)
+	// An edit to an old post counts, so this is the latest Modified rather
+	// than the newest post. An empty blog gets now, since the element is
+	// required.
+	latest := ""
+	for _, post := range published {
+		latest = max(latest, post.Modified())
+	}
+	if latest != "" {
+		feed.Updated = feedTime(latest)
 	} else {
 		feed.Updated = time.Now().UTC().Format(time.RFC3339)
 	}
@@ -94,7 +99,7 @@ func (s *site) feed(w http.ResponseWriter, r *http.Request) {
 			ID:        baseURL + post.URL(),
 			Link:      atomLink{Rel: "alternate", Type: "text/html", Href: baseURL + post.URL()},
 			Published: feedTime(post.PublishDate),
-			Updated:   feedTime(post.Date),
+			Updated:   feedTime(post.Modified()),
 			Summary:   post.Description,
 			Content:   atomContent{Type: "html", Body: string(post.BodyHTML)},
 		}

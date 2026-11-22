@@ -90,18 +90,16 @@ func (s *site) sitemap(w http.ResponseWriter, r *http.Request) {
 	tagLastMod := map[string]string{}
 	yearLastMod := map[string]string{}
 	for _, post := range published {
+		modified := post.Modified()
 		set.URLs = append(set.URLs, urlEntry{
-			Loc: baseURL + post.URL(), LastMod: post.Date, ChangeFreq: "yearly",
+			Loc: baseURL + post.URL(), LastMod: modified, ChangeFreq: "yearly",
 		})
 		for _, tag := range post.Tags {
-			if post.Date > tagLastMod[tag] {
-				tagLastMod[tag] = post.Date
-			}
+			tagLastMod[tag] = max(tagLastMod[tag], modified)
 		}
 		if len(post.Date) >= 4 {
-			if year := post.Date[:4]; post.Date > yearLastMod[year] {
-				yearLastMod[year] = post.Date
-			}
+			year := post.Date[:4]
+			yearLastMod[year] = max(yearLastMod[year], modified)
 		}
 	}
 	for _, tag := range tags {

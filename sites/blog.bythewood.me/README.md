@@ -21,7 +21,9 @@ make clean    delete build/ and node_modules
 
 A new post is a Markdown file with `title`, `slug`, `date`, `publish_date`,
 `tags`, `description` and `cover_image` in its front matter, and its images go
-in `content/images`.
+in `content/images`. An edited post can add `updated` with the date of the
+edit, which goes into the feed, the sitemap and dateModified and shows on the
+page.
 
 ## Layout
 

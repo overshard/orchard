@@ -66,7 +66,7 @@ func postGraph(p *Post) template.JS {
 		"description":      p.Description,
 		"url":              baseURL + p.URL(),
 		"datePublished":    feedTime(p.PublishDate),
-		"dateModified":     feedTime(p.Date),
+		"dateModified":     feedTime(p.Modified()),
 		"author":           map[string]any{"@id": authorID},
 		"publisher":        map[string]any{"@id": authorID},
 		"isPartOf":         map[string]any{"@id": websiteID},

@@ -19,6 +19,9 @@ type Post struct {
 	Slug        string
 	Date        string
 	PublishDate string
+	// Updated is an optional front matter date for a post edited after it
+	// went out, empty when it never was.
+	Updated     string
 	Tags        []string
 	Description string
 	CoverImage  string
@@ -36,6 +39,29 @@ func (p *Post) PDFURL() string   { return "/posts/" + p.Slug + "/pdf/" }
 func (p *Post) MDURL() string    { return "/posts/" + p.Slug + "/md/" }
 func (p *Post) OGImage() string  { return baseURL + "/og/" + p.Slug + ".png" }
 func (p *Post) CoverURL() string { return "/content/images/" + p.CoverImage }
+
+// Modified is the date a post last changed, for dateModified, the feed and the
+// sitemap.
+func (p *Post) Modified() string {
+	if p.Updated > p.Date {
+		return p.Updated
+	}
+	return p.Date
+}
+
+// DateLabel and UpdatedLabel are the dates as a reader sees them on the page.
+func (p *Post) DateLabel() string    { return humanDate(p.Date) }
+func (p *Post) UpdatedLabel() string { return humanDate(p.Updated) }
+
+// humanDate turns a YYYY-MM-DD date into "Nov 18, 2026", and leaves anything
+// that won't parse as it was.
+func humanDate(day string) string {
+	t, err := time.Parse("2006-01-02", day)
+	if err != nil {
+		return day
+	}
+	return t.Format("Jan 2, 2006")
+}
 
 // TagLinks pairs each tag with its filter URL.
 func (p *Post) TagLinks() []TagEntry {
@@ -115,6 +141,7 @@ func parsePost(filename, text string) *Post {
 		Slug:        meta["slug"],
 		Date:        meta["date"],
 		PublishDate: meta["publish_date"],
+		Updated:     meta["updated"],
 		Description: meta["description"],
 		CoverImage:  meta["cover_image"],
 	}
