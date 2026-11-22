@@ -20,7 +20,8 @@ const (
 	retryEvery = 5 * time.Minute
 	maxRetries = 6
 	// A repeating job missed by more than this while the container was down is
-	// skipped to its next time instead of fired late.
+	// skipped to its next time instead of fired late. One that runs less than
+	// daily gets a seventh of its period, so a birthday still lands, late.
 	staleAfter = time.Hour
 	// Late enough that the push says so.
 	lateAfter = 10 * time.Minute
@@ -126,7 +127,7 @@ func (s *Scheduler) skipStale() {
 		return
 	}
 	for _, j := range jobs {
-		if j.Once() {
+		if j.Once() || now.Sub(j.NextRun) <= s.staleFor(j) {
 			continue
 		}
 		next, err := s.NextRun(j, now)
@@ -137,6 +138,18 @@ func (s *Scheduler) skipStale() {
 		slog.Warn("skipped a missed run", "job", j.Name, "due", j.NextRun.In(s.loc).Format(time.DateTime))
 		_ = s.store.Reschedule(j.ID, next, j.Failures, j.LastRun, "missed while down")
 	}
+}
+
+// staleFor is how late a repeating job may still fire after the container was down.
+func (s *Scheduler) staleFor(j Job) time.Duration {
+	after, err := s.NextRun(j, j.NextRun)
+	if err != nil {
+		return staleAfter
+	}
+	if period := after.Sub(j.NextRun); period > 24*time.Hour {
+		return period / 7
+	}
+	return staleAfter
 }
 
 // maxMissed bounds the rows one outage writes for a job, so a minutely job
@@ -212,6 +225,13 @@ func (s *Scheduler) settle(j Job, next time.Time, run Run) {
 		_ = s.store.Delete(j.ID)
 	case run.OK:
 		_ = s.store.Reschedule(j.ID, next, 0, run.At, "")
+	case run.dropped && j.Failures+1 < maxRetries && !next.IsZero():
+		// Retried like a one-shot, since the next time a yearly line fires is a year away.
+		retry := s.now().Add(retryEvery)
+		if next.Before(retry) {
+			retry = next
+		}
+		_ = s.store.Reschedule(j.ID, retry, j.Failures+1, run.At, run.Err)
 	default:
 		if run.dropped {
 			_ = s.store.MarkRun(run.ID, "dropped", "push dropped: "+run.Err)

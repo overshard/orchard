@@ -122,11 +122,15 @@ func TestDroppedPushesAreRecorded(t *testing.T) {
 	s, push := newTestSite(t)
 	push.err = errors.New("ntfy down")
 	j, _ := s.create(Input{Name: str("standup"), Cron: str("0 9 * * *"), Message: str("m")}, "t")
-	s.sched.now = func() time.Time { return j.NextRun.Add(30 * time.Second) }
-	s.sched.fireDue(context.Background())
-	s.sched.wg.Wait()
+	rclock := j.NextRun.Add(30 * time.Second)
+	s.sched.now = func() time.Time { return rclock }
+	for range maxRetries {
+		s.sched.fireDue(context.Background())
+		s.sched.wg.Wait()
+		rclock = rclock.Add(retryEvery)
+	}
 	runs := mustRuns(s)
-	if len(runs) != 1 || runs[0].Missed != "dropped" || !strings.Contains(runs[0].Err, "ntfy down") {
+	if len(runs) != maxRetries || runs[0].Missed != "dropped" || !strings.Contains(runs[0].Err, "ntfy down") {
 		t.Errorf("a repeating push that never landed %+v", runs)
 	}
 

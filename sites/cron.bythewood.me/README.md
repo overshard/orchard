@@ -50,12 +50,15 @@ no Vite.
 
 ## Things that will bite you
 
-- A one-shot is deleted once it lands, and its run row keeps the name. One
-  that can't reach ntfy is tried every five minutes, six times, and then
-  dropped with an error in the log.
+- A one-shot is deleted once it lands, and its run row keeps the name. Any
+  push that can't reach ntfy is tried every five minutes, six times, and then
+  dropped with an error in the log. A repeating job goes back to its own
+  schedule after that, or sooner if its next time comes first.
 - A repeating job missed by over an hour while the container was down skips to
   its next time instead of firing late, and writes a missed run for each fire
-  it skipped, at most twelve a job. A push given up on is a dropped run.
+  it skipped, at most twelve a job. One that runs less than daily gets a
+  seventh of its period instead, so a yearly birthday down for a day still
+  fires, late and saying so. A push given up on is a dropped run.
 - Try it runs a job without sending it. It's built on a type with no publisher,
   so it can't reach ntfy, write a run or mint a snooze, and a test holds it to
   that.

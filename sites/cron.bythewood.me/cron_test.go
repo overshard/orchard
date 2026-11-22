@@ -195,6 +195,44 @@ func TestStaleRepeatIsSkipped(t *testing.T) {
 	}
 }
 
+// A birthday is a yearly line, so a push lost to an ntfy stall has to be tried
+// again within minutes and not next year.
+func TestDroppedRepeatRetriesSoon(t *testing.T) {
+	s, push := newTestSite(t)
+	push.err = errors.New("ntfy down")
+	j, _ := s.create(Input{Name: str("birthday"), Cron: str("0 9 3 12 *"), Message: str("m")}, "test")
+	clock := j.NextRun.Add(30 * time.Second)
+	s.sched.now = func() time.Time { return clock }
+	s.sched.fireDue(context.Background())
+	s.sched.wg.Wait()
+
+	got, _ := s.store.Job(j.ID)
+	if want := clock.Add(retryEvery); !got.NextRun.Equal(want.Truncate(time.Second)) && !got.NextRun.Equal(want) {
+		t.Fatalf("next run %s, want a retry at %s", got.NextRun, want)
+	}
+
+	push.err = nil
+	clock = got.NextRun.Add(time.Second)
+	s.sched.fireDue(context.Background())
+	s.sched.wg.Wait()
+	got, _ = s.store.Job(j.ID)
+	if push.count() != 1 || got.Failures != 0 || !got.NextRun.Equal(j.NextRun.AddDate(1, 0, 0)) {
+		t.Errorf("pushed %d, failures %d, next %s", push.count(), got.Failures, got.NextRun)
+	}
+}
+
+func TestStaleYearlyStillFires(t *testing.T) {
+	s, push := newTestSite(t)
+	j, _ := s.create(Input{Name: str("birthday"), Cron: str("0 9 3 12 *"), Message: str("m")}, "test")
+	s.sched.now = func() time.Time { return j.NextRun.Add(5 * time.Hour) }
+	s.sched.skipStale()
+	s.sched.fireDue(context.Background())
+	s.sched.wg.Wait()
+	if push.count() != 1 || !strings.Contains(push.sent[0].Body, "late by") {
+		t.Fatalf("sent %+v, want one push that says it is late", push.sent)
+	}
+}
+
 func TestIDsAreNotReused(t *testing.T) {
 	s, _ := newTestSite(t)
 	a, _ := s.create(Input{Name: str("a"), Cron: str("0 9 * * *"), Message: str("m")}, "t")
