@@ -302,3 +302,19 @@ func TestRestore(t *testing.T) {
 		t.Fatalf("lockout restored live: %+v", lock)
 	}
 }
+
+func TestSafeBack(t *testing.T) {
+	for in, want := range map[string]string{
+		"/explore?page=3":      "/explore?page=3",
+		"/\t/evil.example":     "/",
+		"/\n/evil.example":     "/",
+		"//evil.example":       "/",
+		"/\\evil.example":      "/",
+		"https://evil.example": "/",
+		"":                     "/",
+	} {
+		if got := safeBack(in); got != want {
+			t.Errorf("safeBack(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

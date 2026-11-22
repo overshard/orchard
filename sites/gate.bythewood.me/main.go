@@ -222,7 +222,7 @@ func (s *site) handler() http.Handler {
 			s.engine.check(w, r)
 		case r.URL.Path == "/__gate/solve" && r.Method == http.MethodPost:
 			r.Body = http.MaxBytesReader(w, r.Body, 4096)
-			s.engine.solve(w, r)
+			web.SameOrigin()(http.HandlerFunc(s.engine.solve)).ServeHTTP(w, r)
 		case r.URL.Path == "/__gate/pow.js":
 			powScript(w, r)
 		case strings.HasPrefix(r.URL.Path, "/__gate/"):

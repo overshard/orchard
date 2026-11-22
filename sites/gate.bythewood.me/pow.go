@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -175,11 +176,21 @@ func (e *engine) solve(w http.ResponseWriter, r *http.Request) {
 	until := now.Add(passFor)
 	http.SetCookie(w, &http.Cookie{Name: passCookie, Value: e.pass(host, r.Header.Get("User-Agent"), ip, until), Path: "/", Domain: host,
 		Expires: until, MaxAge: int(passFor / time.Second), HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode})
-	back := r.PostFormValue("back")
-	if !strings.HasPrefix(back, "/") || strings.HasPrefix(back, "//") || strings.HasPrefix(back, "/\\") {
-		back = "/"
+	http.Redirect(w, r, safeBack(r.PostFormValue("back")), http.StatusSeeOther)
+}
+
+// safeBack keeps the redirect after a solve on the same host. Browsers strip
+// tabs and newlines, so "/\t/x" would arrive as "//x" and leave the site.
+func safeBack(back string) string {
+	if !strings.HasPrefix(back, "/") || strings.HasPrefix(back, "//") || strings.ContainsFunc(back, func(r rune) bool {
+		return r < 0x20 || r == 0x7f || r == '\\'
+	}) {
+		return "/"
 	}
-	http.Redirect(w, r, back, http.StatusSeeOther)
+	if u, err := url.Parse(back); err != nil || u.Scheme != "" || u.Host != "" {
+		return "/"
+	}
+	return back
 }
 
 func powScript(w http.ResponseWriter, r *http.Request) {
