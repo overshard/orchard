@@ -167,7 +167,7 @@ func (n *Notifier) Fire(kind string, ctx AlertContext) {
 			slog.String("component", "alerts"))
 		return
 	}
-	if err := n.client.Publish(context.Background(), body); err != nil {
+	if err := n.client.Deliver(context.Background(), body); err != nil {
 		slog.Error("alert: publishing failed", slog.Any("kind", kind), slog.Any("source", ctx.Source), slog.Any("err", err),
 			slog.String("component", "alerts"))
 		return

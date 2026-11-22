@@ -29,10 +29,11 @@ type AlertContext struct {
 // talks to one host and is not measuring the handshake.
 type Notifier struct {
 	client  *ntfy.Client
+	ctx     context.Context
 	sending sync.WaitGroup
 }
 
-func NewNotifier() *Notifier {
+func NewNotifier(ctx context.Context) *Notifier {
 	token := os.Getenv("NTFY_TOKEN")
 	if token == "" {
 		// Not fatal, since refusing to start over a missing alert credential
@@ -40,7 +41,7 @@ func NewNotifier() *Notifier {
 		slog.Warn("NTFY_TOKEN is unset; alerts will be rendered and refused, not delivered",
 			slog.String("component", "alerts"))
 	}
-	return &Notifier{client: ntfy.New(ntfyTopic, token)}
+	return &Notifier{client: ntfy.New(ntfyTopic, token), ctx: ctx}
 }
 
 // renderAlert builds the notification for a transition, false for an unknown
@@ -94,7 +95,11 @@ func (n *Notifier) Fire(kind string, ctx AlertContext) {
 		slog.Info("alert: unknown kind", slog.Any("kind", kind), slog.Any("url", ctx.URL))
 		return
 	}
-	err := n.client.Publish(context.Background(), body)
+	sendCtx := n.ctx
+	if sendCtx == nil {
+		sendCtx = context.Background()
+	}
+	err := n.client.Deliver(sendCtx, body)
 	if ctx.Sent != nil {
 		ctx.Sent(err == nil)
 	}

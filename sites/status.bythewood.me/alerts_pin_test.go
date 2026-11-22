@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -18,12 +19,12 @@ import (
 // the topic and the timeout are the ones a deploy gets.
 func pinNotifier(t *testing.T, base string) *Notifier {
 	t.Helper()
-	n := NewNotifier()
+	n := NewNotifier(context.Background())
 	n.client.Base = base
 	return n
 }
 
-func pinBase() string { return NewNotifier().client.Base }
+func pinBase() string { return NewNotifier(context.Background()).client.Base }
 
 // captureNtfy records every request as text, headers sorted, so a test can
 // compare what reached ntfy byte for byte.

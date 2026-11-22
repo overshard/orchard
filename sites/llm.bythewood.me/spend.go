@@ -177,7 +177,7 @@ func (s *site) watchSpend(ctx context.Context, n *ntfy.Client) {
 	defer t.Stop()
 	for {
 		for _, m := range s.spendAlerts(time.Now()) {
-			if err := n.Publish(ctx, m); err != nil {
+			if err := n.Deliver(ctx, m); err != nil {
 				slog.Error("sending a spend alert", "err", err, "title", m.Title)
 			}
 		}

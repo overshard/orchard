@@ -162,7 +162,9 @@ func realMain() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	notifier := NewNotifier()
+	alertCtx, endAlerts := context.WithCancel(context.Background())
+	defer endAlerts()
+	notifier := NewNotifier(alertCtx)
 	scheduler := NewScheduler(db, notifier, dir("SITE_ROOT", "."))
 	if err := scheduler.ResetOnBoot(ctx); err != nil {
 		return fmt.Errorf("reset wedged states: %w", err)
@@ -173,7 +175,11 @@ func realMain() error {
 	defer func() {
 		stop()
 		scheduler.Wait()
+		// An alert gets a few seconds to go out, then its retries give up so a
+		// deploy isn't held for the full retry schedule.
+		t := time.AfterFunc(5*time.Second, endAlerts)
 		notifier.Wait()
+		t.Stop()
 	}()
 
 	mux := http.NewServeMux()

@@ -41,7 +41,7 @@ const (
 var ownDomains = []string{"bythewood.me", "isaacbythewood.com"}
 
 type Publisher interface {
-	Publish(ctx context.Context, m ntfy.Message) error
+	Deliver(ctx context.Context, m ntfy.Message) error
 }
 
 type SurgeWatcher struct {
@@ -234,7 +234,7 @@ func (w *SurgeWatcher) claim(key string, cooldown time.Duration) bool {
 }
 
 func (w *SurgeWatcher) publish(ctx context.Context, id uuid.UUID, kind, key string, m ntfy.Message) {
-	if err := w.push.Publish(ctx, m); err != nil {
+	if err := w.push.Deliver(ctx, m); err != nil {
 		slog.Error("surge alert failed", slog.String("component", "surge"), slog.String("title", m.Title), slog.Any("err", err))
 		return
 	}

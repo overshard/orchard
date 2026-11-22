@@ -14,7 +14,7 @@ import (
 
 type caught struct{ sent []ntfy.Message }
 
-func (c *caught) Publish(_ context.Context, m ntfy.Message) error {
+func (c *caught) Deliver(_ context.Context, m ntfy.Message) error {
 	c.sent = append(c.sent, m)
 	return nil
 }
