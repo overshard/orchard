@@ -86,20 +86,20 @@
 <div class="o-band b4">
   <section class="o-panel">
     <div class="o-ph2"><h2>Networks</h2><span class="o-pm"><span>refused</span><span>% of theirs</span></span></div>
-    {{range .Networks}}{{template "grow" (dict "G" . "Href" (printf "/traffic?asn=%s" .Key))}}{{else}}<p class="o-empty"><b>Nothing refused yet.</b></p>{{end}}
+    {{range .Networks}}{{template "grow" (dict "G" . "Href" (printf "/traffic?asn=%s" .Key))}}{{else}}<p class="o-empty"><b>Nothing refused yet.</b>Each network a rule refuses ranks here by the share of its own traffic. <a href="/traffic">Watch traffic</a></p>{{end}}
   </section>
   <section class="o-panel">
     <div class="o-ph2"><h2>Countries</h2><span class="o-pm"><span>refused</span><span>% of theirs</span></span></div>
-    {{range .Countries}}{{template "grow" (dict "G" . "Href" (printf "/traffic?country=%s" .Key))}}{{else}}<p class="o-empty"><b>Nothing refused yet.</b></p>{{end}}
+    {{range .Countries}}{{template "grow" (dict "G" . "Href" (printf "/traffic?country=%s" .Key))}}{{else}}<p class="o-empty"><b>Nothing refused yet.</b>Countries show once a block or a limit fires. <a href="/rules/new">Write a rule</a></p>{{end}}
   </section>
   <section class="o-panel">
     <div class="o-ph2"><h2>Hosts</h2><span class="o-pm"><span>refused</span><span>% of theirs</span></span></div>
-    {{range .Hosts}}{{template "grow" (dict "G" . "Href" (printf "/traffic?host=%s" .Key))}}{{else}}<p class="o-empty"><b>Nothing refused yet.</b></p>{{end}}
+    {{range .Hosts}}{{template "grow" (dict "G" . "Href" (printf "/traffic?host=%s" .Key))}}{{else}}<p class="o-empty"><b>Nothing refused yet.</b>Each site shows here with how much of its traffic gate turned away. <a href="/traffic">See every host</a></p>{{end}}
   </section>
   <section class="o-panel">
     <div class="o-ph2"><h2>Paths</h2><span class="o-pm"><span>refused</span><span>sampled</span></span></div>
     {{range .Paths}}<div class="o-hbar" data-tip="{{.Label}}"><span class="k o-mono">{{.Label}}</span><span class="bar"><i class="bad" style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v">{{comma .Total}}</span></div>
-    {{else}}<p class="o-empty"><b>Nothing refused yet.</b></p>{{end}}
+    {{else}}<p class="o-empty"><b>Nothing refused yet.</b>The paths refused most land here, from the sampled requests. <a href="/docs">How rules match</a></p>{{end}}
   </section>
 </div>
 
