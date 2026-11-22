@@ -88,6 +88,7 @@ type resolver struct {
 	udp      *dns.Client
 	tcp      *dns.Client
 	fall     *dns.Client
+	fallPool connPool
 	fellBack atomic.Int64
 	counts   counts
 	// upOK is the last time unbound answered the health probe.
@@ -435,11 +436,76 @@ func (r *resolver) fallback(req *dns.Msg) (*dns.Msg, error) {
 		}
 		o.Option = kept
 	}
-	resp, _, err := r.fall.Exchange(up, fallbackAddr)
+	resp, err := r.fallPool.exchange(r.fall, up)
 	if err != nil {
 		return nil, err
 	}
 	resp.Id = req.Id
+	return resp, nil
+}
+
+// connPool keeps a few TLS connections to Quad9 open, so a run of fallback
+// lookups doesn't pay a handshake each. A connection serves one query at a time.
+type connPool struct {
+	mu   sync.Mutex
+	idle []pooledConn
+}
+
+type pooledConn struct {
+	c    *dns.Conn
+	used time.Time
+}
+
+// poolIdle is under the time Quad9 holds an idle connection open.
+const (
+	poolIdle = 10 * time.Second
+	poolMax  = 4
+)
+
+func (p *connPool) get() *dns.Conn {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for len(p.idle) > 0 {
+		pc := p.idle[len(p.idle)-1]
+		p.idle = p.idle[:len(p.idle)-1]
+		if time.Since(pc.used) < poolIdle {
+			return pc.c
+		}
+		pc.c.Close()
+	}
+	return nil
+}
+
+func (p *connPool) put(c *dns.Conn) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.idle) >= poolMax {
+		c.Close()
+		return
+	}
+	p.idle = append(p.idle, pooledConn{c, time.Now()})
+}
+
+// exchange tries a pooled connection first and a fresh one if that fails,
+// since the far end may have closed it while it sat idle.
+func (p *connPool) exchange(cl *dns.Client, m *dns.Msg) (*dns.Msg, error) {
+	if c := p.get(); c != nil {
+		if resp, _, err := cl.ExchangeWithConn(m, c); err == nil {
+			p.put(c)
+			return resp, nil
+		}
+		c.Close()
+	}
+	c, err := cl.Dial(fallbackAddr)
+	if err != nil {
+		return nil, err
+	}
+	resp, _, err := cl.ExchangeWithConn(m, c)
+	if err != nil {
+		c.Close()
+		return nil, err
+	}
+	p.put(c)
 	return resp, nil
 }
 
