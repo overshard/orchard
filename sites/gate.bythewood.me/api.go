@@ -89,7 +89,16 @@ func (s *site) apiTraffic(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(&b, ", %s %s", kv[0], kv[1])
 		}
 	}
-	fmt.Fprintf(&b, "\n\nChecked %s, passed %s, refused %s, challenged %s.\n", comma(day.Checked), comma(day.Passed), comma(day.Refused()), comma(day.Challenged))
+	switch day.From {
+	case "rule":
+		fmt.Fprintf(&b, "\n\nFrom the rule's own counts on every host: matched %s, refused %s, challenged %s, watched %s.\n",
+			comma(day.Checked), comma(day.Refused()), comma(day.Challenged), comma(day.Watched))
+	case "events":
+		fmt.Fprintf(&b, "\n\nFrom sampled requests, so a flood past 600 a minute undercounts: %s refused or watched, refused %s, challenged %s.\n",
+			comma(day.Checked), comma(day.Refused()), comma(day.Challenged))
+	default:
+		fmt.Fprintf(&b, "\n\nChecked %s, passed %s, refused %s, challenged %s.\n", comma(day.Checked), comma(day.Passed), comma(day.Refused()), comma(day.Challenged))
+	}
 	if f.IP == "" && f.Rule == "" {
 		b.WriteString("\nRequests an hour, oldest first: ")
 		for i, v := range day.ByHour {

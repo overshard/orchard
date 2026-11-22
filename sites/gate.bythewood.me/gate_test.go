@@ -654,3 +654,26 @@ func TestReverseEvictsOldest(t *testing.T) {
 		t.Fatal("the newest answer was evicted")
 	}
 }
+
+func TestFilteredTotals(t *testing.T) {
+	s := testSite(t)
+	for range 3 {
+		ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger)
+	}
+	for range 5 {
+		ask(s, "GET", "blog.bythewood.me", "/", "203.0.113.50")
+	}
+	if err := s.store.Flush(s.engine.stats.take()); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	if d := s.filteredDay(TrafficFilter{Rule: "scanners", Window: time.Hour}, now); d.From != "rule" || d.Checked != 3 || d.Blocked != 3 {
+		t.Fatalf("rule day = %+v", d)
+	}
+	if d := s.filteredDay(TrafficFilter{IP: stranger, Window: time.Hour}, now); d.From != "events" || d.Blocked != 3 {
+		t.Fatalf("address day = %+v", d)
+	}
+	if d := s.filteredDay(TrafficFilter{Host: "blog.bythewood.me", Window: time.Hour}, now); d.Checked != 8 {
+		t.Fatalf("host day = %+v", d)
+	}
+}

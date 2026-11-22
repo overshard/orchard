@@ -400,7 +400,18 @@ func (s *site) trafficPage(w http.ResponseWriter, r *http.Request) {
 }
 
 // filteredDay is Day narrowed to one filter, summed from the traffic table.
+// That table has no rule or address, so a rule's totals come from its own hits
+// and an address's from the sampled events.
 func (s *site) filteredDay(f TrafficFilter, now time.Time) Day {
+	if f.Rule != "" {
+		if r, err := s.store.RuleNamed(f.Rule); err == nil {
+			return s.store.ruleDay(r, f.Window, now)
+		}
+		return s.store.eventDay(TrafficFilter{Rule: f.Rule, Window: f.Window}, now)
+	}
+	if f.IP != "" {
+		return s.store.eventDay(f, now)
+	}
 	n := hours(f.Window)
 	d := Day{ByHour: make(Series, n), BlockedByHour: make(Series, n), ChallengedByHour: make(Series, n)}
 	where, args := f.where(now)
