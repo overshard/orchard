@@ -270,6 +270,13 @@ func TestKeyPageAndBringingAFrogBack(t *testing.T) {
 		}
 	}
 
+	if body := b.do(http.MethodGet, "/k", "").Body.String(); !strings.Contains(body, `id="k-swap"`) || !strings.Contains(body, titled(g.Pond.Frog.Name)) {
+		t.Error("/k in a browser that has a frog doesn't ask before swapping it")
+	}
+	if body := (&browser{t: t, h: b.h}).do(http.MethodGet, "/k", "").Body.String(); strings.Contains(body, `id="k-swap"`) {
+		t.Error("/k asks to swap in a browser with no frog")
+	}
+
 	// A fresh browser, with the words typed the way a person would.
 	fresh := &browser{t: t, h: b.h}
 	typed, _ := json.Marshal(map[string]string{"key": " " + strings.ToUpper(strings.Join(words, ",\n")) + " "})

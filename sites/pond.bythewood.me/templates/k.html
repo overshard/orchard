@@ -4,8 +4,21 @@
 
 {{ define "main" }}
 <section class="view prose">
+{{ if .FrogName }}
+  <h1>Swap frogs?</h1>
+  <div class="swap" id="k-swap">
+    <p>This browser already has <b>{{ .FrogName }}</b>, {{ .FrogAbout }}.</p>
+    <p class="dim">The link opens a different pond. {{ .FrogName }} only comes back with its own six words.</p>
+    <div class="row">
+      <a href="/key" class="button">Save {{ .FrogName }}'s key first</a>
+      <button type="button" class="primary" id="k-go">Swap to the new frog</button>
+    </div>
+  </div>
+  <p class="line" id="k-out" role="status">Or keep {{ .FrogName }} and close this page.</p>
+{{ else }}
   <h1>Bringing a frog back</h1>
   <p class="line" id="k-out" role="status">Opening the pond.</p>
+{{ end }}
   <p class="dim">If this opened inside another app, open it in your phone's real browser instead. A frog brought back in here won't be in your browser next time.</p>
   <p><a href="/key" class="button">Type the key instead</a></p>
 </section>

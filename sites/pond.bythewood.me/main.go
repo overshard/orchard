@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -296,6 +297,7 @@ type page struct {
 	Words       []string
 	KeyURL      string
 	FrogName    string
+	FrogAbout   string
 	Title       string
 	Description string
 	SiteName    string
@@ -352,11 +354,22 @@ func (s *site) keyPage(w http.ResponseWriter, r *http.Request) {
 
 // keyLanding is where a scanned QR code arrives with the key in the fragment,
 // which no server sees. Its script posts the key and wipes it from the bar.
+// When this browser already has a frog it asks first, since anybody can send
+// somebody a /k link and the old frog only comes back with its own words.
 func (s *site) keyLanding(w http.ResponseWriter, r *http.Request) {
 	p := s.pageFor("src/k.js", "Bringing a frog back", "Opening a pond from its key.")
 	p.AnalyticsID = ""
+	if id, _, err := s.pondOf(r); err == nil {
+		if pond, err := loadPond(s.store.r, id); err == nil {
+			f := frogOf(pond, s.store.now())
+			p.Title = "Swap frogs?"
+			p.FrogName = titled(f.Name)
+			p.FrogAbout = aThing(f.Stage) + " on day " + strconv.Itoa(f.Day)
+		}
+	}
 	w.Header().Set("Content-Security-Policy", keyCSP())
 	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Cache-Control", "no-store")
 	s.renderer.Render(w, http.StatusOK, "k.html", p)
 }
 
