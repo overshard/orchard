@@ -331,9 +331,8 @@ func (e *engine) decide(q *req, r *http.Request) verdict {
 	return out
 }
 
-// unlessSignedIn lets anyone with a live orchard session through, asked only
-// once something would have refused them, so a normal request costs nothing.
-// A cookie auth couldn't have made, or one it said no to a minute ago, isn't
+// unlessSignedIn asks auth only once something would have refused the request.
+// A cookie auth couldn't have made, or one it refused a minute ago, isn't
 // asked about again, so a flood carrying a junk cookie can't lean on auth.
 func (e *engine) unlessSignedIn(r *http.Request, v verdict) verdict {
 	c, err := r.Cookie(web.SessionCookie)

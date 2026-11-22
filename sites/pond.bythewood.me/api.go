@@ -620,10 +620,9 @@ func (s *site) apiRotate(id int64, r *http.Request, w http.ResponseWriter) (any,
 	return map[string]bool{"ok": true}, nil
 }
 
-// limiter counts tries in a fixed window, for one caller and for everybody.
-// There is no username to key a restore on, so it is per network and site
-// wide, and never per address alone, which IPv6 rotation walks straight past.
-// A /48 has its own count too, since one holds 65,536 /64s.
+// limiter counts tries in a fixed window per network and site wide, never per
+// address alone, which IPv6 rotation walks past. A /48 has its own count too,
+// since one holds 65,536 /64s.
 type limiter struct {
 	mu      sync.Mutex
 	window  time.Duration

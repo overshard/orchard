@@ -32,10 +32,9 @@ func (e *engine) sign(parts ...string) string {
 	return hex.EncodeToString(m.Sum(nil))[:32]
 }
 
-// The rule that challenged rides in the signed nonce, so an answer can be
-// counted against the rule that asked for it. The seed is signed for the
-// network and user agent that were challenged, so one answer can't be handed
-// around a pool of addresses.
+// The seed carries the rule that challenged and is signed for the network and
+// user agent that were challenged, so one answer can't be handed around a pool
+// of addresses.
 func (e *engine) seed(host string, rule int64, ip netip.Addr, ua string, now time.Time) string {
 	b := make([]byte, 12)
 	_, _ = rand.Read(b)

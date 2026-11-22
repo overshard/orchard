@@ -354,10 +354,9 @@ func (s *site) keyPage(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "key.html", p)
 }
 
-// keyLanding is where a scanned QR code arrives with the key in the fragment,
-// which no server sees. Its script posts the key and wipes it from the bar.
-// When this browser already has a frog it asks first, since anybody can send
-// somebody a /k link and the old frog only comes back with its own words.
+// keyLanding takes the key from the fragment, which no server sees. When this
+// browser already has a frog it asks first, since anybody can send a /k link
+// and the old frog only comes back with its own words.
 func (s *site) keyLanding(w http.ResponseWriter, r *http.Request) {
 	p := s.pageFor("src/k.js", "Bringing a frog back", "Opening a pond from its key.")
 	p.AnalyticsID = ""

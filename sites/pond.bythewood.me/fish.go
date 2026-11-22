@@ -191,10 +191,9 @@ func rareRoom(n int, tables []map[string]float64) int {
 	return int(math.Ceil(3*float64(n)*share)) + 1
 }
 
-// believable trims what a round says it landed to what it could have. A kind
-// that wasn't biting is left out, a legendary comes once a round and any
-// other rare twice, and the rare fish together stay under rareRoom, with the
-// rarest dropped first.
+// believable trims a round's catch to what it could have landed. A legendary
+// comes once a round and any other rare twice, and rare fish together stay
+// under rareRoom with the rarest dropped first.
 func believable(landed map[string]int, tables []map[string]float64) map[string]int {
 	out, n := map[string]int{}, 0
 	for _, f := range fishKinds {
