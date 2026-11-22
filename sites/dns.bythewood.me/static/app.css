@@ -6,7 +6,7 @@
 .o-tbl td.clip { max-width: 26rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .o-tbl tr.blk td:first-child { box-shadow: inset 2px 0 0 var(--o-bad); }
 .o-tbl tr.fl td:first-child { box-shadow: inset 2px 0 0 var(--o-warn); }
-.o-tbl tr.wait td { background: rgba(240, 107, 91, 0.05); }
+.o-tbl tr.hot td { background: rgba(240, 107, 91, 0.05); }
 .o-hbar .k a { color: inherit; }
 form.inl { display: inline; }
 

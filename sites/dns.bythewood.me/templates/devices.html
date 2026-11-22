@@ -16,7 +16,7 @@
       <thead><tr><th>Device</th><th>Last seen</th><th class="r">Lookups</th><th class="r">Blocked</th><th>24h</th><th>14 days</th></tr></thead>
       <tbody>
       {{range .Devices}}
-        <tr data-href="/devices/{{.ID}}"{{if .Quiet}} class="wait"{{end}}>
+        <tr data-href="/devices/{{.ID}}"{{if .Quiet}} class="hot"{{end}}>
           <td class="lead"><a href="/devices/{{.ID}}">{{.Name}}</a> <span class="o-chip">{{.Kind}}</span>{{if .Quiet}} <span class="o-chip warn" data-tip="Quiet longer than a {{.Kind}} usually is">quiet</span>{{end}}{{if .Safe}} <span class="o-chip">safe search</span>{{end}}{{range .OffLists}} <span class="o-chip" data-tip="This device skips {{.}}">no {{.}}</span>{{end}}</td>
           <td class="nw mono small o-muted" data-l="seen">{{ago .LastSeen}}{{if .LastProto}} &middot; {{.LastProto}}{{end}}</td>
           <td class="r n" data-l="lookups">{{comma .Total}}</td>

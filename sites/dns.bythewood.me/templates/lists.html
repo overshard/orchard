@@ -18,7 +18,7 @@
     <thead><tr><th>List</th><th class="r">Entries</th><th class="r">Blocked</th><th>7 days</th><th>Fetched</th><th>Changed</th><th>Version</th><th>Skipped by</th></tr></thead>
     <tbody>
     {{range .Lists}}
-      <tr class="{{if .St.Error}}wait{{end}}">
+      <tr class="{{if .St.Error}}hot{{end}}">
         <td class="lead"><a href="/log?status=blocked&amp;reason={{.Key}}&amp;range=7d" class="o-mono">{{.Key}}</a> {{.Name}}<span class="sub">{{.About}}</span>{{if .St.Error}}<span class="sub o-bad">last try {{ago .St.ErrorAt}}: {{.St.Error}}, still using the copy from {{ago .St.Fetched}}</span>{{end}}</td>
         <td class="r n" data-l="entries">{{comma .Loaded}}</td>
         <td class="r n" data-l="blocked">{{comma .Blocked7d}}</td>
