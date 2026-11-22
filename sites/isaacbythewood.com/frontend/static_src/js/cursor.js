@@ -25,7 +25,7 @@ export const initCursor = () => {
       const interactive =
         target.tagName === "BUTTON" ||
         target.tagName === "A" ||
-        !!target.closest("a, button") ||
+        !!target.closest("a, button, [role=button]") ||
         (target.classList && target.classList.contains("mouse-activate"));
       circle.classList.toggle("is-active", interactive);
     },

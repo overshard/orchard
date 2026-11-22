@@ -540,6 +540,15 @@
   outline: none;
 }
 
+/* Where the custom cursor is drawn the real one stays hidden, the same as on
+   links, and the ring grows instead. */
+@media (min-width: 1024px) and (pointer: fine) {
+  html[data-js] .code-topoSite,
+  html[data-js] .code-cell {
+    cursor: none;
+  }
+}
+
 .code-topoSite .code-topoNode {
   transition: stroke 200ms, fill 200ms;
 }
