@@ -131,3 +131,52 @@ article {
     font-weight: 600;
   }
 }
+
+.post-nav {
+  display: flex;
+  gap: 0.75rem;
+  max-width: 600px;
+  margin: 2rem auto;
+}
+
+.post-nav-link {
+  flex: 1 1 0;
+  min-width: 0;
+  display: block;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(107, 158, 120, 0.2);
+  border-radius: 4px;
+  text-decoration: none;
+  transition: border-color 200ms ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: #6b9e78;
+  }
+
+  &.post-nav-newer {
+    text-align: right;
+  }
+
+  &.post-nav-end {
+    border-style: dashed;
+
+    .post-nav-title {
+      color: #847c72;
+    }
+  }
+}
+
+.post-nav-label {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #847c72;
+}
+
+.post-nav-title {
+  display: block;
+  margin-top: 0.25rem;
+  color: #ddd7cd;
+}

@@ -35,6 +35,30 @@
     {{ .BodyHTML }}
     <hr class="mt-5" style="height: 2px; max-width: 600px; margin-left: auto; margin-right: auto; border-color: rgba(255,255,255,0.06);">
   </article>
+  <nav class="post-nav d-print-none" aria-label="More posts">
+    {{- with $.Older }}
+    <a href="{{ .URL }}" class="post-nav-link" rel="prev">
+      <span class="post-nav-label">&larr; Older</span>
+      <span class="post-nav-title">{{ .Title }}</span>
+    </a>
+    {{- else }}
+    <div class="post-nav-link post-nav-end">
+      <span class="post-nav-label">&larr; Older</span>
+      <span class="post-nav-title">This is the first post</span>
+    </div>
+    {{- end }}
+    {{- with $.Newer }}
+    <a href="{{ .URL }}" class="post-nav-link post-nav-newer" rel="next">
+      <span class="post-nav-label">Newer &rarr;</span>
+      <span class="post-nav-title">{{ .Title }}</span>
+    </a>
+    {{- else }}
+    <div class="post-nav-link post-nav-newer post-nav-end">
+      <span class="post-nav-label">Newer &rarr;</span>
+      <span class="post-nav-title">You're on the latest</span>
+    </div>
+    {{- end }}
+  </nav>
   {{/* Drawn by pond.js once pond.bythewood.me answers. The canvas is sized
        here so the page doesn't move when it does. */}}
   <figure class="pond-frog d-print-none" data-pond data-minutes="{{ .ReadTime }}">

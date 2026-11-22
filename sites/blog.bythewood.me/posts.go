@@ -301,6 +301,24 @@ func containsFold(haystack []string, needle string) bool {
 	return slices.Contains(haystack, needle)
 }
 
+// neighbours finds the posts either side of post in publish order, and nil at
+// either end.
+func neighbours(post *Post, published []*Post) (older, newer *Post) {
+	for i, p := range published {
+		if p.Slug != post.Slug {
+			continue
+		}
+		if i+1 < len(published) {
+			older = published[i+1]
+		}
+		if i > 0 {
+			newer = published[i-1]
+		}
+		break
+	}
+	return older, newer
+}
+
 // related picks posts sharing the most tags, topped up with recent ones.
 func related(post *Post, posts []*Post, count int) []*Post {
 	tags := map[string]bool{}

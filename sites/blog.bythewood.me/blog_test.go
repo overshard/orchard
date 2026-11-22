@@ -256,3 +256,18 @@ func TestModifiedPrefersLaterUpdated(t *testing.T) {
 		t.Errorf("Modified() with an earlier updated = %q, want the post date", got)
 	}
 }
+
+func TestNeighbours(t *testing.T) {
+	newest, middle, oldest := &Post{Slug: "c"}, &Post{Slug: "b"}, &Post{Slug: "a"}
+	published := []*Post{newest, middle, oldest}
+
+	if older, newer := neighbours(middle, published); older != oldest || newer != newest {
+		t.Errorf("middle: older %v newer %v", older, newer)
+	}
+	if older, newer := neighbours(newest, published); older != middle || newer != nil {
+		t.Errorf("newest: older %v newer %v", older, newer)
+	}
+	if older, newer := neighbours(oldest, published); older != nil || newer != middle {
+		t.Errorf("oldest: older %v newer %v", older, newer)
+	}
+}

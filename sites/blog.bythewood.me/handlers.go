@@ -62,6 +62,8 @@ type PageData struct {
 	ExtraPosts  []*Post
 	RandomPosts []*Post
 	Post        *Post
+	Older       *Post
+	Newer       *Post
 	Related     []*Post
 	Tags        []TagEntry
 	Years       []string
@@ -222,6 +224,7 @@ func (s *site) post(w http.ResponseWriter, r *http.Request) {
 	data.Breadcrumbs = []Crumb{{Title: "Home", URL: "/"}, {Title: "Blog", URL: "/blog/"}, {Title: post.Title}}
 	data.Post = post
 	data.Related = related(post, published, 3)
+	data.Older, data.Newer = neighbours(post, published)
 
 	s.renderer.Render(w, http.StatusOK, "post.html", data)
 }
