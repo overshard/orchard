@@ -213,6 +213,10 @@ that deletes. One primary per page head at most.
 **Caps labels** are Geist Mono at `0.7rem`, `0.12em` tracking, brass, with `// `
 in front. A label inside a crowded row can drop the slashes with `plain`.
 
+**Links** are the text colour and brass on hover. One inside a paragraph, an
+empty state or a note also gets a thin brass underline, since colour alone
+doesn't set it apart from muted text. Chrome, tables and hbars keep bare links.
+
 **Focus and selection.** `:focus-visible` is a 2px brass outline at 2px offset,
 and `::selection` is brass at 30%.
 

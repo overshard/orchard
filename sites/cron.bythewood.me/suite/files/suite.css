@@ -47,6 +47,8 @@
 .o-body > main { flex: 1 0 auto; }
 .o-body a { color: var(--o-text); text-decoration: none; }
 .o-body a:hover { color: var(--o-brass); }
+/* A link inside running text needs more than colour to stand out from it. */
+.o-body :is(p, dd, .o-empty, .o-note) a:not(.o-btn, .o-chip) { text-decoration: underline; text-decoration-color: rgba(217, 180, 90, 0.55); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .o-body :focus-visible { outline: 2px solid var(--o-brass); outline-offset: 2px; }
 .o-body ::selection { background: rgba(217, 180, 90, 0.3); }
 .o-body h1, .o-body h2, .o-body h3, .o-body h4 { font-weight: 600; letter-spacing: -0.035em; margin: 0; line-height: 1.15; text-wrap: balance; }
