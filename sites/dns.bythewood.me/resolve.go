@@ -148,9 +148,23 @@ type Verdict struct {
 }
 
 // decide says what a device gets for a name before anything is asked
-// upstream. A rewrite comes first, then allow beats block, and my own rules
-// beat any list.
+// upstream. A paused device gets what it would have been blocked from, logged
+// as allowed so the log still says what it would have blocked.
 func (r *resolver) decide(d *Device, name string) Verdict {
+	v := r.verdict(d, name)
+	if (v.Status == "block" || v.Status == "deny") && d.PausedAt(time.Now()) {
+		why := v.Reason
+		if v.Status == "deny" {
+			why = "rule " + v.Domain
+		}
+		return Verdict{Status: "allow", Reason: why + " while paused", Domain: v.Domain, Rule: v.Rule}
+	}
+	return v
+}
+
+// verdict is decide without a pause. A rewrite comes first, then allow beats
+// block, and my own rules beat any list.
+func (r *resolver) verdict(d *Device, name string) Verdict {
 	rs := r.rules.Load()
 	// A device's own rules come before the rules for every device.
 	scopes := []int64{0}

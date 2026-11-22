@@ -21,6 +21,7 @@ form.inl { display: inline; }
 
 .drawer { padding: 4px 0; gap: 18px; }
 .drawer .pick form { display: grid; gap: 6px; margin-top: 6px; }
+.o-note.paused { margin-bottom: 14px; }
 .o-acts.col { flex-direction: column; align-items: flex-start; margin-top: 6px; }
 
 .dv { padding: 7px 14px; }

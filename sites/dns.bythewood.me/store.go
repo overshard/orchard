@@ -144,6 +144,11 @@ func migrate(db *sql.DB) error {
 			return err
 		}
 	}
+	if !has("devices", "paused_until") {
+		if _, err := db.Exec(`ALTER TABLE devices ADD COLUMN paused_until INTEGER NOT NULL DEFAULT 0`); err != nil {
+			return err
+		}
+	}
 	if has("rules", "device") {
 		return nil
 	}
@@ -190,6 +195,13 @@ type Device struct {
 	LastIP    string
 	// Safe turns on SafeSearch and YouTube's restricted mode for this device.
 	Safe bool
+	// Paused is when blocking comes back on for this device, while lookups
+	// it would have blocked are still logged.
+	Paused time.Time
+}
+
+func (d *Device) PausedAt(now time.Time) bool {
+	return !d.Paused.IsZero() && now.Before(d.Paused)
 }
 
 // Off says whether this device skips a list.
@@ -229,13 +241,13 @@ func validToken(t string) bool {
 	return true
 }
 
-const deviceCols = `id, name, kind, token, off_lists, created, last_seen, last_proto, last_ip, safe`
+const deviceCols = `id, name, kind, token, off_lists, created, last_seen, last_proto, last_ip, safe, paused_until`
 
 func scanDevice(sc interface{ Scan(...any) error }) (*Device, error) {
 	var d Device
 	var off string
-	var created, seen int64
-	if err := sc.Scan(&d.ID, &d.Name, &d.Kind, &d.Token, &off, &created, &seen, &d.LastProto, &d.LastIP, &d.Safe); err != nil {
+	var created, seen, paused int64
+	if err := sc.Scan(&d.ID, &d.Name, &d.Kind, &d.Token, &off, &created, &seen, &d.LastProto, &d.LastIP, &d.Safe, &paused); err != nil {
 		return nil, err
 	}
 	if off != "" {
@@ -244,6 +256,9 @@ func scanDevice(sc interface{ Scan(...any) error }) (*Device, error) {
 	d.Created = time.Unix(created, 0)
 	if seen > 0 {
 		d.LastSeen = time.Unix(seen, 0)
+	}
+	if paused > 0 {
+		d.Paused = time.Unix(paused, 0)
 	}
 	return &d, nil
 }
@@ -280,6 +295,17 @@ func (s *Store) AddDevice(name, kind string) (*Device, error) {
 
 func (s *Store) UpdateDevice(id int64, name, kind string, off []string, safe bool) error {
 	_, err := s.db.Exec(`UPDATE devices SET name = ?, kind = ?, off_lists = ?, safe = ? WHERE id = ?`, name, kind, strings.Join(off, ","), safe, id)
+	return err
+}
+
+// PauseDevice turns blocking off for a device until a time, and a zero time
+// turns it back on.
+func (s *Store) PauseDevice(id int64, until time.Time) error {
+	var at int64
+	if !until.IsZero() {
+		at = until.Unix()
+	}
+	_, err := s.db.Exec(`UPDATE devices SET paused_until = ? WHERE id = ?`, at, id)
 	return err
 }
 

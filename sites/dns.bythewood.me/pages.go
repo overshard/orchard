@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -481,10 +482,13 @@ func (s *site) logRows(w http.ResponseWriter, r *http.Request) {
 
 func (s *site) devicesPage(w http.ResponseWriter, r *http.Request) {
 	page, _ := s.chrome(r, "devices")
-	s.render(w, 200, "devices.html", map[string]any{"Suite": page, "Devices": s.deviceRows(time.Now()), "Kinds": kinds, "Toast": r.URL.Query().Get("toast")})
+	s.render(w, 200, "devices.html", map[string]any{"Suite": page, "Devices": s.deviceRows(time.Now()), "Kinds": kinds, "Now": time.Now(), "Toast": r.URL.Query().Get("toast")})
 }
 
 var kinds = []string{"phone", "computer", "browser", "other"}
+
+// pauses is the minutes a device's blocking can be paused for.
+var pauses = []int{5, 30, 60}
 
 func (s *site) addDevice(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.FormValue("name"))
@@ -551,6 +555,7 @@ func (s *site) devicePage(w http.ResponseWriter, r *http.Request) {
 		"DoT": d.Token + "." + dotZone, "DoH": baseURL + "/q/" + d.Token, "IPs": s.dohIPs(r.Context()),
 		"Toast": r.URL.Query().Get("toast"), "ProbeZone": probeZone, "BoxIP": publicIP,
 		"Primary": primary, "Rest": rest, "Quiet": isQuiet(d, now), "Nets": s.store.Nets(d.ID),
+		"Paused": d.PausedAt(now), "Pauses": pauses,
 	})
 }
 
@@ -694,6 +699,19 @@ func (s *site) deviceOp(w http.ResponseWriter, r *http.Request) {
 		_ = s.store.RotateToken(d.ID)
 		_ = s.reload()
 		http.Redirect(w, r, fmt.Sprintf("/devices/%d?toast=New+token,+set+it+up+again", d.ID), http.StatusSeeOther)
+	case "pause":
+		min, _ := strconv.Atoi(r.FormValue("minutes"))
+		if !slices.Contains(pauses, min) {
+			http.Redirect(w, r, fmt.Sprintf("/devices/%d", d.ID), http.StatusSeeOther)
+			return
+		}
+		_ = s.store.PauseDevice(d.ID, time.Now().Add(time.Duration(min)*time.Minute))
+		_ = s.reload()
+		http.Redirect(w, r, fmt.Sprintf("/devices/%d?toast=Blocking+paused+for+%dm", d.ID, min), http.StatusSeeOther)
+	case "resume":
+		_ = s.store.PauseDevice(d.ID, time.Time{})
+		_ = s.reload()
+		http.Redirect(w, r, fmt.Sprintf("/devices/%d?toast=Blocking+back+on", d.ID), http.StatusSeeOther)
 	case "delete":
 		_ = s.store.DeleteDevice(d.ID)
 		_ = s.reload()

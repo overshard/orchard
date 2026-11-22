@@ -9,8 +9,10 @@
   <div class="o-acts">
     <a class="o-btn o-btn-sm" href="/log?device={{.D.ID}}" data-act="this device's log">Its log</a>
     <a class="o-btn o-btn-p o-btn-sm" href="/log?device={{.D.ID}}&amp;status=blocked&amp;range=15m" data-act="just blocked here">Just blocked here</a>
+    {{if not .Paused}}<form method="post" action="/devices/{{.D.ID}}/pause"><span class="o-muted small">Pause blocking</span>{{range .Pauses}}<button class="o-btn o-btn-sm" type="submit" name="minutes" value="{{.}}">{{if eq . 60}}1h{{else}}{{.}}m{{end}}</button>{{end}}</form>{{end}}
   </div>
 </div>
+{{if .Paused}}<div class="o-note brass paused"><span class="o-lab plain">paused</span><span>Blocking is off on {{.D.Name}} for {{left .D.Paused}} more, and what it would have blocked still shows in the log as allowed.</span> <form method="post" action="/devices/{{.D.ID}}/resume" class="inl"><button class="o-btn o-btn-sm" type="submit">Resume now</button></form></div>{{end}}
 
 <div class="o-band b2r">
   <section class="o-panel setup">

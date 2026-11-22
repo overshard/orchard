@@ -286,6 +286,7 @@ func TestPagesRender(t *testing.T) {
 	_ = s.store.PutRule("fine.example", "block", "testing")
 	_ = s.store.PutRuleFor("nas.example", "rewrite", "", d.ID, "192.168.1.20")
 	pc, _ := s.store.AddDevice("desk", "computer")
+	_ = s.store.PauseDevice(pc.ID, time.Now().Add(time.Hour))
 	_ = s.reload()
 	h := s.handler()
 	for _, path := range []string{"/", "/log", "/log?status=blocked&range=15m&device=" + itoa(d.ID), "/log/rows?after=1", "/devices", "/devices/" + itoa(d.ID), "/devices/" + itoa(pc.ID),

@@ -43,6 +43,13 @@ func funcs() template.FuncMap {
 			}
 			return "a removed device"
 		},
+		"left": func(t time.Time) string {
+			m := int(time.Until(t).Minutes()) + 1
+			if m >= 60 {
+				return fmt.Sprintf("%dh%02dm", m/60, m%60)
+			}
+			return fmt.Sprintf("%dm", m)
+		},
 		"days": func(d time.Duration) int {
 			return int(d.Hours() / 24)
 		},

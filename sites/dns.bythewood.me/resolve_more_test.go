@@ -136,3 +136,20 @@ func TestDropPrivate(t *testing.T) {
 		t.Fatalf("kept %v", m.Answer)
 	}
 }
+
+func TestPausedDeviceLogsWouldBlock(t *testing.T) {
+	s, d := testSite(t)
+	if err := s.store.PauseDevice(d.ID, time.Now().Add(5*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.reload()
+	d = s.res.device(d.Token)
+	if v := s.res.decide(d, "ads.example.net"); v.Status != "allow" || v.Reason != "pro while paused" {
+		t.Fatalf("paused: %+v", v)
+	}
+	_ = s.store.PauseDevice(d.ID, time.Time{})
+	_ = s.reload()
+	if v := s.res.decide(s.res.device(d.Token), "ads.example.net"); v.Status != "block" {
+		t.Fatalf("resumed: %+v", v)
+	}
+}
