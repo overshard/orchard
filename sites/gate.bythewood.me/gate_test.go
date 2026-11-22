@@ -258,8 +258,24 @@ func TestChallengeAndSolve(t *testing.T) {
 	if w.Code != 403 {
 		t.Fatalf("a pass for bythewood.me worked on isaacbythewood.com, %d", w.Code)
 	}
-	if s.engine.seedOK(seed, "isaacbythewood.com", time.Now()) {
+	ip := netip.MustParseAddr(stranger)
+	if s.engine.seedOK(seed, "isaacbythewood.com", ip, "curl/8", time.Now()) {
 		t.Fatal("a seed for bythewood.me checked out on isaacbythewood.com")
+	}
+	if s.engine.seedOK(seed, "bythewood.me", netip.MustParseAddr("203.0.113.7"), "curl/8", time.Now()) {
+		t.Fatal("a seed checked out from another network")
+	}
+	if s.engine.seedOK(seed, "bythewood.me", ip, "curl/9", time.Now()) {
+		t.Fatal("a seed checked out for another user agent")
+	}
+	sw = httptest.NewRecorder()
+	sr = httptest.NewRequest(http.MethodPost, "http://repos.bythewood.me/__gate/solve", strings.NewReader(form.Encode()))
+	sr.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sr.Header.Set("User-Agent", "curl/8")
+	sr.Header.Set("X-Gate-Ip", stranger)
+	s.handler().ServeHTTP(sw, sr)
+	if sw.Code != 400 {
+		t.Fatalf("a spent seed was redeemed again, %d", sw.Code)
 	}
 }
 

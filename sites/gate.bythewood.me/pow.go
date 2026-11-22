@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -32,12 +33,14 @@ func (e *engine) sign(parts ...string) string {
 }
 
 // The rule that challenged rides in the signed nonce, so an answer can be
-// counted against the rule that asked for it.
-func (e *engine) seed(host string, rule int64, now time.Time) string {
+// counted against the rule that asked for it. The seed is signed for the
+// network and user agent that were challenged, so one answer can't be handed
+// around a pool of addresses.
+func (e *engine) seed(host string, rule int64, ip netip.Addr, ua string, now time.Time) string {
 	b := make([]byte, 12)
 	_, _ = rand.Read(b)
 	ts, nonce := strconv.FormatInt(now.Unix(), 36), hex.EncodeToString(b)+"r"+strconv.FormatInt(rule, 36)
-	return ts + "." + nonce + "." + e.sign("seed", ts, nonce, host)
+	return ts + "." + nonce + "." + e.sign("seed", ts, nonce, host, passNet(ip), ua)
 }
 
 // seedRule is the rule a seed was made for, 0 when it doesn't say.
@@ -54,7 +57,7 @@ func seedRule(seed string) int64 {
 	return n
 }
 
-func (e *engine) seedOK(seed, host string, now time.Time) bool {
+func (e *engine) seedOK(seed, host string, ip netip.Addr, ua string, now time.Time) bool {
 	parts := strings.Split(seed, ".")
 	if len(parts) != 3 {
 		return false
@@ -67,7 +70,32 @@ func (e *engine) seedOK(seed, host string, now time.Time) bool {
 	if now.Sub(at) > seedFor || at.After(now.Add(time.Minute)) {
 		return false
 	}
-	return hmac.Equal([]byte(parts[2]), []byte(e.sign("seed", parts[0], parts[1], host)))
+	return hmac.Equal([]byte(parts[2]), []byte(e.sign("seed", parts[0], parts[1], host, passNet(ip), ua)))
+}
+
+// spent is the seeds already redeemed. A seed only lives seedFor, so two
+// generations that swap every seedFor remember each one long enough.
+type spent struct {
+	mu        sync.Mutex
+	cur, prev map[string]struct{}
+	rotated   time.Time
+}
+
+// use marks a seed redeemed and says whether it was fresh.
+func (s *spent) use(seed string, now time.Time) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cur == nil || now.Sub(s.rotated) >= seedFor {
+		s.prev, s.cur, s.rotated = s.cur, map[string]struct{}{}, now
+	}
+	if _, ok := s.cur[seed]; ok {
+		return false
+	}
+	if _, ok := s.prev[seed]; ok {
+		return false
+	}
+	s.cur[seed] = struct{}{}
+	return true
 }
 
 func worked(seed, nonce string) bool {
@@ -142,7 +170,7 @@ func (e *engine) challenge(w http.ResponseWriter, r *http.Request, q *req, rule 
 		back = "/"
 	}
 	err := challengeTpl.ExecuteTemplate(w, "challenge.html", map[string]any{
-		"Seed": e.seed(siteOf(q.Host), rule.ID, time.Now()), "Zeros": powZeros, "Back": back, "Host": q.Host,
+		"Seed": e.seed(siteOf(q.Host), rule.ID, q.IP, q.UA, time.Now()), "Zeros": powZeros, "Back": back, "Host": q.Host,
 	})
 	if err != nil {
 		slog.Error("render challenge", slog.Any("err", err))
@@ -159,22 +187,22 @@ func (e *engine) solve(w http.ResponseWriter, r *http.Request) {
 	full := host
 	host = siteOf(host)
 	seed, nonce := r.PostFormValue("seed"), r.PostFormValue("nonce")
+	ua := r.Header.Get("User-Agent")
+	ip, _ := netip.ParseAddr(strings.TrimSpace(r.Header.Get("X-Gate-Ip")))
 	now := time.Now()
-	signed := e.seedOK(seed, host, now)
-	ok := signed && worked(seed, nonce)
+	signed := ip.IsValid() && e.seedOK(seed, host, ip, ua, now)
+	ok := signed && worked(seed, nonce) && e.spent.use(seed, now)
 	var rule int64
 	if signed {
 		rule = seedRule(seed)
 	}
-	ip, _ := netip.ParseAddr(strings.TrimSpace(r.Header.Get("X-Gate-Ip")))
-	ok = ok && ip.IsValid()
 	e.stats.solved(full, rule, ok)
 	if !ok {
 		plain(w, http.StatusBadRequest, "That didn't check out. Go back and let the page finish.")
 		return
 	}
 	until := now.Add(passFor)
-	http.SetCookie(w, &http.Cookie{Name: passCookie, Value: e.pass(host, r.Header.Get("User-Agent"), ip, until), Path: "/", Domain: host,
+	http.SetCookie(w, &http.Cookie{Name: passCookie, Value: e.pass(host, ua, ip, until), Path: "/", Domain: host,
 		Expires: until, MaxAge: int(passFor / time.Second), HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode})
 	http.Redirect(w, r, safeBack(r.PostFormValue("back")), http.StatusSeeOther)
 }

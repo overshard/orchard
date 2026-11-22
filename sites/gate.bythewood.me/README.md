@@ -74,7 +74,8 @@ the shared look and HTTP layer.
   isn't taken.
 - A pass cookie covers the whole domain, every bythewood.me host or
   isaacbythewood.com, and is tied to the user agent, so a browser update sends
-  the visitor through the challenge once more.
+  the visitor through the challenge once more. A challenge is good once and
+  only from the network and user agent it was shown to.
 - `crawler` checks a claimed crawler against its owner's published ranges,
   fetched daily in `crawlers.go`, then forward confirmed reverse DNS. A list
   that fails to fetch keeps its last good ranges, and a crawler with neither

@@ -259,6 +259,7 @@ func TestSolveCounts(t *testing.T) {
 		sr := httptest.NewRequest(http.MethodPost, "http://repos.bythewood.me/__gate/solve", strings.NewReader(form.Encode()))
 		sr.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		sr.Header.Set("X-Gate-Ip", stranger)
+		sr.Header.Set("User-Agent", "curl/8")
 		s.handler().ServeHTTP(httptest.NewRecorder(), sr)
 	}
 	solve("nope")

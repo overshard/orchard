@@ -44,6 +44,7 @@ type engine struct {
 	auth   *web.Authenticator
 	secret []byte
 	stats  *stats
+	spent  spent
 
 	mu      sync.Mutex
 	windows map[windowKey]*window
