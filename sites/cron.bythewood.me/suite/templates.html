@@ -61,6 +61,17 @@
 {{template "suite-status" .}}
 {{end}}
 
+{{/* The 404 every tool site shows, given the sentence that says what's missing. */}}
+{{define "suite-404"}}
+<div class="o-404">
+  <span class="o-lab">404 &middot; not found</span>
+  <canvas class="pond-lost" width="216" height="180" aria-hidden="true" data-pond-lost></canvas>
+  <h1>No such page</h1>
+  <p class="o-muted">{{.}} This frog took the same wrong turn and is still looking around.</p>
+  <div><a href="/" class="o-btn o-btn-sm">&larr; Home</a></div>
+</div>
+{{end}}
+
 {{define "suite-ways"}}
 <section class="o-hsec">
   <div class="o-hh"><span class="o-lab">three ways in</span><h2 class="o-big">The same data, however you like to ask</h2></div>

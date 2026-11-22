@@ -357,6 +357,11 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 .o-note.brass { border-color: rgba(217, 180, 90, 0.55); }
 .o-note .o-lab { display: block; margin-bottom: 4px; }
 
+.o-404 { display: grid; gap: 14px; justify-items: start; padding: 48px 0 64px; }
+.o-404 h1 { font-size: 2rem; }
+.o-404 p { margin: 0; max-width: 60ch; }
+.o-404 .pond-lost { width: 216px; height: 180px; image-rendering: pixelated; }
+
 /* ------------------------------------------------------------------ forms */
 
 .o-form { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }

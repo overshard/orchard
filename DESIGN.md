@@ -274,7 +274,9 @@ That page does not exist. This frog took the same wrong turn and is still lookin
 ← Home                 button
 ```
 
-The frog is `guest.js` again, off a random seed, so it needs nothing from pond.
+It's `suite-404` in the suite's templates, given the sentence, and `o-404` in
+`suite.css`, so a site wraps it in its own head and foot and doesn't write its
+own. The frog is `guest.js` again, off a random seed, so it needs nothing from pond.
 `repos` has a second one for history and anything at a commit SHA asked for
 signed out, with a clone command and a way back to the repository.
 
