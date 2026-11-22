@@ -256,12 +256,21 @@ footer {
 }
 
 .search-form {
+  .search-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #a09890;
+  }
+
   .search-icon {
     position: absolute;
     left: 0.85rem;
     top: 50%;
     transform: translateY(-50%);
-    color: #665f56;
+    color: #847c72;
     pointer-events: none;
     z-index: 2;
   }
@@ -276,13 +285,15 @@ footer {
     transition: border-color 200ms ease, box-shadow 200ms ease;
 
     &::placeholder {
-      color: #665f56;
+      color: #847c72;
       font-style: normal;
     }
 
     &:focus {
-      border-color: rgba(107, 158, 120, 0.4);
-      box-shadow: 0 0 0 2px rgba(107, 158, 120, 0.1);
+      border-color: #6b9e78;
+      box-shadow: none;
+      outline: 2px solid #6b9e78;
+      outline-offset: 2px;
       background: #13120e;
     }
   }
