@@ -130,6 +130,10 @@ func realMain() error {
 	mux.HandleFunc("GET /code", s.code)
 	mux.HandleFunc("GET /art", s.art)
 	mux.HandleFunc("GET /contact", s.contact)
+	// Old links and typed URLs carry a trailing slash the routes above don't.
+	for _, page := range []string{"/about", "/code", "/art", "/contact"} {
+		mux.HandleFunc("GET "+page+"/{$}", redirectTo(page))
+	}
 
 	mux.HandleFunc("GET /robots.txt", s.robots)
 	mux.HandleFunc("GET /sitemap.xml", s.sitemap)

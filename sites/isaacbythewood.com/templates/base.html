@@ -11,7 +11,9 @@
 
     <title>{{ .Title }}</title>
     <meta name="description" content="{{ .Description }}" />
+    {{- if .Canonical }}
     <link rel="canonical" href="{{ .Canonical }}" />
+    {{- end }}
 
     <meta name="theme-color" content="{{ .ThemeColor }}" />
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
@@ -22,7 +24,9 @@
     <meta property="og:site_name" content="Isaac Bythewood" />
     <meta property="og:title" content="{{ .Title }}" />
     <meta property="og:description" content="{{ .Description }}" />
+    {{- if .Canonical }}
     <meta property="og:url" content="{{ .Canonical }}" />
+    {{- end }}
     <!-- A PNG, not the SVG favicon. Every social platform refuses
          image/svg+xml here, so a vector card is a card nobody sees. -->
     <meta property="og:image" content="{{ .OGImage }}" />

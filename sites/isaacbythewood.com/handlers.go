@@ -259,7 +259,15 @@ func (s *site) contact(w http.ResponseWriter, r *http.Request) {
 
 func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 	data := s.page("notfound", "Not found", "That page does not exist.")
+	// A 404 has no URL of its own to name as canonical.
+	data.Canonical = ""
 	s.renderer.Render(w, http.StatusNotFound, "notfound.html", data)
+}
+
+func redirectTo(target string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target, http.StatusMovedPermanently)
+	}
 }
 
 func (s *site) robots(w http.ResponseWriter, r *http.Request) {
