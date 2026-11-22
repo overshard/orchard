@@ -30,7 +30,7 @@ func (s *site) apiReport(w http.ResponseWriter, r *http.Request) {
 		s.engine.Mode(), comma(day.Checked), comma(day.Passed), comma(day.Exempt), comma(day.Blocked), comma(day.Banned),
 		comma(day.Limited), comma(day.Challenged), comma(day.Solved))
 
-	b.WriteString("\n## Rules\n\nAllow rules run first, then block, limit and challenge. A watching rule only counts.\n\n")
+	b.WriteString("\n## Rules\n\nAllow rules run first, then block, limit and challenge. A watching rule only counts. Hits are what a rule decided and matched is every request it caught while enforcing, so matched well above hits means a rule before it takes most of its traffic.\n\n")
 	for _, u := range uses {
 		state := "on"
 		if u.Pending {
@@ -41,7 +41,7 @@ func (s *site) apiReport(w http.ResponseWriter, r *http.Request) {
 		if u.Expired(now) {
 			state = "ended"
 		}
-		fmt.Fprintf(&b, "- **%s** (%s, %s, by %s): %s hits, %s watched", u.Name, u.Then(), state, u.Author, comma(u.Hits), comma(u.Watched))
+		fmt.Fprintf(&b, "- **%s** (%s, %s, by %s): %s hits, %s matched, %s watched", u.Name, u.Then(), state, u.Author, comma(u.Hits), comma(u.Matched), comma(u.Watched))
 		if !u.Expires.IsZero() {
 			fmt.Fprintf(&b, ", ends %s", u.Expires.Format("2006-01-02 15:04 UTC"))
 		}

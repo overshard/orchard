@@ -739,3 +739,30 @@ func TestFilteredTotals(t *testing.T) {
 		t.Fatalf("host day = %+v", d)
 	}
 }
+
+func TestMatchedCountsEveryEnforcingRule(t *testing.T) {
+	s := testSite(t)
+	later := Rule{Name: "later", When: "path contains wp-login", Action: actBlock, Status: 403}
+	_ = s.store.AddRule(&later, "you")
+	_ = s.reload()
+	for range 4 {
+		ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger)
+	}
+	ask(s, "GET", "blog.bythewood.me", "/wp-login.php", stranger, "Cookie", web.SessionCookie+"="+goodSession)
+	if err := s.store.Flush(s.engine.stats.take()); err != nil {
+		t.Fatal(err)
+	}
+	rules, _ := s.store.Rules()
+	for _, u := range s.store.RuleUses(rules, time.Hour, time.Now()) {
+		switch u.Name {
+		case "scanners":
+			if u.Hits != 4 || u.Matched != 4 || u.Taken() != -1 {
+				t.Errorf("scanners hits %d matched %d taken %d", u.Hits, u.Matched, u.Taken())
+			}
+		case "later":
+			if u.Hits != 0 || u.Matched != 4 || u.Taken() != 100 {
+				t.Errorf("later hits %d matched %d taken %d", u.Hits, u.Matched, u.Taken())
+			}
+		}
+	}
+}

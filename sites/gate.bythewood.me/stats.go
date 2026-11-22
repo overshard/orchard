@@ -59,7 +59,9 @@ type hitKey struct {
 	Hour int64
 }
 
-type hitCount struct{ Hits, Watched int }
+// hitCount is a rule's hour. Hits is what it decided, and Matched is every
+// request it matched while enforcing, including ones a rule before it took.
+type hitCount struct{ Hits, Watched, Matched int }
 
 // Event is one request a rule acted on or would have. Passes aren't kept, the
 // hourly traffic counts cover those.
@@ -165,6 +167,24 @@ func (s *stats) solveCount(hour int64, host string, rule int64) *solveCount {
 	return c
 }
 
+func (s *stats) matched(ids []int64, now time.Time) {
+	if len(ids) == 0 {
+		return
+	}
+	h := hourOf(now)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, id := range ids {
+		k := hitKey{id, h}
+		c := s.hits[k]
+		if c == nil {
+			c = &hitCount{}
+			s.hits[k] = c
+		}
+		c.Matched++
+	}
+}
+
 func (s *stats) hit(q *req, r *Rule, watch bool) {
 	now := time.Now()
 	s.mu.Lock()
@@ -260,6 +280,7 @@ func (s *stats) putBack(p pending) {
 		if x := s.hits[k]; x != nil {
 			x.Hits += c.Hits
 			x.Watched += c.Watched
+			x.Matched += c.Matched
 		} else {
 			s.hits[k] = c
 		}

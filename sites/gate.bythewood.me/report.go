@@ -185,12 +185,23 @@ func (d Day) Refused() int { return d.Blocked + d.Banned + d.Limited }
 type RuleUse struct {
 	Rule
 	Hits, Watched  int
+	Matched        int // enforcing matches, Hits plus the ones a rule before it took
 	ByHour         Series
 	WatchedByHour  Series
 	Last           time.Time
 	Order          int // where it runs, from 1, 0 for a rule that can't run
 	ShadowBy       string
 	People, Solved int
+}
+
+// Taken is the share of a rule's matches a rule before it decided, as a
+// whole percent, or -1 when there's nothing to say. Hours from before matches
+// were counted have none, so Matched can trail Hits.
+func (u RuleUse) Taken() int {
+	if u.Matched == 0 || u.Matched <= u.Hits || u.Action == actAllow {
+		return -1
+	}
+	return 100 * (u.Matched - u.Hits) / u.Matched
 }
 
 // SolveRate is the challenge rules' solved answers over people challenged.
@@ -209,15 +220,15 @@ func (s *Store) RuleUses(rules []Rule, window time.Duration, now time.Time) []Ru
 		out[i] = RuleUse{Rule: r, ByHour: make(Series, n), WatchedByHour: make(Series, n)}
 		by[r.ID] = &out[i]
 	}
-	rows, err := s.db.Query(`SELECT rule, hour, hits, watched FROM hits WHERE hour > ?`, hourOf(now)-int64(n)*3600)
+	rows, err := s.db.Query(`SELECT rule, hour, hits, watched, matched FROM hits WHERE hour > ?`, hourOf(now)-int64(n)*3600)
 	if err != nil {
 		return out
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var id, hour int64
-		var h, w int
-		if rows.Scan(&id, &hour, &h, &w) != nil {
+		var h, w, m int
+		if rows.Scan(&id, &hour, &h, &w, &m) != nil {
 			continue
 		}
 		u := by[id]
@@ -227,6 +238,7 @@ func (s *Store) RuleUses(rules []Rule, window time.Duration, now time.Time) []Ru
 		}
 		u.Hits += h
 		u.Watched += w
+		u.Matched += m
 		u.ByHour[i] += float64(h + w)
 		u.WatchedByHour[i] += float64(w)
 		if t := time.Unix(hour, 0); t.After(u.Last) && h+w > 0 {

@@ -274,6 +274,8 @@ func (e *engine) decide(q *req, r *http.Request) verdict {
 	}
 
 	var out verdict
+	var matched []int64
+	defer func() { e.stats.matched(matched, now) }()
 	solved := false
 	for _, rule := range *e.rules.Load() {
 		if rule.Expired(now) || !rule.match(q) {
@@ -283,6 +285,15 @@ func (e *engine) decide(q *req, r *http.Request) verdict {
 		if watching {
 			e.stats.hit(q, rule, true)
 			continue
+		}
+		// A limit only counts as matched when it would refuse, and a challenge
+		// already solved doesn't count at all.
+		if rule.Action == actChallenge && e.passed(r, q) {
+			solved = true
+			continue
+		}
+		if rule.Action != actLimit {
+			matched = append(matched, rule.ID)
 		}
 		if out.kind != "" {
 			continue
@@ -295,13 +306,10 @@ func (e *engine) decide(q *req, r *http.Request) verdict {
 			out = verdict{kind: vBlock, rule: rule, quiet: rule.Quiet}
 		case actLimit:
 			if e.over(rule, q.IP, now) {
+				matched = append(matched, rule.ID)
 				out = verdict{kind: vLimit, rule: rule, quiet: rule.Quiet}
 			}
 		case actChallenge:
-			if e.passed(r, q) {
-				solved = true
-				continue
-			}
 			out = verdict{kind: vChallenge, rule: rule}
 		}
 	}
@@ -312,7 +320,9 @@ func (e *engine) decide(q *req, r *http.Request) verdict {
 		return verdict{kind: vPass}
 	}
 	out = e.unlessSignedIn(r, out)
-	if out.kind != vExempt {
+	if out.kind == vExempt {
+		matched = nil
+	} else {
 		e.stats.hit(q, out.rule, false)
 		if out.rule != nil && out.rule.BanAfter > 0 {
 			e.maybeBan(out.rule, q.IP, now)

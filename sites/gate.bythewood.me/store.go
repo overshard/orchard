@@ -134,6 +134,7 @@ var added = [][3]string{
 	{"events", "also", "TEXT NOT NULL DEFAULT ''"},
 	{"changes", "before", "TEXT NOT NULL DEFAULT ''"},
 	{"changes", "after", "TEXT NOT NULL DEFAULT ''"},
+	{"hits", "matched", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func addColumn(db *sql.DB, table, col, def string) error {
@@ -369,8 +370,9 @@ func (s *Store) Flush(p pending) error {
 		}
 	}
 	for k, c := range p.hits {
-		if _, err := tx.Exec(`INSERT INTO hits (rule, hour, hits, watched) VALUES (?, ?, ?, ?)
-			ON CONFLICT DO UPDATE SET hits = hits + excluded.hits, watched = watched + excluded.watched`, k.Rule, k.Hour, c.Hits, c.Watched); err != nil {
+		if _, err := tx.Exec(`INSERT INTO hits (rule, hour, hits, watched, matched) VALUES (?, ?, ?, ?, ?)
+			ON CONFLICT DO UPDATE SET hits = hits + excluded.hits, watched = watched + excluded.watched, matched = matched + excluded.matched`,
+			k.Rule, k.Hour, c.Hits, c.Watched, c.Matched); err != nil {
 			return err
 		}
 	}

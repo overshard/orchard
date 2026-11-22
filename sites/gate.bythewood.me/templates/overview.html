@@ -139,21 +139,22 @@
 {{define "ruletable"}}
 <div class="o-scroll">
 <table class="o-tbl stack rules" data-keys>
-  <thead><tr><th class="r">#</th><th>Rule</th><th>Then</th><th class="r">Hits</th><th>Trend</th><th class="r">Last</th><th class="r">Solve</th></tr></thead>
+  <thead><tr><th class="r">#</th><th>Rule</th><th>Then</th><th class="r" data-tip="requests this rule refused or challenged">Decided</th><th class="r" data-tip="every request it matched while enforcing, including ones a rule before it took">Matched</th><th>Trend</th><th class="r">Last</th><th class="r">Solve</th></tr></thead>
   <tbody>
   {{range .Rules}}
     <tr data-href="/rules/{{.ID}}" class="{{if .Pending}}wait{{else if .Watching}}off{{end}}">
       <td class="r n o-muted">{{if .Order}}{{.Order}}{{else}}&ndash;{{end}}</td>
-      <td class="lead"><a class="o-mono" href="/rules/{{.ID}}">{{.Name}}</a>{{if .ShadowBy}} <span class="o-chip" data-tip="Every request it matched in the last hour was taken first by {{.ShadowBy}}">shadowed by {{.ShadowBy}}</span>{{end}}{{if eq .Author "claude"}} <span class="o-chip brass">claude</span>{{end}}
+      <td class="lead"><a class="o-mono" href="/rules/{{.ID}}">{{.Name}}</a>{{$taken := .Taken}}{{if and (eq .Hits 0) (gt .Matched 0)}} <span class="o-chip bad" data-tip="Every request it matched was decided by a rule before it">redundant, all taken by {{or .ShadowBy "earlier rules"}}</span>{{else if ge $taken 50}} <span class="o-chip" data-tip="Share of its matches a rule before it decided">{{$taken}}% taken by {{or .ShadowBy "earlier rules"}}</span>{{else if and .ShadowBy (lt $taken 0)}} <span class="o-chip" data-tip="Every request it matched in the last hour was taken first by {{.ShadowBy}}">shadowed by {{.ShadowBy}}</span>{{end}}{{if eq .Author "claude"}} <span class="o-chip brass">claude</span>{{end}}
         <span class="sub clip mono" data-tip="{{.When}}">{{oneLine .When}}</span></td>
       <td class="nw" data-l="then">{{if .Watching}}<span class="o-chip">watch</span> {{end}}<span class="o-chip {{actionKind .Action}}">{{.Then}}</span></td>
-      <td class="r n" data-l="hits">{{comma .Hits}}{{if .Watched}}<span class="sub">{{comma .Watched}} would</span>{{end}}</td>
+      <td class="r n" data-l="decided">{{comma .Hits}}{{if .Watched}}<span class="sub">{{comma .Watched}} would</span>{{end}}</td>
+      <td class="r n o-muted" data-l="matched">{{if .Watching}}&ndash;{{else}}{{comma .Matched}}{{end}}</td>
       <td class="o-cell-spark">{{spark (sparkKind .Action) .ByHour}}</td>
       <td class="r n o-muted" data-l="last">{{if .Last.IsZero}}&ndash;{{else}}{{ago .Last}}{{end}}</td>
       <td class="r n" data-l="solve">{{.SolveRate}}</td>
     </tr>
   {{else}}
-    <tr><td colspan="7"><p class="o-empty"><b>No rules.</b><a href="/rules/new">Write the first one</a>, every request passes until then.</p></td></tr>
+    <tr><td colspan="8"><p class="o-empty"><b>No rules.</b><a href="/rules/new">Write the first one</a>, every request passes until then.</p></td></tr>
   {{end}}
   </tbody>
 </table>
