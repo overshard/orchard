@@ -112,3 +112,22 @@ article {
     text-align: center;
   }
 }
+
+// The byline under a post's title, wrapping onto a second line on a phone
+// rather than hiding the PDF and Markdown links.
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(221, 215, 205, 0.07);
+  font-size: 0.85rem;
+  color: #a09890;
+
+  .post-meta-author {
+    color: #ddd7cd;
+    font-weight: 600;
+  }
+}
