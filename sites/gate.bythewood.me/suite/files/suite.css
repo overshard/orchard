@@ -163,6 +163,8 @@
 .o-body .o-tabs a:hover, .o-body .o-tabs a.on { color: var(--o-text); }
 .o-tabs a.on::before { content: "["; color: var(--o-muted); }
 .o-tabs a.on::after { content: "]"; color: var(--o-muted); }
+/* Both rows scroll sideways, which clips anything drawn outside a tab. */
+.o-body :is(.o-tools, .o-tabs) a:focus-visible { outline-offset: -2px; }
 .o-meta { font: 0.7rem var(--o-mono); color: var(--o-muted); white-space: nowrap; }
 
 .o-status {
