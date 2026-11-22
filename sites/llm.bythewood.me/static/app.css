@@ -10,12 +10,13 @@
 .calls td.clip { max-width: 30rem; }
 .calls tr[id] { scroll-margin-top: 16px; }
 
-/* The token mix colours, the same in the bars, the swatches and a call's drawer. */
-.mix.out, .sw.out { background: var(--o-brass); }
-.mix.in, .sw.in { background: #7d93ad; }
-.mix.search, .sw.search { background: var(--o-warn); }
-.mix.read, .sw.read { background: var(--o-ok); }
-.mix.write, .sw.write { background: #b49bd6; }
+/* The token mix on the chart series palette, the same in the bars, the
+   swatches and a call's drawer. Cache writes are the fifth, so they take other. */
+.mix.out, .sw.out { background: #57b378; }
+.mix.in, .sw.in { background: #63a9c9; }
+.mix.read, .sw.read { background: #d8a83e; }
+.mix.search, .sw.search { background: #dc6a4b; }
+.mix.write, .sw.write { background: #7d7469; }
 .o-hbar .bar i.mix { opacity: 0.85; }
 .o-hbar .bar i.brass { background: var(--o-brass); }
 .sw { display: inline-block; width: 8px; height: 8px; margin-right: 6px; vertical-align: 1px; }
@@ -47,8 +48,8 @@
 .wf > span:nth-child(3n) { text-align: right; }
 .wf .tr { position: relative; height: 8px; background: var(--o-panel2); }
 .wf .tr i { position: absolute; top: 0; bottom: 0; }
-.wf i.first { background: var(--o-warn); }
-.wf i.gen { background: #7d93ad; }
+.wf i.first { background: #d8a83e; }
+.wf i.gen { background: #63a9c9; }
 .wf i.bad { background: var(--o-bad); }
 .drwacts { display: flex; flex-wrap: wrap; gap: 6px; }
 .drw .prose { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 22rem; overflow: auto; font-size: 0.82rem; line-height: 1.5; }
