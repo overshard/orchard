@@ -132,10 +132,13 @@ Clear-DnsClientCache</pre>{{end}}
       <ol class="steps">
         <li>Put this in <code>/etc/systemd/resolved.conf</code>.</li>
         <li>Run <code>sudo systemctl restart systemd-resolved</code>.</li>
+        <li>Check <code>resolvectl status</code> shows only this server, with <code>+DNSOverTLS</code>.</li>
       </ol>
       <pre class="o-code">[Resolve]
 DNS={{$p.BoxIP}}#{{$p.DoT}}
-DNSOverTLS=yes</pre>
+DNSOverTLS=yes
+Domains=~.</pre>
+      <p class="small o-muted"><code>Domains=~.</code> sends every name here, so the network's own DNS from DHCP is never asked. A browser on it can then use the check above to see it lands under this device.</p>
     </div>
 {{end}}
 {{end}}
