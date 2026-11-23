@@ -34,6 +34,7 @@ type watcher struct {
 	// signupsOff switches signups off once a new account appears. Nil in tests
 	// that don't care.
 	signupsOff func(context.Context) (bool, error)
+	net        *netLookup
 
 	mu       sync.Mutex
 	since    time.Time
@@ -101,10 +102,15 @@ func (w *watcher) scan(ctx context.Context, now time.Time) {
 			slog.Info("pass signed in", attrs...)
 			continue
 		}
+		from := orDash(e.IP)
+		if where := w.net.where(ctx, e.IP).String(); where != "" {
+			from += " (" + where + ")"
+			attrs = append(attrs, slog.String("network", where))
+		}
 		slog.Warn("pass "+eventWord(e.Type), attrs...)
 		w.send(ctx, ntfy.Message{
 			Title:    "pass: " + eventWord(e.Type),
-			Body:     fmt.Sprintf("%s from %s at %s UTC", deviceKind(e.Device), orDash(e.IP), e.At.Format("15:04")),
+			Body:     fmt.Sprintf("%s from %s at %s UTC", deviceKind(e.Device), from, e.At.Format("15:04")),
 			Priority: priorityFor(e.Type),
 			Tags:     "lock",
 			Link:     baseURL + "/logins",

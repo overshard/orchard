@@ -44,7 +44,7 @@ type site struct {
 	watch *watcher
 	auth  *web.Authenticator
 	admin *admin
-	off   offGuard
+	net   *netLookup
 }
 
 func env(k, def string) string {
@@ -117,7 +117,9 @@ func newSite(vault *Vault, auth *web.Authenticator, push pusher) (*site, error) 
 	if tpl, err = suite.Parse(tpl); err != nil {
 		return nil, err
 	}
-	return &site{tpl: tpl, vault: vault, auth: auth, watch: newWatcher(vault, push), admin: newAdmin(vaultURL, "", vault.path)}, nil
+	s := &site{tpl: tpl, vault: vault, auth: auth, watch: newWatcher(vault, push), admin: newAdmin(vaultURL, "", vault.path), net: newNetLookup(gateCheckURL)}
+	s.watch.net = s.net
+	return s, nil
 }
 
 func (s *site) handler() http.Handler {

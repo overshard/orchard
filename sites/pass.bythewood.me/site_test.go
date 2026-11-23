@@ -113,6 +113,13 @@ func testSite(t *testing.T, f *fixture) (*site, *fakePush) {
 		_, _ = w.Write([]byte(`{"ok":false}`))
 	}))
 	t.Cleanup(verify.Close)
+	gate := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Gate-Ip") == "203.0.113.48" {
+			w.Header().Set("Gate-Org", "Example Hosting, LLC")
+			w.Header().Set("Gate-Country", "NL")
+		}
+	}))
+	t.Cleanup(gate.Close)
 	v, err := OpenVault(f.path)
 	if err != nil {
 		t.Fatal(err)
@@ -123,6 +130,8 @@ func testSite(t *testing.T, f *fixture) (*site, *fakePush) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	s.net = newNetLookup(gate.URL)
+	s.watch.net = s.net
 	return s, push
 }
 
@@ -151,7 +160,7 @@ func TestPages(t *testing.T) {
 	}{
 		{"/", false, 200, "Every password"},
 		{"/", true, 200, "Two devices"},
-		{"/logins", true, 200, "203.0.113.48"},
+		{"/logins", true, 200, "Example Hosting, NL"},
 		{"/logins?show=failed&range=7d", true, 200, "wrong two step code"},
 		{"/devices", true, 200, "Pixel 9"},
 		{"/account", true, 200, "data:image/png;base64,"},

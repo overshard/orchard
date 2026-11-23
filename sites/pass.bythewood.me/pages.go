@@ -152,6 +152,17 @@ func addrs(evs []Event) []Addr {
 	return out
 }
 
+func ipsOf(evs []Event, as []Addr) []string {
+	var out []string
+	for _, e := range evs {
+		out = append(out, e.IP)
+	}
+	for _, a := range as {
+		out = append(out, a.IP)
+	}
+	return out
+}
+
 // maxes is the largest total and the largest failure count, so an address
 // that only failed is drawn against other failures and not against home.
 func maxes(as []Addr) (int, int) {
@@ -237,7 +248,8 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		as = as[:6]
 	}
 	maxAddr, maxFail := maxes(as)
-	s.render(w, 200, "overview.html", map[string]any{
+	where := s.net.places(r.Context(), ipsOf(recent, as))
+	s.render(w, 200, "overview.html", map[string]any{"Where": where,
 		"Suite": page, "Health": h, "Server": srv, "Signups": s.admin.Signups(),
 		"Hold": hold, "NoVault": herr != nil, "VaultErr": errText(herr),
 		"Logins": logins, "Failed": failed, "Active": active, "Ticks": ticks, "Devices": devices, "Shown": shown,
@@ -341,6 +353,11 @@ func (s *site) loginsPage(w http.ResponseWriter, r *http.Request) {
 			onlyFailed++
 		}
 	}
+	shownAddrs := as
+	if len(shownAddrs) > 12 {
+		shownAddrs = shownAddrs[:12]
+	}
+	where := s.net.places(r.Context(), ipsOf(rows, shownAddrs))
 	why := []Row{{"wrong password", wrongPass, "", "bad"}, {"wrong two step code", wrongCode, "", "bad"}}
 	var tabs []suite.Tab
 	for _, k := range []string{"24h", "7d", "30d", "90d"} {
@@ -362,9 +379,9 @@ func (s *site) loginsPage(w http.ResponseWriter, r *http.Request) {
 		days = keepDays
 	}
 	s.render(w, 200, "logins.html", map[string]any{
-		"Suite": page, "Range": rng, "Show": show, "IP": ip, "Ranges": tabs, "Shows": shows, "NoVault": err != nil,
+		"Suite": page, "Where": where, "Range": rng, "Show": show, "IP": ip, "Ranges": tabs, "Shows": shows, "NoVault": err != nil,
 		"Rows": rows, "Total": total, "OK": ok, "Failed": failed, "Account": account,
-		"Addrs": as, "MaxAddr": maxAddr, "MaxFail": maxFail, "OnlyFailed": onlyFailed, "Why": why, "MaxWhy": max(wrongPass, wrongCode, 1),
+		"Addrs": shownAddrs, "AllAddrs": len(as), "MaxAddr": maxAddr, "MaxFail": maxFail, "OnlyFailed": onlyFailed, "Why": why, "MaxWhy": max(wrongPass, wrongCode, 1),
 		"Days": dayStrip(evs, now, min(days, 30)),
 	})
 }

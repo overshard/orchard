@@ -17,7 +17,7 @@
       <span class="o-seg links">{{range .Shows}}<a href="{{.Href}}"{{if .On}} class="on" aria-current="true"{{end}}>{{.Name}}</a>{{end}}</span>
       {{with .IP}}<a class="o-chip" href="/logins?range={{$.Range}}&amp;show={{$.Show}}" data-tip="Show every address">{{.}} &times;</a>{{end}}
     </div>
-    {{template "evrows" .Rows}}
+    {{template "evrows" (dict "Rows" .Rows "Where" .Where)}}
     <p class="o-foot pad">{{if gt .Total (len .Rows)}}newest {{len .Rows}} of {{comma .Total}}{{else}}{{.Total}} {{if eq .Total 1}}event{{else}}events{{end}}{{end}} &middot; a token refresh isn't a sign in, so the apps' daily use only shows on devices</p>
   </section>
   <div class="side">
@@ -28,7 +28,8 @@
     </section>
     <section class="o-panel">
       <div class="o-ph2"><h2>Addresses</h2><span class="o-pm"><span>tries</span><span>{{.Range}}</span></span></div>
-      {{template "addrbars" (dict "Addrs" .Addrs "Max" .MaxAddr "Fails" .MaxFail)}}
+      {{template "addrbars" (dict "Addrs" .Addrs "Max" .MaxAddr "Fails" .MaxFail "Where" .Where)}}
+      {{if gt .AllAddrs (len .Addrs)}}<p class="o-foot">{{len .Addrs}} of {{.AllAddrs}}, failures first</p>{{end}}
     </section>
     <section class="o-panel">
       <div class="o-ph2"><h2>Why it failed</h2><span class="o-pm"><span>{{.Range}}</span></span></div>

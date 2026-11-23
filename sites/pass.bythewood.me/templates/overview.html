@@ -70,7 +70,7 @@
 <div class="o-band b2r">
   <section class="o-panel flush">
     <div class="o-ph2"><h2>Sign ins</h2><span class="o-pm"><span>30 days</span><span>newest first</span></span></div>
-    {{template "evrows" .Recent}}
+    {{template "evrows" (dict "Rows" .Recent "Where" .Where)}}
     <div class="o-more"><a href="/logins">Every sign in &rarr;</a></div>
   </section>
   <div class="side">
@@ -82,7 +82,7 @@
     </section>
     <section class="o-panel">
       <div class="o-ph2"><h2>Addresses</h2><span class="o-pm"><span>sign ins</span><span>30d</span></span></div>
-      {{template "addrbars" (dict "Addrs" .Addrs "Max" .MaxAddr "Fails" .MaxFail)}}
+      {{template "addrbars" (dict "Addrs" .Addrs "Max" .MaxAddr "Fails" .MaxFail "Where" .Where)}}
     </section>
   </div>
 </div>

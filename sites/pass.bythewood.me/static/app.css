@@ -38,3 +38,4 @@
 .o-hbar .k a { color: inherit; }
 .o-in.code { max-width: 12ch; }
 .as-is { text-transform: none; }
+.o-tbl td .sub { display: block; color: var(--o-muted); font-size: 0.7rem; margin-top: 2px; }
