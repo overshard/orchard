@@ -257,3 +257,23 @@ func TestSecurityVerdict(t *testing.T) {
 		t.Errorf("say = %q", v.Say)
 	}
 }
+
+func TestSemverVerdict(t *testing.T) {
+	cases := []struct {
+		have, fixed, state string
+		ok                 bool
+	}{
+		{"1.37.5", "1.37.4", "patched", true},
+		{"1.37.4", ">= 1.37.4", "patched", true},
+		{"1.37.3", "1.37.4", "open", true},
+		{"1.38.0", "1.37.10", "patched", true},
+		{"", "1.37.4", "", false},
+		{"1.37.5", "", "", false},
+	}
+	for _, c := range cases {
+		v, ok := semverVerdict(c.have, c.fixed)
+		if ok != c.ok || v.State != c.state {
+			t.Errorf("%q against %q: %v %q, want %v %q", c.have, c.fixed, ok, v.State, c.ok, c.state)
+		}
+	}
+}

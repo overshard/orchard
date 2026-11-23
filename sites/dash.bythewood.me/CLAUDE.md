@@ -327,7 +327,9 @@ An exploited CVE in a Debian package goes to the tracker page for that CVE, and
 the trixie fixed version is compared to the installed one with dpkg's ordering.
 Debian marking it `unimportant` reads NOT AFFECTED, which is how the musl only
 OpenSSH bypass shows. Anything dash can't see the version of reads CHECK when
-exploited and FIXED when it's only high or critical.
+exploited and FIXED when it's only high or critical. A repo watch with a
+running URL, Vaultwarden's, asks that container its version over the bridge and
+reads PATCHED or UPDATE the same signed in way.
 
 **INCIDENTS reads Statuspage's unresolved endpoint** for OVH, Cloudflare,
 Anthropic and GitHub. OVH has a Statuspage per product line, public cloud and

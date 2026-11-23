@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -132,18 +135,20 @@ var osvWatchlist = []osvWatch{
 }
 
 // Projects whose advisories are only on their own GitHub repository, read from
-// the repository advisories API, which answers without a token.
-var repoWatchlist = []struct{ label, repo string }{
-	{"BUN", "oven-sh/bun"},
-	{"AEGIS", "beemdevelopment/Aegis"},
-	{"UBLOCK ORIGIN", "gorhill/uBlock"},
-	{"BITWARDEN", "bitwarden/clients"},
-	{"CADDY", "caddyserver/caddy"},
-	{"CLOUDFLARED", "cloudflare/cloudflared"},
-	{"NTFY", "binwiederhier/ntfy"},
-	{"RESTIC", "restic/restic"},
-	{"TAILSCALE", "tailscale/tailscale"},
-	{"MULLVAD", "mullvad/mullvadvpn-app"},
+// the repository advisories API, which answers without a token. A running URL
+// is a container on the bridge that says its version, so a row can read PATCHED.
+var repoWatchlist = []struct{ label, repo, running string }{
+	{"BUN", "oven-sh/bun", ""},
+	{"AEGIS", "beemdevelopment/Aegis", ""},
+	{"UBLOCK ORIGIN", "gorhill/uBlock", ""},
+	{"BITWARDEN", "bitwarden/clients", ""},
+	{"VAULTWARDEN", "dani-garcia/vaultwarden", "http://orchard-pass-vw:8000/api/version"},
+	{"CADDY", "caddyserver/caddy", ""},
+	{"CLOUDFLARED", "cloudflare/cloudflared", ""},
+	{"NTFY", "binwiederhier/ntfy", ""},
+	{"RESTIC", "restic/restic", ""},
+	{"TAILSCALE", "tailscale/tailscale", ""},
+	{"MULLVAD", "mullvad/mullvadvpn-app", ""},
 }
 
 // Advisory is one row. State is open (the version here is affected), check
@@ -247,11 +252,17 @@ func fetchAdvisories(ctx context.Context, g *Guard, prev Advisories, now time.Ti
 		out.Host.Extra = finishRows(extra, now)
 	}
 
-	repo, err := repoAdvisories(ctx, g, now)
+	repo, err := repoAdvisories(ctx, g, out.Host.Verdicts, now)
 	if err != nil {
 		pollFailed(ctx, "repo advisories", "security", err)
 		out.Partial = true
-		rows = append(rows, keepSource(prev.Rows, "GHSA")...)
+		kept := keepSource(prev.Rows, "GHSA")
+		for _, r := range kept {
+			if v, ok := prev.Host.Verdicts[r.ID]; ok {
+				out.Host.Verdicts[r.ID] = v
+			}
+		}
+		rows = append(rows, kept...)
 	} else {
 		rows = append(rows, repo...)
 	}
@@ -697,10 +708,14 @@ type repoAdvisory struct {
 	} `json:"vulnerabilities"`
 }
 
-func repoAdvisories(ctx context.Context, g *Guard, now time.Time) ([]Advisory, error) {
+func repoAdvisories(ctx context.Context, g *Guard, verdicts map[string]Verdict, now time.Time) ([]Advisory, error) {
 	var rows []Advisory
 	var firstErr error
 	for _, w := range repoWatchlist {
+		have := ""
+		if w.running != "" {
+			have = runningVersion(ctx, w.running)
+		}
 		var list []repoAdvisory
 		if err := getJSONHeaders(ctx, g, "github", fmt.Sprintf(ghRepoURL, w.repo), politeAgent, &list); err != nil {
 			firstErr = cmpErr(firstErr, err)
@@ -715,10 +730,64 @@ func repoAdvisories(ctx context.Context, g *Guard, now time.Time) ([]Advisory, e
 			for _, v := range a.Vulns {
 				fixed = cmpOr(fixed, v.Patched)
 			}
-			rows = append(rows, fixedRow(w.label, cmpOr(a.CVE, a.GHSA), a.GHSA, a.Summary, a.Severity, fixed, "GHSA", a.URL, at))
+			r := fixedRow(w.label, cmpOr(a.CVE, a.GHSA), a.GHSA, a.Summary, a.Severity, fixed, "GHSA", a.URL, at)
+			if v, ok := semverVerdict(have, fixed); ok {
+				verdicts[r.ID] = v
+			}
+			rows = append(rows, r)
 		}
 	}
 	return rows, firstErr
+}
+
+var bridgeClient = &http.Client{Timeout: 5 * time.Second}
+
+// runningVersion asks a container on the bridge for its version, which answers
+// as a JSON string. Anything else reads as unknown.
+func runningVersion(ctx context.Context, url string) string {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return ""
+	}
+	resp, err := bridgeClient.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	var v string
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&v) != nil {
+		return ""
+	}
+	return strings.TrimPrefix(strings.TrimSpace(v), "v")
+}
+
+// semverVerdict compares a running x.y.z with the first version in a GitHub
+// patched_versions string, which can carry an operator like ">= 1.37.4".
+func semverVerdict(have, fixed string) (Verdict, bool) {
+	want := strings.TrimSpace(strings.TrimLeft(strings.SplitN(fixed, ",", 2)[0], "<>=~^ v"))
+	hv, wv := semverParts(have), semverParts(want)
+	if hv == nil || wv == nil {
+		return Verdict{}, false
+	}
+	if slices.Compare(hv, wv) >= 0 {
+		return Verdict{State: "patched", Status: "PATCHED", Note: "RUNNING " + have}, true
+	}
+	return Verdict{State: "open", Status: "UPDATE", Note: "RUNNING " + have}, true
+}
+
+func semverParts(v string) []int {
+	if v == "" {
+		return nil
+	}
+	var out []int
+	for _, p := range strings.Split(v, ".") {
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			return nil
+		}
+		out = append(out, n)
+	}
+	return out
 }
 
 type mfsaFile struct {
