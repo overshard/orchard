@@ -9,7 +9,8 @@ encrypted on each device, so neither of them ever sees a password.
 
 Go for the page and Docker for Vaultwarden. Vaultwarden comes out of its
 upstream image by digest and runs on `debian:trixie-slim` like everything else
-here. `.env` holds the ntfy and logging tokens and `PASS_SIGNUPS`.
+here. `.env` holds the ntfy and logging tokens and the admin token with its
+hash, see `.env.example`.
 
 ## Running it
 
@@ -21,18 +22,21 @@ make build    release binary into ../../bin/pass.bythewood.me
 From the repo root `make deploy SITE=pass.bythewood.me` builds both images and
 replaces `orchard-pass` and `orchard-pass-vw`.
 
-To make the account, set `PASS_SIGNUPS=true` in `.env`, deploy, sign up from a
-Bitwarden app with `https://pass.bythewood.me` as the self-hosted server, then set
-it back to `false` and deploy again. The page warns while it's on.
+To make the account, switch signups on from the account page, sign up from a
+Bitwarden app with `https://pass.bythewood.me` as the self-hosted server, then
+switch them off. Two step login is set up on the same page with a QR code for
+Aegis or any authenticator app.
 
 To update Vaultwarden, change the tag and digest on the `upstream` stage in the
 `Dockerfile` and deploy. The page pushes when a new release is out.
 
 ## Layout
 
-`vault.go` reads Vaultwarden's database, `watch.go` turns its event log and
+`vault.go` reads Vaultwarden's database and writes the authenticator setting,
+`admin.go` switches signups and signs devices out through Vaultwarden's admin
+API over the bridge, `totp.go` is the authenticator codes, `watch.go` turns its event log and
 device list into log records and pushes and checks the release, and `pages.go`
-is the overview, logins and devices. `suite/`, `ntfy/` and `web/` are this
+is the overview, logins and devices, with the account page in `account.go`. `suite/`, `ntfy/` and `web/` are this
 site's copies of the shared packages. Caddy sends `/api`, `/identity`, `/icons`,
 `/notifications`, `/events`, `/attachments` and `/alive` to Vaultwarden and the
 rest here.
@@ -43,10 +47,12 @@ rest here.
   a wrong email isn't recorded at all, since there's no account to put it on.
 - A token refresh isn't a sign in, so the apps' everyday use shows as a
   device's last active time and never as an event.
-- The volume is mounted writable into the page because SQLite needs the `-shm`
-  file to read a WAL database. The page opens it read only.
-- There's no admin page and no web vault. Signing a device out is done from a
-  Bitwarden app, and changing the master password signs out every device.
+- There's no web vault, which is where the apps send you for two step login.
+  The account page does it instead, writing the same row Vaultwarden's own API
+  writes.
+- Caddy never routes `/admin`, so the admin API is only reachable over the
+  bridge. Signups switched there are saved in `config.json` in the volume,
+  which wins over `SIGNUPS_ALLOWED` in compose.
 - The nightly dump copies `orchard-pass-data` like every other volume, which
   is the database, `rsa_key.pem` and attachments. Losing the key only signs
   every device out.

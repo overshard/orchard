@@ -43,9 +43,7 @@ type site struct {
 	vault *Vault
 	watch *watcher
 	auth  *web.Authenticator
-	// signups mirrors Vaultwarden's own setting, which it doesn't report.
-	signups  bool
-	webVault bool
+	admin *admin
 }
 
 func env(k, def string) string {
@@ -76,7 +74,8 @@ func main() {
 	shipper := web.ShipLogs(selfSource, web.HTTPSink())
 	defer shipper.Close()
 
-	vault, err := OpenVault(env("PASS_VAULT", "data/db.sqlite3"))
+	vaultPath := env("PASS_VAULT", "data/db.sqlite3")
+	vault, err := OpenVault(vaultPath)
 	if err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
 		os.Exit(1)
@@ -95,8 +94,10 @@ func main() {
 		slog.Error("startup failed", slog.Any("err", err))
 		os.Exit(1)
 	}
-	s.signups = os.Getenv("PASS_SIGNUPS") == "true"
-	s.webVault = os.Getenv("PASS_WEB_VAULT") == "true"
+	s.admin = newAdmin(vaultURL, os.Getenv("PASS_ADMIN_TOKEN"), vaultPath)
+	if !s.admin.Configured() {
+		slog.Warn("PASS_ADMIN_TOKEN is unset, so signups can't be switched from the account page")
+	}
 	go s.watch.run()
 
 	slog.Info(fmt.Sprintf("%s serving %s", selfSource, baseURL))
@@ -114,7 +115,7 @@ func newSite(vault *Vault, auth *web.Authenticator, push pusher) (*site, error) 
 	if tpl, err = suite.Parse(tpl); err != nil {
 		return nil, err
 	}
-	return &site{tpl: tpl, vault: vault, auth: auth, watch: newWatcher(vault, push)}, nil
+	return &site{tpl: tpl, vault: vault, auth: auth, watch: newWatcher(vault, push), admin: newAdmin(vaultURL, "", vault.path)}, nil
 }
 
 func (s *site) handler() http.Handler {
@@ -122,6 +123,11 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("GET /logins", s.auth.RequireAuth(s.loginsPage))
 	mux.HandleFunc("GET /devices", s.auth.RequireAuth(s.devicesPage))
+	mux.HandleFunc("GET /account", s.auth.RequireAuth(s.accountPage))
+	mux.HandleFunc("POST /account/signups", s.auth.RequireAuth(s.setSignups))
+	mux.HandleFunc("POST /account/totp", s.auth.RequireAuth(s.enableTOTP))
+	mux.HandleFunc("POST /account/totp/off", s.auth.RequireAuth(s.disableTOTP))
+	mux.HandleFunc("POST /account/signout", s.auth.RequireAuth(s.signOutEverywhere))
 	mux.Handle("GET /static/", static())
 	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
 	mux.Handle("GET /favicon.svg", suite.Favicon("pass"))

@@ -1,0 +1,77 @@
+{{define "account.html"}}{{template "head" (dict "Title" "Account" "Suite" .Suite)}}
+{{with .Done}}<span data-toast="{{.}}" hidden></span>{{end}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">pass &middot; account</span>
+    <h1>{{if .NoAccount}}No account yet, <em class="{{if .Signups}}warn{{end}}">signups {{if .Signups}}on{{else}}off{{end}}</em>.{{else if .Account.TOTP}}Two step login <em>on</em>, signups {{if .Signups}}<em class="warn">on</em>{{else}}off{{end}}.{{else}}Two step login <em class="warn">off</em>.{{end}}</h1>
+    {{if not .NoAccount}}<div class="o-pm"><span>account<b>{{.Account.Email}}</b></span><span>since<b>{{day .Account.Created}}</b></span></div>{{end}}
+  </div>
+</div>
+
+{{if .NoVault}}{{template "novault"}}{{end}}
+{{with .Problem}}<div class="o-note bad"><span class="o-lab plain">not saved</span><span>{{.}}</span></div>{{end}}
+
+{{if .Recovery}}
+<div class="o-note brass"><span class="o-lab plain">saved</span><span>Two step login is on. Every app asks for a code the next time it signs in, and the ones signed in now stay signed in.</span></div>
+<section class="o-panel recover">
+  <div class="o-ph2"><h2>Recovery code</h2><span class="o-pm"><span>shown once</span></span></div>
+  <p class="o-muted small">If the phone with the authenticator is ever lost, this with the master password gets back in and turns two step login off. Keep it somewhere that isn't this server, like a printout.</p>
+  <pre class="o-code big">{{.Recovery}}</pre>
+</section>
+{{end}}
+
+<div class="o-band b2">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Two step login</h2><span class="o-pm"><span>authenticator app</span></span></div>
+    {{if .NoAccount}}
+      <p class="o-empty"><b>No account yet.</b>Turn signups on, make the account from a Bitwarden app, then come back here to set this up.</p>
+    {{else if .Account.TOTP}}
+      <p class="small">On. Signing in from a new app asks for the six digit code from the authenticator.</p>
+      <form method="post" action="/account/totp/off" class="o-form one">
+        <label class="o-field"><span>A current code, to turn it off</span><input class="o-in" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required></label>
+        <div class="o-formbar"><button class="o-btn o-btn-sm o-btn-bad" type="submit">Turn two step login off</button></div>
+      </form>
+    {{else if not .Recovery}}
+      <div class="totp">
+        {{with .QR}}<img src="{{.}}" width="196" height="196" alt="Setup code for an authenticator app">{{end}}
+        <div>
+          <ol class="steps">
+            <li>In Aegis or any authenticator app, scan this code.</li>
+            <li>Or type the key in by hand, time based, SHA1, six digits:<br><code class="key">{{.Spaced}}</code></li>
+            <li>Enter the code it shows to turn it on.</li>
+          </ol>
+          <form method="post" action="/account/totp" class="o-form one">
+            <input type="hidden" name="secret" value="{{.Secret}}">
+            <label class="o-field"><span>Code from the app</span><input class="o-in" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required autofocus></label>
+            <div class="o-formbar"><button class="o-btn o-btn-p o-btn-sm" type="submit">Turn two step login on</button></div>
+          </form>
+        </div>
+      </div>
+    {{end}}
+  </section>
+
+  <div class="side">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Signups</h2><span class="o-pm"><span>now<b class="{{if .Signups}}warn{{else}}ok{{end}}">{{if .Signups}}on{{else}}off{{end}}</b></span></span></div>
+      <p class="o-muted small">Only on long enough to make an account from a Bitwarden app. While it's on anyone who finds this server can make one, so it pushes to the phone when it's switched on.</p>
+      {{if .AdminOK}}
+      <form method="post" action="/account/signups" class="o-formbar">
+        <input type="hidden" name="on" value="{{if .Signups}}false{{else}}true{{end}}">
+        <button class="o-btn o-btn-sm{{if not .Signups}} o-btn-p{{end}}" type="submit">{{if .Signups}}Switch signups off{{else}}Switch signups on{{end}}</button>
+      </form>
+      {{else}}<p class="o-empty"><b>Can't switch it from here.</b>PASS_ADMIN_TOKEN isn't set for this page.</p>{{end}}
+    </section>
+
+    {{if and (not .NoAccount) .AdminOK}}
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Sign out every device</h2></div>
+      <p class="o-muted small">Ends every app's session, so each one needs the master password again. For a lost phone or a device you don't recognise.</p>
+      <form method="post" action="/account/signout" class="o-form one">
+        <label class="o-check"><input type="checkbox" required> Sign out every device, this one's apps too</label>
+        <div class="o-formbar"><button class="o-btn o-btn-sm o-btn-bad" type="submit">Sign out every device</button></div>
+      </form>
+    </section>
+    {{end}}
+  </div>
+</div>
+{{template "foot" .}}{{end}}

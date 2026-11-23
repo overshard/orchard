@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/base32"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -9,10 +12,13 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// Vault reads Vaultwarden's database and never writes it. Names, notes and
-// every secret in it are encrypted by the apps, so what's readable is counts,
-// times, device names and the addresses in its event log.
-type Vault struct{ db *sql.DB }
+// Vault reads Vaultwarden's database. Names, notes and every secret in it are
+// encrypted by the apps, so what's readable is counts, times, device names and
+// the addresses in its event log. The one write is the authenticator setting.
+type Vault struct {
+	db   *sql.DB
+	path string
+}
 
 // OpenVault opens read only. The volume is mounted writable anyway, since
 // SQLite needs the -shm file to read a database in WAL mode.
@@ -22,7 +28,7 @@ func OpenVault(path string) (*Vault, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(2)
-	return &Vault{db: db}, nil
+	return &Vault{db: db, path: path}, nil
 }
 
 func (v *Vault) Close() error { return v.db.Close() }
@@ -200,7 +206,7 @@ func deviceKind(t int) string {
 		return n
 	}
 	if t < 0 {
-		return "unknown"
+		return "this page"
 	}
 	return fmt.Sprintf("device type %d", t)
 }
@@ -241,4 +247,125 @@ func eventKind(t int) string {
 
 func missingTable(err error) bool {
 	return err != nil && (strings.Contains(err.Error(), "no such table") || strings.Contains(err.Error(), "unable to open"))
+}
+
+// Account is the one user, and whether the authenticator is on for it.
+type Account struct {
+	ID, Email string
+	Created   time.Time
+	TOTP      bool
+	Secret    string
+	Others    int
+}
+
+var errNoAccount = errors.New("no account yet")
+
+func (v *Vault) Account() (Account, error) {
+	var a Account
+	var created string
+	err := v.db.QueryRow(`SELECT uuid, email, CAST(created_at AS TEXT) FROM users WHERE enabled ORDER BY created_at LIMIT 1`).Scan(&a.ID, &a.Email, &created)
+	if errors.Is(err, sql.ErrNoRows) {
+		return a, errNoAccount
+	}
+	if err != nil {
+		return a, err
+	}
+	a.Created = parseVW(created)
+	var secret sql.NullString
+	err = v.db.QueryRow(`SELECT data FROM twofactor WHERE user_uuid = ? AND atype = 0 AND enabled`, a.ID).Scan(&secret)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return a, err
+	}
+	a.TOTP, a.Secret = secret.Valid, secret.String
+	err = v.db.QueryRow(`SELECT COUNT(*) FROM twofactor WHERE user_uuid = ? AND enabled AND atype IN (1, 2, 3, 4, 7)`, a.ID).Scan(&a.Others)
+	return a, err
+}
+
+// writer opens a separate read write handle for the few writes, so every
+// read stays on the read only one.
+func (v *Vault) writer() (*sql.DB, error) {
+	db, err := sql.Open("sqlite", "file:"+v.path+"?_pragma=busy_timeout(5000)")
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
+	return db, nil
+}
+
+func newUUID() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	b[6] = b[6]&0x0f | 0x40
+	b[8] = b[8]&0x3f | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
+// EnableTOTP saves the authenticator the way Vaultwarden's own API does, the
+// secret as base32 with the step it was confirmed at, and a recovery code if
+// the account has none. It returns the recovery code.
+func (v *Vault) EnableTOTP(user, secret string, step int64, ip string) (string, error) {
+	db, err := v.writer()
+	if err != nil {
+		return "", err
+	}
+	defer db.Close()
+	tx, err := db.Begin()
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT INTO twofactor (uuid, user_uuid, atype, enabled, data, last_used) VALUES (?, ?, 0, 1, ?, ?)
+		ON CONFLICT (user_uuid, atype) DO UPDATE SET enabled = 1, data = excluded.data, last_used = excluded.last_used`,
+		newUUID(), user, secret, step); err != nil {
+		return "", err
+	}
+	var recover sql.NullString
+	if err := tx.QueryRow(`SELECT totp_recover FROM users WHERE uuid = ?`, user).Scan(&recover); err != nil {
+		return "", err
+	}
+	if !recover.Valid || recover.String == "" {
+		b := make([]byte, 20)
+		_, _ = rand.Read(b)
+		recover.String = base32.StdEncoding.EncodeToString(b)
+		if _, err := tx.Exec(`UPDATE users SET totp_recover = ? WHERE uuid = ?`, recover.String, user); err != nil {
+			return "", err
+		}
+	}
+	if err := logEvent(tx, user, evUpdated2FA, ip); err != nil {
+		return "", err
+	}
+	return recover.String, tx.Commit()
+}
+
+// DisableTOTP removes the authenticator. Remembered devices are forgotten too,
+// the same as Vaultwarden does, so none of them skips the next code.
+func (v *Vault) DisableTOTP(user, ip string) error {
+	db, err := v.writer()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM twofactor WHERE user_uuid = ? AND atype = 0`, user); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE devices SET twofactor_remember = NULL WHERE user_uuid = ?`, user); err != nil {
+		return err
+	}
+	if err := logEvent(tx, user, evDisabled2FA, ip); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// logEvent records a change made here in Vaultwarden's own event log, with no
+// device type since no app made it.
+func logEvent(tx *sql.Tx, user string, kind int, ip string) error {
+	_, err := tx.Exec(`INSERT INTO event (uuid, event_type, user_uuid, act_user_uuid, ip_address, event_date) VALUES (?, ?, ?, ?, ?, ?)`,
+		newUUID(), kind, user, user, ip, time.Now().UTC().Format("2006-01-02 15:04:05.000000"))
+	return err
 }

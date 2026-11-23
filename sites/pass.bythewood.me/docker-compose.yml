@@ -1,8 +1,8 @@
 name: orchard-pass
 
 # Caddy sends the Bitwarden apps' paths to vw and everything else to the page.
-# The page reads Vaultwarden's database out of the same volume and never
-# writes it.
+# The page reads Vaultwarden's database out of the same volume, and writes
+# only the authenticator setting.
 
 x-hardening: &hardening
   restart: unless-stopped
@@ -29,17 +29,18 @@ services:
     container_name: orchard-pass-vw
     environment:
       DOMAIN: https://pass.bythewood.me
-      # Off for good once the one account exists, see .env.example.
-      SIGNUPS_ALLOWED: ${PASS_SIGNUPS:-false}
+      # Off unless switched on from the account page, which saves it in
+      # config.json through the admin API, and that wins over this.
+      SIGNUPS_ALLOWED: "false"
       INVITATIONS_ALLOWED: "false"
       ORG_CREATION_USERS: none
       EMERGENCY_ACCESS_ALLOWED: "false"
       PASSWORD_HINTS_ALLOWED: "false"
       SHOW_PASSWORD_HINT: "false"
-      # Only on while changing a setting the apps send you to it for, like
-      # two-step login, and then only on pass-web behind the orchard sign in.
-      WEB_VAULT_ENABLED: ${PASS_WEB_VAULT:-false}
-      WEB_VAULT_FOLDER: /web-vault
+      WEB_VAULT_ENABLED: "false"
+      # The admin API is only for the page, over the bridge. Caddy never routes
+      # /admin, and this is the Argon2 hash of the page's PASS_ADMIN_TOKEN.
+      ADMIN_TOKEN: ${PASS_ADMIN_HASH:?set it in .env, see .env.example}
       # The user events with addresses only go in the database with this on,
       # and the page reads them from there.
       ORG_EVENTS_ENABLED: "true"
@@ -75,8 +76,7 @@ services:
       LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       NTFY_TOKEN: ${NTFY_TOKEN:-}
       PASS_VAULT: /vw/db.sqlite3
-      PASS_SIGNUPS: ${PASS_SIGNUPS:-false}
-      PASS_WEB_VAULT: ${PASS_WEB_VAULT:-false}
+      PASS_ADMIN_TOKEN: ${PASS_ADMIN_TOKEN:-}
     # Writable only because SQLite needs the -shm file to read a WAL database.
     # The page opens it read only.
     volumes:

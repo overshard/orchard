@@ -18,7 +18,7 @@ func (s *site) chrome(r *http.Request, on string) (suite.Page, bool) {
 	p := suite.Page{Tool: "pass", SignedIn: in, Source: sourceURL, Author: author, Year: time.Now().Year(), Meta: "my own password server"}
 	tabs := []suite.Tab{{Name: "home", Href: "/"}, {Name: "source", Href: sourceURL}}
 	if in {
-		tabs = []suite.Tab{{Name: "overview", Href: "/"}, {Name: "logins", Href: "/logins"}, {Name: "devices", Href: "/devices"}}
+		tabs = []suite.Tab{{Name: "overview", Href: "/"}, {Name: "logins", Href: "/logins"}, {Name: "devices", Href: "/devices"}, {Name: "account", Href: "/account"}}
 	}
 	for _, t := range tabs {
 		t.On = t.Name == on
@@ -29,9 +29,9 @@ func (s *site) chrome(r *http.Request, on string) (suite.Page, bool) {
 	p.Status = []suite.Seg{{Text: h.Word, Kind: h.Level}}
 	p.Right = []suite.Seg{{Text: "times are UTC"}}
 	if in {
-		p.Meta = "signups off · admin off"
-		if s.signups {
-			p.Meta = "signups on · admin off"
+		p.Meta = "signups off"
+		if s.admin.Signups() {
+			p.Meta = "signups on"
 		}
 		if srv.Version != "" {
 			p.Meta = "vaultwarden " + srv.Version + " · " + p.Meta
@@ -69,10 +69,10 @@ func (s *site) health(now time.Time) Health {
 	switch {
 	case !srv.Up && srv.Err != "":
 		h.Level, h.Word, h.Note = "bad", "down", "Vaultwarden isn't answering, so the apps are working from their cached copy"
-	case s.signups:
-		h.Level, h.Word, h.Note = "warn", "signups on", "Anyone can make an account until PASS_SIGNUPS is false again"
-	case s.webVault:
-		h.Level, h.Word, h.Note = "warn", "web vault on", "The web vault is up at pass-web.bythewood.me until PASS_WEB_VAULT is false again"
+	case s.admin.Signups():
+		h.Level, h.Word, h.Note = "warn", "signups on", "Anyone can make an account until signups are switched off on the account page"
+	case s.noTOTP():
+		h.Level, h.Word, h.Note = "warn", "no two step", "Two step login is off, so the master password alone opens the vault. Turn it on from the account page"
 	case h.Failed > 0:
 		h.Level, h.Word = "warn", "failed sign in"
 		h.Note = fmt.Sprintf("%d failed sign in %s in the last day", h.Failed, plural(h.Failed, "attempt", "attempts"))
@@ -213,7 +213,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.render(w, 200, "overview.html", map[string]any{
-		"Suite": page, "Health": h, "Server": srv, "Signups": s.signups,
+		"Suite": page, "Health": h, "Server": srv, "Signups": s.admin.Signups(),
 		"Hold": hold, "NoVault": herr != nil, "VaultErr": errText(herr),
 		"Logins": logins, "Failed": failed, "Active": active, "Ticks": ticks, "Devices": devices,
 		"Recent": recent, "Addrs": as, "MaxAddr": maxAddr,
