@@ -182,7 +182,7 @@ func (s *site) callsPage(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"day":   map[string]any{"calls": day.Calls, "errors": day.Errors, "p50_ms": day.P50, "p95_ms": day.P95},
-			"month": map[string]any{"spent": month.Spent, "budget": month.Budget, "projected": month.Projected},
+			"month": map[string]any{"spent": month.Spent, "budget": month.Budget, "projected": month.Projected, "next_30_days": month.Next30, "per_day": month.PerDay},
 			"usage": usage, "calls": calls, "matched": total,
 		})
 		return

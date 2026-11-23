@@ -5,8 +5,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go/v2"
@@ -106,6 +108,15 @@ func (s *Store) KeySpentSince(id int64, t time.Time) (int64, error) {
 	return n, err
 }
 
+// FirstSpend is when the ledger starts, zero when it is empty.
+func (s *Store) FirstSpend() (time.Time, error) {
+	var at sql.NullInt64
+	if err := s.db.QueryRow(`SELECT MIN(at) FROM spend`).Scan(&at); err != nil || !at.Valid {
+		return time.Time{}, err
+	}
+	return time.Unix(at.Int64, 0), nil
+}
+
 func (s *Store) SpentSince(t time.Time) (int64, error) {
 	var n int64
 	err := s.db.QueryRow(`SELECT COALESCE(SUM(micros),0) FROM spend WHERE at >= ?`, t.Unix()).Scan(&n)
@@ -141,6 +152,19 @@ type Month struct {
 	Projected float64
 	Start     time.Time
 	Elapsed   float64
+	// PerDay is the average daily spend over the last RateDays, at most a
+	// week, and Next30 is that times 30.
+	PerDay, RateDays, Next30 float64
+}
+
+const rateWindow = 7 * 24 * time.Hour
+
+// RateLabel says which days Next30 was read from.
+func (m Month) RateLabel() string {
+	if d := math.Round(m.RateDays); d > 1 {
+		return fmt.Sprintf("the last %.0f days' rate", d)
+	}
+	return "the last day's rate"
 }
 
 func monthOf(now time.Time) (start, end time.Time) {
@@ -160,7 +184,31 @@ func (s *site) month(now time.Time) (Month, error) {
 	if m.Elapsed > 0 {
 		m.Projected = m.Spent / m.Elapsed
 	}
+	if err := s.rate(&m, now); err != nil {
+		return Month{}, err
+	}
 	return m, nil
+}
+
+// rate fills in the recent daily spend. A ledger younger than the window is
+// averaged over the days it has, and never over less than one.
+func (s *site) rate(m *Month, now time.Time) error {
+	first, err := s.store.FirstSpend()
+	if err != nil || first.IsZero() {
+		return err
+	}
+	since := now.Add(-rateWindow)
+	if first.After(since) {
+		since = first
+	}
+	micros, err := s.store.SpentSince(since)
+	if err != nil {
+		return err
+	}
+	m.RateDays = max(1, now.Sub(since).Hours()/24)
+	m.PerDay = float64(micros) / 1e6 / m.RateDays
+	m.Next30 = 30 * m.PerDay
+	return nil
 }
 
 // The pace alert waits until the month has enough behind it, since a busy first

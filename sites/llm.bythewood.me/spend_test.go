@@ -71,3 +71,28 @@ func TestAnIncognitoCallStillCounts(t *testing.T) {
 		t.Errorf("an incognito call was logged")
 	}
 }
+
+func TestNext30IsTheLastWeeksRate(t *testing.T) {
+	s := &site{store: testStore(t), budget: 100}
+	now := time.Date(2026, 11, 23, 12, 0, 0, 0, budgetZone)
+	m, _ := s.month(now)
+	if m.Next30 != 0 || m.RateDays != 0 {
+		t.Fatalf("an empty ledger projects %+v", m)
+	}
+	for _, r := range []struct {
+		ago    time.Duration
+		micros int64
+	}{{20 * 24 * time.Hour, 50_000_000}, {6 * 24 * time.Hour, 7_000_000}, {time.Hour, 7_000_000}} {
+		s.store.db.Exec(`INSERT INTO spend (key_id, call_id, micros, at) VALUES (1, 0, ?, ?)`, r.micros, now.Add(-r.ago).Unix())
+	}
+	m, _ = s.month(now)
+	if m.RateDays != 7 || m.PerDay != 2 || m.Next30 != 60 || m.RateLabel() != "the last 7 days' rate" {
+		t.Errorf("a week of $14 gave %+v %q", m, m.RateLabel())
+	}
+
+	young := &site{store: testStore(t), budget: 100}
+	young.store.db.Exec(`INSERT INTO spend (key_id, call_id, micros, at) VALUES (1, 0, 3000000, ?)`, now.Add(-2*time.Hour).Unix())
+	if m, _ := young.month(now); m.RateDays != 1 || m.Next30 != 90 || m.RateLabel() != "the last day's rate" {
+		t.Errorf("a ledger two hours old gave %+v", m)
+	}
+}

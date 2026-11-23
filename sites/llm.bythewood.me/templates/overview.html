@@ -25,9 +25,9 @@
     <span class="o-ticks days" role="group" aria-label="spend by day, each opens that day's calls">{{range .Ticks}}<a href="{{.Href}}" style="height:{{printf "%.0f" .Height}}%" data-tip="{{.Tip}}" aria-label="{{.Label}}"><i class="{{.Kind}}"></i></a>{{end}}</span>
   </div>
   <div class="o-tile">
-    <small>projected</small>
-    <b class="{{if gt .Month.Projected .Month.Budget}}bad{{end}}">{{usd .Month.Projected}}</b>
-    <span class="o-delta {{if gt .Month.Projected .Month.Budget}}o-bad{{end}}">{{if le .Month.Budget 0.0}}no budget set{{else if gt .Month.Projected .Month.Budget}}over by {{usd (sub .Month.Projected .Month.Budget)}}{{else}}under budget{{end}}</span>
+    <small>next 30 days</small>
+    <b class="{{if and (gt .Month.Budget 0.0) (gt .Month.Next30 .Month.Budget)}}bad{{end}}">{{usd .Month.Next30}}</b>
+    <span class="o-delta {{if and (gt .Month.Budget 0.0) (gt .Month.Next30 .Month.Budget)}}o-bad{{end}}">{{if .Month.RateDays}}at {{.Month.RateLabel}}, {{usd .Month.PerDay}} a day{{else}}nothing spent yet{{end}}</span>
     <span class="o-nospark"></span>
   </div>
   <div class="o-tile">
@@ -119,10 +119,10 @@
   </section>
 
   <section class="o-panel">
-    <div class="o-ph2"><h2>Budget</h2><span class="o-pm"><span>spent<b>${{printf "%.2f" .Month.Spent}}</b></span><span>projected<b class="{{if gt .Month.Projected .Month.Budget}}bad{{end}}">{{usd .Month.Projected}}</b></span><span>budget<b>${{printf "%.0f" .Month.Budget}}</b></span></span></div>
+    <div class="o-ph2"><h2>Budget</h2><span class="o-pm"><span>spent<b>${{printf "%.2f" .Month.Spent}}</b></span><span>month end<b class="{{if gt .Month.Projected .Month.Budget}}bad{{end}}">{{usd .Month.Projected}}</b></span><span>budget<b>${{printf "%.0f" .Month.Budget}}</b></span></span></div>
     {{if gt .Month.Budget 0.0}}
-    <div class="o-hbar budget"><span class="k">{{.Month.Start.Format "January"}}</span><span class="bar"><i class="{{if ge .Month.Spent .Month.Budget}}bad{{else if gt .Month.Projected .Month.Budget}}warn{{else}}ok{{end}}" style="width:{{printf "%.1f" .SpentPct}}%"></i><u class="q" style="left:50%" data-tip="50% alert"></u><u class="q" style="left:80%" data-tip="80% alert"></u><u style="left:{{printf "%.1f" .ProjPct}}%" data-tip="projected {{usd .Month.Projected}}"></u></span><span class="v">{{printf "%.0f" .SpentPct}}%</span></div>
-    <p class="o-foot">white is the projection &middot; grey rules are the 50% and 80% alerts &middot; calls stop at 100%</p>
+    <div class="o-hbar budget"><span class="k">{{.Month.Start.Format "January"}}</span><span class="bar"><i class="{{if ge .Month.Spent .Month.Budget}}bad{{else if gt .Month.Projected .Month.Budget}}warn{{else}}ok{{end}}" style="width:{{printf "%.1f" .SpentPct}}%"></i><u class="q" style="left:50%" data-tip="50% alert"></u><u class="q" style="left:80%" data-tip="80% alert"></u><u style="left:{{printf "%.1f" .ProjPct}}%" data-tip="on pace for {{usd .Month.Projected}} by month end"></u></span><span class="v">{{printf "%.0f" .SpentPct}}%</span></div>
+    <p class="o-foot">white is where this month ends at its pace so far &middot; grey rules are the 50% and 80% alerts &middot; calls stop at 100%</p>
     {{end}}
     <div class="o-pm alerts">
       <span>50%<b class="{{if index .Sent "50"}}warn{{end}}">{{or (index .Sent "50") "not yet"}}</b></span>
