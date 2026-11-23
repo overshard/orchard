@@ -303,12 +303,17 @@ http://dns.bythewood.me {
 }
 
 # Vaultwarden answers the Bitwarden apps' paths and the page takes the rest.
+# Those paths skip gate like dns' /q/, since Vaultwarden checks its own sessions
+# and limits sign ins, and a ban on a carrier address would lock the apps out.
 # There's no web vault and no admin page, so nothing else reaches Vaultwarden.
 http://pass.bythewood.me {
-	import site
+	import headers
+	encode zstd gzip
 
 	@vw path /api/* /identity/* /icons/* /notifications/* /events/* /attachments/* /alive
 	handle @vw {
+		# Its requests are kept as rows in logging, since Vaultwarden doesn't ship.
+		log_append component vaultwarden
 		reverse_proxy orchard-pass-vw:8000 {
 			header_up X-Real-IP {client_ip}
 			import hold
@@ -316,6 +321,7 @@ http://pass.bythewood.me {
 	}
 
 	handle {
+		import gate
 		reverse_proxy orchard-pass:8000 {
 			import hold
 		}

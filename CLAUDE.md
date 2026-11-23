@@ -280,10 +280,12 @@ database, seeded from `seed.go` on an empty one and changed on its page after
 that. With orchard-gate down every site answers 502, the same as a site of its
 own being down. What stays in Caddy is routing, the routes only the bridge may
 reach (`/verify`, `/ingest`, `/aggregate`, analytics' `/bridge`) and ntfy's publish fence, since
-those are about where a request may go and not who it's from. The one route
-with no `forward_auth` is `/q/` on dns.bythewood.me, since dns checks the
-device token itself and asks gate only about the network once it matches, and
-the DoT front does the same after the handshake.
+those are about where a request may go and not who it's from. Two routes have
+no `forward_auth`. `/q/` on dns.bythewood.me, since dns checks the device token
+itself and asks gate only about the network once it matches, and the DoT front
+does the same after the handshake. And the Bitwarden apps' paths on
+pass.bythewood.me, since Vaultwarden checks its own sessions and limits sign ins,
+and gate's scanner rules matched `/api/config` and would ban the phone.
 
 **Caddy ships, cloudflared and ntfy do not.** Caddy can't carry a Go handler, so
 it writes its access log to a socket with its own `net` writer and
