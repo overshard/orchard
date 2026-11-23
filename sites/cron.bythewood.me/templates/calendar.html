@@ -1,0 +1,42 @@
+{{template "head" .}}
+{{$m := .Month}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">cron &middot; calendar</span>
+    <h1>{{$m.Start.Format "January 2006"}}, <em>{{plural $m.Fires "fire" "fires"}}</em>.</h1>
+    <div class="o-pm"><span>days<b>{{$m.Days}}</b></span><span>fires<b>{{$m.Fires}}</b></span><span>tz<b>Eastern</b></span></div>
+  </div>
+  <div class="o-acts">
+    <a class="o-btn o-btn-sm" href="/calendar?m={{$m.Prev.Format "2006-01"}}">&larr; {{$m.Prev.Format "Jan"}}</a>
+    {{if not .ThisMonth}}<a class="o-btn o-btn-sm" href="/calendar">Today</a>{{end}}
+    <a class="o-btn o-btn-sm" href="/calendar?m={{$m.Next.Format "2006-01"}}">{{$m.Next.Format "Jan"}} &rarr;</a>
+  </div>
+</div>
+
+<section class="o-panel">
+  <div class="mo">
+    {{range $i, $d := index $m.Weeks 0}}<div class="dow">{{$d.Day.Format "Mon"}}</div>{{end}}
+    {{range $m.Weeks}}{{range .}}
+    <div class="{{if not .In}}out{{end}}{{if .Today}} today{{end}}{{if .Past}} past{{end}}">
+      {{if .In}}
+      <b class="d">{{.Day.Day}}</b>
+      {{range .Items}}
+      <a class="card{{if .Once}} once{{end}}" href="/jobs/{{.JobID}}" data-tip="{{.Name}} &middot; {{short .At}}{{if gt .Count 1}} &times;{{.Count}}{{end}}{{if .Snooze}} &middot; snoozed{{end}}"><span class="t">{{short .At}}</span><span class="n">{{.Name}}</span>{{if gt .Count 1}}<span class="o-muted c">&times;{{.Count}}</span>{{end}}</a>
+      {{end}}
+      {{end}}
+    </div>
+    {{end}}{{end}}
+  </div>
+  <div class="molist">
+    {{range $m.List}}
+    <div {{if .Today}}class="today"{{end}}>
+      <h4>{{.Day.Format "Mon Jan 2"}}{{if .Today}} &middot; today{{end}}</h4>
+      {{range .Items}}<a class="card" href="/jobs/{{.JobID}}"><span class="t">{{short .At}}</span><span class="n">{{.Name}}</span>{{if gt .Count 1}}<span class="o-muted">&times;{{.Count}}</span>{{end}}{{if .Snooze}}<span class="o-chip warn">snoozed</span>{{end}}{{if eq .Kind "prompt"}}<span class="o-chip {{if .Failing}}bad{{end}}">check</span>{{end}}</a>{{end}}
+    </div>
+    {{else}}
+    <p class="o-empty"><b>Nothing this month.</b>Add a reminder or a check and the days it fires show up here.</p>
+    {{end}}
+  </div>
+  <p class="o-hint">Repeating jobs show on every day their schedule matches, past days too. Paused jobs are left off.</p>
+</section>
+{{template "foot" .}}

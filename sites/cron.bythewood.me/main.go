@@ -162,6 +162,7 @@ func (s *site) routes() http.Handler {
 	mux.HandleFunc("POST /jobs/{id}/move", s.auth.RequireAuth(s.jobMove))
 	mux.HandleFunc("POST /jobs/bulk", s.auth.RequireAuth(s.jobBulk))
 	mux.HandleFunc("GET /runs", s.auth.RequireAuth(s.runsPage))
+	mux.HandleFunc("GET /calendar", s.auth.RequireAuth(s.calendarPage))
 	mux.HandleFunc("GET /keys", s.auth.RequireAuth(s.keysPage))
 	mux.HandleFunc("POST /keys", s.auth.RequireAuth(s.keyCreate))
 	mux.HandleFunc("POST /keys/{id}/delete", s.auth.RequireAuth(s.keyDelete))

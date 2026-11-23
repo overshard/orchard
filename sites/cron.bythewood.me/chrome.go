@@ -15,7 +15,7 @@ import (
 // page tab that is lit.
 func (s *site) chrome(on string, jobs []Job) suite.Page {
 	p := suite.Page{Tool: "cron", SignedIn: true, Source: sourceURL, Author: author, Year: time.Now().Year()}
-	for _, t := range []suite.Tab{{Name: "jobs", Href: "/"}, {Name: "runs", Href: "/runs"}, {Name: "new", Href: "/jobs/new"}, {Name: "keys", Href: "/keys"}} {
+	for _, t := range []suite.Tab{{Name: "jobs", Href: "/"}, {Name: "calendar", Href: "/calendar"}, {Name: "runs", Href: "/runs"}, {Name: "new", Href: "/jobs/new"}, {Name: "keys", Href: "/keys"}} {
 		t.On = t.Name == on
 		p.Tabs = append(p.Tabs, t)
 	}

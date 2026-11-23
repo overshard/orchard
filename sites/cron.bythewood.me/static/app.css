@@ -84,3 +84,32 @@
 .runbar i.go { transform: scaleX(0.9); transition: transform 20s cubic-bezier(0.1, 0.7, 0.3, 1); }
 .runbar i.done { transform: scaleX(1); transition: transform 0.2s linear; }
 .try .o-kv { margin: 0 0 12px; }
+
+/* The month, Sunday first, which keeps its seven columns on a phone with a dot
+   a job and the days that have any listed under it. */
+.mo { display: grid; gap: 1px; background: var(--o-line); border: 1px solid var(--o-line); grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.mo > div { background: var(--o-panel); padding: 4px 6px; min-height: 96px; min-width: 0; }
+.mo > .dow { min-height: 0; font: 500 0.62rem var(--o-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--o-muted); }
+.mo > .out { background: var(--o-panel2); }
+.mo .d { display: block; font: 500 0.7rem var(--o-mono); color: var(--o-muted); margin-bottom: 2px; }
+.mo .past .d { opacity: 0.6; }
+.mo .today { box-shadow: inset 0 0 0 1px var(--o-brass); }
+.mo .today .d { color: var(--o-brass); }
+.mo .card, .molist .card { display: flex; gap: 5px; align-items: baseline; padding: 2px 4px; margin: 1px -2px; border: 1px solid transparent; font-size: 0.72rem; min-width: 0; color: var(--o-text); text-decoration: none; }
+.mo .card:hover, .molist .card:hover { border-color: var(--o-line-strong); }
+.mo .card.once { background: var(--o-panel2); }
+.mo .past .card { opacity: 0.55; }
+.mo .card .t, .molist .card .t { font: 0.62rem var(--o-mono); color: var(--o-muted); flex: none; }
+.mo .card .n, .molist .card .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
+.mo .card .c { font-size: 0.62rem; flex: none; }
+.molist { display: none; }
+@media (max-width: 700px) {
+  .mo > div { min-height: 52px; padding: 3px; }
+  .mo > .dow { font-size: 0.56rem; letter-spacing: 0; overflow: hidden; }
+  .mo .card { display: inline-block; width: 6px; height: 6px; padding: 0; margin: 1px; border: 0; border-radius: 50%; background: var(--o-brass); }
+  .mo .card.once { background: var(--o-text); }
+  .mo .card > span { display: none; }
+  .molist { display: grid; gap: 10px; margin-top: 12px; }
+  .molist h4 { font: 500 0.62rem var(--o-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--o-muted); margin: 0 0 2px; }
+  .molist .today h4 { color: var(--o-brass); }
+}

@@ -369,6 +369,7 @@ func TestPagesRender(t *testing.T) {
 		{"home", s.home, "/", "one failing"},
 		{"runs", s.runsPage, "/runs", "run"},
 		{"keys", s.keysPage, "/keys", "one per caller"},
+		{"calendar", s.calendarPage, "/calendar?m=2026-12", "December 2026"},
 		{"new", s.newJobPage, "/jobs/new?kind=prompt", "What to look up"},
 	} {
 		w := httptest.NewRecorder()

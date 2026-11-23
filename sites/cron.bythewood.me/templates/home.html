@@ -72,7 +72,7 @@
 </div>
 
 <section class="o-panel">
-  <div class="o-ph2"><h2>This week</h2><span class="o-pm"><span>fires<b>{{.Week.Fires}}</b></span><span>reminders<b>{{.Week.Reminders}}</b></span><span>checks<b>{{.Week.Check}}</b></span><span>Eastern</span></span></div>
+  <div class="o-ph2"><h2>This week</h2><span class="o-pm"><span>fires<b>{{.Week.Fires}}</b></span><span>reminders<b>{{.Week.Reminders}}</b></span><span>checks<b>{{.Week.Check}}</b></span><span>Eastern</span><span><a href="/calendar">month &rarr;</a></span></span></div>
   <div class="wk" data-week>
     {{range .Week.Days}}
     <div data-day="{{.Day.Format "2006-01-02"}}" {{if .Today}}class="today"{{end}}>

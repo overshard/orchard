@@ -1245,7 +1245,7 @@ below live as tokens at the top of `frontend/src/index.css`.
 | `auth` | suite | On the suite, with no Bootstrap left. The home page signs you in from the hero, and the starfield is gone |
 | `repos` | suite | On the suite. Its own stylesheet keeps the tree, diff and README styles and maps its colour names onto the suite's. No serif any more |
 | `llm` | suite | On the suite. Overview, calls and keys, and the home page says whether Claude or the card is answering |
-| `cron` | suite | On the suite. Jobs, runs, a job form and keys, with `app.css` holding only what is cron's own |
+| `cron` | suite | On the suite. Jobs, a month calendar, runs, a job form and keys, with `app.css` holding only what is cron's own |
 | `dns` | suite | On the suite. Overview, a live log with a drawer per lookup to allow or block it at any width, devices with their setup and a check that this browser uses it, and lists with my rules and a domain check |
 | `pass` | suite | On the suite. Overview, logins and devices read from Vaultwarden's database, and an account page for signups, two step login and signing every device out, since there's no web vault |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `BRIEFS` rerun beside it that only appears signed in |
