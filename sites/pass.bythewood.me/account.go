@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"pass.bythewood.me/ntfy"
@@ -55,7 +54,7 @@ func (s *site) renderAccount(w http.ResponseWriter, r *http.Request, code int, s
 		"Suite": page, "Account": a, "NoAccount": errors.Is(err, errNoAccount), "NoVault": err != nil && !errors.Is(err, errNoAccount),
 		"Signups": s.admin.Signups(), "AdminOK": s.admin.Configured(), "TwoStep": a.TOTP || a.Others > 0,
 		"Secret": secret, "Spaced": spaced(secret), "Problem": problem, "Recovery": spaced(recovery), "Enabled": enabled,
-		"Done": doneText[r.URL.Query().Get("done")], "Locked": s.off.locked(time.Now()),
+		"Done": doneText[r.URL.Query().Get("done")], "Locked": err == nil && s.offLocked(a.ID, time.Now()),
 	}
 	if err == nil && !a.TOTP && secret != "" {
 		data["QR"] = template.URL(qrPNG(otpURI(secret, a.Email)))
@@ -115,37 +114,14 @@ func (s *site) enableTOTP(w http.ResponseWriter, r *http.Request) {
 	s.renderAccount(w, r, http.StatusOK, "", "", recovery, true)
 }
 
-// offGuard locks the turn-off form after a run of wrong codes, since a stolen
-// orchard session could otherwise guess at it.
-type offGuard struct {
-	mu     sync.Mutex
-	misses []time.Time
-	until  time.Time
-}
-
 const offMisses, offWindow = 5, 15 * time.Minute
 
-func (g *offGuard) locked(now time.Time) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	return now.Before(g.until)
-}
-
-func (g *offGuard) miss(now time.Time) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	keep := g.misses[:0]
-	for _, t := range g.misses {
-		if now.Sub(t) < offWindow {
-			keep = append(keep, t)
-		}
-	}
-	g.misses = append(keep, now)
-	if len(g.misses) >= offMisses {
-		g.until, g.misses = now.Add(offWindow), nil
-		return true
-	}
-	return false
+// offLocked is the turn-off form after a run of wrong codes, since a stolen
+// orchard session could otherwise guess at it. The misses are events in the
+// database, so a restart doesn't clear them.
+func (s *site) offLocked(user string, now time.Time) bool {
+	n, err := s.vault.PageMisses(user, now.Add(-offWindow))
+	return err == nil && n >= offMisses
 }
 
 func (s *site) disableTOTP(w http.ResponseWriter, r *http.Request) {
@@ -155,7 +131,7 @@ func (s *site) disableTOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := time.Now()
-	if s.off.locked(now) {
+	if s.offLocked(a.ID, now) {
 		s.renderAccount(w, r, http.StatusTooManyRequests, "", "Too many wrong codes, so turning it off is locked for a few minutes.", "", false)
 		return
 	}
@@ -166,7 +142,7 @@ func (s *site) disableTOTP(w http.ResponseWriter, r *http.Request) {
 		if err := s.vault.FailedOff(a.ID, ip); err != nil {
 			slog.Error("pass wrong code not recorded", slog.Any("err", err))
 		}
-		if s.off.miss(now) {
+		if s.offLocked(a.ID, now) {
 			slog.Warn("pass two step turn off locked", slog.String("ip", ip))
 		}
 		s.renderAccount(w, r, http.StatusBadRequest, "", "That code didn't match, or was already used, so two step login is still on.", "", false)

@@ -307,6 +307,15 @@ func (v *Vault) FailedOff(user, ip string) error {
 	return tx.Commit()
 }
 
+// PageMisses counts wrong codes typed into the page's own turn-off form, the
+// events it writes with no device type.
+func (v *Vault) PageMisses(user string, since time.Time) (int, error) {
+	var n int
+	err := v.db.QueryRow(`SELECT COUNT(*) FROM event WHERE event_type = ? AND act_user_uuid = ? AND device_type IS NULL AND event_date >= ?`,
+		evFailed2FA, user, vwArg(since)).Scan(&n)
+	return n, err
+}
+
 // writer opens a separate read write handle for the few writes, so every
 // read stays on the read only one.
 func (v *Vault) writer() (*sql.DB, error) {
