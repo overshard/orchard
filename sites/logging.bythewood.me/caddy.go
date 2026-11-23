@@ -119,10 +119,10 @@ func (s *site) readCaddyLog(conn net.Conn) {
 
 		if rec, ok := parseCaddyLine(line); ok {
 			r := toRow(caddySource, rec)
-			// The site behind a hostname logs the same request itself, so
-			// Caddy's copy only goes to the rollups. A 5xx stays, since that
-			// is usually Caddy answering for a site that couldn't.
-			if r.status < 500 && s.watchdog.Shipping(hostSource(r.host)) {
+			// The site behind a hostname logs the same request itself, so Caddy's
+			// copy only goes to the rollups. A 5xx stays, and so does a route
+			// tagged for a container that doesn't ship, like Vaultwarden.
+			if r.status < 500 && rec.Attrs["component"] == "edge" && s.watchdog.Shipping(hostSource(r.host)) {
 				r.rollupOnly = true
 			}
 			rows = append(rows, r)
