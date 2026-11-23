@@ -35,11 +35,12 @@ type ring struct {
 
 func newRing(n int) *ring { return &ring{buf: make([]seen, n)} }
 
-// add overwrites the oldest slot in place, so it never allocates.
+// add overwrites the oldest slot in place. Every string a stranger sends is
+// cut, since the ring is as big as its longest entries times its length.
 func (g *ring) add(now time.Time, q *req, v verdict) {
 	x := &g.buf[g.next]
-	x.At, x.IP, x.ASN, x.Country, x.Host, x.Method = now.Unix(), q.IP, q.ASN, q.Country, q.Host, q.Method
-	x.Path, x.Query, x.UA, x.Crawler, x.Verdict, x.Session = q.Path, q.Query, q.UA, q.Crawler, v.kind, q.Session
+	x.At, x.IP, x.ASN, x.Country, x.Host, x.Method = now.Unix(), q.IP, q.ASN, q.Country, cut(q.Host, 100), cut(q.Method, 16)
+	x.Path, x.Query, x.UA, x.Crawler, x.Verdict, x.Session = cut(q.Path, 300), cut(q.Query, 300), cut(q.UA, 200), q.Crawler, v.kind, q.Session
 	x.Rule = ""
 	if v.rule != nil {
 		x.Rule = v.rule.Name

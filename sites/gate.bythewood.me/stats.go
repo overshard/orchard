@@ -239,11 +239,12 @@ func (s *stats) ban(b Ban) {
 	s.mu.Unlock()
 }
 
+// cut copies what it keeps, since a slice would hold the whole string alive.
 func cut(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
-	return s[:n]
+	return strings.Clone(s[:n])
 }
 
 type pending struct {
