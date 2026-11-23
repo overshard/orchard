@@ -3,7 +3,7 @@
   <div>
     <span class="o-lab">pass &middot; overview &middot; 24h</span>
     <h1>{{.Headline}}</h1>
-    <div class="o-pm"><span>state<b class="{{.Health.Level}}">{{.Health.Word}}</b></span><span>users<b>{{.Hold.Users}}</b></span><span>two step<b class="{{if and .Hold.Users (eq .Hold.TwoFactor .Hold.Users)}}ok{{else}}warn{{end}}">{{if and .Hold.Users (eq .Hold.TwoFactor .Hold.Users)}}on{{else}}off{{end}}</b></span><span>signups<b {{if .Signups}}class="warn"{{end}}>{{if .Signups}}on{{else}}off{{end}}</b></span><span>kept<b>{{keep}}d</b></span></div>
+    <div class="o-pm"><span>state<b class="{{.Health.Level}}">{{.Health.Word}}</b></span><span>users<b>{{.Hold.Users}}</b></span><span>signups<b {{if .Signups}}class="warn"{{end}}>{{if .Signups}}on{{else}}off{{end}}</b></span><span>kept<b>{{keep}}d</b></span></div>
   </div>
   <div class="o-acts">
     <a class="o-btn o-btn-sm" href="/logins?show=failed" data-act="failed sign ins">Failed sign ins</a>
@@ -18,7 +18,7 @@
   <a class="o-tile" href="/logins?range=24h">
     <small>sign ins &middot; 24h</small>
     <b>{{.Logins}}</b>
-    <span class="o-delta">with the master password</span>
+    <span class="o-delta">master password</span>
     {{sparkT "ok" .HourOK .Labels}}
   </a>
   <a class="o-tile" href="/logins?range=24h&amp;show=failed">
@@ -76,12 +76,13 @@
   <div class="side">
     <section class="o-panel flush">
       <div class="o-ph2"><h2>Devices</h2><span class="o-pm"><span>last active</span></span></div>
-      {{range .Devices}}<div class="o-rw dv"><span class="o-dot {{if lt (since .LastSeen).Hours 24.0}}ok{{else}}mute{{end}}"></span><a class="n" href="/devices">{{.Name}}</a><span class="m">{{kind .Type}}</span><span class="o-mono v">{{ago .LastSeen}}</span></div>
+      {{range .Shown}}<div class="o-rw dv"><span class="o-dot {{if lt (since .LastSeen).Hours 24.0}}ok{{else}}mute{{end}}"></span><a class="n" href="/devices">{{.Name}}</a><span class="m">{{kind .Type}}</span><span class="o-mono v">{{ago .LastSeen}}</span></div>
       {{else}}<p class="o-empty"><b>No devices.</b>Sign in from a Bitwarden app with this server's URL and it shows here.</p>{{end}}
+      {{if gt (len .Devices) (len .Shown)}}<div class="o-more"><a href="/devices">All {{len .Devices}} devices &rarr;</a></div>{{end}}
     </section>
     <section class="o-panel">
       <div class="o-ph2"><h2>Addresses</h2><span class="o-pm"><span>sign ins</span><span>30d</span></span></div>
-      {{template "addrbars" (dict "Addrs" .Addrs "Max" .MaxAddr)}}
+      {{template "addrbars" (dict "Addrs" .Addrs "Max" .MaxAddr "Fails" .MaxFail)}}
     </section>
   </div>
 </div>

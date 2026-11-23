@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"pass.bythewood.me/suite"
@@ -25,10 +27,16 @@ func (s *site) chrome(r *http.Request, on string) (suite.Page, bool) {
 		p.Tabs = append(p.Tabs, t)
 	}
 	srv := s.watch.server()
-	h := s.health(time.Now())
-	p.Status = []suite.Seg{{Text: h.Word, Kind: h.Level}}
 	p.Right = []suite.Seg{{Text: "times are UTC"}}
+	// Signed out sees only whether it's answering, since the rest of the
+	// health word, like signups on or no two step, is a hint to an attacker.
+	p.Status = []suite.Seg{{Text: "up", Kind: "ok"}}
+	if !srv.Up {
+		p.Status = []suite.Seg{{Text: "down", Kind: "bad"}}
+	}
 	if in {
+		h := s.health(time.Now())
+		p.Status = []suite.Seg{{Text: h.Word, Kind: h.Level}}
 		p.Meta = "signups off"
 		if s.admin.Signups() {
 			p.Meta = "signups on"
@@ -54,7 +62,7 @@ type Health struct {
 func (s *site) health(now time.Time) Health {
 	h := Health{Level: "ok", Word: "up"}
 	srv := s.watch.server()
-	evs, _ := s.vault.Events(now.Add(-24*time.Hour), 1000)
+	evs, evErr := s.vault.Events(now.Add(-24*time.Hour), 1000)
 	for _, e := range evs {
 		if e.Failed() {
 			h.Failed++
@@ -67,8 +75,10 @@ func (s *site) health(now time.Time) Health {
 		}
 	}
 	switch {
-	case !srv.Up && srv.Err != "":
+	case !srv.Up:
 		h.Level, h.Word, h.Note = "bad", "down", "Vaultwarden isn't answering, so the apps are working from their cached copy"
+	case evErr != nil && !missingTable(evErr):
+		h.Level, h.Word, h.Note = "warn", "unreadable", "Vaultwarden's database couldn't be read: "+evErr.Error()
 	case s.admin.Signups():
 		h.Level, h.Word, h.Note = "warn", "signups on", "Anyone can make an account until signups are switched off on the account page"
 	case s.noTOTP():
@@ -131,9 +141,25 @@ func addrs(evs []Event) []Addr {
 		if si != sj {
 			return si
 		}
-		return out[i].Total() > out[j].Total()
+		if out[i].Total() != out[j].Total() {
+			return out[i].Total() > out[j].Total()
+		}
+		if !out[i].Last.Equal(out[j].Last) {
+			return out[i].Last.After(out[j].Last)
+		}
+		return out[i].IP < out[j].IP
 	})
 	return out
+}
+
+// maxes is the largest total and the largest failure count, so an address
+// that only failed is drawn against other failures and not against home.
+func maxes(as []Addr) (int, int) {
+	total, fail := 0, 0
+	for _, a := range as {
+		total, fail = max(total, a.Total()), max(fail, a.Fail)
+	}
+	return total, fail
 }
 
 // hourly buckets the last day by hour, oldest first, for a spark.
@@ -199,24 +225,23 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	recent := month
-	if len(recent) > 8 {
-		recent = recent[:8]
+	if len(recent) > 12 {
+		recent = recent[:12]
+	}
+	shown := devices
+	if len(shown) > 8 {
+		shown = shown[:8]
 	}
 	as := addrs(month)
 	if len(as) > 6 {
 		as = as[:6]
 	}
-	maxAddr := 0
-	for _, a := range as {
-		if a.Total() > maxAddr {
-			maxAddr = a.Total()
-		}
-	}
+	maxAddr, maxFail := maxes(as)
 	s.render(w, 200, "overview.html", map[string]any{
 		"Suite": page, "Health": h, "Server": srv, "Signups": s.admin.Signups(),
 		"Hold": hold, "NoVault": herr != nil, "VaultErr": errText(herr),
-		"Logins": logins, "Failed": failed, "Active": active, "Ticks": ticks, "Devices": devices,
-		"Recent": recent, "Addrs": as, "MaxAddr": maxAddr,
+		"Logins": logins, "Failed": failed, "Active": active, "Ticks": ticks, "Devices": devices, "Shown": shown,
+		"Recent": recent, "Addrs": as, "MaxAddr": maxAddr, "MaxFail": maxFail,
 		"HourOK":   hourly(day, now, func(e Event) bool { return e.Type == evLogin }),
 		"HourBad":  hourly(day, now, func(e Event) bool { return e.Failed() }),
 		"Labels":   hourLabels(now),
@@ -239,7 +264,7 @@ func headline(devices, failed int, h Health) template.HTML {
 	case h.Level == "bad":
 		return template.HTML(lead + `, <em class="bad">Vaultwarden is down</em>.`)
 	case failed > 0:
-		return template.HTML(fmt.Sprintf(`%s, <em class="bad">%s failed %s</em>.`, lead, spell(failed), plural(failed, "sign in", "sign ins")))
+		return template.HTML(fmt.Sprintf(`%s, <em class="bad">%s failed %s</em>.`, lead, strings.ToLower(spell(failed)), plural(failed, "sign in", "sign ins")))
 	case h.Level == "warn":
 		return template.HTML(fmt.Sprintf(`%s, <em class="warn">%s</em>.`, lead, template.HTMLEscapeString(h.Word)))
 	}
@@ -282,6 +307,7 @@ func (s *site) loginsPage(w http.ResponseWriter, r *http.Request) {
 	if show != "failed" && show != "account" {
 		show = "all"
 	}
+	ip := strings.TrimSpace(r.URL.Query().Get("ip"))
 	evs, err := s.vault.Events(now.Add(-ranges[rng]), 5000)
 	var rows []Event
 	ok, failed, wrongPass, wrongCode, account := 0, 0, 0, 0, 0
@@ -298,7 +324,7 @@ func (s *site) loginsPage(w http.ResponseWriter, r *http.Request) {
 		default:
 			account++
 		}
-		if show == "failed" && !e.Failed() || show == "account" && (e.Type == evLogin || e.Failed()) {
+		if show == "failed" && !e.Failed() || show == "account" && (e.Type == evLogin || e.Failed()) || ip != "" && e.IP != ip {
 			continue
 		}
 		rows = append(rows, e)
@@ -308,11 +334,9 @@ func (s *site) loginsPage(w http.ResponseWriter, r *http.Request) {
 		rows = rows[:300]
 	}
 	as := addrs(evs)
-	maxAddr, onlyFailed := 0, 0
+	maxAddr, maxFail := maxes(as)
+	onlyFailed := 0
 	for _, a := range as {
-		if a.Total() > maxAddr {
-			maxAddr = a.Total()
-		}
 		if a.OK == 0 {
 			onlyFailed++
 		}
@@ -320,11 +344,11 @@ func (s *site) loginsPage(w http.ResponseWriter, r *http.Request) {
 	why := []Row{{"wrong password", wrongPass, "", "bad"}, {"wrong two step code", wrongCode, "", "bad"}}
 	var tabs []suite.Tab
 	for _, k := range []string{"24h", "7d", "30d", "90d"} {
-		tabs = append(tabs, suite.Tab{Name: k, Href: "/logins?range=" + k + "&show=" + show, On: k == rng})
+		tabs = append(tabs, suite.Tab{Name: k, Href: loginsURL(k, show, ip), On: k == rng})
 	}
 	var shows []suite.Tab
 	for _, k := range []string{"all", "failed", "account"} {
-		shows = append(shows, suite.Tab{Name: k, Href: "/logins?range=" + rng + "&show=" + k, On: k == show})
+		shows = append(shows, suite.Tab{Name: k, Href: loginsURL(rng, k, ip), On: k == show})
 	}
 	days := 0
 	switch rng {
@@ -338,11 +362,19 @@ func (s *site) loginsPage(w http.ResponseWriter, r *http.Request) {
 		days = keepDays
 	}
 	s.render(w, 200, "logins.html", map[string]any{
-		"Suite": page, "Range": rng, "Show": show, "Ranges": tabs, "Shows": shows, "NoVault": err != nil,
+		"Suite": page, "Range": rng, "Show": show, "IP": ip, "Ranges": tabs, "Shows": shows, "NoVault": err != nil,
 		"Rows": rows, "Total": total, "OK": ok, "Failed": failed, "Account": account,
-		"Addrs": as, "MaxAddr": maxAddr, "OnlyFailed": onlyFailed, "Why": why, "MaxWhy": max(wrongPass, wrongCode, 1),
+		"Addrs": as, "MaxAddr": maxAddr, "MaxFail": maxFail, "OnlyFailed": onlyFailed, "Why": why, "MaxWhy": max(wrongPass, wrongCode, 1),
 		"Days": dayStrip(evs, now, min(days, 30)),
 	})
+}
+
+func loginsURL(rng, show, ip string) string {
+	q := url.Values{"range": {rng}, "show": {show}}
+	if ip != "" {
+		q.Set("ip", ip)
+	}
+	return "/logins?" + q.Encode()
 }
 
 // dayStrip is one tick a day, oldest first, red where a sign in failed.
@@ -433,9 +465,9 @@ func deviceHeadline(n, fresh, quiet int) template.HTML {
 	lead := fmt.Sprintf("%s %s", spell(n), plural(n, "device", "devices"))
 	switch {
 	case fresh > 0:
-		return template.HTML(fmt.Sprintf(`%s, <em class="warn">%s new today</em>.`, lead, spell(fresh)))
+		return template.HTML(fmt.Sprintf(`%s, <em class="warn">%s new today</em>.`, lead, strings.ToLower(spell(fresh))))
 	case quiet > 0:
-		return template.HTML(fmt.Sprintf(`%s, <em>%s quiet for a month</em>.`, lead, spell(quiet)))
+		return template.HTML(fmt.Sprintf(`%s, <em>%s quiet for a month</em>.`, lead, strings.ToLower(spell(quiet))))
 	}
 	return template.HTML(lead + `, <em>all in use</em>.`)
 }

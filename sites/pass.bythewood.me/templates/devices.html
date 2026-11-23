@@ -8,7 +8,7 @@
 </div>
 
 {{if .NoVault}}{{template "novault"}}{{end}}
-{{range .New}}<div class="o-note brass"><span class="o-lab plain">new</span><span>{{.Name}} ({{kind .Type}}) signed in for the first time {{ago .Created}}. If that wasn't you, change the master password in an app, which signs every device out.</span></div>{{end}}
+{{range .New}}<div class="o-note brass"><span class="o-lab plain">new</span><span>{{.Name}} ({{kind .Type}}) signed in for the first time {{ago .Created}}. If that wasn't you, <a href="/account">sign out every device</a> and change the master password.</span></div>{{end}}
 
 <div class="o-band b2r">
   <section class="o-panel flush">
@@ -40,7 +40,7 @@
     </section>
     <section class="o-panel">
       <div class="o-ph2"><h2>Signing a device out</h2></div>
-      <p class="o-muted small">This page only reads. To end one device's session, remove it under Settings, Account security, Devices in a Bitwarden app. Changing the master password signs out every device at once.</p>
+      <p class="o-muted small">To end one device's session, remove it under Settings, Account security, Devices in a Bitwarden app. To end them all, use <a href="/account">sign out every device</a> on the account page.</p>
     </section>
   </div>
 </div>

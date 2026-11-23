@@ -1,11 +1,11 @@
 /* pass's own pieces. Everything else comes from /suite/suite.css. */
 
 .small { font-size: 0.8rem; }
-.side { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.side { display: grid; gap: 14px; align-content: start; min-width: 0; }
 .o-tbl td.mono { font-family: var(--o-mono); font-size: 0.74rem; }
 .o-tbl tr.hot td { background: rgba(240, 107, 91, 0.05); }
-.o-tbl tr.hot td:first-child { box-shadow: inset 2px 0 0 var(--o-bad); }
-.o-tbl tr.acct td:first-child, .o-tbl tr.nw td:first-child { box-shadow: inset 2px 0 0 var(--o-warn); }
+.o-tbl tr.hot { box-shadow: inset 2px 0 0 var(--o-bad); }
+.o-tbl tr.acct, .o-tbl tr.nw { box-shadow: inset 2px 0 0 var(--o-warn); }
 .o-tbl tr.gone td { opacity: 0.55; }
 
 .dv { padding: 7px 14px; }
@@ -34,3 +34,7 @@
 .o-form.one { grid-template-columns: minmax(0, 1fr); margin-top: 12px; }
 .o-code.big { font-size: 1rem; letter-spacing: 0.08em; }
 .recover { margin-bottom: 10px; }
+.o-hbar .d { white-space: nowrap; }
+.o-hbar .k a { color: inherit; }
+.o-in.code { max-width: 12ch; }
+.as-is { text-transform: none; }
