@@ -18,6 +18,8 @@ RUN apt-get update && \
 
 COPY --from=build /caddy /usr/bin/caddy
 COPY Caddyfile /etc/caddy/Caddyfile
+# A Caddyfile that doesn't parse fails the build here, not the running edge.
+RUN caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile > /dev/null
 
 ENV XDG_CONFIG_HOME=/config XDG_DATA_HOME=/data
 USER 65532:65532
