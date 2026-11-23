@@ -313,7 +313,7 @@ http://pass.bythewood.me {
 	@vw path /api/* /identity/* /icons/* /notifications/* /events/* /attachments/* /alive
 	handle @vw {
 		# Its requests are kept as rows in logging, since Vaultwarden doesn't ship.
-		log_append component vaultwarden
+		log_append upstream vaultwarden
 		reverse_proxy orchard-pass-vw:8000 {
 			header_up X-Real-IP {client_ip}
 			import hold
