@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -21,6 +22,10 @@ type admin struct {
 	token  string
 	config string
 	http   *http.Client
+
+	mu  sync.Mutex
+	jwt string
+	exp time.Time
 }
 
 func newAdmin(base, token, vaultPath string) *admin {
@@ -47,11 +52,17 @@ func (a *admin) Signups() bool {
 	return *c.Signups
 }
 
-// session signs in with the token and hands back the cookie. Vaultwarden marks
-// it Secure, so it's carried by hand since the bridge is plain HTTP.
+// session signs in with the token and hands back the cookie, kept for a while
+// since Vaultwarden allows few admin sign ins a minute. It marks the cookie
+// Secure, so it's carried by hand over the plain HTTP bridge.
 func (a *admin) session(ctx context.Context) (string, error) {
 	if !a.Configured() {
 		return "", errors.New("PASS_ADMIN_TOKEN is unset")
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.jwt != "" && time.Now().Before(a.exp) {
+		return a.jwt, nil
 	}
 	form := url.Values{"token": {a.token}}.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.base+"/admin", strings.NewReader(form))
@@ -64,9 +75,14 @@ func (a *admin) session(ctx context.Context) (string, error) {
 		return "", err
 	}
 	resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return "", errors.New("Vaultwarden has had too many admin sign ins, try again in a few minutes")
+	}
 	for _, c := range resp.Cookies() {
 		if c.Name == "VW_ADMIN" && c.Value != "" {
-			return c.Value, nil
+			// Vaultwarden's admin session lasts 20 minutes by default.
+			a.jwt, a.exp = c.Value, time.Now().Add(15*time.Minute)
+			return a.jwt, nil
 		}
 	}
 	return "", fmt.Errorf("Vaultwarden refused the admin token, answered %d", resp.StatusCode)
@@ -89,16 +105,36 @@ func (a *admin) post(ctx context.Context, path string, body any) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusUnauthorized {
+		a.mu.Lock()
+		a.jwt = ""
+		a.mu.Unlock()
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Vaultwarden answered %d to %s", resp.StatusCode, path)
 	}
 	return nil
 }
 
-// SetSignups saves signups on or off live. Vaultwarden writes the whole saved
-// config from what's sent, and signups is the only thing the page ever saves.
+// SetSignups saves signups on or off live. Vaultwarden replaces the whole saved
+// config with what's sent, so whatever else is in it goes back with it.
 func (a *admin) SetSignups(ctx context.Context, on bool) error {
-	return a.post(ctx, "/config", map[string]bool{"signups_allowed": on})
+	cfg := map[string]any{}
+	if b, err := os.ReadFile(a.config); err == nil {
+		if err := json.Unmarshal(b, &cfg); err != nil {
+			return fmt.Errorf("config.json didn't parse, so it was left alone: %w", err)
+		}
+	}
+	cfg["signups_allowed"] = on
+	return a.post(ctx, "/config", cfg)
+}
+
+// CloseSignups switches signups off if they're on, and says whether it did.
+func (a *admin) CloseSignups(ctx context.Context) (bool, error) {
+	if !a.Signups() || !a.Configured() {
+		return false, nil
+	}
+	return true, a.SetSignups(ctx, false)
 }
 
 // SignOutEverywhere ends every session the user has, so each app has to sign

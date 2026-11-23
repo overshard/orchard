@@ -255,6 +255,7 @@ type Account struct {
 	Created   time.Time
 	TOTP      bool
 	Secret    string
+	LastUsed  int64
 	Others    int
 }
 
@@ -272,13 +273,38 @@ func (v *Vault) Account() (Account, error) {
 	}
 	a.Created = parseVW(created)
 	var secret sql.NullString
-	err = v.db.QueryRow(`SELECT data FROM twofactor WHERE user_uuid = ? AND atype = 0 AND enabled`, a.ID).Scan(&secret)
+	err = v.db.QueryRow(`SELECT data, last_used FROM twofactor WHERE user_uuid = ? AND atype = 0 AND enabled`, a.ID).Scan(&secret, &a.LastUsed)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return a, err
 	}
 	a.TOTP, a.Secret = secret.Valid, secret.String
 	err = v.db.QueryRow(`SELECT COUNT(*) FROM twofactor WHERE user_uuid = ? AND enabled AND atype IN (1, 2, 3, 4, 7)`, a.ID).Scan(&a.Others)
 	return a, err
+}
+
+func (v *Vault) Users() (int, error) {
+	var n int
+	err := v.db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&n)
+	return n, err
+}
+
+// FailedOff records a wrong code on the page's own turn-off form, so it shows
+// on the logins page and pushes like a wrong code at sign in.
+func (v *Vault) FailedOff(user, ip string) error {
+	db, err := v.writer()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := logEvent(tx, user, evFailed2FA, ip); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // writer opens a separate read write handle for the few writes, so every
@@ -302,7 +328,7 @@ func newUUID() string {
 
 // EnableTOTP saves the authenticator the way Vaultwarden's own API does, the
 // secret as base32 with the step it was confirmed at, and a recovery code if
-// the account has none. It returns the recovery code.
+// the account has none. It returns the recovery code only when it made one.
 func (v *Vault) EnableTOTP(user, secret string, step int64, ip string) (string, error) {
 	db, err := v.writer()
 	if err != nil {
@@ -323,6 +349,7 @@ func (v *Vault) EnableTOTP(user, secret string, step int64, ip string) (string, 
 	if err := tx.QueryRow(`SELECT totp_recover FROM users WHERE uuid = ?`, user).Scan(&recover); err != nil {
 		return "", err
 	}
+	made := ""
 	if !recover.Valid || recover.String == "" {
 		b := make([]byte, 20)
 		_, _ = rand.Read(b)
@@ -330,11 +357,12 @@ func (v *Vault) EnableTOTP(user, secret string, step int64, ip string) (string, 
 		if _, err := tx.Exec(`UPDATE users SET totp_recover = ? WHERE uuid = ?`, recover.String, user); err != nil {
 			return "", err
 		}
+		made = recover.String
 	}
 	if err := logEvent(tx, user, evUpdated2FA, ip); err != nil {
 		return "", err
 	}
-	return recover.String, tx.Commit()
+	return made, tx.Commit()
 }
 
 // DisableTOTP removes the authenticator. Remembered devices are forgotten too,

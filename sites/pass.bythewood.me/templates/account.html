@@ -3,35 +3,38 @@
 <div class="o-ph">
   <div>
     <span class="o-lab">pass &middot; account</span>
-    <h1>{{if .NoAccount}}No account yet, <em class="{{if .Signups}}warn{{end}}">signups {{if .Signups}}on{{else}}off{{end}}</em>.{{else if .Account.TOTP}}Two step login <em>on</em>, signups {{if .Signups}}<em class="warn">on</em>{{else}}off{{end}}.{{else}}Two step login <em class="warn">off</em>.{{end}}</h1>
-    {{if not .NoAccount}}<div class="o-pm"><span>account<b>{{.Account.Email}}</b></span><span>since<b>{{day .Account.Created}}</b></span></div>{{end}}
+    <h1>{{if .NoAccount}}No account yet{{else if .TwoStep}}Two step login <em>on</em>{{else}}Two step login <em class="warn">off</em>{{end}}, signups {{if .Signups}}<em class="warn">on</em>{{else}}off{{end}}.</h1>
+    {{if not .NoAccount}}<div class="o-pm"><span>account<b class="as-is">{{.Account.Email}}</b></span><span>since<b>{{day .Account.Created}}</b></span></div>{{end}}
   </div>
 </div>
 
 {{if .NoVault}}{{template "novault"}}{{end}}
 {{with .Problem}}<div class="o-note bad"><span class="o-lab plain">not saved</span><span>{{.}}</span></div>{{end}}
 
-{{if .Recovery}}
-<div class="o-note brass"><span class="o-lab plain">saved</span><span>Two step login is on. Every app asks for a code the next time it signs in, and the ones signed in now stay signed in.</span></div>
+{{if .Enabled}}
+<div class="o-note brass"><span class="o-lab plain">saved</span><span>Two step login is on. Apps signed in now stay signed in until they sign in again, so sign them all out below if you want each one to ask for a code now.</span></div>
+{{with .Recovery}}
 <section class="o-panel recover">
   <div class="o-ph2"><h2>Recovery code</h2><span class="o-pm"><span>shown once</span></span></div>
-  <p class="o-muted small">If the phone with the authenticator is ever lost, this with the master password gets back in and turns two step login off. Keep it somewhere that isn't this server, like a printout.</p>
-  <pre class="o-code big">{{.Recovery}}</pre>
+  <p class="o-muted small">With the master password this gets back in without the authenticator and turns two step login off. You can also turn it off from this page or the server, so it's a spare, but keep it somewhere that isn't this server if you keep it.</p>
+  <pre class="o-code big">{{.}}</pre>
 </section>
+{{end}}
 {{end}}
 
 <div class="o-band b2">
   <section class="o-panel">
     <div class="o-ph2"><h2>Two step login</h2><span class="o-pm"><span>authenticator app</span></span></div>
     {{if .NoAccount}}
-      <p class="o-empty"><b>No account yet.</b>Turn signups on, make the account from a Bitwarden app, then come back here to set this up.</p>
+      <p class="o-empty"><b>No account yet.</b>Switch signups on, make the account from a Bitwarden app, then come back here to set this up.</p>
     {{else if .Account.TOTP}}
-      <p class="small">On. Signing in from a new app asks for the six digit code from the authenticator.</p>
+      <p class="small">On. Signing in from a new app asks for the six digit code from the authenticator. To move it to another app, turn it off here and set it up again.</p>
+      {{if .Locked}}<p class="o-empty"><b>Locked for a few minutes.</b>Too many wrong codes were tried here, and each one was pushed to the phone.</p>{{else}}
       <form method="post" action="/account/totp/off" class="o-form one">
-        <label class="o-field"><span>A current code, to turn it off</span><input class="o-in" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required></label>
+        <label class="o-field"><span>A current code, to turn it off</span><input class="o-in code" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required></label>
         <div class="o-formbar"><button class="o-btn o-btn-sm o-btn-bad" type="submit">Turn two step login off</button></div>
-      </form>
-    {{else if not .Recovery}}
+      </form>{{end}}
+    {{else if .Secret}}
       <div class="totp">
         {{with .QR}}<img src="{{.}}" width="196" height="196" alt="Setup code for an authenticator app">{{end}}
         <div>
@@ -42,18 +45,20 @@
           </ol>
           <form method="post" action="/account/totp" class="o-form one">
             <input type="hidden" name="secret" value="{{.Secret}}">
-            <label class="o-field"><span>Code from the app</span><input class="o-in" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required autofocus></label>
+            <label class="o-field"><span>Code from the app</span><input class="o-in code" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required autofocus></label>
             <div class="o-formbar"><button class="o-btn o-btn-p o-btn-sm" type="submit">Turn two step login on</button></div>
           </form>
         </div>
       </div>
+    {{else}}
+      <p class="o-empty"><b>Off.</b><a href="/account">Reload the page</a> for a setup code.</p>
     {{end}}
   </section>
 
   <div class="side">
     <section class="o-panel">
       <div class="o-ph2"><h2>Signups</h2><span class="o-pm"><span>now<b class="{{if .Signups}}warn{{else}}ok{{end}}">{{if .Signups}}on{{else}}off{{end}}</b></span></span></div>
-      <p class="o-muted small">Only on long enough to make an account from a Bitwarden app. While it's on anyone who finds this server can make one, so it pushes to the phone when it's switched on.</p>
+      <p class="o-muted small">Only on long enough to make an account from a Bitwarden app, and they switch off by themselves once one is made. Switching them on pushes to the phone.</p>
       {{if .AdminOK}}
       <form method="post" action="/account/signups" class="o-formbar">
         <input type="hidden" name="on" value="{{if .Signups}}false{{else}}true{{end}}">
@@ -65,10 +70,9 @@
     {{if and (not .NoAccount) .AdminOK}}
     <section class="o-panel">
       <div class="o-ph2"><h2>Sign out every device</h2></div>
-      <p class="o-muted small">Ends every app's session, so each one needs the master password again. For a lost phone or a device you don't recognise.</p>
-      <form method="post" action="/account/signout" class="o-form one">
-        <label class="o-check"><input type="checkbox" required> Sign out every device, this one's apps too</label>
-        <div class="o-formbar"><button class="o-btn o-btn-sm o-btn-bad" type="submit">Sign out every device</button></div>
+      <p class="o-muted small">Ends every app's session, so each one needs the master password again, and the code if two step login is on. For a lost phone, a device you don't recognise, or right after turning two step login on.</p>
+      <form method="post" action="/account/signout" class="o-formbar" data-confirm="Sign every Bitwarden app out? Each one needs the master password again.">
+        <button class="o-btn o-btn-sm o-btn-bad" type="submit" data-act="sign out every device">Sign out every device</button>
       </form>
     </section>
     {{end}}

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"pass.bythewood.me/ntfy"
@@ -26,20 +27,37 @@ var doneText = map[string]string{
 	"signed-out":  "Every device is signed out",
 }
 
+// pendingCookie holds the secret being set up, so a reload shows the same QR
+// code. It's host only and lasts as long as the setup does.
+const pendingCookie = "pass_totp_pending"
+
 func (s *site) accountPage(w http.ResponseWriter, r *http.Request) {
-	s.renderAccount(w, r, http.StatusOK, newSecret(), "", "")
+	secret := ""
+	if c, err := r.Cookie(pendingCookie); err == nil && validSecret(c.Value) {
+		secret = c.Value
+	} else {
+		secret = newSecret()
+		http.SetCookie(w, &http.Cookie{Name: pendingCookie, Value: secret, Path: "/account", MaxAge: 900,
+			HttpOnly: true, Secure: r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https", SameSite: http.SameSiteStrictMode})
+	}
+	s.renderAccount(w, r, http.StatusOK, secret, "", "", false)
 }
 
-func (s *site) renderAccount(w http.ResponseWriter, r *http.Request, code int, secret, problem, recovery string) {
+func validSecret(v string) bool {
+	key, err := base32.StdEncoding.DecodeString(strings.ToUpper(strings.TrimSpace(v)))
+	return err == nil && len(key) == 20
+}
+
+func (s *site) renderAccount(w http.ResponseWriter, r *http.Request, code int, secret, problem, recovery string, enabled bool) {
 	page, _ := s.chrome(r, "account")
 	a, err := s.vault.Account()
 	data := map[string]any{
 		"Suite": page, "Account": a, "NoAccount": errors.Is(err, errNoAccount), "NoVault": err != nil && !errors.Is(err, errNoAccount),
-		"Signups": s.admin.Signups(), "AdminOK": s.admin.Configured(),
-		"Secret": secret, "Spaced": spaced(secret), "Problem": problem, "Recovery": spaced(recovery),
-		"Done": doneText[r.URL.Query().Get("done")],
+		"Signups": s.admin.Signups(), "AdminOK": s.admin.Configured(), "TwoStep": a.TOTP || a.Others > 0,
+		"Secret": secret, "Spaced": spaced(secret), "Problem": problem, "Recovery": spaced(recovery), "Enabled": enabled,
+		"Done": doneText[r.URL.Query().Get("done")], "Locked": s.off.locked(time.Now()),
 	}
-	if err == nil && !a.TOTP {
+	if err == nil && !a.TOTP && secret != "" {
 		data["QR"] = template.URL(qrPNG(otpURI(secret, a.Email)))
 	}
 	s.render(w, code, "account.html", data)
@@ -58,7 +76,7 @@ func (s *site) setSignups(w http.ResponseWriter, r *http.Request) {
 	}
 	slog.Warn("pass signups switched "+word, slog.String("ip", web.ClientIP(r)))
 	if on {
-		s.watch.send(r.Context(), ntfy.Message{Title: "pass: signups are on", Body: "Anyone can make an account until they're switched off.",
+		s.watch.send(r.Context(), ntfy.Message{Title: "pass: signups are on", Body: "Anyone can make an account until they're switched off, which happens by itself once one is made.",
 			Priority: "high", Tags: "lock", Link: baseURL + "/account", Label: "Account"})
 	}
 	http.Redirect(w, r, "/account?done=signups-"+word, http.StatusSeeOther)
@@ -70,23 +88,64 @@ func (s *site) enableTOTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "there's no account to turn it on for", http.StatusConflict)
 		return
 	}
+	// Replacing a working authenticator goes through turning it off, which
+	// asks for a current code.
+	if a.TOTP {
+		http.Redirect(w, r, "/account", http.StatusSeeOther)
+		return
+	}
 	secret := strings.ToUpper(strings.TrimSpace(r.FormValue("secret")))
-	if key, err := base32.StdEncoding.DecodeString(secret); err != nil || len(key) != 20 {
-		s.renderAccount(w, r, http.StatusBadRequest, newSecret(), "That setup code was damaged, so here's a new one to scan.", "")
+	if !validSecret(secret) {
+		http.SetCookie(w, &http.Cookie{Name: pendingCookie, Path: "/account", MaxAge: -1})
+		s.renderAccount(w, r, http.StatusBadRequest, "", "That setup code was damaged. Reload the page for a new one.", "", false)
 		return
 	}
 	step, ok := checkTOTP(secret, r.FormValue("code"), time.Now())
 	if !ok {
-		s.renderAccount(w, r, http.StatusBadRequest, secret, "That code didn't match. Check the phone's clock and try the newest one.", "")
+		s.renderAccount(w, r, http.StatusBadRequest, secret, "That code didn't match. Make sure the app scanned this page's QR code, and that the phone's clock is right.", "", false)
 		return
 	}
 	recovery, err := s.vault.EnableTOTP(a.ID, secret, step, web.ClientIP(r))
 	if err != nil {
 		slog.Error("pass two step not saved", slog.Any("err", err))
-		s.renderAccount(w, r, http.StatusInternalServerError, secret, "It couldn't be saved: "+err.Error(), "")
+		s.renderAccount(w, r, http.StatusInternalServerError, secret, "It couldn't be saved: "+err.Error(), "", false)
 		return
 	}
-	s.renderAccount(w, r, http.StatusOK, "", "", recovery)
+	http.SetCookie(w, &http.Cookie{Name: pendingCookie, Path: "/account", MaxAge: -1})
+	s.renderAccount(w, r, http.StatusOK, "", "", recovery, true)
+}
+
+// offGuard locks the turn-off form after a run of wrong codes, since a stolen
+// orchard session could otherwise guess at it.
+type offGuard struct {
+	mu     sync.Mutex
+	misses []time.Time
+	until  time.Time
+}
+
+const offMisses, offWindow = 5, 15 * time.Minute
+
+func (g *offGuard) locked(now time.Time) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return now.Before(g.until)
+}
+
+func (g *offGuard) miss(now time.Time) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	keep := g.misses[:0]
+	for _, t := range g.misses {
+		if now.Sub(t) < offWindow {
+			keep = append(keep, t)
+		}
+	}
+	g.misses = append(keep, now)
+	if len(g.misses) >= offMisses {
+		g.until, g.misses = now.Add(offWindow), nil
+		return true
+	}
+	return false
 }
 
 func (s *site) disableTOTP(w http.ResponseWriter, r *http.Request) {
@@ -95,13 +154,27 @@ func (s *site) disableTOTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/account", http.StatusSeeOther)
 		return
 	}
-	if _, ok := checkTOTP(a.Secret, r.FormValue("code"), time.Now()); !ok {
-		s.renderAccount(w, r, http.StatusBadRequest, "", "That code didn't match, so two step login is still on.", "")
+	now := time.Now()
+	if s.off.locked(now) {
+		s.renderAccount(w, r, http.StatusTooManyRequests, "", "Too many wrong codes, so turning it off is locked for a few minutes.", "", false)
+		return
+	}
+	// A code at or before the last step used is a replay, the same rule
+	// Vaultwarden keeps at sign in.
+	if step, ok := checkTOTP(a.Secret, r.FormValue("code"), now); !ok || step <= a.LastUsed {
+		ip := web.ClientIP(r)
+		if err := s.vault.FailedOff(a.ID, ip); err != nil {
+			slog.Error("pass wrong code not recorded", slog.Any("err", err))
+		}
+		if s.off.miss(now) {
+			slog.Warn("pass two step turn off locked", slog.String("ip", ip))
+		}
+		s.renderAccount(w, r, http.StatusBadRequest, "", "That code didn't match, or was already used, so two step login is still on.", "", false)
 		return
 	}
 	if err := s.vault.DisableTOTP(a.ID, web.ClientIP(r)); err != nil {
 		slog.Error("pass two step not removed", slog.Any("err", err))
-		s.renderAccount(w, r, http.StatusInternalServerError, "", "It couldn't be turned off: "+err.Error(), "")
+		s.renderAccount(w, r, http.StatusInternalServerError, "", "It couldn't be turned off: "+err.Error(), "", false)
 		return
 	}
 	http.Redirect(w, r, "/account?done=totp-off", http.StatusSeeOther)

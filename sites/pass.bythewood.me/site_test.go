@@ -324,7 +324,11 @@ func TestTwoStepOnAndOff(t *testing.T) {
 	if rec := post(t, h, "/account/totp/off", url.Values{"code": {"000000"}}); rec.Code != 400 {
 		t.Errorf("turning off with a wrong code answered %d", rec.Code)
 	}
-	code, _ = totpAt(secret, time.Now().Unix()/30)
+	// The code that turned it on is spent, so it can't turn it off.
+	if rec := post(t, h, "/account/totp/off", url.Values{"code": {code}}); rec.Code != 400 {
+		t.Errorf("a replayed code answered %d", rec.Code)
+	}
+	code, _ = totpAt(secret, time.Now().Unix()/30+1)
 	if rec := post(t, h, "/account/totp/off", url.Values{"code": {code}}); rec.Code != http.StatusSeeOther {
 		t.Fatalf("turning off answered %d", rec.Code)
 	}
@@ -334,10 +338,11 @@ func TestTwoStepOnAndOff(t *testing.T) {
 	if left != 0 || remembered != 0 {
 		t.Errorf("%d authenticators and %d remembered devices left", left, remembered)
 	}
-	var events int
+	var events, misses int
 	_ = f.db.QueryRow(`SELECT COUNT(*) FROM event WHERE event_type IN (1002, 1003)`).Scan(&events)
-	if events != 2 {
-		t.Errorf("%d account events, want 2", events)
+	_ = f.db.QueryRow(`SELECT COUNT(*) FROM event WHERE event_type = 1006 AND act_user_uuid = 'u1'`).Scan(&misses)
+	if events != 2 || misses != 2 {
+		t.Errorf("%d account events and %d wrong codes, want 2 and 2", events, misses)
 	}
 }
 
@@ -378,5 +383,73 @@ func TestAdminSignups(t *testing.T) {
 	}
 	if err := newAdmin(vw.URL, "wrong", "x").SetSignups(context.Background(), true); err == nil {
 		t.Error("a wrong token went through")
+	}
+}
+
+// A visitor who isn't signed in sees only up or down, never what the health
+// word would tell an attacker.
+func TestSignedOutSeesNoHealthWord(t *testing.T) {
+	f := newFixture(t)
+	f.seed(t, time.Now().UTC())
+	s, _ := testSite(t, f)
+	body := get(t, s.handler(), "/", false).Body.String()
+	i := strings.Index(body, `class="o-status"`)
+	if i < 0 {
+		t.Fatal("no status line")
+	}
+	line := body[i : i+strings.Index(body[i:], "</div>")]
+	if !strings.Contains(line, ">up<") {
+		t.Errorf("status line %q", line)
+	}
+	for _, w := range []string{"failed", "new device", "two step", "signups", "update"} {
+		if strings.Contains(line, w) {
+			t.Errorf("the public status line says %q", w)
+		}
+	}
+}
+
+// Replacing a working authenticator has to go through turning it off.
+func TestEnableRefusedWhenOn(t *testing.T) {
+	f := newFixture(t)
+	f.seed(t, time.Now().UTC())
+	f.exec(t, `INSERT INTO twofactor VALUES ('t0', 'u1', 0, 1, 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', 0)`)
+	s, _ := testSite(t, f)
+	secret := newSecret()
+	code, _ := totpAt(secret, time.Now().Unix()/30)
+	if rec := post(t, s.handler(), "/account/totp", url.Values{"secret": {secret}, "code": {code}}); rec.Code != http.StatusSeeOther {
+		t.Errorf("answered %d", rec.Code)
+	}
+	var data string
+	_ = f.db.QueryRow(`SELECT data FROM twofactor WHERE atype = 0`).Scan(&data)
+	if data == secret {
+		t.Error("the authenticator was replaced")
+	}
+}
+
+func TestSignupsCloseOnANewAccount(t *testing.T) {
+	f := newFixture(t)
+	f.seed(t, time.Now().UTC())
+	v, _ := OpenVault(f.path)
+	defer v.Close()
+	w := newWatcher(v, nil)
+	closed := 0
+	w.signupsOff = func(context.Context) (bool, error) { closed++; return true, nil }
+	w.scan(context.Background(), time.Now())
+	f.exec(t, `INSERT INTO users (uuid, enabled, email, created_at) VALUES ('u2', 1, 'b@example.com', ?)`, vwArg(time.Now()))
+	w.scan(context.Background(), time.Now())
+	w.scan(context.Background(), time.Now())
+	if closed != 1 {
+		t.Errorf("closed %d times, want 1", closed)
+	}
+}
+
+func TestOlder(t *testing.T) {
+	for _, c := range []struct {
+		have, latest string
+		want         bool
+	}{{"1.37.5", "1.37.10", true}, {"1.37.5", "1.37.5", false}, {"1.38.0", "1.37.9", false}, {"", "1.37.5", false}} {
+		if got := older(c.have, c.latest); got != c.want {
+			t.Errorf("older(%q, %q) = %v", c.have, c.latest, got)
+		}
 	}
 }
