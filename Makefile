@@ -135,24 +135,28 @@ LOCK = exec 9>$(BUILD_LOCK); flock -w 900 9 || { echo "another build held $(BUIL
 # place and still report success, so the image builds, nothing is replaced, and
 # the deploy reads as done. The checks after it are there for the same reason.
 #
-# The image that was running is kept as :prev, and a container that comes up
-# unhealthy or not at all is put back on it so the site keeps serving the last
-# good build. Rolling back by hand is the same two commands:
+# Every image the site builds is kept as :prev, and if any of its containers
+# comes up unhealthy or not at all, all of them go back so the site keeps
+# serving the last good build. Rolling back by hand is the same two commands:
 #
 #   sudo docker tag orchard-blog-app:prev orchard-blog-app:latest
 #   cd sites/blog.bythewood.me && sudo docker compose up --no-build --force-recreate --detach
 deploy: require-site require-env
 	@$(LOCK); \
 	image=$(CONTAINER)-app; \
+	images=$$(cd $(SITE_DIR) && $(COMPOSE) config --images 2>/dev/null); \
+	containers=$$(cd $(SITE_DIR) && $(COMPOSE) config --format json 2>/dev/null | jq -r '.services[].container_name // empty'); \
 	prev=""; \
-	if $(DOCKER) image inspect $$image:latest >/dev/null 2>&1; then \
-		$(DOCKER) tag $$image:latest $$image:prev && prev=yes; \
-	fi; \
+	for i in $$images; do \
+		if $(DOCKER) image inspect $$i:latest >/dev/null 2>&1; then \
+			$(DOCKER) tag $$i:latest $$i:prev && prev="$$prev $$i"; \
+		fi; \
+	done; \
 	rollback() { \
 		echo "$(SITE): $$1" >&2; \
 		if [ -z "$$prev" ]; then echo "$(SITE): there is no earlier image to go back to" >&2; exit 1; fi; \
-		echo "$(SITE): putting $(CONTAINER) back on the image it had" >&2; \
-		$(DOCKER) tag $$image:prev $$image:latest && \
+		echo "$(SITE): putting$$prev back on the images they had" >&2; \
+		for i in $$prev; do $(DOCKER) tag $$i:prev $$i:latest; done && \
 			(cd $(SITE_DIR) && $(COMPOSE) up --no-build --force-recreate --detach) || \
 			echo "$(SITE): the rollback failed too, see docker logs $(CONTAINER)" >&2; \
 		exit 1; \
@@ -170,18 +174,20 @@ deploy: require-site require-env
 		echo "$(SITE): $(CONTAINER) is still on the image it had, so the deploy did not take" >&2; \
 		exit 1; \
 	fi; \
-	st=none; \
-	i=0; \
-	while [ $$i -lt 45 ]; do \
-		st=$$($(DOCKER) inspect $(CONTAINER) --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null); \
-		case "$$st" in healthy|none) break ;; esac; \
-		i=$$((i + 1)); \
-		sleep 2; \
+	for c in $${containers:-$(CONTAINER)}; do \
+		st=none; \
+		i=0; \
+		while [ $$i -lt 45 ]; do \
+			st=$$($(DOCKER) inspect $$c --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null); \
+			case "$$st" in healthy|none) break ;; esac; \
+			i=$$((i + 1)); \
+			sleep 2; \
+		done; \
+		if [ "$$st" != "healthy" ] && [ "$$st" != "none" ]; then \
+			rollback "$$c came up $$st"; \
+		fi; \
 	done; \
-	if [ "$$st" != "healthy" ] && [ "$$st" != "none" ]; then \
-		rollback "$(CONTAINER) came up $$st"; \
-	fi; \
-	echo "$(SITE) rebuilt and replaced as $(CONTAINER), $$st"
+	echo "$(SITE) rebuilt and replaced as" $${containers:-$(CONTAINER)}", healthy"
 
 # The edge equivalent of deploy. The Caddyfile and ntfy's server.yml are baked
 # into images and `make up` does not pass --build, so editing one and running
