@@ -80,7 +80,7 @@ type TapeLine struct {
 }
 
 type CodeStats struct {
-	Sites, Commits, Median int
+	Sites, Commits, Median, Repos int
 }
 
 type ProjectView struct {
@@ -250,7 +250,7 @@ func (s *site) code(w http.ResponseWriter, r *http.Request) {
 
 	data.Topo = buildTopology(health)
 	data.Tape = s.tape(time.Now())
-	data.Stats = CodeStats{Commits: s.commits.Total()}
+	data.Stats = CodeStats{Commits: s.commits.Total(), Repos: len(projects)}
 	for _, site := range sites {
 		if site.Visit != "" {
 			data.Stats.Sites++

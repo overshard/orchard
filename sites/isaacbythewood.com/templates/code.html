@@ -18,7 +18,7 @@
   {{- if .Median }}
   <div class="code-stat"><dt>Median response</dt><dd><span data-count="{{ .Median }}">{{ .Median }}</span><small>ms</small></dd></div>
   {{- end }}
-  <div class="code-stat"><dt>Open web ports</dt><dd class="code-statGrad">0</dd></div>
+  <div class="code-stat"><dt>Repositories</dt><dd class="code-statGrad" data-count="{{ .Repos }}">{{ .Repos }}</dd></div>
 </dl>
 {{- end }}
 
@@ -40,7 +40,6 @@
     </defs>
     <rect class="code-topoWall" x="150" y="12" width="598" height="376" />
     <text class="code-topoSub" x="160" y="30">VPS · DEBIAN · DOCKER · ONE BRIDGE NETWORK</text>
-    <text class="code-topoSub" x="144" y="384" text-anchor="end">NO INBOUND</text>
     <path class="code-topoWire code-topoWire-hot" d="M74 200 H96" />
     <path class="code-topoWire code-topoWire-hot" d="M162 200 H212" />
     <path class="code-topoWire code-topoWire-hot" d="M282 200 H326" />
@@ -78,7 +77,7 @@
   </svg>
   <svg class="code-topo code-topo-tall" viewBox="0 0 360 {{ .TallHeight }}" role="img" aria-label="A request goes from the internet through Cloudflare, an outbound tunnel, Caddy and gate to every site in orchard">
     <rect class="code-topoWall" x="4" y="122" width="352" height="{{ .TallWallHeight }}" />
-    <text class="code-topoSub" x="12" y="138">VPS · NO INBOUND</text>
+    <text class="code-topoSub" x="12" y="138">VPS</text>
     <path class="code-topoWire code-topoWire-hot" d="M180 44 V64 M180 104 V142 M180 182 V210 M180 250 V270" />
     <path class="code-topoWire" d="M230 230 H262" />
     <path class="code-topoWire code-topoWire-hot" d="M14 270 H186" />
@@ -112,7 +111,6 @@
   </svg>
   <dl class="code-readout" data-readout aria-live="polite">
     <dt>path</dt><dd>browser, Cloudflare, cloudflared, Caddy, gate, site</dd>
-    <dt>ports</dt><dd>none open to the web, the tunnel dials out to Cloudflare</dd>
     <dt>tap</dt><dd>any site on the map to see what it is</dd>
   </dl>
 </figure>
