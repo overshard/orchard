@@ -455,8 +455,7 @@ func (m *Mirror) clone(ctx context.Context, gh GitHubRepo, path string) error {
 		slog.String("repo", gh.Name), slog.Int("upstream_kb", gh.Size))
 
 	cmd := exec.CommandContext(ctx, "git", "clone", "--mirror", gh.CloneURL, path)
-	cmd.Env = append(os.Environ(),
-		"GIT_TERMINAL_PROMPT=0", "GIT_CONFIG_NOSYSTEM=1", "HOME="+os.TempDir())
+	cmd.Env = gitEnv()
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("clone %s: %w: %s", gh.Name, err, strings.TrimSpace(string(out)))

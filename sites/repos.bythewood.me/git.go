@@ -140,13 +140,20 @@ func gitCmd(ctx context.Context, repo Repo, args ...string) *exec.Cmd {
 		"--git-dir", repo.Path,
 	}
 	cmd := exec.CommandContext(ctx, "git", append(full, args...)...)
-	// git refuses some operations without a HOME, the mirror fetch among them.
-	cmd.Env = append(os.Environ(),
+	cmd.Env = gitEnv()
+	return cmd
+}
+
+// gitEnv is everything a git subprocess gets. The site's own environment holds
+// tokens, and a hook or a helper git starts would inherit them.
+func gitEnv() []string {
+	return []string{
+		"PATH=" + os.Getenv("PATH"),
+		// git refuses some operations without a HOME, the mirror fetch among them.
+		"HOME=" + os.TempDir(),
 		"GIT_TERMINAL_PROMPT=0",
 		"GIT_CONFIG_NOSYSTEM=1",
-		"HOME="+os.TempDir(),
-	)
-	return cmd
+	}
 }
 
 // run executes a plumbing command and returns stdout, stderr is folded into the error.
@@ -613,7 +620,7 @@ func (s *Store) InitBare(ctx context.Context, name string) (Repo, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "git", "init", "--bare", "--initial-branch=main", path)
-	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "HOME="+os.TempDir())
+	cmd.Env = gitEnv()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return Repo{}, fmt.Errorf("git init %s: %w: %s", name, err, out)
 	}
@@ -680,7 +687,7 @@ func newCatFile(repo Repo) (*catFile, error) {
 	// Store.Close at shutdown.
 	cmd := exec.Command("git", "-c", "core.quotePath=false",
 		"--git-dir", repo.Path, "cat-file", "--batch")
-	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "HOME="+os.TempDir())
+	cmd.Env = gitEnv()
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
