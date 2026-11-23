@@ -193,7 +193,7 @@ func TestBackRefusesAnotherBrowser(t *testing.T) {
 	s, _ := testSite(t)
 	h := s.handler()
 	q := url.Values{"response_type": {"code"}, "client_id": {knownClients[0]}, "redirect_uri": {"https://claude.ai/api/mcp/auth_callback"},
-		"code_challenge": {"abc"}, "code_challenge_method": {"S256"}}
+		"code_challenge": {strings.Repeat("a", 43)}, "code_challenge_method": {"S256"}}
 	start := func() (string, *http.Cookie) {
 		rec := do(t, h, httptest.NewRequest("GET", "/authorize?"+q.Encode(), nil))
 		loc, _ := url.Parse(rec.Header().Get("Location"))

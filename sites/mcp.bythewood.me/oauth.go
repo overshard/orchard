@@ -199,6 +199,12 @@ func isLoopback(host string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
+// Anyone can start a sign in, so what one holds and how many wait are bounded.
+const (
+	maxState   = 512
+	maxPending = 200
+)
+
 func (o *oauth) sweep(now time.Time) {
 	for k, v := range o.pending {
 		if now.After(v.expires) {
@@ -243,6 +249,9 @@ func (o *oauth) authorize(w http.ResponseWriter, r *http.Request) {
 	case q.Get("code_challenge") == "" || q.Get("code_challenge_method") != "S256":
 		fail("invalid_request", "PKCE with S256 is required")
 		return
+	case len(q.Get("code_challenge")) < 43 || len(q.Get("code_challenge")) > 128 || len(q.Get("state")) > maxState:
+		fail("invalid_request", "code_challenge or state is the wrong length")
+		return
 	case q.Get("resource") != "" && strings.TrimSuffix(q.Get("resource"), "/") != resourceURL:
 		fail("invalid_target", "the only resource here is "+resourceURL)
 		return
@@ -255,6 +264,11 @@ func (o *oauth) authorize(w http.ResponseWriter, r *http.Request) {
 	}
 	o.mu.Lock()
 	o.sweep(now)
+	if len(o.pending) >= maxPending {
+		o.mu.Unlock()
+		fail("temporarily_unavailable", "too many sign ins are waiting, try again in a few minutes")
+		return
+	}
 	o.pending[id] = pendingAuth{ClientID: clientID, ClientName: name, RedirectURI: redirect, Challenge: q.Get("code_challenge"),
 		State: q.Get("state"), Resource: resourceURL, Scope: offeredScope(q.Get("scope")), Browser: browser, expires: now.Add(pendingTTL)}
 	o.mu.Unlock()
