@@ -44,6 +44,7 @@ type site struct {
 	watch *watcher
 	auth  *web.Authenticator
 	admin *admin
+	off   offGuard
 }
 
 func env(k, def string) string {
@@ -95,6 +96,7 @@ func main() {
 		os.Exit(1)
 	}
 	s.admin = newAdmin(vaultURL, os.Getenv("PASS_ADMIN_TOKEN"), vaultPath)
+	s.watch.signupsOff = s.admin.CloseSignups
 	if !s.admin.Configured() {
 		slog.Warn("PASS_ADMIN_TOKEN is unset, so signups can't be switched from the account page")
 	}
