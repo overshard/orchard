@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -116,16 +117,28 @@ type vitalSpec struct {
 	Name, Col  string
 	Good, Poor float64
 	Tip        string
+	Label      string
+	What       string
 }
 
 var vitalSpecs = []vitalSpec{
-	{"LCP", "lcp_ms", 2500, 4000, "Largest contentful paint, when the main content showed up."},
-	{"INP", "inp_ms", 200, 500, "Interaction to next paint, how long a tap or key took to show a response. Only visits with an interaction have one."},
-	{"CLS", "cls", 0.1, 0.25, "Cumulative layout shift, how much the page jumped around while loading."},
-	{"FCP", "fcp_ms", 1800, 3000, "First contentful paint, when anything at all was drawn."},
-	{"TTFB", "ttfb_ms", 800, 1800, "Time to first byte, the network and the server together."},
-	{"Load", "load_ms", 0, 0, "When the load event finished, every image, script and font in."},
+	{"LCP", "lcp_ms", 2500, 4000, "Largest contentful paint, when the main content showed up.",
+		"Main content on screen", "Time until the biggest thing on the page painted, the one people feel most."},
+	{"INP", "inp_ms", 200, 500, "Interaction to next paint, how long a tap or key took to show a response. Only visits with an interaction have one.",
+		"Responds to clicks", "Delay between a tap or click and the page reacting. Only visits that clicked something have one."},
+	{"CLS", "cls", 0.1, 0.25, "Cumulative layout shift, how much the page jumped around while loading.",
+		"Layout stays put", "How much things jumped around while loading, 0 is perfect."},
+	{"FCP", "fcp_ms", 1800, 3000, "First contentful paint, when anything at all was drawn.",
+		"Something on screen", "Time until the first text or image painted."},
+	{"TTFB", "ttfb_ms", 800, 1800, "Time to first byte, the network and the server together.",
+		"Server answered", "Time until the first byte came back, the network and the server together."},
+	{"Load", "load_ms", 0, 0, "When the load event finished, every image, script and font in.",
+		"Fully loaded", "When every image, script and font was in."},
 }
+
+// measureOrder is the order a page load happens in, which is how the speed tab
+// reads top to bottom. Load has no threshold so it only sits on the timeline.
+var measureOrder = []string{"TTFB", "FCP", "LCP", "INP", "CLS"}
 
 // Vital is one p75 tile.
 type Vital struct {
@@ -136,6 +149,37 @@ type Vital struct {
 	Tip   string
 	N     int
 	P75   *float64
+
+	Label     string
+	What      string
+	Word      string
+	GoodAt    string
+	PoorAt    string
+	GoodPct   float64
+	PoorPct   float64
+	MarkerPct float64
+}
+
+// Mark is one moment on the load timeline. Row 1 drops a label below its
+// neighbour when the two would overlap.
+type Mark struct {
+	Label string
+	Value string
+	Pct   float64
+	Row   int
+}
+
+// Verdict is the one line answer at the top of the speed tab.
+type Verdict struct {
+	Class    string
+	Tag      string
+	Head     string
+	Body     string
+	MinN     int
+	MaxN     int
+	Rough    bool
+	Timeline []Mark
+	LoadPct  float64
 }
 
 // PageVital is one page's LCP p75.
@@ -162,6 +206,8 @@ type PageError struct {
 type RealUsers struct {
 	Samples     int
 	Vitals      []Vital
+	Measures    []Vital
+	Verdict     Verdict
 	Slowest     []PageVital
 	LCPElements []LabelCount
 	CLSElements []LabelCount
@@ -170,6 +216,7 @@ type RealUsers struct {
 	Overflow    []LabelCount
 	BigImages   []LabelCount
 	BFReasons   []LabelCount
+	Problems    int
 }
 
 // p75 is the nearest-rank percentile, so it's always a value a visitor saw.
@@ -252,9 +299,13 @@ func readRealUsers(ctx context.Context, db querier, id uuid.UUID, startMS, endMS
 	rows.Close()
 
 	for i, spec := range vitalSpecs {
-		v := Vital{Name: spec.Name, Tip: spec.Tip, N: len(cols[i]), Value: "none"}
+		v := Vital{Name: spec.Name, Tip: spec.Tip, N: len(cols[i]), Value: "none", Label: spec.Label, What: spec.What}
 		if spec.Good > 0 {
 			v.Good = "good ≤ " + formatVital(spec, spec.Good)
+			v.GoodAt, v.PoorAt = formatVital(spec, spec.Good), formatVital(spec, spec.Poor)
+			// The scale runs half again past poor, so a poor value still lands on it.
+			top := spec.Poor * 1.5
+			v.GoodPct, v.PoorPct = pct1(spec.Good/top), pct1(spec.Poor/top)
 		} else {
 			v.Good = "no threshold"
 		}
@@ -263,9 +314,15 @@ func readRealUsers(ctx context.Context, db querier, id uuid.UUID, startMS, endMS
 			v.P75 = &p
 			v.Value = formatVital(spec, p)
 			v.Class = classify(spec, p)
+			v.Word = map[string]string{"ok": "good", "warn": "needs work", "bad": "poor"}[v.Class]
+			if spec.Good > 0 {
+				v.MarkerPct = math.Min(pct1(p/(spec.Poor*1.5)), 99)
+			}
 		}
 		ru.Vitals = append(ru.Vitals, v)
 	}
+	ru.Measures = orderVitals(ru.Vitals, measureOrder)
+	ru.Verdict = verdictOf(ru.Measures, ru.Vitals)
 
 	// Three samples, or one slow visit on a quiet page tops the list.
 	var worst float64
@@ -296,11 +353,100 @@ func readRealUsers(ctx context.Context, db querier, id uuid.UUID, startMS, endMS
 	ru.Overflow = topOf(overflow, 5)
 	ru.BigImages = topOf(bigImg, 5)
 	ru.BFReasons = topOf(bf, 5)
+	for _, l := range [][]LabelCount{ru.BigImages, ru.Overflow, ru.CLSElements, ru.BFReasons} {
+		if len(l) > 0 {
+			ru.Problems++
+		}
+	}
 
 	if withErrors {
 		ru.Errors, ru.ErrorTotal = readPageErrors(ctx, db, id, startMS, endMS, 12)
 	}
 	return ru
+}
+
+func pct1(f float64) float64 { return math.Round(f*1000) / 10 }
+
+func orderVitals(all []Vital, names []string) []Vital {
+	out := make([]Vital, 0, len(names))
+	for _, n := range names {
+		for _, v := range all {
+			if v.Name == n {
+				out = append(out, v)
+			}
+		}
+	}
+	return out
+}
+
+func verdictOf(measures, all []Vital) Verdict {
+	var vd Verdict
+	var measured, warn, bad int
+	for _, m := range measures {
+		if m.P75 == nil {
+			continue
+		}
+		measured++
+		if vd.MinN == 0 || m.N < vd.MinN {
+			vd.MinN = m.N
+		}
+		vd.MaxN = max(vd.MaxN, m.N)
+		switch m.Class {
+		case "warn":
+			warn++
+		case "bad":
+			bad++
+		}
+	}
+	vd.Rough = vd.MaxN < 20
+	switch {
+	case measured == 0:
+		vd.Head, vd.Body = "No timings yet.", "Visitors' browsers report them as they leave a page, so they show up after the first few visits."
+		return vd
+	case bad > 0:
+		vd.Class, vd.Tag, vd.Head = "bad", "slow", "Slow."
+		vd.Body = fmt.Sprintf("%d of %d measures are poor and %d more need work.", bad, measured, warn)
+	case warn > 0:
+		vd.Class, vd.Tag, vd.Head = "warn", "mixed", "Mostly fine."
+		vd.Body = fmt.Sprintf("%d of %d measures need work.", warn, measured)
+	default:
+		vd.Class, vd.Tag, vd.Head, vd.Body = "ok", "fast", "Fast.", "Every measure is in the good range."
+	}
+
+	byName := map[string]Vital{}
+	for _, v := range all {
+		byName[v.Name] = v
+	}
+	var end float64
+	for _, n := range []string{"LCP", "Load"} {
+		if v := byName[n]; v.P75 != nil {
+			end = math.Max(end, *v.P75)
+		}
+	}
+	if end <= 0 {
+		return vd
+	}
+	end *= 1.12
+	lastPct, lastRow := -100.0, 1
+	for _, n := range []string{"TTFB", "FCP", "LCP", "Load"} {
+		v := byName[n]
+		if v.P75 == nil {
+			continue
+		}
+		m := Mark{Label: strings.ToLower(v.Label), Value: v.Value, Pct: pct1(*v.P75 / end)}
+		if m.Pct-lastPct < 14 && lastRow == 0 {
+			m.Row = 1
+		}
+		lastPct, lastRow = m.Pct, m.Row
+		vd.Timeline = append(vd.Timeline, m)
+		if n == "Load" {
+			vd.LoadPct = m.Pct
+		}
+	}
+	if vd.LoadPct == 0 && len(vd.Timeline) > 0 {
+		vd.LoadPct = vd.Timeline[len(vd.Timeline)-1].Pct
+	}
+	return vd
 }
 
 // readPageErrors groups errors by what they said and where, newest first among

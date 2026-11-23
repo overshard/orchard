@@ -55,3 +55,15 @@
 {{ if $key }}<a class="o-hbar fl{{ if $d.On $key .Label }} on{{ end }}" href="{{ $d.Toggle $key .Label }}" title="{{ .Label }}">{{ else }}<div class="o-hbar" title="{{ .Label }}">{{ end }}<span class="k">{{ .Label }}</span><span class="bar"><i style="width: {{ pct .Count $top }}%"></i></span>{{ if $share }}<span class="v" data-tip="{{ num .Count }}">{{ pct .Count $sum }}%</span>{{ else }}<span class="v">{{ num .Count }}</span>{{ end }}{{ if $rate }}<span class="d{{ if ge .Rate 60 }} o-warn{{ end }}">{{ .Rate }}%</span>{{ end }}{{ if $key }}</a>{{ else }}</div>{{ end }}
 {{ end }}
 {{ end }}
+
+{{/* The tabs of a panel that holds several lists, the first one lit. */}}
+{{ define "ctabs" }}<span class="o-seg links ctabs" role="tablist">{{ range $i, $t := . }}<button type="button" role="tab" data-tab="{{ $t.ID }}" aria-selected="{{ if eq $i 0 }}true{{ else }}false{{ end }}"{{ if $t.Empty }} class="none"{{ end }}>{{ $t.Label }}</button>{{ end }}</span>{{ end }}
+
+{{/* One list inside a tabbed panel. Hidden unless on, until the tabs script
+     picks the remembered one. */}}
+{{ define "pane" }}
+<div class="pane" data-pane="{{ .id }}"{{ if not .on }} hidden{{ end }}>
+  {{ if .items }}<div class="colh"><span></span><span>{{ .col }}</span></div>{{ template "fbars" . }}{{ else }}<p class="o-empty">Nothing in this window.</p>{{ end }}
+  {{ if .foot }}<p class="o-foot">{{ .foot }}</p>{{ end }}
+</div>
+{{ end }}

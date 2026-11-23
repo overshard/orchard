@@ -23,6 +23,8 @@ var templateFuncs = template.FuncMap{
 	"permille":     func(n int64) string { return fmt.Sprintf("%.1f%%", float64(n)/10) },
 	"ticks":        ticks,
 	"sumCount":     sumCounts,
+	"list":         func(v ...any) []any { return v },
+	"tab":          cardTab,
 	"topCount": func(items []LabelCount) int64 {
 		var top int64 = 1
 		for _, i := range items {
@@ -108,4 +110,20 @@ func ticks(vals []int64) []int64 {
 		}
 	}
 	return out
+}
+
+// CardTab is one tab on a panel that holds several lists. Empty dims it, so a
+// tab with nothing behind it reads as empty before it's clicked.
+type CardTab struct {
+	ID    string
+	Label string
+	Empty bool
+}
+
+func cardTab(id, label string, items any) CardTab {
+	t := CardTab{ID: id, Label: label}
+	if l, ok := items.([]LabelCount); ok {
+		t.Empty = len(l) == 0
+	}
+	return t
 }

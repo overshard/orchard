@@ -20,78 +20,80 @@
     <div>
       <span class="o-lab">analytics &middot; {{ if $authed }}properties &middot; {{ end }}{{ $p.Name }}</span>
       <h1>{{ cardHeadline .EventCards }}</h1>
-      <div class="o-pm"><span>live<b class="{{ if .LiveUsers }}ok{{ end }}">{{ .LiveUsers }}</b></span><span>window<b>{{ .DateRange }}d</b></span><span>vs<b>prev {{ .DateRange }}d</b></span><span>from<b>{{ .DateStart }}</b></span><span>to<b>{{ .DateEnd }}</b></span><span>tz<b>Eastern</b></span></div>
+      <div class="o-pm"><span>vs<b>prev {{ .DateRange }}d</b></span><span>from<b>{{ .DateStart }}</b></span><span>to<b>{{ .DateEnd }}</b></span><span>tz<b>Eastern</b></span></div>
     </div>
-    {{ if $authed }}
     <div class="o-acts d-print-none">
-      <form id="is-public-form" method="POST" action="/properties/{{ $p.ID }}/public" class="visibility">
-        <span class="o-muted small" data-tip="Anyone with the link can see a public property, no sign in.">Visibility</span>
-        <label class="o-seg">
-          <input type="checkbox" name="is_public" id="is-public-switch" {{ if $p.IsPublic }}checked{{ end }}>
-          <span class="seg-private">private</span><span class="seg-public">public</span>
-        </label>
-      </form>
-      <a href="/{{ $p.ID }}{{ .Report "md" }}" target="_blank" class="o-btn o-btn-sm" data-act="Markdown report">Markdown</a>
-      <a href="/{{ $p.ID }}{{ .Report "pdf" }}" target="_blank" class="o-btn o-btn-sm" data-act="PDF report">PDF report</a>
-      {{ if not $p.IsProtected }}
-      <form method="post" action="/properties/{{ $p.ID }}/delete" data-confirm="Delete {{ $p.Name }} and every event collected for it?">
-        <button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete</button>
-      </form>
+      <span class="o-seg links ranges">{{ range .Ranges }}<a href="{{ .Href }}" data-keep-view{{ if .On }} class="on" aria-current="true"{{ end }}>{{ .Label }}</a>{{ end }}
+        <details class="menu custom"><summary{{ if .Custom }} class="on"{{ end }}>custom</summary>
+          <div class="menu-body">
+            <form method="GET" class="dates" id="custom-dates">
+              {{ range $k, $v := .Hidden }}<input type="hidden" name="{{ $k }}" value="{{ $v }}">{{ end }}
+              <input type="hidden" name="date_range" value="custom">
+              <label class="o-field"><span>From</span><input type="date" name="date_start" id="date-start" value="{{ .DateStart }}"></label>
+              <label class="o-field"><span>To</span><input type="date" name="date_end" id="date-end" value="{{ .DateEnd }}"></label>
+              <button type="submit" class="o-btn o-btn-sm">Show</button>
+            </form>
+          </div>
+        </details>
+      </span>
+      {{ if $authed }}
+      <details class="menu">
+        <summary class="o-btn o-btn-sm">Export</summary>
+        <div class="menu-body narrow">
+          <a href="/{{ $p.ID }}{{ .Report "md" }}" target="_blank" data-act="Markdown report">Markdown report</a>
+          <a href="/{{ $p.ID }}{{ .Report "pdf" }}" target="_blank" data-act="PDF report">PDF report</a>
+          <p class="o-muted small">Same dates and filters as the page.</p>
+        </div>
+      </details>
+      <details class="menu">
+        <summary class="o-btn o-btn-sm">Settings</summary>
+        <div class="menu-body wide settings">
+          <span class="o-lab">visibility</span>
+          <form id="is-public-form" method="POST" action="/properties/{{ $p.ID }}/public" class="visibility">
+            <label class="o-seg">
+              <input type="checkbox" name="is_public" id="is-public-switch" {{ if $p.IsPublic }}checked{{ end }}>
+              <span class="seg-private">private</span><span class="seg-public">public</span>
+            </label>
+            <span class="o-muted small">Anyone with the link can see a public property, no sign in.</span>
+          </form>
+          <span class="o-lab">site tag</span>
+          <p class="o-muted small">Paste this into the <code>&lt;head&gt;</code> of {{ $p.Name }}. Behind a Content-Security-Policy, add <code>{{ $baseURL }}</code> to <code>script-src</code> and <code>connect-src</code>.</p>
+          <pre class="o-code">&lt;script src="{{ $baseURL }}/static/collector.js" data-collector-id="{{ $p.ID }}" async&gt;&lt;/script&gt;</pre>
+          <span class="o-lab">cards and goals</span>
+          <div id="event-menu">
+            <form id="custom-card-form" method="POST" action="/properties/{{ $p.ID }}/cards"></form>
+            <form id="goal-form" method="POST" action="/properties/{{ $p.ID }}/goals"><input type="hidden" name="back" value="{{ .QueryString }}"></form>
+            <p class="o-muted small">A card pins an event's count under the strip. A goal counts the visits that sent it and the share of all visits.</p>
+            <table class="evpick">
+              <thead><tr><th>event</th><th>card</th><th>goal</th></tr></thead>
+              <tbody>
+              {{ range .CustomEvents }}
+              <tr><td class="o-mono">{{ .Event }}</td>
+                <td><input type="checkbox" form="custom-card-form" name="{{ .Event }}" aria-label="Pin {{ .Event }} as a card" {{ if .Active }}checked{{ end }}></td>
+                <td>{{ if .Custom }}<input type="checkbox" form="goal-form" name="goal" value="{{ .Event }}" aria-label="Count {{ .Event }} as a goal" {{ if .Goal }}checked{{ end }}>{{ end }}</td></tr>
+              {{ end }}
+              </tbody>
+            </table>
+            {{ if not .GoalNames }}{{ if not .ByCustomEvent }}<p class="o-muted small">Goals need a custom event. The docs say how to send one.</p>{{ end }}{{ end }}
+          </div>
+          {{ if not $p.IsProtected }}
+          <form method="post" action="/properties/{{ $p.ID }}/delete" data-confirm="Delete {{ $p.Name }} and every event collected for it?">
+            <button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete property</button>
+          </form>
+          {{ end }}
+        </div>
+      </details>
       {{ end }}
     </div>
-    {{ end }}
   </div>
 
-  <div class="toolbar d-print-none">
-    <form method="GET" class="dates">
-      {{ range $k, $v := .Hidden }}<input type="hidden" name="{{ $k }}" value="{{ $v }}">{{ end }}
-      <label class="o-field"><span>From</span><input type="date" name="date_start" id="date-start" value="{{ .DateStart }}"></label>
-      <label class="o-field"><span>To</span><input type="date" name="date_end" id="date-end" value="{{ .DateEnd }}"></label>
-      <label class="o-field"><span>Window</span>
-        <select name="date_range" id="date-range">
-          <option value="custom">custom</option>
-          {{ $r := .DateRange }}
-          <option value="7" {{ if eq $r 7 }}selected{{ end }}>7 days</option>
-          <option value="14" {{ if eq $r 14 }}selected{{ end }}>14 days</option>
-          <option value="28" {{ if eq $r 28 }}selected{{ end }}>28 days</option>
-          <option value="90" {{ if eq $r 90 }}selected{{ end }}>3 months</option>
-          <option value="180" {{ if eq $r 180 }}selected{{ end }}>6 months</option>
-          <option value="365" {{ if eq $r 365 }}selected{{ end }}>1 year</option>
-        </select>
-      </label>
-    </form>
-    <span class="o-sp"></span>
-    {{ if $authed }}
-    <details class="menu">
-      <summary class="o-btn o-btn-sm">Site tag</summary>
-      <div class="menu-body wide">
-        <p class="o-muted small">Paste this into the <code>&lt;head&gt;</code> of {{ $p.Name }}.</p>
-        <pre class="o-code">&lt;script src="{{ $baseURL }}/static/collector.js" data-collector-id="{{ $p.ID }}" async&gt;&lt;/script&gt;</pre>
-        <p class="o-muted small">Behind a Content-Security-Policy, add <code>{{ $baseURL }}</code> to <code>script-src</code> and <code>connect-src</code>.</p>
-      </div>
-    </details>
-    <details class="menu">
-      <summary class="o-btn o-btn-sm" data-act="Cards and goals">Cards and goals</summary>
-      <div class="menu-body" id="event-menu">
-        <form id="custom-card-form" method="POST" action="/properties/{{ $p.ID }}/cards"></form>
-        <form id="goal-form" method="POST" action="/properties/{{ $p.ID }}/goals"><input type="hidden" name="back" value="{{ .QueryString }}"></form>
-        <p class="o-muted small">A card pins an event's count under the strip. A goal counts the visits that sent it and the share of all visits.</p>
-        <table class="evpick">
-          <thead><tr><th>event</th><th>card</th><th>goal</th></tr></thead>
-          <tbody>
-          {{ range .CustomEvents }}
-          <tr><td class="o-mono">{{ .Event }}</td>
-            <td><input type="checkbox" form="custom-card-form" name="{{ .Event }}" aria-label="Pin {{ .Event }} as a card" {{ if .Active }}checked{{ end }}></td>
-            <td>{{ if .Custom }}<input type="checkbox" form="goal-form" name="goal" value="{{ .Event }}" aria-label="Count {{ .Event }} as a goal" {{ if .Goal }}checked{{ end }}>{{ end }}</td></tr>
-          {{ end }}
-          </tbody>
-        </table>
-        {{ if not .GoalNames }}{{ if not .ByCustomEvent }}<p class="o-muted small">Goals need a custom event. The docs say how to send one.</p>{{ end }}{{ end }}
-      </div>
-    </details>
-    {{ end }}
-  </div>
+  <nav class="view-tabs d-print-none" aria-label="Dashboard views">
+    <button type="button" data-view="traffic" class="on">Traffic{{ with index .Tiles 0 }}<b>{{ .Value }} {{ .Name }}</b>{{ end }}</button>
+    <button type="button" data-view="speed">Speed &amp; errors<b class="{{ .Real.Verdict.Class }}">{{ or .Real.Verdict.Tag "no data" }}</b>{{ if and $authed .Real.ErrorTotal }}<b class="bad">{{ num .Real.ErrorTotal }} errors</b>{{ end }}</button>
+    <button type="button" data-view="bots">Bots<b>{{ num .Bots.Total }}</b></button>
+  </nav>
 
+  <div class="view" data-view="traffic">
   <div class="chips">
     {{ if .Filters }}
     <span class="o-lab plain o-muted">filtered to</span>
@@ -105,13 +107,22 @@
   </div>
 
   <div class="o-strip">
-    {{ range .Tiles }}
+    {{ range $i, $t := .Tiles }}
+    {{ if .Series }}
+    <button type="button" class="o-tile pick{{ if eq $i 0 }} on{{ end }}" data-metric="{{ .Name }}"{{ if .HelpText }} data-tip="{{ .HelpText }}"{{ end }}>
+      <small>{{ .Name }}</small>
+      <b>{{ .Value }}</b>
+      <span class="o-delta {{ .DeltaClass }}">{{ .Delta }}</span>
+      {{ sparkT .SparkKind .Series $d.Labels }}
+    </button>
+    {{ else }}
     <div class="o-tile"{{ if .HelpText }} data-tip="{{ .HelpText }}"{{ end }}>
       <small>{{ .Name }}</small>
       <b>{{ .Value }}</b>
       <span class="o-delta {{ .DeltaClass }}">{{ .Delta }}</span>
-      {{ if .Series }}{{ sparkT .SparkKind .Series $d.Labels }}{{ else }}<span class="o-nospark"></span>{{ end }}
+      <span class="o-nospark"></span>
     </div>
+    {{ end }}
     {{ end }}
     <div class="o-tile" data-tip="Visitors with an event in the last half hour, one tick a minute.">
       <small>live</small>
@@ -136,7 +147,7 @@
 
   <div class="o-band b2r">
     <section class="o-panel">
-      <div class="o-ph2"><h2>Visitors over time</h2><span class="o-pm"><span>{{ .GraphStep }}</span><span>peak<b>{{ .GraphPeak.Label }} &middot; {{ num .GraphPeak.Count }}</b></span><span>avg<b>{{ num .GraphAvg }}</b></span><span>before<b>{{ num .PrevAvg }}</b></span>{{ if $authed }}<span>alerts<b>{{ len .ChartMarks }}</b></span>{{ end }}</span></div>
+      <div class="o-ph2"><h2 id="chart-title">Visitors over time</h2><span class="o-pm" id="chart-pm"><span>{{ .GraphStep }}</span><span>peak<b>{{ .GraphPeak.Label }} &middot; {{ num .GraphPeak.Count }}</b></span><span>avg<b>{{ num .GraphAvg }}</b></span><span>before<b>{{ num .PrevAvg }}</b></span>{{ if $authed }}<span>alerts<b>{{ len .ChartMarks }}</b></span>{{ end }}</span></div>
       {{ if .Chart }}
       <div class="vchart" id="visitors-chart">
         {{ .Chart }}
@@ -144,7 +155,7 @@
         <i class="vl" hidden></i>
       </div>
       <div class="xax">{{ range axisLabels .Graph }}<span>{{ . }}</span>{{ end }}</div>
-      <div class="leg"><span><i class="cur"></i>visitors</span><span><i class="prev"></i>the {{ .DateRange }} days before</span>{{ if .ChartMarks }}<span><i class="mark"></i>alert pushed</span>{{ end }}</div>
+      <div class="leg"><span><i class="cur"></i><span id="chart-leg">visitors</span></span><span class="leg-prev"><i class="prev"></i>the {{ .DateRange }} days before</span>{{ if .ChartMarks }}<span><i class="mark"></i>alert pushed</span>{{ end }}</div>
       {{ else }}
       <p class="o-empty">Nothing collected in this window.</p>
       {{ end }}
@@ -160,68 +171,47 @@
     </section>
   </div>
 
-  <div class="o-band b4">
-    {{ template "fpanel" dict "d" $d "title" "Top pages" "col" "views" "key" "page" "items" .PageViewsByPageURL }}
-    {{ template "fpanel" dict "d" $d "title" "Entry pages" "col" "visits · bounce" "key" "entry" "items" .EntryPages "rate" true "tip" "Where each visit started, and the share of those visits that left after one page." }}
-    {{ template "fpanel" dict "d" $d "title" "Exit pages" "col" "visits" "key" "page" "items" .ExitPages "tip" "The last page each visit saw." }}
-    {{ template "fpanel" dict "d" $d "title" "Referrers" "col" "visits" "key" "referrer" "items" .SessionsByReferrer "tip" "Where each visit came from, read off its first page view." }}
-  </div>
-
-  <div class="o-strip six realusers" data-tip="Real visitors' browsers, the 75th percentile over this window.">
-    {{ range .Real.Vitals }}
-    <div class="o-tile" data-tip="{{ .Tip }}">
-      <small>{{ .Name }} &middot; p75</small>
-      <b class="{{ .Class }}">{{ .Value }}</b>
-      <span class="o-delta">{{ .Good }} &middot; {{ num .N }}</span>
-      <span class="o-nospark"></span>
-    </div>
-    {{ end }}
-  </div>
-
-  <div class="o-band b2r">
-    <section class="o-panel">
-      <div class="o-ph2"><h2>Errors in visitors' browsers</h2><span class="o-pm">{{ if $authed }}<span>total<b class="{{ if .Real.ErrorTotal }}bad{{ end }}">{{ num .Real.ErrorTotal }}</b></span><span>first party only</span>{{ else }}<span>signed in only</span>{{ end }}</span></div>
-      {{ if not $authed }}
-      <p class="o-empty">Error messages show once you're signed in.</p>
-      {{ else if .Real.Errors }}
-      <table class="o-tbl stack">
-        <thead><tr><th>what</th><th>where</th><th class="r">count</th><th class="r">pages</th><th class="r">last</th></tr></thead>
-        <tbody>
-        {{ range .Real.Errors }}
-        <tr{{ if .New }} class="hot"{{ end }}><td class="lead clip" title="{{ .Message }}"><span class="o-chip{{ if or (eq .Kind "js") (eq .Kind "promise") }} bad{{ else if eq .Kind "resource" }} warn{{ end }}">{{ .Kind }}</span> {{ .Message }}</td><td class="n clip" data-l="where" title="{{ .Source }}">{{ .Source }}</td><td class="n r" data-l="count">{{ num .Count }}</td><td class="n r" data-l="pages">{{ num .Pages }}</td><td class="n r" data-l="last">{{ .Last }}{{ if .New }} &middot; new{{ end }}</td></tr>
-        {{ end }}
-        </tbody>
-      </table>
-      {{ else }}
-      <p class="o-empty">No errors, failed loads or CSP violations reported in this window. They show here as soon as a visitor's browser hits one.</p>
-      {{ end }}
-      <div class="o-foot">js &middot; promise &middot; resource &middot; csp &middot; deprecation &middot; intervention</div>
+  <div class="o-band b2">
+    <section class="o-panel cards" data-card="pages">
+      <div class="o-ph2"><h2>Pages</h2>{{ template "ctabs" (list (tab "top" "Top" .PageViewsByPageURL) (tab "entry" "Entry" .EntryPages) (tab "exit" "Exit" .ExitPages) (tab "every" "Every event" .ByPageURL)) }}</div>
+      {{ template "pane" dict "d" $d "id" "top" "on" true "col" "views" "key" "page" "items" .PageViewsByPageURL }}
+      {{ template "pane" dict "d" $d "id" "entry" "col" "visits · bounce" "key" "entry" "items" .EntryPages "rate" true "foot" "Where each visit started, and the share that left after one page." }}
+      {{ template "pane" dict "d" $d "id" "exit" "col" "visits" "key" "page" "items" .ExitPages "foot" "The last page each visit saw." }}
+      {{ template "pane" dict "d" $d "id" "every" "col" "events" "key" "page" "items" .ByPageURL "foot" "Page views plus every other event, by page." }}
     </section>
-    <section class="o-panel">
-      <div class="o-ph2"><h2>Slowest pages</h2><span class="o-pm"><span>LCP p75</span><span>3+ views</span></span></div>
-      {{ if .Real.Slowest }}
-      {{ range .Real.Slowest }}<div class="o-hbar" title="{{ .URL }} &middot; {{ .N }} views"><span class="k">{{ .URL }}</span><span class="bar"><i class="{{ .Class }}" style="width: {{ .Pct }}%"></i></span><span class="v">{{ .Value }}</span></div>{{ end }}
-      {{ else }}
-      <p class="o-empty">A page shows here once three visits have reported a paint time.</p>
-      {{ end }}
-      {{ if .Real.LCPElements }}<span class="o-lab sub">LCP element</span>{{ template "fbars" dict "d" $d "key" "" "items" .Real.LCPElements }}{{ end }}
-      {{ if .Real.CLSElements }}<span class="o-lab sub">what shifted</span>{{ template "fbars" dict "d" $d "key" "" "items" .Real.CLSElements }}{{ end }}
-      {{ if .Real.Overflow }}<span class="o-lab sub o-warn">wider than the screen</span>{{ template "fbars" dict "d" $d "key" "" "items" .Real.Overflow }}{{ end }}
-      {{ if .Real.BigImages }}<span class="o-lab sub o-warn">images shown at under half their size</span>{{ template "fbars" dict "d" $d "key" "" "items" .Real.BigImages }}{{ end }}
-      {{ if .Real.BFReasons }}<span class="o-lab sub">back button missed the cache</span>{{ template "fbars" dict "d" $d "key" "" "items" .Real.BFReasons }}{{ end }}
+    <section class="o-panel cards" data-card="sources">
+      <div class="o-ph2"><h2>Sources</h2>{{ template "ctabs" (list (tab "ref" "Referrers" .SessionsByReferrer) (tab "source" "utm source" .PageViewsByUTMSource) (tab "medium" "utm medium" .PageViewsByUTMMedium) (tab "campaign" "utm campaign" .PageViewsByUTMCampaig)) }}</div>
+      {{ template "pane" dict "d" $d "id" "ref" "on" true "col" "visits" "key" "referrer" "items" .SessionsByReferrer "foot" "Where each visit came from, read off its first page view." }}
+      {{ template "pane" dict "d" $d "id" "source" "col" "views" "key" "source" "items" .PageViewsByUTMSource }}
+      {{ template "pane" dict "d" $d "id" "medium" "col" "views" "key" "medium" "items" .PageViewsByUTMMedium }}
+      {{ template "pane" dict "d" $d "id" "campaign" "col" "views" "key" "campaign" "items" .PageViewsByUTMCampaig }}
     </section>
   </div>
 
-  <div class="o-band b6">
-    {{ if .RegionsOf }}
-    {{ template "fpanel" dict "d" $d "title" (printf "Regions · %s" .RegionsOf) "col" "visitors" "key" "region" "items" .Regions }}
-    {{ else }}
-    {{ template "fpanel" dict "d" $d "title" "Countries" "col" "visitors" "key" "country" "items" .TopCountries "foot" (printf "%d of %d · map below" (len .TopCountries) (len .SessionsByCountry)) }}
-    {{ end }}
-    {{ template "fpanel" dict "d" $d "title" "Device" "col" "visitors" "key" "device" "items" .ByDevice "share" true }}
-    {{ template "fpanel" dict "d" $d "title" "Browser" "col" "visitors" "key" "browser" "items" .ByBrowser "share" true }}
-    {{ template "fpanel" dict "d" $d "title" "Platform" "col" "visitors" "key" "platform" "items" .ByPlatform "share" true }}
-    {{ template "fpanel" dict "d" $d "title" "Screen" "col" "visitors" "key" "screen" "items" .ByScreenSize "share" true }}
+  <div class="o-band b2">
+    <section class="o-panel cards" data-card="places">
+      <div class="o-ph2"><h2>Locations</h2>{{ template "ctabs" (list (tab "map" "Map" 1) (tab "countries" "Countries" .TopCountries) (tab "regions" "Regions" .Regions)) }}</div>
+      <div class="pane" data-pane="map">
+        <div class="maphead"><span class="o-lab" id="map-title">visitors &middot; world</span><button type="button" id="map-back" class="o-btn o-btn-sm" hidden>&larr; back to the world</button></div>
+        <div id="map"></div>
+      </div>
+      {{ template "pane" dict "d" $d "id" "countries" "col" "visitors" "key" "country" "items" .TopCountries "foot" (printf "%d of %d countries" (len .TopCountries) (len .SessionsByCountry)) }}
+      <div class="pane" data-pane="regions" hidden>
+        {{ if .RegionsOf }}<div class="colh"><span>regions of {{ .RegionsOf }}</span><span>visitors</span></div>{{ template "fbars" dict "d" $d "key" "region" "items" .Regions }}
+        {{ else }}<p class="o-empty">Pick a country on the map or in Countries to see its regions.</p>{{ end }}
+      </div>
+    </section>
+    <section class="o-panel cards" data-card="devices">
+      <div class="o-ph2"><h2>Devices</h2>{{ template "ctabs" (list (tab "browser" "Browser" .ByBrowser) (tab "device" "Device" .ByDevice) (tab "platform" "Platform" .ByPlatform) (tab "screen" "Screen" .ByScreenSize)) }}</div>
+      {{ template "pane" dict "d" $d "id" "browser" "on" true "col" "visitors" "key" "browser" "items" .ByBrowser "share" true }}
+      {{ template "pane" dict "d" $d "id" "device" "col" "visitors" "key" "device" "items" .ByDevice "share" true }}
+      {{ template "pane" dict "d" $d "id" "platform" "col" "visitors" "key" "platform" "items" .ByPlatform "share" true }}
+      {{ template "pane" dict "d" $d "id" "screen" "col" "visitors" "key" "screen" "items" .ByScreenSize "share" true }}
+    </section>
+  </div>
+
+  {{ if or .Goals .ByCustomEvent }}
+  <div class="o-band b2">
     <section class="o-panel">
       <div class="o-ph2"><h2>Goals</h2><span class="o-pm"><span>visits &middot; rate</span></span></div>
       {{ if .Goals }}
@@ -230,35 +220,109 @@
       <a class="o-hbar fl{{ if $d.On "goal" .Label }} on{{ end }}" href="{{ $d.Toggle "goal" .Label }}"><span class="k">{{ .Label }}</span><span class="bar"><i style="width: {{ pct .Count $top }}%"></i></span><span class="v">{{ num .Count }}</span><span class="d">{{ permille .Rate }}</span></a>
       {{ end }}
       {{ else }}
-      <p class="o-empty">{{ if $authed }}No goals yet. Mark a custom event as one under Cards and goals.{{ else }}No goals on this property.{{ end }}</p>
+      <p class="o-empty">{{ if $authed }}No goals yet. Mark a custom event as one under Settings.{{ else }}No goals on this property.{{ end }}</p>
       {{ end }}
     </section>
-  </div>
-
-  <div class="o-band b4">
-    {{ template "fpanel" dict "d" $d "title" "utm source" "col" "views" "key" "source" "items" .PageViewsByUTMSource }}
-    {{ template "fpanel" dict "d" $d "title" "utm medium" "col" "views" "key" "medium" "items" .PageViewsByUTMMedium }}
-    {{ template "fpanel" dict "d" $d "title" "utm campaign" "col" "views" "key" "campaign" "items" .PageViewsByUTMCampaig }}
     {{ template "fpanel" dict "d" $d "title" "Custom events" "col" "count" "key" "goal" "items" .ByCustomEvent "tip" "A row narrows the page to the visits that sent the event." }}
   </div>
+  {{ else }}
+  <section class="o-panel slim"><h2>Goals &amp; custom events</h2><span class="o-muted small">None sent in this window. Once a site sends a custom event it gets its own card here{{ if $authed }}, and Settings can turn it into a goal{{ end }}.</span></section>
+  {{ end }}
+  </div>
+
+  <div class="view" data-view="speed" hidden>
+  {{ $r := .Real }}{{ $v := $r.Verdict }}
+  <section class="o-panel">
+    <div class="o-ph2"><h2>How fast it feels to real visitors</h2><span class="o-pm"><span>slowest 25% of visits</span><span>{{ .DateRange }}d</span></span></div>
+    <p class="verdict"><b class="o-{{ $v.Class }}">{{ $v.Head }}</b> {{ $v.Body }}{{ if $v.MaxN }} <span class="o-muted">Based on {{ if eq $v.MinN $v.MaxN }}{{ $v.MaxN }}{{ else }}{{ $v.MinN }} to {{ $v.MaxN }}{{ end }} visits that reported timings{{ if $v.Rough }}, so it's a rough read until there are 20 or more{{ end }}.</span>{{ end }}</p>
+    {{ if $v.Timeline }}
+    <div class="tl" role="img" aria-label="Load timeline">
+      <div class="tl-bar"><i style="width: {{ $v.LoadPct }}%"></i></div>
+      {{ range $v.Timeline }}<div class="tl-m{{ if .Row }} low{{ end }}" style="left: {{ .Pct }}%"><u></u><b>{{ .Value }}</b><span>{{ .Label }}</span></div>{{ end }}
+    </div>
+    {{ end }}
+  </section>
 
   <div class="o-band b2">
     <section class="o-panel">
-      <div class="o-ph2"><h2 id="map-title">visitors &middot; world</h2><button type="button" id="map-back" class="o-btn o-btn-sm" hidden>&larr; back to the world</button></div>
-      <div id="map"></div>
+      <div class="o-ph2"><h2>Each measure</h2><span class="o-pm"><span class="o-ok">good</span><span class="o-warn">needs work</span><span class="o-bad">poor</span></span></div>
+      {{ range $r.Measures }}
+      <div class="vm" data-tip="{{ .Tip }}">
+        <div class="vm-n"><b>{{ .Label }}</b><span>{{ .What }}</span></div>
+        <div class="vm-v"><b class="o-{{ .Class }}">{{ .Value }}</b>{{ if .Word }}<span class="o-chip {{ .Class }}">{{ .Word }}</span>{{ end }}</div>
+        <div class="vm-s">
+          <div class="scale"><i class="z ok" style="width: {{ .GoodPct }}%"></i><i class="z warn" style="width: calc({{ .PoorPct }}% - {{ .GoodPct }}%)"></i><i class="z bad"></i>{{ if .P75 }}<u style="left: {{ .MarkerPct }}%"></u>{{ end }}</div>
+          <div class="ticks"><span style="left: {{ .GoodPct }}%">{{ .GoodAt }}</span><span style="left: {{ .PoorPct }}%">{{ .PoorAt }}</span></div>
+        </div>
+        <div class="vm-t">{{ .Name }} &middot; {{ .N }} {{ if eq .N 1 }}visit{{ else }}visits{{ end }}</div>
+      </div>
+      {{ end }}
+      <p class="o-foot">Thresholds are Google's Core Web Vitals. Each number is the 75th percentile, so three in four visits were at least this fast.</p>
     </section>
+
     <div class="colstack">
-      {{ template "fpanel" dict "d" $d "title" "Pages by every event" "col" "events" "key" "page" "items" .ByPageURL }}
-      <section class="o-panel bots" data-tip="Crawlers and other bots, counted apart so they never inflate the numbers above.">
-        <div class="o-ph2"><h2>Bots</h2><span class="o-pm"><span>events<b>{{ num .Bots.Total }}</b></span><span>kept apart</span></span></div>
-        {{ if .Bots.Total }}
-        {{ template "fbars" dict "d" $d "key" "" "items" .Bots.TopBots }}
-        {{ if .Bots.TopPages }}<span class="o-lab sub">pages they hit</span>{{ template "fbars" dict "d" $d "key" "" "items" .Bots.TopPages }}{{ end }}
+      <section class="o-panel">
+        <div class="o-ph2"><h2>Things to fix</h2><span class="o-pm"><span>{{ if $r.Problems }}{{ $r.Problems }} found{{ else }}none{{ end }}</span></span></div>
+        {{ with $r.BigImages }}
+        <div class="fix"><span class="o-chip warn">images</span><div><b>{{ len . }} {{ if eq (len .) 1 }}image is{{ else }}images are{{ end }} much bigger than {{ if eq (len .) 1 }}it's{{ else }}they're{{ end }} shown.</b><span>Each downloads at more than twice the size it's displayed at, so resizing saves bandwidth on phones.</span>{{ template "fbars" dict "d" $d "key" "" "items" . }}</div></div>
+        {{ end }}
+        {{ with $r.Overflow }}
+        <div class="fix"><span class="o-chip warn">width</span><div><b>{{ len . }} {{ if eq (len .) 1 }}page is{{ else }}pages are{{ end }} wider than the screen.</b><span>Visitors had to scroll sideways, usually a wide table, image or code block.</span>{{ template "fbars" dict "d" $d "key" "" "items" . }}</div></div>
+        {{ end }}
+        {{ with $r.CLSElements }}
+        <div class="fix"><span class="o-chip warn">jumps</span><div><b>Something moved while loading.</b><span>These elements shifted the layout. Giving them a fixed size usually stops it.</span>{{ template "fbars" dict "d" $d "key" "" "items" . }}</div></div>
+        {{ end }}
+        {{ with $r.BFReasons }}
+        <div class="fix"><span class="o-chip">back</span><div><b>The back button reloaded the page.</b><span>The browser couldn't keep these pages in memory, so going back was a full load. The reasons it gave:</span>{{ template "fbars" dict "d" $d "key" "" "items" . }}</div></div>
+        {{ end }}
+        {{ if not $r.Problems }}<div class="fix"><span class="o-chip ok">ok</span><div><b>Nothing to fix.</b><span>No oversized images, nothing wider than the screen, nothing jumping around and the back button cache works.</span></div></div>{{ end }}
+        {{ with $r.LCPElements }}
+        <div class="fix"><span class="o-chip">info</span><div><b>The main content is usually <span class="o-mono">{{ (index . 0).Label }}</span>.</b><span>That's what "main content on screen" is waiting on.</span>{{ if gt (len .) 1 }}{{ template "fbars" dict "d" $d "key" "" "items" . }}{{ end }}</div></div>
+        {{ end }}
+      </section>
+
+      <section class="o-panel">
+        <div class="o-ph2"><h2>Errors in visitors' browsers</h2><span class="o-pm">{{ if $authed }}<span>{{ num $r.ErrorTotal }} in {{ .DateRange }}d</span>{{ else }}<span>signed in only</span>{{ end }}</span></div>
+        {{ if not $authed }}
+        <p class="o-empty">Error messages show once you're signed in.</p>
+        {{ else if $r.Errors }}
+        <p class="verdict"><b class="o-bad">{{ num $r.ErrorTotal }} {{ if eq $r.ErrorTotal 1 }}error{{ else }}errors{{ end }}.</b> <span class="o-muted">From this site's own code, newest first. Red is a script that crashed, orange a file that failed to load.</span></p>
+        <table class="o-tbl stack">
+          <thead><tr><th>what</th><th>where</th><th class="r">count</th><th class="r">pages</th><th class="r">last</th></tr></thead>
+          <tbody>
+          {{ range $r.Errors }}
+          <tr{{ if .New }} class="hot"{{ end }}><td class="lead clip" title="{{ .Message }}"><span class="o-chip{{ if or (eq .Kind "js") (eq .Kind "promise") }} bad{{ else if eq .Kind "resource" }} warn{{ end }}">{{ .Kind }}</span> {{ .Message }}</td><td class="n clip" data-l="where" title="{{ .Source }}">{{ .Source }}</td><td class="n r" data-l="count">{{ num .Count }}</td><td class="n r" data-l="pages">{{ num .Pages }}</td><td class="n r" data-l="last">{{ .Last }}{{ if .New }} &middot; new{{ end }}</td></tr>
+          {{ end }}
+          </tbody>
+        </table>
         {{ else }}
-        <p class="o-empty">No bot events in this window.</p>
+        <p class="verdict"><b class="o-ok">Nothing broke.</b> <span class="o-muted">No script errors, failed loads or blocked resources from this site's own code. When one happens it lists here with the page and how often.</span></p>
+        {{ end }}
+      </section>
+
+      <section class="o-panel">
+        <div class="o-ph2"><h2>Slowest pages</h2><span class="o-pm"><span>main content on screen</span></span></div>
+        {{ if $r.Slowest }}
+        {{ range $r.Slowest }}<div class="o-hbar" title="{{ .URL }} &middot; {{ .N }} visits"><span class="k">{{ .URL }}</span><span class="bar"><i class="{{ .Class }}" style="width: {{ .Pct }}%"></i></span><span class="v">{{ .Value }}</span></div>{{ end }}
+        {{ else }}
+        <p class="o-empty">Not enough data yet. A page shows here once 3 visits to it have reported a load time.</p>
         {{ end }}
       </section>
     </div>
+  </div>
+  </div>
+
+  <div class="view" data-view="bots" hidden>
+  <div class="o-band b2">
+    <section class="o-panel" data-tip="Crawlers and other bots, counted apart so they never inflate the traffic numbers.">
+      <div class="o-ph2"><h2>Bots</h2><span class="o-pm"><span>events<b>{{ num .Bots.Total }}</b></span><span>never counted in traffic</span></span></div>
+      {{ if .Bots.Total }}{{ template "fbars" dict "d" $d "key" "" "items" .Bots.TopBots }}{{ else }}<p class="o-empty">No bot events in this window.</p>{{ end }}
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Pages they hit</h2></div>
+      {{ if .Bots.TopPages }}{{ template "fbars" dict "d" $d "key" "" "items" .Bots.TopPages }}{{ else }}<p class="o-empty">No bot events in this window.</p>{{ end }}
+    </section>
+  </div>
   </div>
 </main>
 {{ end }}

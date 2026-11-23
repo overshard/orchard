@@ -345,3 +345,40 @@ func (d *Dashboard) QueryString() string {
 	}
 	return q.Encode()
 }
+
+// RangeLink is one of the preset windows in the header.
+type RangeLink struct {
+	Label string
+	Href  string
+	On    bool
+}
+
+// Ranges are the preset windows, each keeping the filters and dropping any
+// custom dates.
+func (d *Dashboard) Ranges() []RangeLink {
+	cur := d.query.Get("date_range")
+	if cur == "" && d.query.Get("date_start") == "" {
+		cur = strconv.Itoa(defaultRangeDays)
+	}
+	var out []RangeLink
+	for _, r := range []struct {
+		label string
+		days  int
+	}{{"7d", 7}, {"14d", 14}, {"28d", 28}, {"3m", 90}, {"6m", 180}, {"1y", 365}} {
+		q := url.Values{}
+		for k, v := range d.query {
+			if strings.HasPrefix(k, "f_") || k == "filter_url" {
+				q[k] = v
+			}
+		}
+		q.Set("date_range", strconv.Itoa(r.days))
+		out = append(out, RangeLink{r.label, "?" + q.Encode(), cur == strconv.Itoa(r.days)})
+	}
+	return out
+}
+
+// Custom says the window came from the two date fields rather than a preset.
+func (d *Dashboard) Custom() bool {
+	v := d.query.Get("date_range")
+	return v == "custom" || (v == "" && d.query.Get("date_start") != "")
+}

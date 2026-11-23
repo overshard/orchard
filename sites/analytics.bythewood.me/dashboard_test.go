@@ -67,7 +67,7 @@ func TestDashboardRendersWithFilters(t *testing.T) {
 	body := w.Body.String()
 	for _, want := range []string{
 		`referrer news.example.org`, `device Mobile`, `name="f_referrer" value="news.example.org"`,
-		`goal · signup`, `linked · news.example.org`, `Entry pages`, `class="o-strip"`,
+		`goal · signup`, `linked · news.example.org`, `data-pane="entry"`, `class="o-strip"`,
 		`report=md`, `id="goal-form"`,
 	} {
 		if !strings.Contains(body, want) {

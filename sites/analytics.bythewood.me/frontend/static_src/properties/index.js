@@ -1,3 +1,4 @@
+import "./scripts/property_tabs.js";
 import "./scripts/property_chart.js";
 import "./scripts/property_map.js";
 import "./scripts/property_date_select.js";

@@ -129,7 +129,7 @@ func TestDashboardShowsRealUsers(t *testing.T) {
 		t.Fatalf("status %d", w.Code)
 	}
 	body := w.Body.String()
-	for _, want := range []string{"LCP &middot; p75", "1.4 s", "TypeError: secret detail", "Slowest pages"} {
+	for _, want := range []string{"Main content on screen", "1.4 s", "TypeError: secret detail", "Slowest pages"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page is missing %q", want)
 		}

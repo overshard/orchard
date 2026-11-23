@@ -47,11 +47,23 @@ document.addEventListener("DOMContentLoaded", () => {
     })
     .then((topo) => {
       worldData = topo;
-      renderWorld();
+      whenShown(renderWorld);
     })
     .catch((err) => {
       showFallback(`map unavailable: ${err.message}`);
     });
+
+  // The map can sit in a hidden tab, where it has no size to fit the
+  // projection to, so it waits until it's shown.
+  function whenShown(fn) {
+    if (root.getBoundingClientRect().width > 0) return fn();
+    const ro = new ResizeObserver(() => {
+      if (root.getBoundingClientRect().width === 0) return;
+      ro.disconnect();
+      fn();
+    });
+    ro.observe(root);
+  }
 
   function showFallback(message) {
     root.querySelectorAll("svg").forEach((s) => s.remove());
@@ -68,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
   backEl.addEventListener("click", () => {
     state.view = "world";
     state.country = null;
-    titleEl.textContent = "sessions · world";
+    titleEl.textContent = "visitors · world";
     backEl.hidden = true;
     renderWorld();
   });
@@ -95,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function drillDown(iso, name) {
-    titleEl.textContent = `sessions · ${name.toLowerCase()}`;
+    titleEl.textContent = `visitors · ${name.toLowerCase()}`;
     backEl.hidden = false;
     state.view = "country";
     state.country = iso;
