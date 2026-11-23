@@ -123,6 +123,7 @@ var Tools = []Tool{
 	{"mcp", "https://mcp.bythewood.me/"},
 	{"gate", "https://gate.bythewood.me/"},
 	{"dns", "https://dns.bythewood.me/"},
+	{"pass", "https://pass.bythewood.me/"},
 }
 
 // Page is what the chrome templates read, one per rendered page.
