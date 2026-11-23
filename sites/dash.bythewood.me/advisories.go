@@ -252,7 +252,7 @@ func fetchAdvisories(ctx context.Context, g *Guard, prev Advisories, now time.Ti
 		out.Host.Extra = finishRows(extra, now)
 	}
 
-	repo, err := repoAdvisories(ctx, g, out.Host.Verdicts, now)
+	repo, err := repoAdvisories(ctx, g, out.Host.Verdicts, prev.Host.Verdicts, now)
 	if err != nil {
 		pollFailed(ctx, "repo advisories", "security", err)
 		out.Partial = true
@@ -708,7 +708,8 @@ type repoAdvisory struct {
 	} `json:"vulnerabilities"`
 }
 
-func repoAdvisories(ctx context.Context, g *Guard, verdicts map[string]Verdict, now time.Time) ([]Advisory, error) {
+// A row whose container didn't answer keeps the verdict it had last run.
+func repoAdvisories(ctx context.Context, g *Guard, verdicts, prev map[string]Verdict, now time.Time) ([]Advisory, error) {
 	var rows []Advisory
 	var firstErr error
 	for _, w := range repoWatchlist {
@@ -732,6 +733,8 @@ func repoAdvisories(ctx context.Context, g *Guard, verdicts map[string]Verdict, 
 			}
 			r := fixedRow(w.label, cmpOr(a.CVE, a.GHSA), a.GHSA, a.Summary, a.Severity, fixed, "GHSA", a.URL, at)
 			if v, ok := semverVerdict(have, fixed); ok {
+				verdicts[r.ID] = v
+			} else if v, ok := prev[r.ID]; ok && w.running != "" && have == "" {
 				verdicts[r.ID] = v
 			}
 			rows = append(rows, r)
