@@ -101,7 +101,7 @@ one. `up` does not pass `--build`, so it starts what is missing and reuses
 existing images, which makes it both safe on a healthy system and the repair
 command on a broken one, and `deploy` is the only thing that rebuilds. `deploy`
 and `edge` take a lock in `/tmp/orchard-build.lock` so only one build runs at a
-time, and a deploy that comes up unhealthy puts the site back on the image it
+time, and a deploy where any container comes up unhealthy puts the site back on the images it
 had, which it keeps tagged `:prev`. Each site
 has `run`, `build` and `clean` in its own `Makefile`, but no `serve` target,
 since `go run .` without Vite leaves no manifest and that is fatal.
@@ -134,7 +134,9 @@ open to the internet whatever ufw says, and `make check` fails on one.
 `orchard-status`, `orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`,
 `orchard-auth`, `orchard-llm`, `orchard-mcp`, `orchard-gate`, `orchard-cron`, `orchard-pond`,
 `orchard-dns`, `orchard-pass` and `orchard-pass-vw`, and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
-SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
+SQLite. Every container is on `orchard-edge` except Vaultwarden, which sits on
+`orchard-pass` with only Caddy, the pass page and dash, and the edge compose
+creates that network. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
 lookup table.
 

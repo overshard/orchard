@@ -9,7 +9,7 @@ services:
     build: ./caddy
     container_name: orchard-caddy
     restart: unless-stopped
-    networks: [edge]
+    networks: [edge, pass]
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -110,6 +110,11 @@ services:
 networks:
   edge:
     name: orchard-edge
+  # Vaultwarden sits on this one alone, so only Caddy, the pass page and dash
+  # reach it, and its admin API isn't open to every container on the bridge.
+  # The edge owns it since make up starts the edge first.
+  pass:
+    name: orchard-pass
 
 volumes:
   # Created and populated by setup-tunnel.sh before this stack first runs, so

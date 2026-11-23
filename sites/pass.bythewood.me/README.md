@@ -50,16 +50,20 @@ rest here.
 - There's no web vault, which is where the apps send you for two step login.
   The account page does it instead, writing the same row Vaultwarden's own API
   writes.
-- Caddy never routes `/admin`, but any container on `orchard-edge` can reach
-  it, so the token is what guards it. Signups switched there are saved in
-  `config.json` in the volume, which wins over `SIGNUPS_ALLOWED` in compose.
+- Vaultwarden is on its own `orchard-pass` network, which the edge compose
+  creates, with only Caddy, this page and dash on it beside it. So `make up`
+  has to have run the edge first. Caddy never routes `/admin`, and signups
+  switched there are saved in `config.json` in the volume, which wins over
+  `SIGNUPS_ALLOWED` in compose.
 - The apps' paths skip gate, since its scanner rule matched `/api/config` and a
   ban would lock the phone out. Vaultwarden's own limit of five sign ins a
   minute per address is what's left, and every miss pushes.
 - The page mounts the whole volume writable, so a bug in it could touch
   `rsa_key.pem` or attachments. It only writes the twofactor row and events.
-- `make deploy` keeps a `:prev` image and rolls back for the page only, and a
-  Vaultwarden upgrade migrates its database one way. Run `orchard-dump` first.
+- A Vaultwarden upgrade migrates its database one way, so `make deploy`
+  rolling the images back can't undo it. Run `orchard-dump` first.
+- The page asks gate for each address's network and country, which shows in
+  gate's traffic as requests to `/__pass/where`.
 - The nightly dump copies `orchard-pass-data` like every other volume, which
   is the database, `rsa_key.pem` and attachments. Losing the key only signs
   every device out.

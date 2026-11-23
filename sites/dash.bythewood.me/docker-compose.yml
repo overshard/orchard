@@ -50,7 +50,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    networks: [edge]
+    # pass for asking Vaultwarden its version and whether it's alive.
+    networks: [edge, pass]
 
 volumes:
   data:
@@ -59,4 +60,7 @@ volumes:
 networks:
   edge:
     name: orchard-edge
+    external: true
+  pass:
+    name: orchard-pass
     external: true
