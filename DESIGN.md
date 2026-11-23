@@ -1239,8 +1239,8 @@ below live as tokens at the top of `frontend/src/index.css`.
 
 | Site | Phosphor | Notes |
 |---|---|---|
-| `analytics` | suite | On the suite, no Bootstrap. The list carries a fortnight of page views per property, and menus are details elements |
-| `status` | suite | On the suite, no Bootstrap. Properties down first, a property page that doubles as the public status page, which signed out shows only the 90 day bar, incidents and response |
+| `analytics` | suite | On the suite, no Bootstrap. The list carries a fortnight of page views per property, and menus are details elements. A property splits into Traffic, Speed & errors and Bots, with the lists as tabbed cards and speed in plain words |
+| `status` | suite | On the suite, no Bootstrap. Properties down first under a worth a look list, a property page that doubles as the public status page, which signed out shows only the uptime view. Signed in it splits into Uptime, Page health and Crawl, each opening on one line that says what's going on, and the crawl reads as kinds of fix ranked by pages |
 | `logging` | suite | On the suite, no Bootstrap. The overview, a page per source and search share one set of panels |
 | `auth` | suite | On the suite, with no Bootstrap left. The home page signs you in from the hero, and the starfield is gone |
 | `repos` | suite | On the suite. Its own stylesheet keeps the tree, diff and README styles and maps its colour names onto the suite's. No serif any more |

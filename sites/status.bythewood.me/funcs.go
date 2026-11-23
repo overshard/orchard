@@ -25,10 +25,12 @@ var templateFuncs = template.FuncMap{
 	"countClass":   countClass,
 	"seq":          seq,
 	"add":          func(a, b int) int { return a + b },
+	"sub":          func(a, b int) int { return a - b },
 	"upper":        strings.ToUpper,
 	"hasPrefix":    strings.HasPrefix,
 	"listHeadline": listHeadline,
 	"count":        count,
+	"secFix":       func(name string) string { return secFixes[name] },
 	"secChecks":    secChecks,
 	"secPass":      secPass,
 	"insightTitle": insightTitle,
@@ -325,13 +327,14 @@ func ring(label string, score int64) template.HTML {
 		kind, float64(score)/100*c, c, score, template.HTMLEscapeString(label)))
 }
 
-// uptimeCell is a percentage in a table cell, amber under the target.
+// uptimeCell is a percentage in a table cell. It goes amber well under the
+// target, since a box-wide dip puts every row a little under it together.
 func uptimeCell(v *float64) template.HTML {
 	if v == nil {
 		return `<span class="o-muted">&mdash;</span>`
 	}
 	cls := ""
-	if *v < sloTarget*100 {
+	if *v < sloTarget*100-0.4 {
 		cls = "o-warn"
 	}
 	return template.HTML(fmt.Sprintf(`<span class="%s">%.2f%%</span>`, cls, *v))

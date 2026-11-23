@@ -56,6 +56,7 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 		data.Down += 1 - down(v)
 	}
 	data.Summary = summarize(data.Properties)
+	data.Notes = notes(data.Properties)
 	data.PageScript = s.propsScript
 	data.PageStyles = s.propsStyles
 	s.renderer.Render(w, http.StatusOK, "properties.html", data)

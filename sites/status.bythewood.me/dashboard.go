@@ -379,6 +379,8 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	data.Property = view
 	if authed {
 		data.InsightGroups = groupInsights(view.CrawlerInsights)
+		data.Fixes = groupFixes(view.CrawlerInsights)
+		data.FixTypes = fixTypes(data.Fixes)
 		data.RealUsers = s.realUsers.For(r.Context(), p.URL)
 	}
 

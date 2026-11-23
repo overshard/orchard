@@ -4,30 +4,33 @@
     <div>
       <span class="o-lab">status &middot; properties</span>
       <h1>{{ listHeadline (len .Properties) .Down }}</h1>
+      <div class="o-pm"><span>checks<b>every 3 min</b></span><span>times<b>UTC</b></span></div>
     </div>
     <div class="o-acts">
       <form method="get" class="filter">
         <input type="search" class="o-in mono" name="q" id="id_search" placeholder="filter properties" value="{{ .Query }}" aria-label="Filter properties">
       </form>
+      <details class="menu addprop"{{ if not .Properties }}{{ if not .Query }} open{{ end }}{{ end }}>
+        <summary class="o-btn o-btn-p o-btn-sm" data-act="add a property">+ New property</summary>
+        <div class="menu-body wide">
+          {{/* https:// is not a preference. The checker speaks HTTP/2 over TLS and
+               nothing else, so an http:// property could never pass a check. */}}
+          <form method="POST" action="/properties" class="o-formbar">
+            <label class="o-field grow">
+              <span>URL</span>
+              <input type="url" name="url" id="id_url" class="mono" placeholder="https://example.com" pattern="https://.*" required>
+            </label>
+            <button type="submit" class="o-btn o-btn-p o-btn-sm">Start watching</button>
+          </form>
+          <p class="o-muted small">Any public https:// URL. The first check runs within three minutes.</p>
+        </div>
+      </details>
     </div>
   </div>
 
-  <details class="o-panel addprop" {{ if not .Properties }}{{ if not .Query }}open{{ end }}{{ end }}>
-    <summary data-act="add a property"><span class="o-btn o-btn-p o-btn-sm">+ new property</span><span class="o-muted small">Any public https:// URL. The first check runs within three minutes.</span></summary>
-    {{/* https:// is not a preference. The checker speaks HTTP/2 over TLS and
-         nothing else, so an http:// property could never pass a check. */}}
-    <form method="POST" action="/properties" class="o-formbar">
-      <label class="o-field grow">
-        <span>URL</span>
-        <input type="url" name="url" id="id_url" class="mono" placeholder="https://example.com" pattern="https://.*" required>
-      </label>
-      <button type="submit" class="o-btn o-btn-p o-btn-sm">Start watching</button>
-    </form>
-  </details>
-
   {{ if .Properties }}
   {{ with .Summary }}
-  <div class="o-strip">
+  <div class="o-strip six">
     <div class="o-tile">
       <small>up now</small>
       <b class="{{ if lt .Up .Total }}bad{{ end }}">{{ .Up }}/{{ .Total }}</b>
@@ -35,22 +38,10 @@
       <span class="o-ticks" role="img" aria-label="{{ len .Sites }} sites{{ range .Sites }}{{ if .Down }}, {{ .Name }} down{{ end }}{{ end }}">{{ range .Sites }}<i class="{{ if .Down }}bad{{ end }}" data-tip="{{ .Name }}{{ if .Down }} · down{{ end }}"></i>{{ end }}</span>
     </div>
     <div class="o-tile">
-      <small>uptime &middot; 24h</small>
-      <b class="{{ if and .HasUp24 (lt .Up24 99.9) }}warn{{ end }}">{{ if .HasUp24 }}{{ printf "%.2f" .Up24 }}%{{ else }}&mdash;{{ end }}</b>
-      <span class="o-delta">{{ if .Up24Delta }}{{ .Up24Delta }}{{ else }}averaged across sites{{ end }}</span>
-      {{ if .HourUp }}{{ sparkT (or (and (lt .Up24 99.9) "warn") "ok") .HourUp .HourLabels }}{{ else }}<span class="o-nospark"></span>{{ end }}
-    </div>
-    <div class="o-tile">
       <small>uptime &middot; 30d</small>
       <b class="{{ if and .HasUp30 (lt .Up30 99.9) }}warn{{ end }}">{{ if .HasUp30 }}{{ printf "%.2f" .Up30 }}%{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ .BadDays }} bad {{ if eq .BadDays 1 }}day{{ else }}days{{ end }}</span>
       <span class="o-ticks" role="img" aria-label="{{ daysAria .Days30 }}">{{ range .Days30 }}<i class="{{ .Kind }}" data-tip="{{ .Label }}{{ if eq .Kind "none" }} · no data{{ else if eq .Kind "bad" }} · an outage{{ else if eq .Kind "warn" }} · under 99.9%{{ end }}"></i>{{ end }}</span>
-    </div>
-    <div class="o-tile">
-      <small>error budget</small>
-      <b class="{{ if .HasBudget }}{{ if ne .BudgetKind "ok" }}{{ .BudgetKind }}{{ end }}{{ end }}">{{ if .HasBudget }}{{ printf "%.0f" .Budget }}%{{ else }}&mdash;{{ end }}</b>
-      <span class="o-delta">{{ if .HasBudget }}of 43m, lowest {{ .BudgetName }}{{ else }}waiting on the rollup{{ end }}</span>
-      <span class="o-ticks" role="img" aria-label="budget left by site{{ range .Sites }}, {{ .Name }} {{ printf "%.0f" .Budget }}%{{ end }}">{{ range .Sites }}<i class="{{ if ne .BudgetK "ok" }}{{ .BudgetK }}{{ end }}" style="height: {{ tickHeight .Budget }}%" data-tip="{{ .Name }} · {{ printf "%.0f" .Budget }}% left"></i>{{ end }}</span>
     </div>
     <div class="o-tile">
       <small>p95 &middot; 24h</small>
@@ -79,37 +70,34 @@
   </div>
   <p class="o-foot stripfoot"><span data-xs-when>sparks are the last 24 hours by hour, uptime and budget from the daily rollup</span>{{ template "dayNote" .Days30 }}</p>
   {{ end }}
+  {{ with .Notes }}
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Worth a look</h2><span class="o-pm"><span>{{ len . }} {{ if eq (len .) 1 }}thing{{ else }}things{{ end }}</span></span></div>
+    {{ range . }}
+    <div class="fix"><span class="o-chip {{ .Class }}">{{ .Tag }}</span><div><b>{{ if .Href }}<a href="{{ .Href }}">{{ .Head }}</a>{{ else }}{{ .Head }}{{ end }}</b>{{ if .Body }}<span>{{ .Body }}</span>{{ end }}</div></div>
+    {{ end }}
+  </section>
+  {{ end }}
   {{ end }}
 
   <section class="o-panel flush">
     {{ if .Properties }}
     <div class="o-scroll">
     <table class="o-tbl stack props" data-keys>
-      <thead><tr><th>Property</th><th>Last 30 checks</th><th>30 days</th><th>State</th><th class="r">24h</th><th class="r">30d</th><th>Response &middot; 24h</th><th class="r">Cert</th><th class="r">LH</th><th class="r">SEO</th><th>Headers</th><th></th></tr></thead>
+      <thead><tr><th>Property</th><th>Days</th><th class="r">30d</th><th>Response &middot; 24h</th><th class="r" data-tip="The audit's average score">Health</th><th class="r" data-tip="Issues the last crawl found">Crawl</th></tr></thead>
       <tbody>
       {{ range .Properties }}
         <tr data-href="/{{ .ID }}" class="{{ if ne .CurrentStatus 200 }}hot{{ end }}">
           <td class="lead">
             <span class="o-dot {{ if ne .CurrentStatus 200 }}bad{{ end }}"></span><a class="name" href="/{{ .ID }}">{{ .Name }}</a>
+            {{ if ne .CurrentStatus 200 }}{{ template "stateChip" . }}{{ end }}
             {{ if .IsPublic }}<span class="o-chip">public</span>{{ end }}
           </td>
-          <td data-l="last 30">{{ template "uptimeStrip" . }}</td>
-          <td data-l="30 days"><span class="o-ds" role="img" aria-label="{{ daysAria .H.Ticks30 }}">{{ range .H.Ticks30 }}<i class="{{ .Kind }}" data-tip="{{ .Tip }}"></i>{{ end }}</span></td>
-          <td data-l="state">{{ template "stateChip" . }}</td>
-          <td class="r n" data-l="24h">{{ uptimeCell .H.Up24 }}</td>
+          <td data-l="days"><span class="o-ds days-only" role="img" aria-label="{{ daysAria .H.Ticks30 }}">{{ range .H.Ticks30 }}{{ if ne .Kind "none" }}<i class="{{ .Kind }}" data-tip="{{ .Tip }}"></i>{{ end }}{{ end }}</span></td>
           <td class="r n" data-l="30d">{{ uptimeCell .H.Up30 }}</td>
           <td class="o-cell-spark n" data-l="response">{{ sparkT (or (and (gt .AvgResponseTime 500) "warn") "") .H.HourP50 .H.HourLabels }} {{ if .H.P50 }}{{ .H.P50 }}ms{{ else }}{{ .AvgResponseTime }}ms{{ end }}</td>
-          <td class="r n" data-l="cert">{{ if .CertDays }}<span class="{{ certClass .CertDays }}" data-tip="{{ .CertIssuer }} · expires {{ .CertExpires }}">{{ .CertDays }}d</span>{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
-          <td class="r n" data-l="audit">{{ if .AvgAuditScore }}<span class="{{ if lt (deref64 .AvgAuditScore) 90 }}o-warn{{ end }}">{{ .AvgAuditScore }}</span>{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
-          <td class="r n {{ if gt (len .CrawlerInsights) 25 }}o-warn{{ else if not .CrawlerInsights }}o-muted{{ end }}" data-l="seo">{{ len .CrawlerInsights }}</td>
-          <td data-l="headers">{{ if .HasSecurityIssue }}<span class="o-chip warn">issues</span>{{ else }}<span class="o-chip">clean</span>{{ end }}</td>
-          <td class="act">
-            {{ if not .IsProtected }}
-            <form method="POST" action="/properties/{{ .ID }}/delete" data-confirm="Stop watching {{ .URL }} and delete its checks and history?">
-              <button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete</button>
-            </form>
-            {{ end }}
-          </td>
+          <td class="r n" data-l="health">{{ if .AvgAuditScore }}<span class="{{ if lt (deref64 .AvgAuditScore) 90 }}o-warn{{ end }}">{{ .AvgAuditScore }}</span>{{ else }}<span class="o-muted">&mdash;</span>{{ end }}</td>
+          <td class="r n {{ if ge (len .CrawlerInsights) 10 }}o-warn{{ else if not .CrawlerInsights }}o-muted{{ end }}" data-l="crawl">{{ len .CrawlerInsights }}</td>
         </tr>
       {{ end }}
       </tbody>
@@ -118,7 +106,7 @@
     {{ else if .Query }}
     <p class="o-empty"><b>Nothing matches {{ .Query }}.</b><a href="/properties" class="o-muted">Clear the filter</a></p>
     {{ else }}
-    <p class="o-empty"><b>Nothing watched yet.</b>Add a URL above and the first check runs within three minutes.</p>
+    <p class="o-empty"><b>Nothing watched yet.</b>Add a URL with New property and the first check runs within three minutes.</p>
     {{ end }}
   </section>
 </main>

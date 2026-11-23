@@ -41,6 +41,9 @@ type PageData struct {
 	Property      *PropertyView
 	RealUsers     *RealUsers
 	InsightGroups []InsightGroup
+	Fixes         []Fix
+	FixTypes      []FixType
+	Notes         []Note
 	ResponseTimes []ResponseTimePoint
 	StatusCodes   []CodeBar
 	RecentChecks  []Check

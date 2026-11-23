@@ -9,8 +9,12 @@
 {{ $authed := .Authenticated }}
 {{ $recent := .RecentChecks }}
 {{ $codes := .StatusCodes }}
+{{ $fixes := .Fixes }}
+{{ $fixTypes := .FixTypes }}
+{{ $real := .RealUsers }}
 {{ with .Property }}
 {{ $h := .H }}
+{{ $p := . }}
 <main class="o-wrap o-main"{{ if $authed }} id="monitoring-status" data-property-id="{{ .ID }}"{{ end }}>
   <div class="o-ph">
     <div>
@@ -19,43 +23,63 @@
       <div class="o-pm">
         <span>url<b><a href="{{ .URL }}" target="_blank" rel="noopener">{{ .Name }} &nearr;</a></b></span>
         {{ with $h.Open }}<span>since<b class="bad">{{ .Start.Format "15:04" }} UTC</b></span>{{ end }}
-        {{ if $h.Up30 }}<span>30d<b>{{ pct2 $h.Up30 }}%</b></span>{{ end }}
-        <span>checks<b>{{ num .TotalChecks }} / 3d</b></span>
+        <span>checks<b>every 3 min</b></span>
         {{ if $h.HasSince }}<span>history from<b>{{ $h.Since }}</b></span>{{ end }}
       </div>
     </div>
     {{ if $authed }}
     <div class="o-acts d-print-none">
-      <span id="is-public-form" class="visibility" data-property-id="{{ .ID }}">
-        <span class="o-muted small" data-tip="A public property can be seen by anyone with the link, no sign in.">Visibility</span>
-        <label class="o-seg">
-          <input type="checkbox" name="is_public" id="is-public-switch"{{ if .IsPublic }} checked{{ end }} data-act="{{ if .IsPublic }}make status page private{{ else }}make status page public{{ end }}">
-          <span class="seg-private">private</span><span class="seg-public">public</span>
-        </label>
-      </span>
-      <button type="button" class="o-btn o-btn-sm" id="copy-md" data-md="/{{ .ID }}?report=md" data-act="copy status report as markdown">Copy markdown</button>
-      <a href="/{{ .ID }}?report=pdf" target="_blank" class="o-btn o-btn-sm" data-act="open the PDF report">PDF report</a>
-      {{ if not .IsProtected }}
-      <form method="POST" action="/properties/{{ .ID }}/delete" data-confirm="Stop watching {{ .URL }} and delete its checks and history?">
-        <button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete</button>
-      </form>
-      {{ end }}
+      <details class="menu">
+        <summary class="o-btn o-btn-sm">Export</summary>
+        <div class="menu-body narrow">
+          <button type="button" class="o-btn o-btn-sm" id="copy-md" data-md="/{{ .ID }}?report=md" data-act="copy status report as markdown">Copy markdown</button>
+          <a href="/{{ .ID }}?report=pdf" target="_blank" class="o-btn o-btn-sm" data-act="open the PDF report">PDF report</a>
+        </div>
+      </details>
+      <details class="menu">
+        <summary class="o-btn o-btn-sm">Settings</summary>
+        <div class="menu-body">
+          <span class="o-lab">visibility</span>
+          <span id="is-public-form" class="visibility" data-property-id="{{ .ID }}">
+            <label class="o-seg">
+              <input type="checkbox" name="is_public" id="is-public-switch"{{ if .IsPublic }} checked{{ end }} data-act="{{ if .IsPublic }}make status page private{{ else }}make status page public{{ end }}">
+              <span class="seg-private">private</span><span class="seg-public">public</span>
+            </label>
+          </span>
+          <p class="o-muted small">A public property can be seen by anyone with the link, no sign in. It shows the uptime view only.</p>
+          {{ if not .IsProtected }}
+          <form method="POST" action="/properties/{{ .ID }}/delete" data-confirm="Stop watching {{ .URL }} and delete its checks and history?">
+            <button type="submit" class="o-btn o-btn-sm o-btn-bad">Stop watching</button>
+          </form>
+          {{ end }}
+        </div>
+      </details>
     </div>
     {{ end }}
   </div>
 
-  <div class="o-strip{{ if not $authed }} six{{ end }}">
+  {{ if $authed }}
+  {{ $problems := .HealthProblems }}
+  <nav class="view-tabs d-print-none" aria-label="Property views">
+    <button type="button" data-view="uptime" class="on">Uptime<b class="{{ if $h.Up30 }}{{ if lt (deref64f $h.Up30) 99.9 }}warn{{ end }}{{ end }}">{{ if $h.Up30 }}{{ pct2 $h.Up30 }}% 30d{{ else }}{{ .CurrentStatus }}{{ end }}</b></button>
+    <button type="button" data-view="health">Page health<b class="{{ if $problems }}warn{{ else if .AuditScores }}ok{{ end }}">{{ if $problems }}{{ $problems }} to fix{{ else if .AuditScores }}healthy{{ else }}not run{{ end }}</b></button>
+    <button type="button" data-view="crawl">Crawl<b class="{{ if .CrawlerInsights }}warn{{ end }}">{{ if .CrawlerInsights }}{{ len $fixes }} {{ if eq (len $fixes) 1 }}kind{{ else }}kinds{{ end }} &middot; {{ len .CrawlerInsights }}{{ else if .LastCrawlSuccessAt }}clean{{ else }}not run{{ end }}</b></button>
+  </nav>
+  {{ end }}
+
+  <div class="view" data-view="uptime">
+  <section class="o-panel summary">
+    <p class="verdict">{{ if eq .CurrentStatus 200 }}<b class="o-ok">Up and answering.</b>{{ else }}<b class="o-bad">Down.</b> The last check answered {{ .CurrentStatus }}{{ with $h.Open }}, failing since {{ .Start.Format "15:04" }} UTC{{ end }}.{{ end }}
+    {{ if $h.Up30 }}{{ if $h.Inc30 }}{{ count $h.Inc30 "incident" "incidents" }} in 30 days, down {{ $h.Down30 }} in all.{{ else }}No incidents in 30 days.{{ end }}{{ end }}
+    <span class="o-muted">Checked every 3 minutes from the server it runs on, so a box-wide problem shows on every site at once.</span></p>
+  </section>
+
+  <div class="o-strip {{ if $authed }}six{{ else }}five{{ end }}">
     <div class="o-tile">
       <small>http</small>
       <b class="{{ if ne .CurrentStatus 200 }}bad{{ end }}">{{ .CurrentStatus }}</b>
       <span class="o-delta {{ if ne .CurrentStatus 200 }}o-bad{{ end }}">{{ if eq .CurrentStatus 200 }}answering{{ else if $h.Open }}failing since {{ $h.Open.Start.Format "15:04" }}{{ else }}failing now{{ end }}</span>
       <span class="o-ticks" aria-hidden="true">{{ if .RecentTickStream }}{{ range .RecentTickStream }}<i class="{{ . }}"></i>{{ end }}{{ else }}{{ range seq 30 }}<i class="none"></i>{{ end }}{{ end }}</span>
-    </div>
-    <div class="o-tile">
-      <small>uptime &middot; 24h</small>
-      <b class="{{ if $h.Up24 }}{{ if lt (deref64f $h.Up24) 99.9 }}warn{{ end }}{{ end }}">{{ if $h.Up24 }}{{ pct2 $h.Up24 }}%{{ else }}&mdash;{{ end }}</b>
-      <span class="o-delta">{{ if $h.Up24 }}{{ count $h.Inc30 "incident" "incidents" }} in 30d{{ else }}no checks yet{{ end }}</span>
-      {{ if $h.HourUp }}{{ sparkT "ok" $h.HourUp $h.HourLabels }}{{ else }}<span class="o-nospark"></span>{{ end }}
     </div>
     <div class="o-tile">
       <small>uptime &middot; 30d</small>
@@ -64,7 +88,7 @@
       <span class="o-ticks" role="img" aria-label="{{ daysAria $h.Ticks30 }}">{{ range $h.Ticks30 }}<i class="{{ .Kind }}" data-tip="{{ .Tip }}"></i>{{ end }}</span>
     </div>
     {{ if $authed }}
-    <div class="o-tile">
+    <div class="o-tile" data-tip="How much downtime is left before 30 days drop under 99.9%.">
       <small>error budget</small>
       <b class="{{ if $h.BudgetLeft }}{{ if ne $h.BudgetKind "ok" }}{{ $h.BudgetKind }}{{ end }}{{ end }}">{{ if $h.BudgetLeft }}{{ printf "%.0f" (deref64f $h.BudgetLeft) }}%{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ if $h.BudgetLeft }}of {{ $h.BudgetMins }} &middot; {{ $h.Burn24 }}{{ else }}waiting on the rollup{{ end }}</span>
@@ -94,14 +118,6 @@
       {{ end }}
       <span class="o-nospark"></span>
     </div>
-    {{ if $authed }}
-    <div class="o-tile">
-      <small>headers</small>
-      <b class="{{ if .HasSecurityIssue }}warn{{ end }}">{{ secPass . }}/{{ len (secChecks .) }}</b>
-      <span class="o-delta">{{ with secFirstFail . }}fails {{ . }}{{ else }}every check passes{{ end }}</span>
-      <span class="o-ticks" role="img" aria-label="{{ with secFirstFail . }}fails {{ . }}{{ else }}every header check passes{{ end }}">{{ range secChecks . }}<i class="{{ if not .OK }}bad{{ end }}" data-tip="{{ .Name }}{{ if not .OK }} · missing{{ end }}"></i>{{ end }}</span>
-    </div>
-    {{ end }}
   </div>
   <p class="o-foot stripfoot"><span data-xs-when>sparks are the last 24 hours by hour &middot; times are UTC</span>{{ template "dayNote" $h.Ticks30 }}</p>
 
@@ -115,16 +131,18 @@
         <span>90d<b>{{ if $h.Up90 }}{{ pct2 $h.Up90 }}{{ else }}&mdash;{{ end }}</b></span>
       </span>
     </div>
+    {{ if gt (len $h.DaysJSON) 30 }}
     <div class="o-seg seg-sm dayrange d-none" id="day-range">
       <label><input type="radio" name="dr" value="30"><span>30d</span></label>
       <label><input type="radio" name="dr" value="90" checked><span>90d</span></label>
     </div>
+    {{ end }}
     <div class="days" id="days" role="group" aria-label="{{ daysAria $h.Days }}">{{ range $h.Days }}<i class="{{ .Kind }}" data-day="{{ .Day }}" data-tip="{{ .Tip }}"></i>{{ end }}</div>
-    <p class="o-foot">90 days &middot; red is an outage over 5 minutes &middot; amber is under 99.9%{{ if $h.HasSince }} &middot; history kept from {{ $h.Since }}{{ end }}<span class="drill-hint d-none"> &middot; click a day for its hours</span></p>
+    <p class="o-foot">{{ if $h.HasSince }}since {{ $h.Since }}, when history starts{{ else }}90 days{{ end }} &middot; red is an outage over 5 minutes &middot; amber is under 99.9%<span class="drill-hint d-none"> &middot; click a day for its hours</span></p>
     <div class="daydet" id="day-detail" hidden></div>
   </section>
 
-  <div class="o-band {{ if $authed }}b3{{ else }}b2{{ end }}">
+  <div class="o-band b2">
     <section class="o-panel flush">
       <div class="o-ph2">
         <h2>Incidents</h2>
@@ -151,51 +169,39 @@
       <p class="o-empty"><b>No incidents{{ if $h.HasSince }} since {{ $h.Since }}{{ end }}.</b>One opens when two checks in a row fail and closes on the next 200.</p>
       {{ end }}
     </section>
-
-    <div class="side">
-      <section class="o-panel">
-        <div class="o-ph2"><h2>Where the time goes</h2><span class="o-pm"><span>vs<b>{{ if $h.BaseDays }}{{ $h.BaseDays }}d median{{ else }}nothing yet{{ end }}</b></span></span></div>
-        {{ if $h.Phases }}
-        {{ range $h.Phases }}
-        <div class="o-hbar"><span class="k">{{ .Name }}</span><span class="bar"><i class="{{ if and $h.BaseDays (gt .Delta (slowBy .Base)) }}warn{{ else }}ok{{ end }}" style="width: {{ printf "%.0f" ($h.PhaseWidth .) }}%"></i></span><span class="v">{{ .Now }}ms</span><span class="d">{{ if $h.BaseDays }}{{ signed .Delta }}{{ end }}</span></div>
-        {{ end }}
-        <p class="o-foot">median of the last 100 checks that answered 200</p>
-        {{ else }}
-        <p class="o-empty"><b>No timings yet.</b>Every check records its DNS, TCP, TLS and first byte times.</p>
-        {{ end }}
-      </section>
-      <section class="o-panel">
-        <div class="o-ph2"><h2>Status codes</h2><span class="o-pm"><span>last<b>3d</b></span></span></div>
-        {{ range $codes }}
-        <div class="o-hbar"><span class="k"><code>{{ .Code }}</code></span><span class="bar"><i class="{{ if eq .Code 200 }}ok{{ else }}bad{{ end }}" style="width: {{ printf "%.1f" .Width }}%"></i></span><span class="v">{{ num .Count }}</span><span class="d">{{ printf "%.1f" .Pct }}%</span></div>
-        {{ else }}
-        <p class="o-empty"><b>No checks yet.</b>The first one runs within three minutes of adding a property.</p>
-        {{ end }}
-      </section>
-    </div>
-
-    {{ if $authed }}
     <section class="o-panel">
-      <div class="o-ph2"><h2>Audit</h2><span class="o-lab">{{ if .LastAuditSuccessAt }}{{ naturaltime .LastAuditSuccessAt }}{{ else }}not run yet{{ end }}</span></div>
-      {{ with .AuditScores }}
-      <div class="rings">{{ range .Pairs }}{{ ring (lower .Label) .Score }}{{ end }}</div>
+      <div class="o-ph2"><h2>Status codes</h2><span class="o-pm"><span>last<b>3d</b></span></span></div>
+      {{ range $codes }}
+      <div class="o-hbar"><span class="k"><code>{{ .Code }}</code></span><span class="bar"><i class="{{ if eq .Code 200 }}ok{{ else }}bad{{ end }}" style="width: {{ printf "%.1f" .Width }}%"></i></span><span class="v">{{ num .Count }}</span><span class="d">{{ printf "%.1f" .Pct }}%</span></div>
       {{ else }}
-      <p class="o-empty"><b>No audit yet.</b>It runs daily, or from Rerun further down.</p>
+      <p class="o-empty"><b>No checks yet.</b>The first one runs within three minutes of adding a property.</p>
       {{ end }}
     </section>
-    {{ end }}
   </div>
 
-  <div class="{{ if $authed }}o-band b2 fill{{ end }}">
+  <div class="o-band b2">
     <section class="o-panel phases">
       <div class="o-ph2"><h2>Response, stacked by phase</h2><span class="o-pm"><span>6h<b>{{ len $.ResponseTimes }} checks</b></span></span></div>
       <div class="chart-wrap" id="ph"><p class="o-empty"><b>No checks yet.</b>Each bar is one check split into DNS, TCP, TLS and first byte.</p></div>
       <div class="leg" id="ph-leg"></div>
     </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Where the time goes</h2><span class="o-pm"><span>vs<b>{{ if $h.BaseDays }}{{ $h.BaseDays }}d median{{ else }}nothing yet{{ end }}</b></span></span></div>
+      {{ if $h.Phases }}
+      {{ range $h.Phases }}
+      <div class="o-hbar"><span class="k">{{ .Name }}</span><span class="bar"><i class="{{ if and $h.BaseDays (gt .Delta (slowBy .Base)) }}warn{{ else }}ok{{ end }}" style="width: {{ printf "%.0f" ($h.PhaseWidth .) }}%"></i></span><span class="v">{{ .Now }}ms</span><span class="d">{{ if $h.BaseDays }}{{ signed .Delta }}{{ end }}</span></div>
+      {{ end }}
+      <p class="o-foot">median of the last 100 checks that answered 200</p>
+      {{ else }}
+      <p class="o-empty"><b>No timings yet.</b>Every check records its DNS, TCP, TLS and first byte times.</p>
+      {{ end }}
+    </section>
+  </div>
 
-    {{ if $authed }}
-    <section class="o-panel flush">
-      <div class="o-ph2"><h2>Recent checks</h2><span class="o-pm"><span>last<b>{{ len $recent }}</b></span></span></div>
+  {{ if $authed }}
+  <section class="o-panel flush">
+    <details class="more">
+      <summary class="o-ph2"><h2>Recent checks</h2><span class="o-pm"><span>last<b>{{ len $recent }}</b></span><span>show</span></span></summary>
       {{ if $recent }}
       <div class="o-scroll">
       <table class="o-tbl stack checks">
@@ -216,60 +222,42 @@
       {{ else }}
       <p class="o-empty"><b>No checks yet.</b>The first one runs within three minutes of adding a property.</p>
       {{ end }}
-    </section>
-    {{ end }}
+    </details>
+  </section>
+  {{ end }}
   </div>
 
   {{ if $authed }}
-  <div class="o-band b3e d-print-none">
+  {{ $problems := .HealthProblems }}
+  {{ $failing := sub (len (secChecks .)) (secPass .) }}
+  <div class="view" data-view="health" hidden>
+  <section class="o-panel summary">
+    <div>
+      <p class="verdict">{{ if not .AuditScores }}<b>No audit yet.</b> It runs within a minute of a deploy, then daily.{{ else if $problems }}<b class="o-warn">{{ $problems }} {{ if eq $problems 1 }}thing{{ else }}things{{ end }} to fix.</b>{{ else }}<b class="o-ok">Healthy.</b>{{ end }}
+      {{ with .AuditDetails }}Passed {{ .Passed }} of {{ .Checked }} page checks{{ end }}{{ if .AuditDetails }} and{{ end }} {{ secPass . }} of {{ len (secChecks .) }} security headers.</p>
+      {{ with .AuditScores }}<div class="scores">{{ range .Pairs }}<span class="sc"><b class="{{ if lt .Score 50 }}o-bad{{ else if lt .Score 90 }}o-warn{{ else }}o-ok{{ end }}">{{ .Score }}</b>{{ lower .Label }}</span>{{ end }}</div>{{ end }}
+    </div>
+    <span class="runline">
+      <span class="o-chip" data-field="audit.state_badge"></span>
+      audited<b data-field="audit.last_success">&mdash;</b>took<b data-field="audit.duration">&mdash;</b>next<b data-field="audit.next_run">&mdash;</b>
+      <button type="button" id="rerun-audit-btn" class="o-btn o-btn-sm" data-act="rerun audit"><span class="rerun-audit-label">Rerun</span><span class="rerun-audit-spinner spinner d-none" role="status" aria-hidden="true"></span></button>
+    </span>
+    <div class="o-note bad d-none" data-field="audit.error_box" role="alert">Last run failed: <code data-field="audit.error_text"></code></div>
+  </section>
+
+  <div class="o-band b2">
     <section class="o-panel">
-      <div class="o-ph2">
-        <h2>Audits</h2>
-        <span class="monitor-acts">
-          <span class="o-chip" data-field="audit.state_badge"></span>
-          <button type="button" id="rerun-audit-btn" class="o-btn o-btn-sm" data-act="rerun audit">
-            <span class="rerun-audit-label">Rerun</span>
-            <span class="rerun-audit-spinner spinner d-none" role="status" aria-hidden="true"></span>
-          </button>
-        </span>
-      </div>
-      <div class="o-note bad d-none" data-field="audit.error_box" role="alert">Last run failed: <code data-field="audit.error_text"></code></div>
-      <dl class="o-kv">
-        <dt>last success</dt><dd class="o-mono" data-field="audit.last_success">&mdash;</dd>
-        <dt>last attempt</dt><dd class="o-mono" data-field="audit.last_attempt">&mdash;</dd>
-        <dt>took</dt><dd class="o-mono" data-field="audit.duration">&mdash;</dd>
-        <dt>next run</dt><dd class="o-mono" data-field="audit.next_run">&mdash;</dd>
-      </dl>
-    </section>
-    <section class="o-panel">
-      <div class="o-ph2">
-        <h2>SEO crawl</h2>
-        <span class="monitor-acts">
-          <span class="o-chip" data-field="crawler.state_badge"></span>
-          <button type="button" id="recrawl-btn" class="o-btn o-btn-sm" data-act="recrawl for seo">
-            <span class="recrawl-btn-label">Recrawl</span>
-            <span class="recrawl-btn-spinner spinner d-none" role="status" aria-hidden="true"></span>
-          </button>
-        </span>
-      </div>
-      <div class="progress d-none" data-field="crawler.progress_wrap"><div class="progress-bar" role="progressbar" data-field="crawler.progress_bar" style="width: 0%"></div></div>
-      <div class="o-note bad d-none" data-field="crawler.error_box" role="alert">Last crawl failed: <code data-field="crawler.error_text"></code></div>
-      <dl class="o-kv">
-        <dt>last success</dt><dd class="o-mono" data-field="crawler.last_success">&mdash;</dd>
-        <dt>last attempt</dt><dd class="o-mono" data-field="crawler.last_attempt">&mdash;</dd>
-        <dt>pages</dt><dd class="o-mono" data-field="crawler.pages">&mdash;</dd>
-        <dt>took</dt><dd class="o-mono" data-field="crawler.duration">&mdash;</dd>
-        <dt>issues</dt><dd class="o-mono" data-field="crawler.insights">&mdash;</dd>
-        <dt>next run</dt><dd class="o-mono" data-field="crawler.next_run">&mdash;</dd>
-      </dl>
-    </section>
-    <section class="o-panel">
-      <div class="o-ph2"><h2>Security headers</h2><span class="o-lab">latest response</span></div>
+      <div class="o-ph2"><h2>Security headers</h2><span class="o-pm"><span>{{ secPass . }} of {{ len (secChecks .) }} pass</span><span>latest response</span></span></div>
+      {{ range secChecks . }}{{ if not .OK }}<div class="fix"><span class="o-chip bad">fail</span><div><b>{{ .Name }}</b><span>{{ secFix .Name }}</span></div></div>{{ end }}{{ end }}
+      {{ if $failing }}
+      <details class="more"><summary>{{ secPass . }} passing</summary>{{ range secChecks . }}{{ if .OK }}{{ template "check" dict "name" .Name "ok" .OK }}{{ end }}{{ end }}</details>
+      {{ else }}
       {{ range secChecks . }}{{ template "check" dict "name" .Name "ok" .OK }}{{ end }}
+      {{ end }}
     </section>
+    {{ template "realusers" $real }}
   </div>
 
-  <div class="o-band b2r">
   {{ with .AuditDetails }}
   <section class="o-panel">
     <div class="o-ph2"><h2>What the audit found</h2><span class="o-pm"><span>passed<b>{{ .Passed }} of {{ .Checked }}</b></span><span>no browser</span></span></div>
@@ -283,59 +271,56 @@
       {{ end }}
     </div>
     {{ end }}
-    {{ if .Findings }}
-    <div class="o-scroll">
-    <table class="o-tbl stack">
-      <thead><tr><th>Finding</th><th>Where</th><th>Category</th></tr></thead>
-      <tbody>
-      {{ range .Findings }}
-        <tr>
-          <td class="lead"><span class="o-chip {{ if eq .Severity "error" }}bad{{ else }}warn{{ end }}">{{ .Severity }}</span> {{ .Title }}</td>
-          <td class="clip o-muted" data-l="where" title="{{ .Detail }}">{{ if .Detail }}{{ .Detail }}{{ else }}&mdash;{{ end }}</td>
-          <td class="n o-muted nw" data-l="category">{{ lower .Category }}</td>
-        </tr>
-      {{ end }}
-      </tbody>
-    </table>
-    </div>
+    {{ range .Findings }}
+    <div class="fix"><span class="o-chip {{ if eq .Severity "error" }}bad{{ else }}warn{{ end }}">{{ .Severity }}</span><div><b>{{ .Title }}</b>{{ if .Detail }}<span class="clip" title="{{ .Detail }}">{{ .Detail }}</span>{{ end }}<span class="cat">{{ lower .Category }}</span></div></div>
     {{ else }}
     <p class="o-empty"><b>Nothing to fix.</b>Every check passes at this URL.</p>
     {{ end }}
   </section>
-  {{ else }}
-  <section class="o-panel"><div class="o-ph2"><h2>What the audit found</h2></div><p class="o-empty"><b>No audit yet.</b>The first one runs within a minute of a deploy, then daily.</p></section>
   {{ end }}
-  {{ template "realusers" $.RealUsers }}
+  </div>
+
+  <div class="view" data-view="crawl" hidden>
+  <section class="o-panel summary">
+    <p class="verdict">{{ if $fixes }}<b class="o-warn">{{ len $fixes }} {{ if eq (len $fixes) 1 }}thing{{ else }}things{{ end }} to fix, found {{ len .CrawlerInsights }} times{{ with .LastCrawlPagesCount }} across {{ . }} pages{{ end }}.</b> <span class="o-muted">The same problem on many pages usually comes from one template, so the top of the list clears the most.</span>{{ else if .LastCrawlSuccessAt }}<b class="o-ok">Nothing to fix.</b> The last crawl found no issues.{{ else }}<b>No crawl yet.</b> It runs weekly, or from Recrawl.{{ end }}</p>
+    <span class="runline">
+      <span class="o-chip" data-field="crawler.state_badge"></span>
+      crawled<b data-field="crawler.last_success">&mdash;</b>pages<b data-field="crawler.pages">&mdash;</b>took<b data-field="crawler.duration">&mdash;</b>next<b data-field="crawler.next_run">&mdash;</b>
+      <button type="button" id="recrawl-btn" class="o-btn o-btn-sm" data-act="recrawl for seo"><span class="recrawl-btn-label">Recrawl</span><span class="recrawl-btn-spinner spinner d-none" role="status" aria-hidden="true"></span></button>
+    </span>
+    <div class="progress d-none" data-field="crawler.progress_wrap"><div class="progress-bar" role="progressbar" data-field="crawler.progress_bar" style="width: 0%"></div></div>
+    <div class="o-note bad d-none" data-field="crawler.error_box" role="alert">Last crawl failed: <code data-field="crawler.error_text"></code></div>
+  </section>
+
+  {{ if $fixes }}
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Biggest fix first</h2>
+      <span class="o-seg links fixf"><button type="button" data-type="" aria-pressed="true">all {{ len .CrawlerInsights }}</button>{{ range $fixTypes }}<button type="button" data-type="{{ .Type }}" aria-pressed="false">{{ lower .Title }} {{ .Count }}</button>{{ end }}</span>
+    </div>
+    {{ range $i, $f := $fixes }}
+    <details class="issue" data-type="{{ .Type }}">
+      <summary><span class="rank">{{ add $i 1 }}</span><span class="o-chip {{ if eq .Severity "error" }}bad{{ else if eq .Severity "warning" }}warn{{ end }}">{{ .Severity }}</span><span class="il"><b>{{ .Label }}</b>{{ if .Why }}<span>{{ .Why }}</span>{{ end }}</span><span class="cat">{{ insightTitle .Type }}</span><span class="ic">{{ .Pages }} {{ if eq .Pages 1 }}page{{ else }}pages{{ end }}</span></summary>
+      <div class="o-scroll">
+      <table class="o-tbl stack">
+        <thead><tr><th>Page</th><th>Found</th><th>Item</th></tr></thead>
+        <tbody>
+        {{ range .Items }}
+          <tr>
+            <td class="lead clip n"><a href="{{ .URL }}" target="_blank" rel="noopener">{{ urlPath .URL }}</a></td>
+            <td class="clip o-muted" data-l="found" title="{{ .Issue }}">{{ .Issue }}</td>
+            <td class="clip o-muted" data-l="item" title="{{ .Item }}">{{ if .Item }}{{ .Item }}{{ else }}&mdash;{{ end }}</td>
+          </tr>
+        {{ end }}
+        </tbody>
+      </table>
+      </div>
+    </details>
+    {{ end }}
+  </section>
+  {{ end }}
   </div>
   {{ end }}
 </main>
-{{ end }}
-
-{{ if .InsightGroups }}
-<section class="o-wrap o-main insights">
-  {{ range .InsightGroups }}
-  <div class="o-panel flush">
-    <div class="o-ph2"><h2>{{ insightTitle .Type }}</h2><span class="o-lab">{{ len .Items }} found</span></div>
-    <div class="o-scroll">
-    <table class="o-tbl stack">
-      <thead><tr><th>Severity</th><th>Issue</th><th>Page</th><th>Item</th></tr></thead>
-      <tbody>
-      {{ range .Items }}
-        <tr>
-          <td><span class="o-chip {{ if eq .Severity "error" }}bad{{ else if eq .Severity "warning" }}warn{{ end }}">{{ .Severity }}</span></td>
-          <td class="lead clip" title="{{ .Issue }}">{{ .Issue }}</td>
-          <td class="clip n"><a href="{{ .URL }}" target="_blank" rel="noopener" class="o-muted">{{ urlPath .URL }}</a></td>
-          <td class="clip o-muted" title="{{ .Item }}">{{ .Item }}</td>
-        </tr>
-      {{ end }}
-      </tbody>
-    </table>
-    </div>
-  </div>
-  {{ end }}
-</section>
-{{ else if and .Authenticated .Property.LastCrawlError }}
-<section class="o-wrap o-main"><div class="o-note bad">Last crawl failed: <code>{{ .Property.LastCrawlError }}</code></div></section>
 {{ end }}
 {{ end }}
 
