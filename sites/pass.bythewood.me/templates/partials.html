@@ -1,0 +1,48 @@
+{{define "analytics"}}{{with analyticsID}}<script src="https://analytics.bythewood.me/static/collector.js" data-collector-id="{{.}}" async></script>{{end}}{{end}}
+
+{{define "head"}}<!doctype html>
+<html lang="en">
+<head>
+{{template "suite-head"}}
+<meta name="robots" content="noindex, nofollow">
+<title>{{.Title}} &middot; pass</title>
+<link rel="stylesheet" href="{{asset "static/app.css"}}">
+{{template "analytics"}}
+</head>
+<body class="o-body">
+{{template "suite-top" .Suite}}
+<main id="main" class="o-wrap o-main">
+{{end}}
+
+{{define "foot"}}
+</main>
+{{template "suite-foot" .Suite}}
+<script type="module" src="{{asset "static/guest.js"}}"></script>
+</body>
+</html>
+{{end}}
+
+{{define "novault"}}<div class="o-note brass"><span class="o-lab plain">waiting</span><span>Vaultwarden hasn't made its database yet. It does on its first start, and this fills in once an account exists.</span></div>{{end}}
+
+{{define "evrows"}}
+<div class="o-scroll">
+<table class="o-tbl stack" data-keys>
+  <thead><tr><th>When</th><th>What</th><th>From</th><th>Device</th></tr></thead>
+  <tbody>
+  {{range .}}
+    <tr class="{{if .Failed}}hot{{else if ne .Type 1000}}acct{{end}}">
+      <td class="n o-muted nw" data-tip="{{utc .At}}">{{stamp .At}}</td>
+      <td class="nw" data-l="what"><span class="o-chip {{evKind .Type}}">{{word .Type}}</span></td>
+      <td class="lead mono">{{if .IP}}{{.IP}}{{else}}<span class="o-muted">unknown</span>{{end}}</td>
+      <td class="nw small" data-l="device">{{kind .Device}}</td>
+    </tr>
+  {{else}}
+    <tr><td colspan="4"><p class="o-empty"><b>Nothing here yet.</b>Every sign in, failed password and wrong code shows here with the address it came from.</p></td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}
+
+{{define "addrbars"}}{{$max := .Max}}{{range .Addrs}}<div class="o-hbar" data-tip="{{.IP}}: {{.OK}} signed in, {{.Fail}} failed, last {{ago .Last}}"><span class="k o-mono">{{if .IP}}{{.IP}}{{else}}unknown{{end}}</span><span class="bar"><i class="{{if eq .OK 0}}bad{{else if .Fail}}warn{{else}}ok{{end}}" style="width: {{pct .Total $max}}%"></i></span><span class="v">{{.Total}}</span><span class="d">{{if eq .OK 0}}failed only{{else}}{{ago .Last}}{{end}}</span></div>
+{{else}}<p class="o-empty"><b>No sign ins yet.</b>Each address that signs in or tries to shows here.</p>{{end}}{{end}}

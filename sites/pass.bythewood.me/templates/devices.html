@@ -1,0 +1,47 @@
+{{define "devices.html"}}{{template "head" (dict "Title" "Devices" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">pass &middot; devices</span>
+    <h1>{{.Headline}}</h1>
+    <div class="o-pm"><span>active 24h<b>{{.Active}}</b></span><span>quiet 30d<b>{{.Quiet}}</b></span><span>new today<b {{if .New}}class="warn"{{end}}>{{len .New}}</b></span></div>
+  </div>
+</div>
+
+{{if .NoVault}}{{template "novault"}}{{end}}
+{{range .New}}<div class="o-note brass"><span class="o-lab plain">new</span><span>{{.Name}} ({{kind .Type}}) signed in for the first time {{ago .Created}}. If that wasn't you, change the master password in an app, which signs every device out.</span></div>{{end}}
+
+<div class="o-band b2r">
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Signed in</h2><span class="o-pm"><span>most recent first</span></span></div>
+    <div class="o-scroll">
+    <table class="o-tbl stack" data-keys>
+      <thead><tr><th>Device</th><th>Kind</th><th>Live sync</th><th>First seen</th><th class="r">Last active</th></tr></thead>
+      <tbody>
+      {{range .Devices}}
+        <tr class="{{if lt (since .Created).Hours 24.0}}nw{{else if gt (since .LastSeen).Hours 720.0}}gone{{end}}">
+          <td class="lead">{{.Name}}</td>
+          <td class="nw small" data-l="kind">{{kind .Type}}</td>
+          <td class="nw small" data-l="live">{{if .Push}}push{{else}}when open{{end}}</td>
+          <td class="nw small o-muted" data-l="first" data-tip="{{utc .Created}}">{{day .Created}}</td>
+          <td class="r nw" data-l="last" data-tip="{{utc .LastSeen}}">{{ago .LastSeen}}</td>
+        </tr>
+      {{else}}
+        <tr><td colspan="5"><p class="o-empty"><b>No devices yet.</b>Sign in from a Bitwarden app with https://pass.bythewood.me as the self-hosted server and it shows here.</p></td></tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  <div class="side">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Kinds</h2><span class="o-pm"><span>devices</span></span></div>
+      {{range .ByKind}}<div class="o-hbar"><span class="k">{{.Key}}</span><span class="bar"><i style="width: {{pct .N $.MaxKind}}%"></i></span><span class="v">{{.N}}</span></div>
+      {{else}}<p class="o-empty"><b>Nothing yet.</b></p>{{end}}
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Signing a device out</h2></div>
+      <p class="o-muted small">This page only reads. To end one device's session, remove it under Settings, Account security, Devices in a Bitwarden app. Changing the master password signs out every device at once.</p>
+    </section>
+  </div>
+</div>
+{{template "foot" .}}{{end}}

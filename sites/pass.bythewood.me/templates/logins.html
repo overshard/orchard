@@ -1,0 +1,38 @@
+{{define "logins.html"}}{{template "head" (dict "Title" "Logins" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">pass &middot; logins &middot; {{.Range}}</span>
+    <h1>{{comma .OK}} sign {{if eq .OK 1}}in{{else}}ins{{end}}, {{if .Failed}}<em class="bad">{{.Failed}} failed</em>{{else}}<em>none failed</em>{{end}}.</h1>
+    <div class="o-pm"><span>addresses<b>{{len .Addrs}}</b></span><span>failed only<b {{if .OnlyFailed}}class="bad"{{end}}>{{.OnlyFailed}}</b></span><span>account changes<b {{if .Account}}class="warn"{{end}}>{{.Account}}</b></span><span>kept<b>{{keep}}d</b></span></div>
+  </div>
+  <div class="o-acts"><a class="o-btn o-btn-sm" href="https://logging.bythewood.me/search?source=pass" data-act="pass in logging">In logging &nearr;</a></div>
+</div>
+
+{{if .NoVault}}{{template "novault"}}{{end}}
+
+<div class="o-band b2r">
+  <section class="o-panel flush">
+    <div class="filters">
+      <span class="o-seg links">{{range .Ranges}}<a href="{{.Href}}"{{if .On}} class="on" aria-current="true"{{end}}>{{.Name}}</a>{{end}}</span>
+      <span class="o-seg links">{{range .Shows}}<a href="{{.Href}}"{{if .On}} class="on" aria-current="true"{{end}}>{{.Name}}</a>{{end}}</span>
+    </div>
+    {{template "evrows" .Rows}}
+    <p class="o-foot pad">{{if gt .Total (len .Rows)}}newest {{len .Rows}} of {{comma .Total}}{{else}}{{.Total}} {{if eq .Total 1}}event{{else}}events{{end}}{{end}} &middot; a token refresh isn't a sign in, so the apps' daily use only shows on devices</p>
+  </section>
+  <div class="side">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Days</h2><span class="o-pm"><span>red failed</span></span></div>
+      <span class="o-ds wide" role="img" aria-label="sign ins by day">{{range .Days}}<i class="{{.Kind}}" data-tip="{{.Tip}}"></i>{{end}}</span>
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Addresses</h2><span class="o-pm"><span>tries</span><span>{{.Range}}</span></span></div>
+      {{template "addrbars" (dict "Addrs" .Addrs "Max" .MaxAddr)}}
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Why it failed</h2><span class="o-pm"><span>{{.Range}}</span></span></div>
+      {{range .Why}}<div class="o-hbar"><span class="k">{{.Key}}</span><span class="bar"><i class="bad" style="width: {{pct .N $.MaxWhy}}%"></i></span><span class="v">{{.N}}</span></div>{{end}}
+      <p class="o-foot">a wrong email isn't recorded, since there's no account to put it on</p>
+    </section>
+  </div>
+</div>
+{{template "foot" .}}{{end}}

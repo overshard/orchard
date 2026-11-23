@@ -1,0 +1,105 @@
+{{define "overview.html"}}{{template "head" (dict "Title" "Overview" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">pass &middot; overview &middot; 24h</span>
+    <h1>{{.Headline}}</h1>
+    <div class="o-pm"><span>state<b class="{{.Health.Level}}">{{.Health.Word}}</b></span><span>users<b>{{.Hold.Users}}</b></span><span>two step<b class="{{if and .Hold.Users (eq .Hold.TwoFactor .Hold.Users)}}ok{{else}}warn{{end}}">{{if and .Hold.Users (eq .Hold.TwoFactor .Hold.Users)}}on{{else}}off{{end}}</b></span><span>signups<b {{if .Signups}}class="warn"{{end}}>{{if .Signups}}on{{else}}off{{end}}</b></span><span>kept<b>{{keep}}d</b></span></div>
+  </div>
+  <div class="o-acts">
+    <a class="o-btn o-btn-sm" href="/logins?show=failed" data-act="failed sign ins">Failed sign ins</a>
+    <a class="o-btn o-btn-p o-btn-sm" href="/logins" data-act="every sign in">Every sign in</a>
+  </div>
+</div>
+
+{{if .NoVault}}{{template "novault"}}{{else if .Health.Note}}<div class="o-note {{if eq .Health.Level "bad"}}bad{{else}}brass{{end}}"><span class="o-lab plain">{{.Health.Word}}</span><span>{{.Health.Note}}.</span></div>{{end}}
+
+<div>
+<div class="o-strip">
+  <a class="o-tile" href="/logins?range=24h">
+    <small>sign ins &middot; 24h</small>
+    <b>{{.Logins}}</b>
+    <span class="o-delta">with the master password</span>
+    {{sparkT "ok" .HourOK .Labels}}
+  </a>
+  <a class="o-tile" href="/logins?range=24h&amp;show=failed">
+    <small>failed &middot; 24h</small>
+    <b {{if .Failed}}class="bad"{{end}}>{{.Failed}}</b>
+    <span class="o-delta">wrong password or code</span>
+    {{sparkT "bad" .HourBad .Labels}}
+  </a>
+  <a class="o-tile" href="/devices">
+    <small>devices active</small>
+    <b>{{.Active}}</b>
+    <span class="o-delta">of {{len .Devices}}, 24h</span>
+    <span class="o-ticks" aria-hidden="true">{{range $i, $d := .Devices}}<i class="{{index $.Ticks $i}}" data-tip="{{$d.Name}}, {{ago $d.LastSeen}}"></i>{{else}}<i class="none"></i>{{end}}</span>
+  </a>
+  <div class="o-tile">
+    <small>items</small>
+    <b>{{comma .Hold.Items}}</b>
+    <span class="o-delta">{{if .Hold.Changed.IsZero}}nothing saved yet{{else}}changed {{ago .Hold.Changed}}{{end}}</span>
+    <span class="o-ticks" aria-hidden="true">{{range .Kinds}}{{if ne .Note "totp"}}<i style="height: {{pct .N $.Hold.Items}}%" data-tip="{{.Key}}: {{.N}}"></i>{{end}}{{end}}</span>
+  </div>
+  <div class="o-tile">
+    <small>with a code</small>
+    <b>{{.Hold.TOTP}}</b>
+    <span class="o-delta">of {{.Hold.Logins}} logins</span>
+    <span class="o-ticks" aria-hidden="true"><i style="height: {{pct .Hold.TOTP .Hold.Logins}}%"></i><i class="none" style="height: 100%"></i></span>
+  </div>
+  <div class="o-tile">
+    <small>attachments</small>
+    <b>{{size .Hold.FileBytes}}</b>
+    <span class="o-delta">{{.Hold.Files}} files, {{.Hold.Sends}} sends</span>
+    <span class="o-ticks" aria-hidden="true"><i class="{{if .Hold.Files}}{{else}}none{{end}}"></i></span>
+  </div>
+  <div class="o-tile">
+    <small>in the trash</small>
+    <b>{{.Hold.Trash}}</b>
+    <span class="o-delta">{{.Hold.Folders}} folders</span>
+    <span class="o-ticks" aria-hidden="true"><i class="{{if .Hold.Trash}}q{{else}}none{{end}}"></i></span>
+  </div>
+  <div class="o-tile" data-tip="{{if .Server.Latest}}Newest release {{.Server.Latest}}, checked {{ago .Server.Checked}}{{else}}The release check hasn't run yet{{end}}">
+    <small>vaultwarden</small>
+    <b class="{{if not .Server.Up}}bad{{else if .Server.Behind}}warn{{else}}ok{{end}}">{{if .Server.Version}}{{.Server.Version}}{{else}}?{{end}}</b>
+    <span class="o-delta">{{if not .Server.Up}}not answering{{else if .Server.Behind}}{{.Server.Latest}} is out{{else if .Server.Latest}}the latest{{else}}answering{{end}}</span>
+    <span class="o-ticks" aria-hidden="true"><i class="{{if not .Server.Up}}bad{{else if .Server.Behind}}warn{{end}}"></i></span>
+  </div>
+</div>
+<p class="o-foot"><span data-xs-when>sparks are the last 24 hours by UTC hour</span></p>
+</div>
+
+<div class="o-band b2r">
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Sign ins</h2><span class="o-pm"><span>30 days</span><span>newest first</span></span></div>
+    {{template "evrows" .Recent}}
+    <div class="o-more"><a href="/logins">Every sign in &rarr;</a></div>
+  </section>
+  <div class="side">
+    <section class="o-panel flush">
+      <div class="o-ph2"><h2>Devices</h2><span class="o-pm"><span>last active</span></span></div>
+      {{range .Devices}}<div class="o-rw dv"><span class="o-dot {{if lt (since .LastSeen).Hours 24.0}}ok{{else}}mute{{end}}"></span><a class="n" href="/devices">{{.Name}}</a><span class="m">{{kind .Type}}</span><span class="o-mono v">{{ago .LastSeen}}</span></div>
+      {{else}}<p class="o-empty"><b>No devices.</b>Sign in from a Bitwarden app with this server's URL and it shows here.</p>{{end}}
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Addresses</h2><span class="o-pm"><span>sign ins</span><span>30d</span></span></div>
+      {{template "addrbars" (dict "Addrs" .Addrs "Max" .MaxAddr)}}
+    </section>
+  </div>
+</div>
+
+<div class="o-band b2">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>In the vault</h2><span class="o-pm"><span>counts only</span><span>names are encrypted</span></span></div>
+    {{range .Kinds}}<div class="o-hbar"><span class="k">{{.Key}}</span><span class="bar"><i style="width: {{pct .N $.Hold.Items}}%"></i></span><span class="v">{{.N}}</span></div>{{end}}
+    <p class="o-foot">{{comma .Hold.Items}} items &middot; {{.Hold.Folders}} folders &middot; {{.Hold.Sends}} sends</p>
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Setting up a device</h2></div>
+    <ol class="steps">
+      <li>In the Bitwarden app or extension, before signing in, pick <b>self-hosted</b> under Accessing.</li>
+      <li>Server URL is <code>https://pass.bythewood.me</code>, and the rest of the fields stay empty.</li>
+      <li>Sign in with the email and master password, then the authenticator code.</li>
+    </ol>
+    <p class="o-foot">a new device is pushed to the phone the first time it signs in</p>
+  </section>
+</div>
+{{template "foot" .}}{{end}}

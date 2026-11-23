@@ -1,0 +1,103 @@
+name: orchard-pass
+
+# Caddy sends the Bitwarden apps' paths to vw and everything else to the page.
+# The page reads Vaultwarden's database out of the same volume and never
+# writes it.
+
+x-hardening: &hardening
+  restart: unless-stopped
+  stop_grace_period: 30s
+  security_opt:
+    - no-new-privileges:true
+  read_only: true
+  cap_drop: [ALL]
+  tmpfs: [/tmp]
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+  networks: [edge]
+
+services:
+  vw:
+    <<: *hardening
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: vw
+    container_name: orchard-pass-vw
+    environment:
+      DOMAIN: https://pass.bythewood.me
+      # Off for good once the one account exists, see .env.example.
+      SIGNUPS_ALLOWED: ${PASS_SIGNUPS:-false}
+      INVITATIONS_ALLOWED: "false"
+      ORG_CREATION_USERS: none
+      EMERGENCY_ACCESS_ALLOWED: "false"
+      PASSWORD_HINTS_ALLOWED: "false"
+      SHOW_PASSWORD_HINT: "false"
+      WEB_VAULT_ENABLED: "false"
+      # The user events with addresses only go in the database with this on,
+      # and the page reads them from there.
+      ORG_EVENTS_ENABLED: "true"
+      EVENTS_DAYS_RETAIN: "90"
+      IP_HEADER: X-Real-IP
+      LOG_LEVEL: warn
+      PUSH_ENABLED: ${PASS_PUSH_ENABLED:-false}
+      PUSH_INSTALLATION_ID: ${PASS_PUSH_INSTALLATION_ID:-}
+      PUSH_INSTALLATION_KEY: ${PASS_PUSH_INSTALLATION_KEY:-}
+    volumes:
+      - data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 192M
+          pids: 128
+    healthcheck:
+      test: ["CMD", "/probe", "-probe", "http://127.0.0.1:8000/alive"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  app:
+    <<: *hardening
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
+    container_name: orchard-pass
+    environment:
+      LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
+      NTFY_TOKEN: ${NTFY_TOKEN:-}
+      PASS_VAULT: /vw/db.sqlite3
+      PASS_SIGNUPS: ${PASS_SIGNUPS:-false}
+    # Writable only because SQLite needs the -shm file to read a WAL database.
+    # The page opens it read only.
+    volumes:
+      - data:/vw
+    depends_on:
+      vw:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+          pids: 128
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  data:
+    name: orchard-pass-data
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true

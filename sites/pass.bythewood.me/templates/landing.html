@@ -1,0 +1,109 @@
+{{define "landing.html"}}<!doctype html>
+<html lang="en">
+<head>
+{{template "suite-head"}}
+<title>pass &middot; my own password server</title>
+<meta name="description" content="A Bitwarden compatible password server for my own devices, with every sign in, failure and device it has seen.">
+<link rel="stylesheet" href="{{asset "static/app.css"}}">
+{{template "analytics"}}
+</head>
+<body class="o-body">
+{{template "suite-top" .Suite}}
+
+<main>
+<div class="o-cw">
+  <section class="o-wrap o-hero">
+    <div>
+      <span class="o-lab">pass &middot; passwords &middot; self-hosted</span>
+      <h1>Every password, <em>on my own server</em>.</h1>
+      <p class="o-lede">A Bitwarden compatible server for my own phone and browsers, running Vaultwarden. The vault is encrypted on each device before it gets here, so the server only ever holds ciphertext, and this page shows who signed in, from where and on what.</p>
+      <div class="o-ctas">
+        <a class="o-btn o-btn-p" href="/login">Access dashboard &rarr;</a>
+        <a class="o-btn" href="{{.Source}}" target="_blank" rel="noopener">Source</a>
+      </div>
+    </div>
+    <div class="o-win" aria-label="A staged picture of the overview">
+      <div class="o-win-bar"><i></i><i></i><i></i><span class="u">pass.example.com</span><span class="o-staged">STAGED</span></div>
+      <div class="o-win-body">
+        <span class="o-lab">overview &middot; 24h</span>
+        <div class="t" data-co>Four devices, <em class="bad">two failed sign ins</em>.</div>
+        <div data-co>
+          <div class="o-rw"><span class="o-dot bad"></span><span class="n o-mono">203.0.113.48</span><span class="m">wrong password</span><span class="o-chip bad">failed</span></div>
+          <div class="o-rw"><span class="o-dot ok"></span><span class="n o-mono">198.51.100.7</span><span class="m">Android</span><span class="o-chip ok">signed in</span></div>
+        </div>
+        <div data-co>
+          <div class="o-rw"><span class="o-dot ok"></span><span class="n">Chrome extension</span><span class="m">active just now</span><span class="o-chip">push</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="o-wrap o-legend">
+    <div><span class="o-pin">1</span><span>The title says how many devices and whether anything failed.</span></div>
+    <div><span class="o-pin">2</span><span>Every sign in and failure with its address, newest first.</span></div>
+    <div><span class="o-pin">3</span><span>Each device and when it was last active.</span></div>
+  </div>
+  <div class="o-ov"></div>
+</div>
+
+<div class="o-wrap">
+{{template "suite-ways" .Ways}}
+
+<section class="o-hsec">
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">clients</span>
+      <h3>The official Bitwarden apps, pointed here</h3>
+      <p>The authenticator codes, attachments and Send come along, and unlocking and decrypting stays on the device.</p>
+      <ul><li>A device keeps a cached copy it can read while the server is down</li><li>No web vault, so the server never hands out code that sees a password</li></ul>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <span class="o-lab">self-hosted</span>
+      <pre class="o-code">Server URL  <span class="g">https://pass.example.com</span></pre>
+      <div class="o-mono small o-muted">Bitwarden &middot; Log in &middot; Accessing</div>
+    </div>
+  </div>
+  <div class="o-frow flip">
+    <div class="o-ftxt">
+      <span class="o-lab">watched</span>
+      <h3>A push for a failed sign in or a new device</h3>
+      <p>Every sign in lands in logging with its address, and a wrong password, a wrong code, a new device or an export is pushed to my phone.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-rw"><span class="o-dot warn"></span><span class="n">A new device signed in</span><span class="m">Firefox</span></div>
+      <div class="o-rw"><span class="o-dot bad"></span><span class="n">Wrong password</span><span class="m o-mono">203.0.113.48</span></div>
+    </div>
+  </div>
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">kept current</span>
+      <h3>Told the day a fix is out</h3>
+      <p>The page checks for a new Vaultwarden release and says when the running one is behind, since its fixes are worth having the same day.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <span class="o-lab">vaultwarden</span>
+      <div class="crop-t">Running <em>1.37.5</em>, the latest.</div>
+      <div class="o-mono small o-muted">checked 2h ago</div>
+    </div>
+  </div>
+</section>
+
+<section class="o-hsec">
+  <div class="o-run">
+    <div class="o-hh"><span class="o-lab">run your own</span><h2 class="o-big">Vaultwarden and one small Go binary</h2><p>Part of orchard, BSD 2-Clause. The compose file runs Vaultwarden beside this page and the page reads its database.</p></div>
+    <pre class="o-code"><span class="a">git</span> clone https://github.com/overshard/orchard
+<span class="a">cd</span> orchard
+<span class="a">make</span> deploy SITE=pass.bythewood.me
+<span class="c"># Vaultwarden and this page on the edge network</span></pre>
+  </div>
+</section>
+</div>
+</main>
+
+{{template "suite-footer" .Footer}}
+{{template "suite-status" .Suite}}
+<script type="module" src="{{asset "static/guest.js"}}"></script>
+</body>
+</html>{{end}}
