@@ -5,7 +5,7 @@
     <h1>{{comma .OK}} sign {{if eq .OK 1}}in{{else}}ins{{end}}, {{if .Failed}}<em class="bad">{{.Failed}} failed</em>{{else}}<em>none failed</em>{{end}}.</h1>
     <div class="o-pm"><span>addresses<b>{{len .Addrs}}</b></span><span>failed only<b {{if .OnlyFailed}}class="bad"{{end}}>{{.OnlyFailed}}</b></span><span>account changes<b {{if .Account}}class="warn"{{end}}>{{.Account}}</b></span><span>kept<b>{{keep}}d</b></span></div>
   </div>
-  <div class="o-acts"><a class="o-btn o-btn-sm" href="https://logging.bythewood.me/search?source=pass" data-act="pass in logging">In logging &nearr;</a></div>
+  <div class="o-acts"><a class="o-btn o-btn-sm" href="https://logging.bythewood.me/sources/pass" data-act="pass in logging">In logging &nearr;</a></div>
 </div>
 
 {{if .NoVault}}{{template "novault"}}{{end}}
