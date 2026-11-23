@@ -7,6 +7,7 @@ import (
 	"errors"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/argon2"
@@ -23,16 +24,24 @@ const (
 	saltLen      = 16
 )
 
+// argonMu lets one hash run at a time, since each takes argonMemory and a
+// burst of sign in posts would otherwise add up past the container's limit.
+var argonMu sync.Mutex
+
 func hashSecret(secret string) (hash, salt []byte, err error) {
 	salt = make([]byte, saltLen)
 	if _, err := rand.Read(salt); err != nil {
 		return nil, nil, err
 	}
+	argonMu.Lock()
+	defer argonMu.Unlock()
 	return argon2.IDKey([]byte(secret), salt, argonTime, argonMemory, argonThreads, argonKeyLen), salt, nil
 }
 
 func secretMatches(secret string, hash, salt []byte) bool {
+	argonMu.Lock()
 	candidate := argon2.IDKey([]byte(secret), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
+	argonMu.Unlock()
 	return subtle.ConstantTimeCompare(candidate, hash) == 1
 }
 

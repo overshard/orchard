@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -111,7 +112,14 @@ func sendsInWindow(db *sql.DB, known bool) (int, error) {
 // startLogin mints and stores a code, returning it and the browser token for the
 // cookie. It publishes nothing, and the caller records the send only once ntfy
 // accepts it, so a failed publish doesn't spend the ceiling.
+// startMu makes the checks and the insert one step, or two requests at once
+// both see no outstanding code and both get one.
+var startMu sync.Mutex
+
 func startLogin(db *sql.DB, r *http.Request, known bool) (code, browser string, err error) {
+	startMu.Lock()
+	defer startMu.Unlock()
+
 	// No point pushing a code that cannot be typed.
 	if locked, err := lockedOut(db, known); err != nil {
 		return "", "", err
