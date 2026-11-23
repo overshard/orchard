@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"repos.bythewood.me/web"
 )
@@ -178,7 +179,20 @@ func (wr *wire) serveBackend(w http.ResponseWriter, r *http.Request, repo Repo, 
 		limit = maxPushBytes
 	}
 	if len(r2.TransferEncoding) > 0 && r2.TransferEncoding[0] == "chunked" {
+		if !writing {
+			// /tmp is memory, so a stranger's spools are few and can't stall.
+			select {
+			case strangerSpools <- struct{}{}:
+				defer func() { <-strangerSpools }()
+			default:
+				http.Error(w, "busy, try again shortly", http.StatusServiceUnavailable)
+				return
+			}
+			_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(30 * time.Second))
+		}
 		spooled, size, err := spoolBody(r2.Body, limit)
+		// Cleared once the body is in, or it would cut a slow clone short.
+		_ = http.NewResponseController(w).SetReadDeadline(time.Time{})
 		if err != nil {
 			slog.Error("spooling push body failed",
 				slog.String("repo", name), slog.Any("err", err))
@@ -201,6 +215,9 @@ func (wr *wire) serveBackend(w http.ResponseWriter, r *http.Request, repo Repo, 
 		wr.store.InvalidateOverview(name)
 	}
 }
+
+// strangerSpools bounds how many unauthenticated bodies are spooled at once.
+var strangerSpools = make(chan struct{}, 4)
 
 // spoolBody reads a chunked body to a temporary file, unlinked at creation so it
 // has no name to open and vanishes with the handle even on a kill mid-push.
