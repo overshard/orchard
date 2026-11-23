@@ -302,6 +302,26 @@ http://dns.bythewood.me {
 	}
 }
 
+# Vaultwarden answers the Bitwarden apps' paths and the page takes the rest.
+# There's no web vault and no admin page, so nothing else reaches Vaultwarden.
+http://pass.bythewood.me {
+	import site
+
+	@vw path /api/* /identity/* /icons/* /notifications/* /events/* /attachments/* /alive
+	handle @vw {
+		reverse_proxy orchard-pass-vw:8000 {
+			header_up X-Real-IP {client_ip}
+			import hold
+		}
+	}
+
+	handle {
+		reverse_proxy orchard-pass:8000 {
+			import hold
+		}
+	}
+}
+
 http://mcp.bythewood.me {
 	import site
 	reverse_proxy orchard-mcp:8000 {
