@@ -156,7 +156,9 @@ type caddyEntry struct {
 	// comes from and Caddy has no notion of the other.
 	CFRay     string `json:"cf_ray"`
 	Component string `json:"component"`
-	Request   *struct {
+	// Set on a route to a container that doesn't ship its own log.
+	Upstream string `json:"upstream"`
+	Request  *struct {
 		Method   string `json:"method"`
 		Host     string `json:"host"`
 		URI      string `json:"uri"`
@@ -213,6 +215,9 @@ func parseCaddyLine(line []byte) (web.Record, bool) {
 	attrs["component"] = "edge"
 	if e.Component != "" {
 		attrs["component"] = e.Component
+	}
+	if e.Upstream != "" {
+		attrs["component"] = e.Upstream
 	}
 
 	return web.Record{
