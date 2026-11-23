@@ -2,7 +2,7 @@ name: orchard-pass
 
 # Caddy sends the Bitwarden apps' paths to vw and everything else to the page.
 # The page reads Vaultwarden's database out of the same volume, and writes
-# only the authenticator setting.
+# only the authenticator setting and its own event rows.
 
 x-hardening: &hardening
   restart: unless-stopped
@@ -35,6 +35,11 @@ services:
       INVITATIONS_ALLOWED: "false"
       ORG_CREATION_USERS: none
       EMERGENCY_ACCESS_ALLOWED: "false"
+      # A Send link opens in the web vault, which isn't here.
+      SENDS_ALLOWED: "false"
+      # Five sign in tries a minute per address. These paths skip gate, so this
+      # is the limit, and every miss is pushed to the phone too.
+      LOGIN_RATELIMIT_MAX_BURST: "5"
       PASSWORD_HINTS_ALLOWED: "false"
       SHOW_PASSWORD_HINT: "false"
       WEB_VAULT_ENABLED: "false"
@@ -77,8 +82,8 @@ services:
       NTFY_TOKEN: ${NTFY_TOKEN:-}
       PASS_VAULT: /vw/db.sqlite3
       PASS_ADMIN_TOKEN: ${PASS_ADMIN_TOKEN:-}
-    # Writable only because SQLite needs the -shm file to read a WAL database.
-    # The page opens it read only.
+    # Writable for the authenticator row, and for the -shm file SQLite needs
+    # to read a WAL database. Reads go through a read only handle.
     volumes:
       - data:/vw
     depends_on:
