@@ -125,6 +125,12 @@
 	lb_try_duration 40s
 }
 
+# Imported inside the reverse_proxy of anything that never checks a sign in, so
+# the session on .bythewood.me only reaches the sites that ask auth about it.
+(nosession) {
+	header_up Cookie "(^|; *)bw_session=[^;]*" ""
+}
+
 # One block per hostname, each proxying to a container by name.
 http://isaacbythewood.com {
 	import site
@@ -137,6 +143,7 @@ http://blog.bythewood.me {
 	import site
 	reverse_proxy orchard-blog:8000 {
 		import hold
+		import nosession
 	}
 }
 
@@ -144,6 +151,7 @@ http://pond.bythewood.me {
 	import site
 	reverse_proxy orchard-pond:8000 {
 		import hold
+		import nosession
 	}
 }
 
@@ -317,6 +325,7 @@ http://pass.bythewood.me {
 		reverse_proxy orchard-pass-vw:8000 {
 			header_up X-Real-IP {client_ip}
 			import hold
+			import nosession
 		}
 	}
 
@@ -379,6 +388,7 @@ http://ntfy.bythewood.me {
 	handle @client {
 		reverse_proxy orchard-ntfy:8000 {
 			import hold
+			import nosession
 			header_up X-Real-IP {client_ip}
 		}
 	}
