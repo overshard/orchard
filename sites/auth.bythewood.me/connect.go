@@ -124,6 +124,7 @@ var connectorReads = []consentTool{
 	{"repos", "a repository's README"},
 	{"gate", "rules, traffic and what it refused"},
 	{"dns", "lookups, blocks and devices on the resolver"},
+	{"pass", "whether the password server is up, and new devices and failed sign ins"},
 	{"dash", "the briefs and advisories"},
 	{"auth", "the sign ins and sessions on the activity page"},
 }
