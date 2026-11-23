@@ -170,6 +170,7 @@ token)
 	write_var ../sites/llm.bythewood.me NTFY_TOKEN "$token"
 	write_var ../sites/cron.bythewood.me NTFY_TOKEN "$token"
 	write_var ../sites/analytics.bythewood.me NTFY_TOKEN "$token"
+	write_var ../sites/pass.bythewood.me NTFY_TOKEN "$token"
 	write_var ../sites/auth.bythewood.me AUTH_NTFY_TOKEN "$auth_token"
 
 	echo
