@@ -44,7 +44,8 @@ type site struct {
 	watch *watcher
 	auth  *web.Authenticator
 	// signups mirrors Vaultwarden's own setting, which it doesn't report.
-	signups bool
+	signups  bool
+	webVault bool
 }
 
 func env(k, def string) string {
@@ -95,6 +96,7 @@ func main() {
 		os.Exit(1)
 	}
 	s.signups = os.Getenv("PASS_SIGNUPS") == "true"
+	s.webVault = os.Getenv("PASS_WEB_VAULT") == "true"
 	go s.watch.run()
 
 	slog.Info(fmt.Sprintf("%s serving %s", selfSource, baseURL))

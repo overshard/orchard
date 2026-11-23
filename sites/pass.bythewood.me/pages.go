@@ -71,6 +71,8 @@ func (s *site) health(now time.Time) Health {
 		h.Level, h.Word, h.Note = "bad", "down", "Vaultwarden isn't answering, so the apps are working from their cached copy"
 	case s.signups:
 		h.Level, h.Word, h.Note = "warn", "signups on", "Anyone can make an account until PASS_SIGNUPS is false again"
+	case s.webVault:
+		h.Level, h.Word, h.Note = "warn", "web vault on", "The web vault is up at pass-web.bythewood.me until PASS_WEB_VAULT is false again"
 	case h.Failed > 0:
 		h.Level, h.Word = "warn", "failed sign in"
 		h.Note = fmt.Sprintf("%d failed sign in %s in the last day", h.Failed, plural(h.Failed, "attempt", "attempts"))

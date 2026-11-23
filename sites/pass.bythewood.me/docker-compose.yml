@@ -36,7 +36,10 @@ services:
       EMERGENCY_ACCESS_ALLOWED: "false"
       PASSWORD_HINTS_ALLOWED: "false"
       SHOW_PASSWORD_HINT: "false"
-      WEB_VAULT_ENABLED: "false"
+      # Only on while changing a setting the apps send you to it for, like
+      # two-step login, and then only on pass-web behind the orchard sign in.
+      WEB_VAULT_ENABLED: ${PASS_WEB_VAULT:-false}
+      WEB_VAULT_FOLDER: /web-vault
       # The user events with addresses only go in the database with this on,
       # and the page reads them from there.
       ORG_EVENTS_ENABLED: "true"
@@ -73,6 +76,7 @@ services:
       NTFY_TOKEN: ${NTFY_TOKEN:-}
       PASS_VAULT: /vw/db.sqlite3
       PASS_SIGNUPS: ${PASS_SIGNUPS:-false}
+      PASS_WEB_VAULT: ${PASS_WEB_VAULT:-false}
     # Writable only because SQLite needs the -shm file to read a WAL database.
     # The page opens it read only.
     volumes:

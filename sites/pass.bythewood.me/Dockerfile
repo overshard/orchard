@@ -19,6 +19,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates libssl3t64 libmariadb3 libpq5 && \
     rm -rf /var/lib/apt/lists/*
 COPY --from=upstream /vaultwarden /vaultwarden
+COPY --from=upstream /web-vault /web-vault
 # The page's binary is the health check, since there's no curl here.
 COPY --from=build /app /probe
 COPY --from=build --chown=65532:65532 /seed-data /data
