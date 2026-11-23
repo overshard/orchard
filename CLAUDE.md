@@ -31,6 +31,7 @@ tunnel with no public web ports.
 | `sites/gate.bythewood.me/` | The firewall. Caddy asks it about every request with `forward_auth`, and its rules, bans and proof of work page change live from its page or from proposals over mcp. SQLite, with the rules in memory |
 | `sites/cron.bythewood.me/` | Reminders and scheduled checks pushed over the `reminders` ntfy topic. One-shots and cron lines on the Eastern clock, checks the model runs through llm, a page and a JSON API. SQLite |
 | `sites/dns.bythewood.me/` | A private resolver for my own devices. DNS over TLS on 853 and DNS over HTTPS with a token per device, hagezi blocklists, a log of every lookup, and unbound recursing behind it. SQLite |
+| `sites/pass.bythewood.me/` | A password server for my own devices. Vaultwarden answers the Bitwarden apps from `orchard-pass-vw`, and the page reads its database for sign ins, failures and devices and pushes anything odd. Vaultwarden's SQLite |
 | `sites/pond.bythewood.me/` | A virtual pet game where every visitor gets a frog of their own. No accounts, a frog is kept by six words in a host only cookie and stored as an HMAC under a pepper in `.env`. SQLite, with every rule and every clock on the server |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
@@ -70,7 +71,7 @@ under `/suite/`. It is byte identical wherever it is, and so is `suite/files/`.
 Two smaller packages are shared the same way. `guard/`, in dash, paces
 the calls to somebody else's server, keeps a budget per window and opens a
 breaker when the far end says no, with each site's numbers in a `Policy` and its
-state behind a `Store`. `ntfy/`, in status, logging, auth, analytics, llm and cron,
+state behind a `Store`. `ntfy/`, in status, logging, auth, analytics, llm, cron and pass,
 publishes an alert. Both are byte identical wherever they are, with no exceptions, and `make
 check` holds them to it the same way it holds `web/`, so a fix to either is made
 in every site that carries it. Most Dockerfiles copy the build stage by name, so
@@ -132,7 +133,7 @@ open to the internet whatever ufw says, and `make check` fails on one.
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,
 `orchard-status`, `orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`,
 `orchard-auth`, `orchard-llm`, `orchard-mcp`, `orchard-gate`, `orchard-cron`, `orchard-pond`,
-`orchard-dns` and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
+`orchard-dns`, `orchard-pass` and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
 SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
 lookup table.

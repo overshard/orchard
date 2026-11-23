@@ -18,6 +18,7 @@ inbound port.
 | `sites/mcp.bythewood.me/` | Every tool, read only, as one MCP server for Claude, signed in through auth |
 | `sites/gate.bythewood.me/` | The firewall in front of every site. Rules change live, with a proof of work page for bots |
 | `sites/dns.bythewood.me/` | A private resolver for my own devices, with blocklists and a log of every lookup |
+| `sites/pass.bythewood.me/` | Vaultwarden for the Bitwarden apps, and a page of every sign in and device it has seen |
 | `sites/cron.bythewood.me/` | Reminders and scheduled checks, pushed to a phone over ntfy |
 | `sites/pond.bythewood.me/` | A virtual pet game. Every visitor gets a frog of their own, kept by six words in a cookie |
 | `edge/` | The shared cloudflared tunnel, the Caddy behind it, and ntfy for alerts |
