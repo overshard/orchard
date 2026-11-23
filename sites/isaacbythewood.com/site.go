@@ -189,6 +189,15 @@ var sites = []Site{
 		Visit:       "https://cron.bythewood.me",
 	},
 	{
+		Name:        "pass",
+		Symbol:      "Pa",
+		Group:       "Tools",
+		Dir:         "pass.bythewood.me",
+		Description: "My password server. Vaultwarden answers the Bitwarden apps, and a page beside it shows every sign in, failed password and device.",
+		Tech:        []string{"Go", "Vaultwarden", "SQLite"},
+		Visit:       "https://pass.bythewood.me",
+	},
+	{
 		Name:        "pond",
 		Symbol:      "Po",
 		Group:       "Public",
