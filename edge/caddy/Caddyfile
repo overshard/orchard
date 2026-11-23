@@ -322,6 +322,26 @@ http://pass.bythewood.me {
 	}
 }
 
+# Vaultwarden's web vault, for the settings the apps send you to it for. Only
+# a live orchard session gets through, and Vaultwarden serves it only while
+# PASS_WEB_VAULT is on.
+http://pass-web.bythewood.me {
+	import site
+
+	forward_auth orchard-auth:8000 {
+		uri /verify
+		@out status 401
+		handle_response @out {
+			redir https://auth.bythewood.me/login?next=https%3A%2F%2Fpass-web.bythewood.me%2F 302
+		}
+	}
+
+	reverse_proxy orchard-pass-vw:8000 {
+		header_up X-Real-IP {client_ip}
+		import hold
+	}
+}
+
 http://mcp.bythewood.me {
 	import site
 	reverse_proxy orchard-mcp:8000 {
