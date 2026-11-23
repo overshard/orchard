@@ -133,7 +133,7 @@ open to the internet whatever ufw says, and `make check` fails on one.
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,
 `orchard-status`, `orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`,
 `orchard-auth`, `orchard-llm`, `orchard-mcp`, `orchard-gate`, `orchard-cron`, `orchard-pond`,
-`orchard-dns`, `orchard-pass` and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
+`orchard-dns`, `orchard-pass` and `orchard-pass-vw`, and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
 SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
 lookup table.
@@ -296,8 +296,9 @@ up` guarantees since the edge starts first. A second `log console` block keeps
 the same events on stderr so `docker logs orchard-caddy` is unchanged, and only
 the access log ships, never Caddy's runtime log, since that's where a failing
 `net` writer reports itself and shipping it over the failing connection would
-loop. cloudflared and ntfy log to stdout and can't write to a socket, and
-pointing either at a file takes its stdout away, so neither ships.
+loop. cloudflared, ntfy and Vaultwarden log to stdout and can't write to a socket,
+and pointing one at a file takes its stdout away, so none of them ships. Caddy
+tags Vaultwarden's routes so logging keeps those access rows whole.
 
 **A site block with no host matcher gets one logger, not a list.** The `:80`
 catch-all in the Caddyfile becomes the server's `default_logger_name`, which is
