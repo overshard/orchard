@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -234,5 +236,45 @@ func TestDayListAndAria(t *testing.T) {
 	}
 	if got := dayList(many, "bad"); got != "Nov 4, Nov 5, Nov 6 and 3 more" {
 		t.Errorf("long list = %q", got)
+	}
+}
+
+// A down push that ntfy never took goes again on the next failed check.
+func TestUnsentDownPushGoesAgain(t *testing.T) {
+	db, id := freshDB(t)
+	ctx := context.Background()
+	var asked atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if asked.Add(1) == 1 {
+			w.WriteHeader(http.StatusBadGateway)
+		}
+	}))
+	defer srv.Close()
+	notifier := &Notifier{client: &ntfy.Client{HTTP: srv.Client(), Base: srv.URL, Topic: "test", Token: "t"}}
+	p, _ := getProperty(ctx, db, id)
+
+	pushed := func() sql.NullInt64 {
+		var v sql.NullInt64
+		if err := db.QueryRow(`SELECT pushed_down FROM incidents WHERE property_id = ?`, id[:]).Scan(&v); err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	base := time.Now().Add(-time.Hour)
+	for i, want := range []int64{-1, 0, 1, 1} {
+		insertCheck(t, db, id, 502, base.Add(time.Duration(i)*3*time.Minute))
+		if err := advanceAlertState(ctx, db, notifier, p, 502); err != nil {
+			t.Fatal(err)
+		}
+		notifier.Wait()
+		if want < 0 {
+			continue
+		}
+		if got := pushed(); !got.Valid || got.Int64 != want {
+			t.Fatalf("after check %d pushed_down was %v, want %d", i+1, got, want)
+		}
+	}
+	if n := asked.Load(); n != 2 {
+		t.Errorf("ntfy was asked %d times, want 2", n)
 	}
 }

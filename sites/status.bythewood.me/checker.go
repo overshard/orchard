@@ -514,6 +514,24 @@ func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *P
 			p.ID[:]); err != nil {
 			return err
 		}
+		// Every attempt at the push failed, so it goes again while it's still down.
+		var unsent int64
+		err := tx.QueryRowContext(ctx,
+			"SELECT id FROM incidents WHERE property_id = ? AND ended_at IS NULL AND pushed_down = 0",
+			p.ID[:]).Scan(&unsent)
+		if err != nil && err != sql.ErrNoRows {
+			return err
+		}
+		if err == nil {
+			if _, err := tx.ExecContext(ctx, "UPDATE incidents SET pushed_down = NULL WHERE id = ?", unsent); err != nil {
+				return err
+			}
+			if err := tx.Commit(); err != nil {
+				return err
+			}
+			sendAlert(ctx, db, notifier, p, "down", "pushed_down", unsent, statusCode)
+			return nil
+		}
 	case !isUp && currentState == "up":
 		// The check just inserted is one of the two, look for a second.
 		rows, err := tx.QueryContext(ctx,
@@ -577,13 +595,18 @@ func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *P
 		return err
 	}
 
+	sendAlert(ctx, db, notifier, p, transition, pushed, incidentID, statusCode)
+	return nil
+}
+
+// sendAlert pushes in the background, so a slow notifier does not hold up the
+// tick, and writes whether ntfy took it into the incident's pushed column.
+func sendAlert(ctx context.Context, db *sql.DB, notifier *Notifier, p *Property, kind, pushed string, incidentID, statusCode int64) {
 	avg, err := recentAvgResponseMS(ctx, db, p.ID)
 	if err != nil {
 		slog.Info("alert: average response time", slog.Any("url", p.URL), slog.Any("err", err))
 	}
-
-	// Sent in the background, so a slow notifier does not hold up the tick.
-	notifier.Send(transition, AlertContext{
+	notifier.Send(kind, AlertContext{
 		ID:            p.ID.String(),
 		Name:          p.Name(),
 		URL:           p.URL,
@@ -600,7 +623,6 @@ func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *P
 			}
 		},
 	})
-	return nil
 }
 
 // recentAvgResponseMS averages the most recent 31 checks, mirroring the
