@@ -54,26 +54,27 @@ func NewAuthenticatorAt(verify string) *Authenticator {
 // including auth being unreachable, because the alternative is failing open.
 // A connector's session only reads, so it's signed out on anything but GET and HEAD.
 func (a *Authenticator) Authenticated(r *http.Request) bool {
-	ok, connector := a.check(r)
+	ok, connector, _ := a.check(r)
 	return ok && (!connector || r.Method == http.MethodGet || r.Method == http.MethodHead)
 }
 
-// check asks auth about the cookie, and says whether it's a connector's.
-func (a *Authenticator) check(r *http.Request) (ok, connector bool) {
+// check asks auth about the cookie, and says whether it's a connector's and
+// whether it signed in recently enough for sudo.
+func (a *Authenticator) check(r *http.Request) (ok, connector, sudo bool) {
 	// A site built without one is signed out instead of a panic, since this is
 	// called from the page data every template renders.
 	if a == nil || a.client == nil {
-		return false, false
+		return false, false, false
 	}
 
 	c, err := r.Cookie(SessionCookie)
 	if err != nil || c.Value == "" {
-		return false, false
+		return false, false, false
 	}
 
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, a.verify, nil)
 	if err != nil {
-		return false, false
+		return false, false, false
 	}
 	req.AddCookie(&http.Cookie{Name: SessionCookie, Value: c.Value})
 
@@ -81,23 +82,25 @@ func (a *Authenticator) check(r *http.Request) (ok, connector bool) {
 	if err != nil {
 		// A visitor closing the tab is not auth failing.
 		if errors.Is(err, context.Canceled) {
-			return false, false
+			return false, false, false
 		}
 		slog.Error("verifying a session failed",
 			slog.String("component", "auth"),
 			slog.Any("err", err))
-		return false, false
+		return false, false, false
 	}
 	defer resp.Body.Close()
 
 	var body struct {
 		OK     bool   `json:"ok"`
 		Method string `json:"method"`
+		Sudo   bool   `json:"sudo"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&body); err != nil {
-		return false, false
+		return false, false, false
 	}
-	return resp.StatusCode == http.StatusOK && body.OK, body.Method == "connector"
+	ok = resp.StatusCode == http.StatusOK && body.OK
+	return ok, body.Method == "connector", ok && body.Sudo
 }
 
 // RequireAuth gates a handler, sending anyone without a session to the login
@@ -106,6 +109,25 @@ func (a *Authenticator) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !a.Authenticated(r) {
 			http.Redirect(w, r, LoginURL(r), http.StatusSeeOther)
+			return
+		}
+		next(w, r)
+	}
+}
+
+// RequireSudo gates a change that a stolen cookie shouldn't get to make, so it
+// wants a sign in from the last few minutes. Auth's /login sends a live session
+// straight back, so this answers 403 instead of redirecting into a loop.
+func (a *Authenticator) RequireSudo(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ok, connector, sudo := a.check(r)
+		if !ok || connector {
+			http.Redirect(w, r, LoginURL(r), http.StatusSeeOther)
+			return
+		}
+		if !sudo {
+			http.Error(w, "This needs a sign in from the last ten minutes, so sign out and in again at "+LogoutURL()+" and come back.",
+				http.StatusForbidden)
 			return
 		}
 		next(w, r)
@@ -122,7 +144,7 @@ func (a *Authenticator) RequireAuthJSON(next http.HandlerFunc) http.HandlerFunc 
 // session write, for the few endpoints mcp's tools post to.
 func (a *Authenticator) RequireAuthJSONConnector(next http.HandlerFunc) http.HandlerFunc {
 	return a.requireJSON(func(r *http.Request) bool {
-		ok, _ := a.check(r)
+		ok, _, _ := a.check(r)
 		return ok
 	}, next)
 }

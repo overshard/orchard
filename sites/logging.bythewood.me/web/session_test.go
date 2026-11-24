@@ -14,6 +14,8 @@ func fakeAuth(t *testing.T) *Authenticator {
 		switch {
 		case c != nil && c.Value == "browser":
 			_, _ = w.Write([]byte(`{"ok":true,"username":"isaac","sudo":false,"method":"code"}`))
+		case c != nil && c.Value == "fresh":
+			_, _ = w.Write([]byte(`{"ok":true,"username":"isaac","sudo":true,"method":"code"}`))
 		case c != nil && c.Value == "agent":
 			_, _ = w.Write([]byte(`{"ok":true,"username":"isaac","sudo":false,"method":"connector"}`))
 		default:
@@ -78,5 +80,22 @@ func TestRequireAuthJSONConnector(t *testing.T) {
 	a.RequireAuth(ok)(rec, withSession("POST", "agent"))
 	if rec.Code != http.StatusSeeOther {
 		t.Errorf("RequireAuth on a connector POST: got %d, want a redirect to sign in", rec.Code)
+	}
+}
+
+func TestRequireSudo(t *testing.T) {
+	a := fakeAuth(t)
+	h := a.RequireSudo(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	for session, want := range map[string]int{
+		"fresh":   http.StatusNoContent,
+		"browser": http.StatusForbidden,
+		"agent":   http.StatusSeeOther,
+		"nobody":  http.StatusSeeOther,
+	} {
+		w := httptest.NewRecorder()
+		h(w, withSession("POST", session))
+		if w.Code != want {
+			t.Errorf("%s got %d, want %d", session, w.Code, want)
+		}
 	}
 }
