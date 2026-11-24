@@ -223,7 +223,7 @@ func TestDayListAndAria(t *testing.T) {
 	if got := dayList(days, "bad"); got != "Nov 3" {
 		t.Errorf("bad days = %q", got)
 	}
-	if got, want := daysAria(days), "3 days, an outage on Nov 3, under 99.9% on Nov 5"; got != want {
+	if got, want := daysAria(days), "3 days, an outage on Nov 3, under 99.5% on Nov 5"; got != want {
 		t.Errorf("aria = %q, want %q", got, want)
 	}
 	if got := daysAria(days[1:2]); got != "1 day, no bad days" {

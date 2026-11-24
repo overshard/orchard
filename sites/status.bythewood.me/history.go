@@ -16,7 +16,7 @@ import (
 const (
 	historyDays = 90
 	// The error budget's target, over a rolling 30 days.
-	sloTarget = 0.999
+	sloTarget = 0.995
 )
 
 // DayView is one tick of the 90 day bar.
@@ -402,7 +402,7 @@ func (h *History) fillIncidents(now time.Time) {
 	}
 }
 
-// fillBudget spends 99.9% of thirty days, about 43 minutes, at one check
+// fillBudget spends 99.5% of thirty days, about 3.6 hours, at one check
 // interval per failed check, so a fresh rollup starts with the budget whole.
 func (h *History) fillBudget() {
 	var c, f int64

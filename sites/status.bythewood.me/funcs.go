@@ -59,6 +59,8 @@ var templateFuncs = template.FuncMap{
 	"certClass":    certClass,
 	"daysAria":     daysAria,
 	"dayList":      dayList,
+	"slo":          func() float64 { return sloTarget * 100 },
+	"sloPct":       sloPct,
 	"tickHeight":   func(v float64) int { return max(6, min(100, int(math.Round(v)))) },
 	"pct2":         func(v *float64) string { return strconv.FormatFloat(*v, 'f', 2, 64) },
 	"deref64": func(p *int64) int64 {
@@ -405,7 +407,12 @@ func daysAria(days []DayView) string {
 		out += ", an outage on " + bad
 	}
 	if warn != "" {
-		out += ", under 99.9% on " + warn
+		out += ", under " + sloPct() + "% on " + warn
 	}
 	return out
+}
+
+// sloPct is the target as templates and labels print it, like 99.5.
+func sloPct() string {
+	return strconv.FormatFloat(sloTarget*100, 'f', -1, 64)
 }

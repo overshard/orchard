@@ -45,7 +45,7 @@ own from pond's `/api/panel`, drawn with a copy of pond's `frog.js` that
   oldest day doesn't shrink as its checks age out. The first boot with an
   `incidents` table reads past outages back out of the checks still kept, once,
   and marks those rows backfilled since whether a push went out isn't known.
-- The error budget is 99.9% of thirty days, about 43 minutes, and each failed
+- The error budget is 99.5% of thirty days, about 3.6 hours, and each failed
   check spends one check interval of it.
 - The prober times DNS, TCP, TLS and the request on its own connection rather
   than through `http.Client`, since a pooled one would hide what a first visit
