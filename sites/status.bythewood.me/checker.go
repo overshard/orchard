@@ -362,6 +362,10 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 		return nil, fmt.Errorf("no addresses for %s", host)
 	}
 	dnsMS := atLeast1ms(time.Since(dnsStart))
+	// A redirect can name anything, and this container sits on the bridge.
+	if !isPublicIP(addrs[0].IP) {
+		return nil, fmt.Errorf("refusing to probe %s, which is on this machine or its network", addrs[0].IP)
+	}
 
 	tcpStart := time.Now()
 	var dialer net.Dialer
