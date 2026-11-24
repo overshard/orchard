@@ -309,7 +309,7 @@ func breakdown(ctx context.Context, db *sql.DB, f filter, column string, limit i
 	args = append(args, limit)
 	rows, err := db.QueryContext(ctx, `
 		SELECT `+column+`, SUM(count) AS n FROM rollups
-		WHERE `+w+` AND `+column+` != ''
+		WHERE `+w+` AND `+column+` NOT IN ('', 'healthz')
 		GROUP BY `+column+` ORDER BY n DESC LIMIT ?`, args...)
 	if err != nil {
 		queryFailed("breakdown "+column, err)

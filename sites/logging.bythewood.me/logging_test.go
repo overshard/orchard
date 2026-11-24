@@ -525,6 +525,20 @@ func TestVolumeGraphFillsEmptyBuckets(t *testing.T) {
 
 // The group-by column is chosen from a fixed set, since a caller passing a
 // query parameter through would otherwise be writing SQL.
+// healthz lines are counted and not kept, so a row for it would search to nothing.
+func TestBreakdownLeavesOutHealthz(t *testing.T) {
+	db := testDB(t)
+	now := time.Now().UTC().UnixMilli()
+	seedRows(t, db, []row{
+		{source: "blog", ts: now, level: "INFO", msg: "request", component: "healthz", status: 200, rollupOnly: true},
+		{source: "blog", ts: now, level: "INFO", msg: "request", component: "http", status: 200},
+	})
+	got := breakdown(context.Background(), db, filter{StartMS: now - 3_600_000, EndMS: now + 3_600_000}, "component", 8)
+	if len(got) != 1 || got[0].Label != "http" {
+		t.Errorf("components = %+v, want http alone", got)
+	}
+}
+
 func TestBreakdownRefusesUnknownColumn(t *testing.T) {
 	db := testDB(t)
 	got := breakdown(context.Background(), db, filter{EndMS: 1}, "msg; DROP TABLE records", 5)
