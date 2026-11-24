@@ -213,14 +213,17 @@ func (c *cond) key() string {
 	return fmt.Sprintf("%t\x00%s\x00%s\x00%s\x00%s", c.not, c.field, c.header, c.op, strings.Join(c.vals, "\x00"))
 }
 
-// match reports whether every condition holds. A field gate doesn't know, like
-// the country of an address no database has, fails its test either way, so an
-// unknown never trips a `not` rule.
+// match reports whether every condition holds. A field gate doesn't know fails
+// its test either way, except `not country`, where an address neither DB-IP nor
+// Cloudflare can place (Tor, mostly) counts as outside the list.
 func (r *Rule) match(q *req) bool {
 	for i := range r.conds {
 		c := &r.conds[i]
 		v, known := c.value(q)
 		if !known {
+			if c.field == "country" && c.not {
+				continue
+			}
 			return false
 		}
 		if c.test(q, v) == c.not {

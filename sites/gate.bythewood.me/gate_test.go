@@ -101,7 +101,7 @@ func TestSeededRules(t *testing.T) {
 		{"auth.bythewood.me", "GET", "/login", 204, []string{"Cf-Ipcountry", "US"}},
 		{"auth.bythewood.me", "GET", "/login", 403, []string{"Cf-Ipcountry", "DE"}},
 		{"auth.bythewood.me", "GET", "/sessions", 204, []string{"Cf-Ipcountry", "DE"}},
-		{"auth.bythewood.me", "GET", "/login", 204, nil},
+		{"auth.bythewood.me", "GET", "/login", 403, nil},
 	}
 	for _, c := range cases {
 		w := ask(s, c.method, c.host, c.uri, stranger, c.hdr...)
@@ -262,11 +262,17 @@ func TestRegexIgnoresCase(t *testing.T) {
 	}
 }
 
-func TestUnknownCountryNeverTripsNot(t *testing.T) {
-	conds, _ := parseWhen("not country is US")
-	r := Rule{conds: conds}
-	if r.match(&req{Header: func(string) string { return "" }}) {
-		t.Fatal("an unknown country matched a not")
+func TestUnknownCountryTripsNotCountryOnly(t *testing.T) {
+	q := &req{Header: func(string) string { return "" }}
+	for when, want := range map[string]bool{
+		"not country is US": true,
+		"country is US":     false,
+		"not asn is 13335":  false,
+	} {
+		conds, _ := parseWhen(when)
+		if got := (&Rule{conds: conds}).match(q); got != want {
+			t.Errorf("%s matched %v with nothing known, want %v", when, got, want)
+		}
 	}
 }
 
