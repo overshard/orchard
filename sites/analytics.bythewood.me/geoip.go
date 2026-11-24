@@ -191,7 +191,8 @@ func downloadGeoIP(url, dest string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(f, gz); err != nil {
+	// The city database is about 130MB, so anything near this is not one.
+	if _, err := io.Copy(f, io.LimitReader(gz, 512<<20)); err != nil {
 		f.Close()
 		os.Remove(tmp)
 		return err
