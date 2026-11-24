@@ -38,7 +38,7 @@
 .wk .card.once { background: var(--o-panel2); cursor: grab; }
 .wk .card:hover { border-color: var(--o-line-strong); }
 .wk .card.drag { opacity: 0.4; }
-.wk .card .t { font: 0.64rem var(--o-mono); color: var(--o-muted); flex: none; }
+.wk .card .t { font: 0.66rem var(--o-mono); color: var(--o-muted); flex: none; }
 .wk .card .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
 .wk .card .rep { font-size: 0.7rem; }
 .wk > div.over { background: rgba(217, 180, 90, 0.08); box-shadow: inset 0 0 0 1px var(--o-brass); }
@@ -99,13 +99,13 @@
 .mo .card:hover, .molist .card:hover { border-color: var(--o-line-strong); }
 .mo .card.once { background: var(--o-panel2); }
 .mo .past .card { opacity: 0.55; }
-.mo .card .t, .molist .card .t { font: 0.62rem var(--o-mono); color: var(--o-muted); flex: none; }
+.mo .card .t, .molist .card .t { font: 0.66rem var(--o-mono); color: var(--o-muted); flex: none; }
 .mo .card .n, .molist .card .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
-.mo .card .c { font-size: 0.62rem; flex: none; }
+.mo .card .c { font-size: 0.66rem; flex: none; }
 .molist { display: none; }
 @media (max-width: 700px) {
   .mo > div { min-height: 52px; padding: 3px; }
-  .mo > .dow { font-size: 0.56rem; letter-spacing: 0; overflow: hidden; }
+  .mo > .dow { font-size: 0.66rem; letter-spacing: 0; overflow: hidden; }
   .mo .card { display: inline-block; width: 6px; height: 6px; padding: 0; margin: 1px; border: 0; border-radius: 50%; background: var(--o-brass); }
   .mo .card.once { background: var(--o-text); }
   .mo .card > span { display: none; }
