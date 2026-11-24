@@ -53,7 +53,7 @@ var fixTexts = map[string]fixText{
 	"Page not listed in sitemap":                            {"Pages missing from the sitemap", "Search engines may not find them."},
 	"Redirect chain has # hops":                             {"Links that redirect more than once", "Each hop adds a round trip before the page loads."},
 	"# image(s) missing alt attribute":                      {"Images with no alt text", "Screen readers have nothing to say for them."},
-	"# link(s) have no visible text":                        {"Links with no visible text", "Icon only links need an aria-label so screen readers can name them."},
+	"# link(s) have no visible text":                        {"Links with no name", "Icon only links need an aria-label so screen readers can name them."},
 	"# form input(s) without associated label":              {"Form fields with no label", "Screen readers can't tell what the field is for."},
 	"Thin content (# words)":                                {"Very little text on the page", "Search engines can treat thin pages as low value."},
 	"Page has duplicate visible content with another page":  {"Pages with the same content", "Search engines pick one and drop the other."},

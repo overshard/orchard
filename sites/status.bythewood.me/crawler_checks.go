@@ -490,6 +490,11 @@ func checkBrokenExternalLinks(ctx *checkCtx) []Insight {
 			if !ok || (status != 0 && status < 400) {
 				continue
 			}
+			// These are a site turning a crawler away, and the page behind them
+			// usually loads fine in a browser.
+			if status == 401 || status == 403 || status == 429 {
+				continue
+			}
 			key := linkPair{p.URL, link.URL}
 			if reported[key] {
 				continue
@@ -634,7 +639,7 @@ func checkEmptyAnchorText(ctx *checkCtx) []Insight {
 	for _, p := range ctx.htmlPages {
 		var empty []Link
 		for _, link := range p.HTML.Links {
-			if link.Text == "" {
+			if link.Text == "" && link.Label == "" {
 				empty = append(empty, link)
 			}
 		}

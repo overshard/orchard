@@ -49,9 +49,11 @@ type TwitterCard struct {
 }
 
 type Link struct {
-	URL  string   `json:"url"`
-	Text string   `json:"text"`
-	Rel  []string `json:"rel"`
+	URL  string `json:"url"`
+	Text string `json:"text"`
+	// Label is the aria-label or title, which names an icon only link.
+	Label string   `json:"label,omitempty"`
+	Rel   []string `json:"rel"`
 }
 
 // Image keeps a missing alt attribute distinct from an empty one, since
@@ -250,9 +252,10 @@ func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 					!strings.HasPrefix(strings.ToLower(href), "mailto:") &&
 					!strings.HasPrefix(strings.ToLower(href), "tel:") {
 					p.Links = append(p.Links, Link{
-						URL:  resolve(base, href),
-						Text: textOf(n),
-						Rel:  strings.Fields(strings.ToLower(attrOr(n, "rel", ""))),
+						URL:   resolve(base, href),
+						Text:  textOf(n),
+						Label: strings.TrimSpace(attrOr(n, "aria-label", attrOr(n, "title", ""))),
+						Rel:   strings.Fields(strings.ToLower(attrOr(n, "rel", ""))),
 					})
 				}
 			}

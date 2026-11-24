@@ -766,6 +766,35 @@ func TestParseHTML(t *testing.T) {
 }
 
 // Entities must be decoded, or "&nbsp;" counts as a word.
+func TestLinkChecksSkipLabelsAndBotWalls(t *testing.T) {
+	p := parsed(t, `<html><body>
+		<a href="https://example.com/x" aria-label="Source"><svg></svg></a>
+		<a href="https://example.com/y"><svg></svg></a>
+		<a href="https://walled.example/">walled</a>
+		<a href="https://gone.example/">gone</a>
+	</body></html>`, "https://example.com/")
+	result := &CrawlResult{
+		StartURL: "https://example.com/",
+		Host:     "example.com",
+		Pages:    []*Page{page("https://example.com/", p)},
+		ExternalLinkStatus: map[string]int{
+			"https://walled.example/": 403,
+			"https://gone.example/":   404,
+		},
+	}
+	var issues []string
+	for _, i := range runChecks(result) {
+		issues = append(issues, i.Issue)
+	}
+	all := strings.Join(issues, "\n")
+	if !strings.Contains(all, "1 link(s) have no visible text") {
+		t.Errorf("a link with an aria-label was counted as unnamed: %s", all)
+	}
+	if strings.Contains(all, "403") || !strings.Contains(all, "Broken external link (status 404)") {
+		t.Errorf("a 403 is a site refusing a crawler and a 404 is broken: %s", all)
+	}
+}
+
 func TestParseHTMLDecodesEntities(t *testing.T) {
 	p := parsed(t, `<html><body><p>one&nbsp;two&amp;three</p></body></html>`, "https://example.com/")
 	if p.WordCount != 2 {
