@@ -36,14 +36,17 @@ func seeded(t *testing.T) *site {
 
 func TestToolRowsPutTroubleFirstAndListEveryTool(t *testing.T) {
 	s := seeded(t)
-	rows := s.store.toolRows(time.Now())
+	now := time.Now()
+	rows := s.store.toolRows(now)
 	if len(rows) != len(tools) {
 		t.Fatalf("got %d rows for %d tools", len(rows), len(tools))
 	}
 	if rows[0].Name != "status_report" || rows[0].Failed != 1 || rows[0].Calls != 2 || !strings.Contains(rows[0].LastErr, "deadline") {
 		t.Fatalf("first row %+v", rows[0])
 	}
-	if rows[0].Days[statDays-1].Kind != "b" || len(rows[0].Week) != 7 {
+	// The failure was seeded 50 minutes ago, which is yesterday just after midnight UTC.
+	failed := statDays - 1 - int(now.UTC().Truncate(24*time.Hour).Sub(now.Add(-50*time.Minute).UTC().Truncate(24*time.Hour))/(24*time.Hour))
+	if rows[0].Days[failed].Kind != "b" || len(rows[0].Week) != 7 {
 		t.Fatalf("days %+v week %v", rows[0].Days, rows[0].Week)
 	}
 	last := rows[len(rows)-1]
