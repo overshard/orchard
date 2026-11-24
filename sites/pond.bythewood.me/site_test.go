@@ -571,3 +571,24 @@ func TestOnlyTheKeyPageHasAFooter(t *testing.T) {
 		t.Error("the key page lost its footer")
 	}
 }
+
+func TestTheHomePageHasACardAndASitemap(t *testing.T) {
+	b, _, _ := testSite(t)
+	rec := b.do(http.MethodGet, "/", "")
+	for _, want := range []string{
+		`property="og:image" content="` + baseURL + `/card.png"`,
+		`rel="canonical" href="` + baseURL + `/"`,
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("the home page has no %s", want)
+		}
+	}
+	rec = b.do(http.MethodGet, "/card.png", "")
+	if rec.Code != http.StatusOK || !strings.HasPrefix(rec.Body.String(), "\x89PNG") {
+		t.Errorf("card: %d %s", rec.Code, rec.Header().Get("Content-Type"))
+	}
+	rec = b.do(http.MethodGet, "/sitemap.xml", "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "<loc>"+baseURL+"/</loc>") || strings.Contains(rec.Body.String(), "/f/") {
+		t.Errorf("sitemap: %d\n%s", rec.Code, rec.Body.String())
+	}
+}

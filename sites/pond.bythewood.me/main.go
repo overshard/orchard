@@ -202,7 +202,9 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("GET /hop", s.hop)
 	mux.HandleFunc("GET /f/{slug}", s.sharePage)
 	mux.HandleFunc("GET /f/{slug}/card.png", s.shareCard)
+	mux.HandleFunc("GET /card.png", homeCard)
 	mux.HandleFunc("GET /robots.txt", robots)
+	mux.HandleFunc("GET /sitemap.xml", sitemap)
 	mux.HandleFunc("GET /manifest.webmanifest", webManifest)
 	mux.HandleFunc("GET /icon-192.png", icon(192))
 	mux.HandleFunc("GET /icon-512.png", icon(512))
@@ -303,6 +305,7 @@ type page struct {
 	Title       string
 	Description string
 	SiteName    string
+	BaseURL     string
 	SourceURL   string
 	AnalyticsID string
 	Script      string
@@ -319,6 +322,7 @@ func (s *site) pageFor(entry, title, description string) page {
 		Title:       title,
 		Description: description,
 		SiteName:    siteName,
+		BaseURL:     baseURL,
 		SourceURL:   sourceURL,
 		AnalyticsID: analyticsID,
 		Script:      s.assets.Script(entry),
@@ -381,7 +385,16 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	_, _ = w.Write([]byte("User-agent: *\nDisallow:\n"))
+	_, _ = w.Write([]byte("User-agent: *\nDisallow:\n\nSitemap: " + baseURL + "/sitemap.xml\n"))
+}
+
+// sitemap lists the home page alone. A frog's page is its keeper's to hand
+// out, so none of them are listed here.
+func sitemap(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>` + baseURL + `/</loc></url></urlset>
+`))
 }
 
 func healthz(w http.ResponseWriter, r *http.Request) {

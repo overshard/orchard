@@ -1,6 +1,7 @@
 {{/* The edge sets its own Referrer-Policy over the one this page sends, and a
      meta tag is the one it cannot replace. */}}
-{{ define "head" }}<meta name="referrer" content="no-referrer">{{ end }}
+{{ define "head" }}<meta name="referrer" content="no-referrer">
+  <link rel="canonical" href="{{ .BaseURL }}/key">{{ end }}
 
 {{ define "main" }}
 <section class="view prose">
