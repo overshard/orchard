@@ -39,9 +39,9 @@
     </div>
     <div class="o-tile">
       <small>uptime &middot; 30d</small>
-      <b class="{{ if and .HasUp30 (lt .Up30 99.9) }}warn{{ end }}">{{ if .HasUp30 }}{{ printf "%.2f" .Up30 }}%{{ else }}&mdash;{{ end }}</b>
+      <b class="{{ if and .HasUp30 (lt .Up30 (slo)) }}warn{{ end }}">{{ if .HasUp30 }}{{ printf "%.2f" .Up30 }}%{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ .BadDays }} bad {{ if eq .BadDays 1 }}day{{ else }}days{{ end }}</span>
-      <span class="o-ticks" role="img" aria-label="{{ daysAria .Days30 }}">{{ range .Days30 }}<i class="{{ .Kind }}" data-tip="{{ .Label }}{{ if eq .Kind "none" }} · no data{{ else if eq .Kind "bad" }} · an outage{{ else if eq .Kind "warn" }} · under 99.9%{{ end }}"></i>{{ end }}</span>
+      <span class="o-ticks" role="img" aria-label="{{ daysAria .Days30 }}">{{ range .Days30 }}<i class="{{ .Kind }}" data-tip="{{ .Label }}{{ if eq .Kind "none" }} · no data{{ else if eq .Kind "bad" }} · an outage{{ else if eq .Kind "warn" }} · under {{ sloPct }}%{{ end }}"></i>{{ end }}</span>
     </div>
     <div class="o-tile">
       <small>p95 &middot; 24h</small>

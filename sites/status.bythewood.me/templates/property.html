@@ -61,7 +61,7 @@
   {{ if $authed }}
   {{ $problems := .HealthProblems }}
   <nav class="view-tabs d-print-none" aria-label="Property views">
-    <button type="button" data-view="uptime" class="on">Uptime<b class="{{ if $h.Up30 }}{{ if lt (deref64f $h.Up30) 99.9 }}warn{{ end }}{{ end }}">{{ if $h.Up30 }}{{ pct2 $h.Up30 }}% 30d{{ else }}{{ .CurrentStatus }}{{ end }}</b></button>
+    <button type="button" data-view="uptime" class="on">Uptime<b class="{{ if $h.Up30 }}{{ if lt (deref64f $h.Up30) (slo) }}warn{{ end }}{{ end }}">{{ if $h.Up30 }}{{ pct2 $h.Up30 }}% 30d{{ else }}{{ .CurrentStatus }}{{ end }}</b></button>
     <button type="button" data-view="health">Page health<b class="{{ if $problems }}warn{{ else if .AuditScores }}ok{{ end }}">{{ if $problems }}{{ $problems }} to fix{{ else if .AuditScores }}healthy{{ else }}not run{{ end }}</b></button>
     <button type="button" data-view="crawl">Crawl<b class="{{ if .CrawlerInsights }}warn{{ end }}">{{ if .CrawlerInsights }}{{ len $fixes }} {{ if eq (len $fixes) 1 }}kind{{ else }}kinds{{ end }} &middot; {{ len .CrawlerInsights }}{{ else if .LastCrawlSuccessAt }}clean{{ else }}not run{{ end }}</b></button>
   </nav>
@@ -83,12 +83,12 @@
     </div>
     <div class="o-tile">
       <small>uptime &middot; 30d</small>
-      <b class="{{ if $h.Up30 }}{{ if lt (deref64f $h.Up30) 99.9 }}warn{{ end }}{{ end }}">{{ if $h.Up30 }}{{ pct2 $h.Up30 }}%{{ else }}&mdash;{{ end }}</b>
+      <b class="{{ if $h.Up30 }}{{ if lt (deref64f $h.Up30) (slo) }}warn{{ end }}{{ end }}">{{ if $h.Up30 }}{{ pct2 $h.Up30 }}%{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ if $h.Up30 }}down {{ $h.Down30 }}{{ if lt $h.Covered30 30 }} &middot; {{ $h.Covered30 }}d kept{{ end }}{{ else }}waiting on the rollup{{ end }}</span>
       <span class="o-ticks" role="img" aria-label="{{ daysAria $h.Ticks30 }}">{{ range $h.Ticks30 }}<i class="{{ .Kind }}" data-tip="{{ .Tip }}"></i>{{ end }}</span>
     </div>
     {{ if $authed }}
-    <div class="o-tile" data-tip="How much downtime is left before 30 days drop under 99.9%.">
+    <div class="o-tile" data-tip="How much downtime is left before 30 days drop under {{ sloPct }}%.">
       <small>error budget</small>
       <b class="{{ if $h.BudgetLeft }}{{ if ne $h.BudgetKind "ok" }}{{ $h.BudgetKind }}{{ end }}{{ end }}">{{ if $h.BudgetLeft }}{{ printf "%.0f" (deref64f $h.BudgetLeft) }}%{{ else }}&mdash;{{ end }}</b>
       <span class="o-delta">{{ if $h.BudgetLeft }}of {{ $h.BudgetMins }} &middot; {{ $h.Burn24 }}{{ else }}waiting on the rollup{{ end }}</span>
@@ -125,7 +125,7 @@
     <div class="o-ph2">
       <h2>Uptime by day</h2>
       <span class="o-pm">
-        <span>24h<b class="{{ if $h.Up24 }}{{ if lt (deref64f $h.Up24) 99.9 }}warn{{ end }}{{ end }}">{{ if $h.Up24 }}{{ pct2 $h.Up24 }}{{ else }}&mdash;{{ end }}</b></span>
+        <span>24h<b class="{{ if $h.Up24 }}{{ if lt (deref64f $h.Up24) (slo) }}warn{{ end }}{{ end }}">{{ if $h.Up24 }}{{ pct2 $h.Up24 }}{{ else }}&mdash;{{ end }}</b></span>
         <span>7d<b>{{ if $h.Up7 }}{{ pct2 $h.Up7 }}{{ else }}&mdash;{{ end }}</b></span>
         <span>30d<b>{{ if $h.Up30 }}{{ pct2 $h.Up30 }}{{ else }}&mdash;{{ end }}</b></span>
         <span>90d<b>{{ if $h.Up90 }}{{ pct2 $h.Up90 }}{{ else }}&mdash;{{ end }}</b></span>
@@ -138,7 +138,7 @@
     </div>
     {{ end }}
     <div class="days" id="days" role="group" aria-label="{{ daysAria $h.Days }}">{{ range $h.Days }}<i class="{{ .Kind }}" data-day="{{ .Day }}" data-tip="{{ .Tip }}"></i>{{ end }}</div>
-    <p class="o-foot">{{ if $h.HasSince }}since {{ $h.Since }}, when history starts{{ else }}90 days{{ end }} &middot; red is an outage over 5 minutes &middot; amber is under 99.9%<span class="drill-hint d-none"> &middot; click a day for its hours</span></p>
+    <p class="o-foot">{{ if $h.HasSince }}since {{ $h.Since }}, when history starts{{ else }}90 days{{ end }} &middot; red is an outage over 5 minutes &middot; amber is under {{ sloPct }}%<span class="drill-hint d-none"> &middot; click a day for its hours</span></p>
     <div class="daydet" id="day-detail" hidden></div>
   </section>
 
