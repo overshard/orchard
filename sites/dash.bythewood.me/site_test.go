@@ -153,7 +153,8 @@ func TestHomeRendersAFullState(t *testing.T) {
 	now := time.Date(2026, 8, 27, 14, 0, 0, 0, time.UTC)
 	s.store.update(func(st *State) {
 		st.Market = buildMarket(map[string]Quote{
-			"^GSPC": {Price: 100, Previous: 99, High52: 110, AsOf: now, Closes: []float64{99, 100, 101}},
+			"^GSPC": {Price: 100, Previous: 99, High52: 110, AsOf: now, Closes: []float64{99, 100, 101},
+				Times: []int64{now.Add(-30 * time.Minute).Unix(), now.Add(-15 * time.Minute).Unix(), now.Unix()}},
 		}, now)
 		st.HN = []Story{{Title: "A story", URL: "https://example.com/a", Host: "example.com", Comments: "https://news.ycombinator.com/item?id=1", Points: 10, Count: 2, Age: "1h"}}
 		st.Lobsters = []Story{{Title: "Another", URL: "https://example.com/b", Host: "example.com", Comments: "https://lobste.rs/s/x", Points: 5, Count: 1, Age: "2h"}}
