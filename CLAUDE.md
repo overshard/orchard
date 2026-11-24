@@ -135,7 +135,7 @@ open to the internet whatever ufw says, and `make check` fails on one.
 `orchard-auth`, `orchard-llm`, `orchard-mcp`, `orchard-gate`, `orchard-cron`, `orchard-pond`,
 `orchard-dns`, `orchard-pass` and `orchard-pass-vw`, and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
 SQLite. Every container is on `orchard-edge` except Vaultwarden, which sits on
-`orchard-pass` with only Caddy, the pass page and dash, and the edge compose
+`orchard-pass` with only Caddy and the pass page, and the edge compose
 creates that network. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
 lookup table.

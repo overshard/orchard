@@ -142,7 +142,7 @@ var repoWatchlist = []struct{ label, repo, running string }{
 	{"AEGIS", "beemdevelopment/Aegis", ""},
 	{"UBLOCK ORIGIN", "gorhill/uBlock", ""},
 	{"BITWARDEN", "bitwarden/clients", ""},
-	{"VAULTWARDEN", "dani-garcia/vaultwarden", "http://orchard-pass-vw:8000/api/version"},
+	{"VAULTWARDEN", "dani-garcia/vaultwarden", "http://orchard-pass:8000/vw/version"},
 	{"CADDY", "caddyserver/caddy", ""},
 	{"CLOUDFLARED", "cloudflare/cloudflared", ""},
 	{"NTFY", "binwiederhier/ntfy", ""},

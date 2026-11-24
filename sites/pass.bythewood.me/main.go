@@ -139,6 +139,8 @@ func (s *site) handler() http.Handler {
 	mux.Handle("GET /suite/", suite.Handler())
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /healthz", s.healthz)
+	mux.HandleFunc("GET /vw/alive", relay("/alive"))
+	mux.HandleFunc("GET /vw/version", relay("/api/version"))
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)
 	})

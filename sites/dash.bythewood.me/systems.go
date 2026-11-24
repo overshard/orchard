@@ -60,7 +60,7 @@ var monitored = []Monitored{
 	{Label: "DNS", Source: "dns", Host: "dns.bythewood.me"},
 	{Label: "Pass", Source: "pass", Host: "pass.bythewood.me"},
 	// Vaultwarden itself, which the Bitwarden apps talk to and pass only reads.
-	{Label: "Vault", Source: "vaultwarden", Bridge: "http://orchard-pass-vw:8000/alive"},
+	{Label: "Vault", Source: "vaultwarden", Bridge: "http://orchard-pass:8000/vw/alive"},
 	{Label: "Pond", Source: "pond", Host: "pond.bythewood.me"},
 	{Label: "Dash", Source: "dash", Host: "dash.bythewood.me"},
 

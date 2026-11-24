@@ -51,7 +51,7 @@ rest here.
   The account page does it instead, writing the same row Vaultwarden's own API
   writes.
 - Vaultwarden is on its own `orchard-pass` network, which the edge compose
-  creates, with only Caddy, this page and dash on it beside it. So `make up`
+  creates, with only Caddy and this page on it beside it. So `make up`
   has to have run the edge first. Caddy never routes `/admin`, and signups
   switched there are saved in `config.json` in the volume, which wins over
   `SIGNUPS_ALLOWED` in compose.
