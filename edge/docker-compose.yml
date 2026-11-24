@@ -19,7 +19,7 @@ services:
     sysctls:
       net.ipv4.ip_unprivileged_port_start: 0
     # Nothing Caddy writes is worth keeping, since Cloudflare holds the certificates.
-    tmpfs: [/data, /config, /tmp]
+    tmpfs: ["/data:size=16m,noexec,nosuid,nodev", "/config:size=16m,noexec,nosuid,nodev", "/tmp:size=16m,noexec,nosuid,nodev"]
     deploy:
       resources:
         limits:

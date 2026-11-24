@@ -35,7 +35,7 @@ services:
       - no-new-privileges:true
     read_only: true
     cap_drop: [ALL]
-    tmpfs: [/tmp]
+    tmpfs: ["/tmp:size=16m,noexec,nosuid,nodev"]
     # Otherwise container logs grow unbounded on a workstation.
     logging:
       driver: json-file

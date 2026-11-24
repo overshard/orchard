@@ -46,7 +46,7 @@ services:
       - no-new-privileges:true
     read_only: true
     cap_drop: [ALL]
-    tmpfs: [/tmp]
+    tmpfs: ["/tmp:size=16m,noexec,nosuid,nodev"]
     # This site does not replace the json-file driver, it reads a copy, so stdout
     # stays the source of truth and stays rotated.
     logging:

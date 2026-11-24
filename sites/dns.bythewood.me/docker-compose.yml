@@ -44,7 +44,7 @@ services:
       - no-new-privileges:true
     read_only: true
     cap_drop: [ALL]
-    tmpfs: [/tmp]
+    tmpfs: ["/tmp:size=16m,noexec,nosuid,nodev"]
     logging:
       driver: json-file
       options:
@@ -87,7 +87,7 @@ services:
       - no-new-privileges:true
     read_only: true
     cap_drop: [ALL]
-    tmpfs: [/tmp]
+    tmpfs: ["/tmp:size=16m,noexec,nosuid,nodev"]
     logging:
       driver: json-file
       options:
@@ -127,7 +127,7 @@ services:
       - no-new-privileges:true
     read_only: true
     cap_drop: [ALL]
-    tmpfs: [/tmp]
+    tmpfs: ["/tmp:size=16m,noexec,nosuid,nodev"]
     logging:
       driver: json-file
       options:
@@ -152,8 +152,8 @@ services:
     read_only: true
     cap_drop: [ALL]
     tmpfs:
-      - /tmp
-      - /var/lib/unbound:mode=1777
+      - /tmp:size=16m,noexec,nosuid,nodev
+      - /var/lib/unbound:mode=1777,size=16m,noexec,nosuid,nodev
     volumes:
       - control:/run/unbound-ctl
     logging:

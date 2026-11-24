@@ -33,7 +33,7 @@ services:
       - no-new-privileges:true
     read_only: true
     cap_drop: [ALL]
-    tmpfs: [/tmp]
+    tmpfs: ["/tmp:size=16m,noexec,nosuid,nodev"]
     logging:
       driver: json-file
       options:
