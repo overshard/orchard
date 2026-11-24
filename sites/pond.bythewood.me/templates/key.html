@@ -18,8 +18,8 @@
   <h2>Saving it</h2>
   <p>Write the words down, screenshot the QR code, or save them in your password manager.</p>
   <form id="save" class="restore" action="/key" method="post">
-    <input class="vh" id="save-name" name="username" autocomplete="username" value="{{ .FrogName }}" tabindex="-1" aria-hidden="true" readonly>
-    <input class="vh" id="save-key" name="password" type="password" autocomplete="new-password" value="{{ range $i, $w := .Words }}{{ if $i }}-{{ end }}{{ $w }}{{ end }}" tabindex="-1" aria-hidden="true" readonly>
+    <input class="vh" id="save-name" name="username" aria-label="Frog name" autocomplete="username" value="{{ .FrogName }}" tabindex="-1" aria-hidden="true" readonly>
+    <input class="vh" id="save-key" name="password" aria-label="Pond key" type="password" autocomplete="new-password" value="{{ range $i, $w := .Words }}{{ if $i }}-{{ end }}{{ $w }}{{ end }}" tabindex="-1" aria-hidden="true" readonly>
     <button type="submit" class="primary">Save in my password manager</button>
   </form>
   <p class="line" id="save-result" role="status"></p>
@@ -37,7 +37,7 @@
   </div>
   <div class="screen" id="scan-view" hidden><video id="scan-video" playsinline muted></video></div>
   <form id="restore" class="restore" action="/key" method="post">
-    <input class="vh" name="username" autocomplete="username" tabindex="-1" aria-hidden="true">
+    <input class="vh" name="username" autocomplete="username" tabindex="-1" aria-hidden="true" aria-label="Frog name">
     <label for="key-in">Pond key</label>
     <input id="key-in" name="password" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" required>
     <label class="check"><input type="checkbox" id="key-show"> Show the words</label>
