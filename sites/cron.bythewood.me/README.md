@@ -36,7 +36,8 @@ curl -H "Authorization: Bearer $CRON_KEY" https://cron.bythewood.me/api/jobs \
 `message`, and optionally `title`, `priority` (ntfy's min to urgent) and `link`.
 `when` takes plain words like `every weekday at 7:30am`, `mon and thu 8pm`,
 `on the 1st every 3 months`, `in 2 hours` or `dec 24 at 9am`, and a cron line or
-a timestamp too. A run's `result` is pushed, quiet, failed or missed.
+a timestamp too. A cron weekday can be `thu#4` for the 4th Thursday of the month
+or `mon#l` for the last Monday. A run's `result` is pushed, quiet, failed or missed.
 
 ## Layout
 

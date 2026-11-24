@@ -230,6 +230,19 @@ func humanCron(expr string) string {
 	switch {
 	case dom == "*" && mon == "*" && dow == "*":
 		return "every day " + at
+	case dom == "*" && strings.Contains(dow, "#"):
+		day, ok := nthDay(dow)
+		if !ok {
+			return expr
+		}
+		if mon == "*" {
+			return "the " + day + " of every month " + at
+		}
+		m, err := strconv.Atoi(mon)
+		if err != nil || m < 1 || m > 12 {
+			return expr
+		}
+		return "the " + day + " of " + time.Month(m).String()[:3] + " " + at
 	case dom == "*" && mon == "*":
 		days, ok := dayList(dow)
 		if !ok {
@@ -258,6 +271,23 @@ func humanCron(expr string) string {
 		return "every " + time.Month(m).String()[:3] + " " + strconv.Itoa(d) + " " + at
 	}
 	return expr
+}
+
+// nthDay reads thu#4 as "4th Thu" and mon#l as "last Mon".
+func nthDay(dow string) (string, bool) {
+	name, n, _ := strings.Cut(strings.ToLower(dow), "#")
+	d, err := value(name, dayNames)
+	if err != nil || d < 0 || d > 7 {
+		return "", false
+	}
+	if n == "l" {
+		return "last " + weekdays[d], true
+	}
+	i, err := strconv.Atoi(n)
+	if err != nil || i < 1 || i > 5 {
+		return "", false
+	}
+	return ordinal(i) + " " + weekdays[d], true
 }
 
 func dayList(dow string) (string, bool) {

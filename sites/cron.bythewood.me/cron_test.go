@@ -41,6 +41,12 @@ func TestCronNext(t *testing.T) {
 		{"0 9 29 feb *", "2026-11-18 00:00", "2028-02-29 09:00"},
 		{"0 8 * * 7", "2026-11-18 00:00", "2026-11-22 08:00"},
 		{"@daily", "2026-11-18 12:00", "2026-11-19 00:00"},
+		{"0 9 * 11 thu#4", "2026-11-23 00:00", "2026-11-26 09:00"},
+		{"0 9 * 11 thu#4", "2026-11-26 09:00", "2027-11-25 09:00"},
+		{"0 9 * 5 mon#l", "2026-11-23 00:00", "2027-05-31 09:00"},
+		{"0 9 * 5 1#l", "2027-06-01 00:00", "2028-05-29 09:00"},
+		{"0 9 * 9 mon#1", "2026-11-23 00:00", "2027-09-06 09:00"},
+		{"0 9 * * sun#2,6", "2026-11-23 00:00", "2026-11-28 09:00"},
 		// Both day fields named means either one matches, as in every cron.
 		{"0 9 1 * fri", "2026-11-18 00:00", "2026-11-20 09:00"},
 		// The spring change skips 2:30 on March 14 2027, so it runs the next day.
@@ -68,7 +74,7 @@ func TestCronNext(t *testing.T) {
 }
 
 func TestCronRejects(t *testing.T) {
-	for _, line := range []string{"", "* * * *", "60 * * * *", "* 24 * * *", "0 0 0 * *", "0 0 * 13 *", "*/0 * * * *", "a b c d e", "5-1 * * * *"} {
+	for _, line := range []string{"", "* * * *", "60 * * * *", "* 24 * * *", "0 9 * * thu#6", "0 9 * * #2", "0 0 0 * *", "0 0 * 13 *", "*/0 * * * *", "a b c d e", "5-1 * * * *"} {
 		if _, err := ParseCron(line); err == nil {
 			t.Errorf("%q parsed", line)
 		}
@@ -418,16 +424,19 @@ func TestParseAnswer(t *testing.T) {
 
 func TestHumanCron(t *testing.T) {
 	for in, want := range map[string]string{
-		"0 8 * * *":   "every day 8:00am",
-		"30 19 * * 2": "Tue 7:30pm",
-		"0 9 * * 1-5": "weekdays 9:00am",
-		"0 9 * * 1,4": "Mon, Thu 9:00am",
-		"0 10 1 * *":  "monthly on the 1st 10:00am",
-		"0 9 3 3 *":   "every Mar 3 9:00am",
-		"*/5 * * * *": "every 5 minutes",
-		"0 */4 * * *": "every 4 hours",
-		"0 9 1 */3 *": "on the 1st every 3 months 9:00am",
-		"0 9 1-7 * 1": "0 9 1-7 * 1",
+		"0 8 * * *":      "every day 8:00am",
+		"30 19 * * 2":    "Tue 7:30pm",
+		"0 9 * * 1-5":    "weekdays 9:00am",
+		"0 9 * * 1,4":    "Mon, Thu 9:00am",
+		"0 10 1 * *":     "monthly on the 1st 10:00am",
+		"0 9 3 3 *":      "every Mar 3 9:00am",
+		"0 9 * 11 thu#4": "the 4th Thu of Nov 9:00am",
+		"0 9 * 5 mon#l":  "the last Mon of May 9:00am",
+		"0 9 * * 5#1":    "the 1st Fri of every month 9:00am",
+		"*/5 * * * *":    "every 5 minutes",
+		"0 */4 * * *":    "every 4 hours",
+		"0 9 1 */3 *":    "on the 1st every 3 months 9:00am",
+		"0 9 1-7 * 1":    "0 9 1-7 * 1",
 	} {
 		if got := humanCron(in); got != want {
 			t.Errorf("%q read as %q, want %q", in, got, want)

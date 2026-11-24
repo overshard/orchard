@@ -15,6 +15,9 @@ type Expr struct {
 	// Classic cron runs a line naming both days when either matches, and only
 	// when one of them is a star does the other decide alone.
 	domStar, dowStar bool
+	// nth is per weekday, bits 1 to 5 for the nth one in the month and bit 6
+	// for the last, from a weekday written like thu#4 or mon#l.
+	nth [7]uint8
 }
 
 var monthNames = map[string]int{"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
@@ -51,7 +54,7 @@ func ParseCron(line string) (Expr, error) {
 		return Expr{}, fmt.Errorf("month: %w", err)
 	}
 	// 7 is Sunday too, since half the cron lines written by hand use it.
-	if e.dow, err = field(f[4], 0, 7, dayNames); err != nil {
+	if err = e.weekdays(f[4]); err != nil {
 		return Expr{}, fmt.Errorf("weekday: %w", err)
 	}
 	if e.dow&(1<<7) != 0 {
@@ -59,6 +62,41 @@ func ParseCron(line string) (Expr, error) {
 	}
 	e.domStar, e.dowStar = f[2] == "*", f[4] == "*"
 	return e, nil
+}
+
+const lastBit = 6
+
+// weekdays reads the weekday field, which takes thu#4 for the 4th Thursday of
+// the month and mon#l for the last Monday on top of what the others take.
+func (e *Expr) weekdays(s string) error {
+	var plain []string
+	for _, part := range strings.Split(s, ",") {
+		name, n, ok := strings.Cut(part, "#")
+		if !ok {
+			plain = append(plain, part)
+			continue
+		}
+		d, err := value(name, dayNames)
+		if err != nil {
+			return err
+		}
+		if d < 0 || d > 7 {
+			return fmt.Errorf("%q is outside 0 to 7", name)
+		}
+		bit := lastBit
+		if n != "l" {
+			if bit, err = strconv.Atoi(n); err != nil || bit < 1 || bit > 5 {
+				return fmt.Errorf("%q takes 1 to 5 or l for last after the #", part)
+			}
+		}
+		e.nth[d%7] |= 1 << bit
+	}
+	if len(plain) == 0 {
+		return nil
+	}
+	var err error
+	e.dow, err = field(strings.Join(plain, ","), 0, 7, dayNames)
+	return err
 }
 
 func field(s string, lo, hi int, names map[string]int) (uint64, error) {
@@ -118,6 +156,10 @@ func value(s string, names map[string]int) (int, error) {
 func (e Expr) dayMatches(t time.Time) bool {
 	dom := e.dom&(1<<t.Day()) != 0
 	dow := e.dow&(1<<int(t.Weekday())) != 0
+	if n := e.nth[t.Weekday()]; n != 0 {
+		last := t.AddDate(0, 0, 7).Month() != t.Month()
+		dow = dow || n&(1<<((t.Day()-1)/7+1)) != 0 || last && n&(1<<lastBit) != 0
+	}
 	switch {
 	case e.domStar && e.dowStar:
 		return true
