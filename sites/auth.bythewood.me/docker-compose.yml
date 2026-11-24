@@ -15,6 +15,7 @@ services:
     # queue. Without it a slow drain means SIGKILL and a skipped db.Close().
     stop_grace_period: 30s
     environment:
+      GOMEMLIMIT: 200MiB
       LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       # Read from .env in this directory, which compose picks up as the project
       # directory. Empty is tolerated and logged: refusing to start without it
@@ -27,6 +28,8 @@ services:
       SESSION_DOMAIN: ${SESSION_DOMAIN:-.bythewood.me}
     volumes:
       - data:/data
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 256M
     # Small: this site serves forms and reads a database that holds tens of
     # rows. Argon2id at 64MB is the one thing here that wants memory.
     deploy:

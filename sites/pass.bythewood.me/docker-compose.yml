@@ -57,6 +57,8 @@ services:
       PUSH_INSTALLATION_KEY: ${PASS_PUSH_INSTALLATION_KEY:-}
     volumes:
       - data:/data
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 192M
     deploy:
       resources:
         limits:
@@ -79,6 +81,7 @@ services:
     container_name: orchard-pass
     networks: [edge, pass]
     environment:
+      GOMEMLIMIT: 100MiB
       LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       NTFY_TOKEN: ${NTFY_TOKEN:-}
       PASS_VAULT: /vw/db.sqlite3
@@ -90,6 +93,8 @@ services:
     depends_on:
       vw:
         condition: service_healthy
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 128M
     deploy:
       resources:
         limits:

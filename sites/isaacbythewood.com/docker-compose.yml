@@ -11,10 +11,13 @@ services:
     container_name: orchard-isaacbythewood
     restart: unless-stopped
     environment:
+      GOMEMLIMIT: 150MiB
       LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
     # Longer than Docker's 10s default, because shutdown drains the log shipper
     # queue. Without it a slow drain means SIGKILL.
     stop_grace_period: 30s
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 192M
     # A ceiling to fail against rather than a target, since this machine is also
     # a workstation.
     deploy:

@@ -10,6 +10,7 @@ services:
     container_name: orchard-__LABEL__
     restart: unless-stopped
     environment:
+      GOMEMLIMIT: 150MiB
       LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
     # Longer than Docker's 10s default, because shutdown drains the log shipper
     # queue. Without it a slow drain means SIGKILL.
@@ -17,6 +18,8 @@ services:
     # An init as PID 1 reaps any child process this site ever execs, which
     # otherwise piles up as zombies until the container hits its process limit.
     init: true
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 192M
     # A ceiling to fail against rather than a target, since this machine is also
     # a workstation.
     deploy:

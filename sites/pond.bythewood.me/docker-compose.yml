@@ -16,6 +16,7 @@ services:
     # otherwise piles up as zombies until the container hits its process limit.
     init: true
     environment:
+      GOMEMLIMIT: 150MiB
       LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       # Keys are stored hashed under this, so it has to outlive the database.
       # Lose it and no pond key opens anything.
@@ -25,6 +26,8 @@ services:
       LLM_KEY: ${LLM_KEY:-}
     volumes:
       - data:/data
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 192M
     # A ceiling to fail against rather than a target, since this machine is also
     # a workstation.
     deploy:

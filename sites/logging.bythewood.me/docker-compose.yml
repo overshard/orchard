@@ -17,6 +17,7 @@ services:
     # SIGKILL and a skipped db.Close().
     stop_grace_period: 30s
     environment:
+      GOMEMLIMIT: 256MiB
       # Read from .env in this directory, which compose picks up as the project
       # directory. Write-only ntfy token, and an empty one is tolerated: refusing to start
       # over a missing alert credential would turn a quiet notification into an
@@ -25,6 +26,8 @@ services:
       LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
     volumes:
       - data:/data
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 384M
     # A ceiling to fail against rather than a target, since this machine is also
     # a workstation. Roomier than the static sites because this one holds a write
     # queue of up to 16,384 records and compiles Typst reports.
@@ -32,7 +35,7 @@ services:
       resources:
         limits:
           cpus: "1.00"
-          memory: 512M
+          memory: 384M
           pids: 128
     # The binary probes itself, since the scratch images here have no shell for a
     # check to call, and `restart` only catches a process that has exited.

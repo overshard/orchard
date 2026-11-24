@@ -15,6 +15,7 @@ services:
     # and the call log closes cleanly rather than being killed mid write.
     stop_grace_period: 30s
     environment:
+      GOMEMLIMIT: 200MiB
       LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       LLM_UPSTREAM: http://swap:8091
       LLM_GPU: http://gpu:8092
@@ -34,11 +35,13 @@ services:
       gpu:
         condition: service_healthy
         required: false
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 256M
     deploy:
       resources:
         limits:
           cpus: "1.00"
-          memory: 512M
+          memory: 256M
           pids: 128
     security_opt:
       - no-new-privileges:true
@@ -100,6 +103,10 @@ services:
     container_name: orchard-llm-gpu
     profiles: [local]
     restart: unless-stopped
+    environment:
+      GOMEMLIMIT: 50MiB
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 64M
     deploy:
       resources:
         limits:

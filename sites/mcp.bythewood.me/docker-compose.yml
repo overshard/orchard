@@ -11,10 +11,13 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
+      GOMEMLIMIT: 100MiB
       LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       MCP_DB: /data/mcp.db
     volumes:
       - data:/data
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 128M
     deploy:
       resources:
         limits:

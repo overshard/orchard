@@ -28,6 +28,8 @@ services:
     depends_on:
       unbound:
         condition: service_healthy
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 320M
     deploy:
       resources:
         limits:
@@ -61,6 +63,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
+      GOMEMLIMIT: 76MiB
       LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       DNS_TLS: /tls
       DNS_BRIDGE_PASSWORD: ${DNS_BRIDGE_PASSWORD:?run make env}
@@ -71,6 +74,8 @@ services:
     depends_on:
       app:
         condition: service_healthy
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 96M
     deploy:
       resources:
         limits:
@@ -104,6 +109,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
+      GOMEMLIMIT: 38MiB
       LOGGING_TOKEN: ${LOGGING_TOKEN:?run make logging-token}
       DNS_TLS: /tls
       DNS_ACME: /acme
@@ -111,6 +117,8 @@ services:
     volumes:
       - tls:/tls
       - acme:/acme
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 48M
     deploy:
       resources:
         limits:
@@ -141,6 +149,8 @@ services:
       dockerfile: Dockerfile
     container_name: orchard-dns-unbound
     restart: unless-stopped
+    # Equal to the memory limit, so a container at its cap is killed and not swapped.
+    memswap_limit: 160M
     deploy:
       resources:
         limits:
