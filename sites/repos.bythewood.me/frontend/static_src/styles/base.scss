@@ -907,9 +907,8 @@ section > h2 {
   button { margin-top: 0.85rem; }
 }
 
-// The same shape the other four sites use for a 404: an amber caps label, a
-// plain heading, the description the handler set, and a way back. Left aligned
-// like every other page here rather than centred on its own.
+// The signed in only page keeps the shared 404's shape, a muted label, a plain
+// heading, a sentence and a way back, left aligned like every other page here.
 .section-label {
   font-size: 0.7rem;
   font-weight: 600;

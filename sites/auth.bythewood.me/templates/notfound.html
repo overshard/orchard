@@ -1,9 +1,5 @@
-{{ define "form" }}
-<canvas class="pond-lost" width="216" height="180" aria-hidden="true" data-pond-lost></canvas>
-<span class="o-lab">404 &middot; not found</span>
-<h1>No such page</h1>
-<p class="o-muted">That page doesn't exist. This frog took the same wrong turn and is still looking around.</p>
-<div class="o-formbar"><a href="/" class="o-btn">&larr; Home</a></div>
+{{ define "main" }}
+<main id="main" class="o-wrap o-main">
+{{ template "suite-404" "That page doesn't exist." }}
+</main>
 {{ end }}
-
-{{ define "main" }}{{ template "authShell" . }}{{ end }}

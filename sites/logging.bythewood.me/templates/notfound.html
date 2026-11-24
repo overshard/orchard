@@ -1,9 +1,5 @@
 {{ define "main" }}
-<main class="o-wrap o-main notfound">
-  <span class="o-lab">404 &middot; not found</span>
-  <canvas class="pond-lost" width="216" height="180" aria-hidden="true" data-pond-lost></canvas>
-  <h1>No such page</h1>
-  <p class="o-muted">{{ .Description }} This frog took the same wrong turn and is still looking around.</p>
-  <div><a href="/" class="o-btn o-btn-sm">&larr; Home</a></div>
+<main id="main" class="o-wrap o-main">
+{{ template "suite-404" .Description }}
 </main>
 {{ end }}

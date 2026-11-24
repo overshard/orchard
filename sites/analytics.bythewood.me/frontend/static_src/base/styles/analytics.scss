@@ -61,8 +61,6 @@
   input:focus-visible ~ span { outline: 2px solid var(--o-brass); outline-offset: -2px; }
 }
 
-.notfound { justify-items: start; padding-top: 48px; padding-bottom: 64px; }
-.notfound h1 { font-size: 2rem; }
 .pond-lost { width: 216px; height: 180px; image-rendering: pixelated; }
 
 @media (max-width: 700px) { .o-acts:has(.filter) { width: 100%; } }

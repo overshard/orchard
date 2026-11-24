@@ -117,8 +117,6 @@
   .log-row .log-msg, .log-row .log-attrs { grid-column: 1 / -1; }
 }
 
-.notfound { justify-items: start; padding-top: 48px; padding-bottom: 64px; }
-.notfound h1 { font-size: 2rem; }
 .pond-lost { width: 216px; height: 180px; image-rendering: pixelated; }
 
 // A wide screen has room for the attributes beside the message.
