@@ -96,6 +96,10 @@ func OpenStore(path string) (*Store, error) {
 	if _, err := db.Exec(schema); err != nil {
 		return nil, err
 	}
+	// A revoked grant has no use for the session it held.
+	if _, err := db.Exec(`UPDATE grants SET session = '' WHERE revoked = 1 AND session != ''`); err != nil {
+		return nil, err
+	}
 	// Grants from before scopes could already change gate, so they keep it.
 	if err := addColumns(db, "grants", map[string]string{
 		"scope": "TEXT NOT NULL DEFAULT 'read gate:write'",
@@ -241,7 +245,7 @@ func (s *Store) Spend(token, clientID string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if _, err := tx.Exec(`UPDATE grants SET revoked = 1 WHERE id = ?`, grant); err != nil {
+	if _, err := tx.Exec(`UPDATE grants SET revoked = 1, session = '' WHERE id = ?`, grant); err != nil {
 		return 0, err
 	}
 	if _, err := tx.Exec(`DELETE FROM tokens WHERE grant_id = ?`, grant); err != nil {
@@ -264,7 +268,7 @@ func (s *Store) Touch(grant int64) {
 // Revoke ends a grant and every token it holds, for when auth says its
 // session is gone.
 func (s *Store) Revoke(grant int64) {
-	_, _ = s.db.Exec(`UPDATE grants SET revoked = 1 WHERE id = ?`, grant)
+	_, _ = s.db.Exec(`UPDATE grants SET revoked = 1, session = '' WHERE id = ?`, grant)
 	_, _ = s.db.Exec(`DELETE FROM tokens WHERE grant_id = ?`, grant)
 }
 
