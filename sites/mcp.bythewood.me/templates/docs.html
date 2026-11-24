@@ -1,7 +1,7 @@
 {{define "docs.html"}}{{template "head" (dict "Title" "Docs" "Suite" .Suite)}}
 <div class="o-ph">
   <div>
-    <span class="o-lab">mcp &middot; docs</span>
+    <span class="o-lab">MCP &middot; docs</span>
     <h1>One url, <em>{{len .Tools}} tools</em>.</h1>
     <p>Add <span class="o-mono">{{.Resource}}</span> to Claude, sign in through auth, and ask.</p>
   </div>
@@ -20,7 +20,7 @@
     <div class="copyline"><pre class="o-code" data-copy-src><span class="a">claude</span> mcp add --transport http orchard {{.Resource}}</pre><button type="button" class="o-btn o-btn-sm" data-copy>Copy</button></div>
   </section>
   <section class="o-panel">
-    <div class="o-ph2"><h2>Claude desktop</h2>{{if .SignedIn}}{{template "handshake" (clientState $c "web")}}{{else}}<span class="o-lab">mac and windows</span>{{end}}</div>
+    <div class="o-ph2"><h2>Claude desktop</h2>{{if .SignedIn}}{{template "handshake" (clientState $c "web")}}{{else}}<span class="o-lab">Mac and Windows</span>{{end}}</div>
     <p class="o-muted small">The desktop app uses the connectors on your claude.ai account, so add it there, or in the app under Settings, Connectors, and it shows up in both.</p>
     <div class="copyline"><pre class="o-code" data-copy-src>{{.Resource}}</pre><button type="button" class="o-btn o-btn-sm" data-copy>Copy</button></div>
   </section>
@@ -28,7 +28,7 @@
 
 <div class="o-cols even">
   <section class="o-panel">
-    <div class="o-ph2"><h2>Signing in</h2><span class="o-lab">oauth through auth</span></div>
+    <div class="o-ph2"><h2>Signing in</h2><span class="o-lab">OAuth through auth</span></div>
     <ol class="steps">
       <li>Claude opens a browser on auth.bythewood.me, which asks for a fresh six digit code from your phone.</li>
       <li>auth asks whether to let the connector read orchard. Allowing makes a session just for it, good for 90 days.</li>

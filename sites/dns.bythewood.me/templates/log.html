@@ -1,7 +1,7 @@
 {{define "log.html"}}{{template "head" (dict "Title" "Log" "Suite" .Suite)}}
 <div class="o-ph">
   <div>
-    <span class="o-lab">dns &middot; log</span>
+    <span class="o-lab">DNS &middot; log</span>
     <h1>{{comma .Total}} lookups, <em>{{comma .BlockedN}} blocked</em>.</h1>
     <div class="o-pm"><span>showing<b>{{len .Rows}}</b></span><span>blocked<b class="{{if .BlockedN}}bad{{end}}">{{pctOf .BlockedN .Total}}</b></span>{{if .Live}}<span>live<b class="ok" data-live-state>on</b></span>{{end}}</div>
   </div>

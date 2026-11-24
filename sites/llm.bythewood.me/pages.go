@@ -214,7 +214,7 @@ func (s *site) callsPage(w http.ResponseWriter, r *http.Request) {
 	}
 	slices.Sort(ms)
 
-	lab := "llm · calls"
+	lab := "LLM · calls"
 	for _, part := range []string{f.Caller, map[bool]string{true: "failed"}[f.Failed], f.Range, f.DayText} {
 		if part != "" {
 			lab += " · " + part

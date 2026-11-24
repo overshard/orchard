@@ -22,12 +22,13 @@ blog and the portfolio are separate identities and nothing here applies to them.
   `#090a0c`, panels `#171a1d` and `#1f2327`, lines `#262a2f`, `#1c1f23` and
   `#363b42`, `#646a73` for a field's edge, text `#e9ebee`, muted `#979ca4`. Warm greys went muddy beside sage.
 - **One meaning per colour.** Brass `#d9b45a` is an action, the primary button,
-  the active tab, the `//` label and the soft tint behind a title's key word.
+  the active tab and the soft tint behind a title's key word. A label is muted,
+  since brass on a label made the chrome read as something to press.
   Sage `#9fcbb0` means ok and nothing else, orange `#f0904b` warn and red
   `#f06b5b` bad. A colour that meant both click me and fine made the chrome read
   as state.
 - **Geist for words, Geist Mono for anything that's code, a label or a
-  number.** Headings are Geist 600 at `-0.035em`. Mono goes on caps labels,
+  number.** Headings are Geist 600 at `-0.035em`. Mono goes on labels,
   tile and table numbers, chips, code, times, the status line and the STAGED tag.
   No serif anywhere.
 - **Square corners and subtle solid hairlines.** No radius on anything inside
@@ -132,7 +133,7 @@ panel heads, and a home page keeps 14px. The pieces that carry it:
   of panels in place of one wide table and a side column, one column under 900px.
 - `o-ds` is fourteen days in a cell, a tick each, `w` or `b` on a bad day and
   `n` on none, so a quiet row still shows its fortnight.
-- `o-foot` closes a panel with one caps line, like `5 of 31 countries`.
+- `o-foot` closes a panel with one muted line, like `5 of 31 countries`.
 - `o-hbar` takes a trailing `.d` for its change, `ok`, `warn` or `bad` on the
   bar's `i`, and a `u` inside the bar as a marker at a target or last period.
 
@@ -215,11 +216,15 @@ them.
 one, solid brass with `#1b1505` text for the primary, and a red edge for one
 that deletes. One primary per page head at most.
 
-**Caps labels** are Geist Mono at `0.7rem`, `0.12em` tracking, brass, with `// `
-in front. A label inside a crowded row can drop the slashes with `plain`. The
-muted caps lines on a working page, tile names, table heads, panel summaries and
-footers, never go under `0.66rem` and table heads are `0.7rem`, since the dense
-size is set in rem and doesn't shrink them for you.
+**Labels** are Geist Mono at `0.74rem`, muted, in sentence case with no caps,
+no tracking and nothing in front. Templates write them lowercase and
+`suite.css` capitalises the first letter, so an acronym or a name is written
+the way it's spelled (`API`, `DNS · devices`) and a label that opens on a
+hostname or on code takes `raw` to keep its own case. Tile names, table heads,
+key names in a list and panel footers follow the same rule at `0.7rem`, which
+is the floor for any of them since the dense size is set in rem and doesn't
+shrink them for you. Caps are left for a state, like a chip, the STAGED tag and
+the status line's mode block.
 
 **Links** are the text colour and brass on hover. One inside a paragraph, an
 empty state or a note also gets a thin brass underline, since colour alone
@@ -241,15 +246,15 @@ asks the first time and opens a menu of what to be told about after that.
 ## The footer
 
 Signed in, a slim line of copyright, the frog and the source link, then the
-status line. Signed out on a home page, four columns in this order with `//`
-caps headings.
+status line. Signed out on a home page, four columns in this order, each under
+a label.
 
-1. **`// <site>`** with one sentence saying what the site is for. It says
+1. **The site's name** with one sentence saying what the site is for. It says
    nothing about how it is built or where it runs, which helps nobody and
    narrows an attacker's guesswork.
-2. **`// elsewhere`** with Portfolio, Blog and GitHub.
-3. **`// pages`** with the site's own pages, ending on Source.
-4. **`// operator`** with Sign in and All tools.
+2. **Elsewhere** with Portfolio, Blog and GitHub.
+3. **Pages** with the site's own pages, ending on Source.
+4. **Operator** with Sign in and All tools.
 
 Then a bar with `© <year> <author> · Some rights reserved`, the frog and a
 link to that site's own source.
@@ -269,7 +274,7 @@ hidden and then shown. If pond can't be reached the slot draws the house frog.
 The same on every tool site, using the description the handler already sets:
 
 ```
-// 404 · NOT FOUND     caps label
+404 · not found       label
 (a lost frog)          216 by 180, a different frog each time
 No such page           heading
 That page does not exist. This frog took the same wrong turn and is still looking around.

@@ -32,7 +32,7 @@
 /* The week ahead, a column a day, which turns into a list on a phone. */
 .wk { display: grid; gap: 1px; background: var(--o-line); border: 1px solid var(--o-line); grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .wk > div { background: var(--o-panel); padding: 6px 8px; min-height: 92px; min-width: 0; }
-.wk h4 { font: 500 0.62rem var(--o-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--o-muted); margin: 0 0 4px; }
+.wk h4 { font: 500 0.7rem var(--o-mono); color: var(--o-muted); margin: 0 0 4px; }
 .wk .today h4 { color: var(--o-brass); }
 .wk .card { display: flex; gap: 6px; align-items: baseline; padding: 3px 5px; margin: 2px -3px; border: 1px solid transparent; font-size: 0.74rem; min-width: 0; color: var(--o-text); text-decoration: none; }
 .wk .card.once { background: var(--o-panel2); cursor: grab; }
@@ -89,7 +89,7 @@
    a job and the days that have any listed under it. */
 .mo { display: grid; gap: 1px; background: var(--o-line); border: 1px solid var(--o-line); grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .mo > div { background: var(--o-panel); padding: 4px 6px; min-height: 96px; min-width: 0; }
-.mo > .dow { min-height: 0; font: 500 0.62rem var(--o-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--o-muted); }
+.mo > .dow { min-height: 0; font: 500 0.7rem var(--o-mono); color: var(--o-muted); }
 .mo > .out { background: var(--o-panel2); }
 .mo .d { display: block; font: 500 0.7rem var(--o-mono); color: var(--o-muted); margin-bottom: 2px; }
 .mo .past .d { opacity: 0.6; }
@@ -110,6 +110,7 @@
   .mo .card.once { background: var(--o-text); }
   .mo .card > span { display: none; }
   .molist { display: grid; gap: 10px; margin-top: 12px; }
-  .molist h4 { font: 500 0.62rem var(--o-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--o-muted); margin: 0 0 2px; }
+  .molist h4 { font: 500 0.7rem var(--o-mono); color: var(--o-muted); margin: 0 0 2px; }
   .molist .today h4 { color: var(--o-brass); }
 }
+.wk h4::first-letter, .mo > .dow::first-letter, .molist h4::first-letter { text-transform: uppercase; }

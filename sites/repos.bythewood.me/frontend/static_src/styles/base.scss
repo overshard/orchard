@@ -460,8 +460,6 @@ input[type="text"], input[type="password"], input[type="url"] {
       margin: 0.4rem 0.85rem 0.2rem;
       font-size: var(--t-xs);
       font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
       color: var(--faint);
     }
     ul { list-style: none; margin: 0; padding: 0; }
@@ -803,8 +801,6 @@ del { color: var(--del); text-decoration: none; font-weight: 500; }
   h3 {
     font-size: var(--t-xs);
     font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
     color: var(--faint);
     margin-bottom: 0.5rem;
   }
@@ -917,9 +913,7 @@ section > h2 {
 .section-label {
   font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--warn);
+  color: var(--muted);
 }
 
 .notfound {
@@ -1058,7 +1052,7 @@ section.o-panel { margin: 0; }
 .code .hl > [id^="L"] { color: var(--o-brass) !important; box-shadow: inset -2px 0 0 var(--o-brass); }
 
 // The log, under a head per day.
-.daylog tr.day th { padding-top: 12px; text-align: left; font: 500 0.66rem var(--o-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: transparent; }
+.daylog tr.day th { padding-top: 12px; text-align: left; font: 500 0.7rem var(--o-mono); color: var(--muted); background: transparent; }
 .daylog tbody:first-child tr.day th { padding-top: 6px; }
 .daylog .subj, .recent .subj { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .daylog .subj a, .recent .subj a { color: var(--text); }

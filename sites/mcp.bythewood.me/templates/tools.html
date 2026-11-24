@@ -1,7 +1,7 @@
 {{define "tools.html"}}{{template "head" (dict "Title" "Tools" "Suite" .Suite)}}
 <div class="o-ph">
   <div>
-    <span class="o-lab">mcp &middot; tools &middot; 7d</span>
+    <span class="o-lab">MCP &middot; tools &middot; 7d</span>
     <h1>{{.Headline}}</h1>
     <div class="o-pm"><span>calls<b>{{comma .Calls}}</b></span><span>failed<b {{if .Failed}}class="bad"{{end}}>{{.Failed}}</b></span><span>p50<b>{{secs .P50}}</b></span><span>never called<b>{{.Never}}</b></span><span>connectors<b>{{.Grants}}</b></span></div>
   </div>

@@ -63,7 +63,7 @@ h3.sub { font-size: 0.86rem; margin: 14px 0 6px; }
 .gmin i.m.ok { background: var(--o-ok); }
 .gmin-ax { display: flex; justify-content: space-between; font: 0.66rem var(--o-mono); color: var(--o-muted); margin: 4px 0 10px; }
 .gfac { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 10px 18px; }
-.gfac h4 { margin: 0 0 4px; font: 500 0.7rem var(--o-mono); color: var(--o-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.gfac h4 { margin: 0 0 4px; font: 500 0.7rem var(--o-mono); color: var(--o-muted); }
 .gwarn { display: grid; gap: 6px; margin-top: 12px; font-size: 0.82rem; }
 .gwarn > div { display: flex; gap: 8px; align-items: baseline; }
 .gwarn .o-lab { flex: none; width: 6.5rem; }
@@ -87,3 +87,4 @@ h3.sub { font-size: 0.86rem; margin: 14px 0 6px; }
 .evx::before { content: "\25B8"; display: inline-block; width: 1em; color: var(--o-muted); }
 .evx[aria-expanded="true"] { color: var(--o-text); }
 .evx[aria-expanded="true"]::before { content: "\25BE"; }
+.gfac h4::first-letter { text-transform: uppercase; }

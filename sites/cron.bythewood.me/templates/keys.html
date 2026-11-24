@@ -54,7 +54,7 @@
 </div>
 
 <section class="o-panel">
-  <div class="o-ph2"><h2>Using it</h2><span class="o-lab">api</span></div>
+  <div class="o-ph2"><h2>Using it</h2><span class="o-lab">API</span></div>
   <p class="o-muted" style="margin:0 0 10px">Send the key as a bearer token to <code>/api/jobs</code>. A job is a name, a kind of <code>notify</code>, <code>prompt</code> or <code>quote</code>, an <code>at</code> or a <code>cron</code>, and a message. A time with no offset is Eastern.</p>
   <pre class="o-code"><span class="a">curl</span> -H <span class="g">"Authorization: Bearer $CRON_KEY"</span> https://cron.bythewood.me/api/jobs \
   -d <span class="w">'{"name": "Recycling", "cron": "0 19 * * 2", "message": "Take the recycling out"}'</span></pre>

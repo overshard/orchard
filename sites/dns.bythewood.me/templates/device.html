@@ -82,7 +82,7 @@
 {{define "way"}}{{$p := .P}}
 {{if eq .W "android"}}
     <div class="way">
-      <span class="o-lab">android &middot; private dns</span>
+      <span class="o-lab">Android &middot; private DNS</span>
       <ol class="steps">
         <li>Settings, Network &amp; internet, Private DNS.</li>
         <li>Pick Private DNS provider hostname and paste the name below.</li>
@@ -92,7 +92,7 @@
     </div>
 {{else if eq .W "apple"}}
     <div class="way">
-      <span class="o-lab">iphone, ipad, mac &middot; profile</span>
+      <span class="o-lab raw">iPhone, iPad, Mac &middot; profile</span>
       <ol class="steps">
         <li>Open this page on the device and download the profile.</li>
         <li>iPhone and iPad, Settings, Profile Downloaded, Install. Mac, System Settings, Privacy &amp; Security, Profiles.</li>
@@ -102,7 +102,7 @@
     </div>
 {{else if eq .W "browser"}}
     <div class="way">
-      <span class="o-lab">browser &middot; dns over https</span>
+      <span class="o-lab">browser &middot; DNS over HTTPS</span>
       <ol class="steps">
         <li>Chrome and Edge, Settings, Privacy and security, Security, Use secure DNS, With Custom.</li>
         <li>Firefox, Settings, Privacy &amp; Security, DNS over HTTPS, Max Protection, Custom. Increased Protection falls back to plain DNS and goes around this.</li>

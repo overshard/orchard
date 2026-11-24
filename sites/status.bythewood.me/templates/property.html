@@ -76,7 +76,7 @@
 
   <div class="o-strip {{ if $authed }}six{{ else }}five{{ end }}">
     <div class="o-tile">
-      <small>http</small>
+      <small>HTTP</small>
       <b class="{{ if ne .CurrentStatus 200 }}bad{{ end }}">{{ .CurrentStatus }}</b>
       <span class="o-delta {{ if ne .CurrentStatus 200 }}o-bad{{ end }}">{{ if eq .CurrentStatus 200 }}answering{{ else if $h.Open }}failing since {{ $h.Open.Start.Format "15:04" }}{{ else }}failing now{{ end }}</span>
       <span class="o-ticks" aria-hidden="true">{{ if .RecentTickStream }}{{ range .RecentTickStream }}<i class="{{ . }}"></i>{{ end }}{{ else }}{{ range seq 30 }}<i class="none"></i>{{ end }}{{ end }}</span>
@@ -108,7 +108,7 @@
       {{ if $h.HourTTFB }}{{ sparkT "" $h.HourTTFB $h.HourLabels }}{{ else }}<span class="o-nospark"></span>{{ end }}
     </div>
     <div class="o-tile">
-      <small>tls cert</small>
+      <small>TLS cert</small>
       {{ if .CertDays }}
       <b class="{{ certKindP .CertDays }}">{{ .CertDays }} days</b>
       <span class="o-delta">{{ if .CertIssuer }}{{ .CertIssuer }} &middot; {{ end }}{{ .CertExpires }}</span>
@@ -205,7 +205,7 @@
       {{ if $recent }}
       <div class="o-scroll">
       <table class="o-tbl stack checks">
-        <thead><tr><th>Time</th><th>Code</th><th class="r">Total</th><th class="r">dns/tcp/tls/ttfb</th><th>Edge</th></tr></thead>
+        <thead><tr><th>Time</th><th>Code</th><th class="r">Total</th><th class="r">DNS/TCP/TLS/TTFB</th><th>Edge</th></tr></thead>
         <tbody>
         {{ range $recent }}
           <tr class="{{ if ne .StatusCode 200 }}hot{{ end }}">

@@ -117,7 +117,7 @@ a.o-hbar.fl.on .bar i { background: var(--o-brass); }
 .o-ticks.live { height: 44px; margin: 4px 0 10px; }
 
 .evpick { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-.evpick th { font: 0.62rem var(--o-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--o-muted); text-align: left; font-weight: 400; padding-bottom: 4px; }
+.evpick th { font: 0.7rem var(--o-mono); color: var(--o-muted); text-align: left; font-weight: 400; padding-bottom: 4px; }
 .evpick td { padding: 3px 0; border-top: 1px solid var(--o-line-soft); overflow-wrap: anywhere; }
 .evpick td + td, .evpick th + th { width: 3rem; text-align: center; }
 #event-menu { width: min(24rem, 90vw); max-height: 70vh; overflow-y: auto; }
@@ -158,7 +158,7 @@ button.o-tile.pick.on { background: var(--o-panel2); box-shadow: inset 0 -2px 0 
 .cards .o-ph2 { flex-wrap: wrap; gap: 8px; }
 .cards .ctabs { margin-left: auto; }
 .pane[hidden] { display: none; }
-.colh { display: flex; justify-content: space-between; font: 0.62rem var(--o-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--o-muted); margin-bottom: 2px; }
+.colh { display: flex; justify-content: space-between; font: 0.7rem var(--o-mono); color: var(--o-muted); margin-bottom: 2px; }
 .maphead { display: flex; justify-content: space-between; align-items: center; min-height: 28px; }
 .o-panel.slim { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
 .o-panel.slim h2 { margin: 0; font-size: 0.9rem; }
@@ -187,7 +187,7 @@ button.o-tile.pick.on { background: var(--o-panel2); box-shadow: inset 0 -2px 0 
 .scale u { position: absolute; top: -5px; width: 3px; height: 16px; background: var(--o-text); transform: translateX(-1px); }
 .ticks { position: relative; height: 14px; font: 0.62rem var(--o-mono); color: var(--o-muted); }
 .ticks span { position: absolute; top: 3px; transform: translateX(-50%); }
-.vm-t { grid-column: 1 / -1; font: 0.62rem var(--o-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--o-muted); }
+.vm-t { grid-column: 1 / -1; font: 0.7rem var(--o-mono); color: var(--o-muted); }
 .fix { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: 10px; padding: 10px 0; border-top: 1px solid var(--o-line-soft); font-size: 0.84rem; }
 .fix:first-of-type { border-top: 0; }
 .fix .o-chip { justify-self: start; align-self: start; }
@@ -201,3 +201,4 @@ button.o-tile.pick.on { background: var(--o-panel2); box-shadow: inset 0 -2px 0 
   .tl-m, .tl-m.low { position: static; transform: none; display: flex; gap: 10px; text-align: left; }
   .tl-m b { min-width: 4.5rem; }
 }
+.evpick th::first-letter, .vm-t::first-letter { text-transform: uppercase; }

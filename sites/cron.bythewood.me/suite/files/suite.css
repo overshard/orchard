@@ -69,15 +69,16 @@
 .o-body:has(.o-main):not(:has(.o-hero)) { --o-wrap: 1760px; }
 .o-wrap { width: 100%; max-width: var(--o-wrap); margin: 0 auto; padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
 
-/* The caps label, a // and brass. Every band, tile and column starts on one. */
+/* The label every band, tile and column starts on, muted so brass only ever
+   means an action. Templates write it lowercase and the capital comes from here. */
 .o-lab {
-  font: 500 0.7rem/1.4 var(--o-mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--o-brass);
+  display: inline-block;
+  font: 500 0.74rem/1.4 var(--o-mono);
+  color: var(--o-muted);
 }
-.o-lab::before { content: "// "; }
-.o-lab.plain::before { content: none; }
+:is(.o-lab, .o-tile small, .o-tbl th, .o-kv dt, .o-foot, .o-jg)::first-letter { text-transform: uppercase; }
+/* A label that opens on a hostname or on code keeps its own case. */
+.o-lab.raw::first-letter { text-transform: none; }
 .o-lab.o-bad { color: var(--o-bad); }
 .o-lab.o-muted, .o-body a.o-muted { color: var(--o-muted); }
 .o-body a.o-muted:hover { color: var(--o-text); }
@@ -155,7 +156,7 @@
 .o-jr li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "d n k" ". x x"; align-items: center; gap: 1px 10px; padding: 7px 14px; cursor: pointer; }
 .o-jr li .o-dot { grid-area: d; margin: 0; }
 .o-jr li .n { grid-area: n; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.86rem; }
-.o-jr li .k { grid-area: k; font: 0.66rem var(--o-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--o-muted); }
+.o-jr li .k { grid-area: k; font: 0.7rem var(--o-mono); color: var(--o-muted); }
 .o-jr li .x { grid-area: x; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 0.7rem var(--o-mono); color: var(--o-muted); }
 .o-jr li .x:empty { display: none; }
 .o-jr li.on { background: var(--o-panel2); box-shadow: inset 2px 0 0 var(--o-brass); }
@@ -237,7 +238,7 @@
   background: var(--o-panel); border: 1px solid var(--o-line); padding: 10px 12px 0;
 }
 a.o-tile:hover { border-color: var(--o-line-strong); }
-.o-tile small { font: 500 0.66rem var(--o-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--o-muted); }
+.o-tile small { font: 500 0.7rem var(--o-mono); color: var(--o-muted); }
 .o-tile b { font: 600 1.4rem/1.3 var(--o-mono); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--o-text); }
 .o-tile b.bad { color: var(--o-bad); }
 .o-tile b.warn { color: var(--o-warn); }
@@ -279,7 +280,7 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 .o-tbl { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
 .o-tbl th {
   text-align: left; padding: 8px; border-bottom: 1px solid var(--o-line);
-  font: 500 0.7rem var(--o-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--o-muted); white-space: nowrap;
+  font: 500 0.7rem var(--o-mono); color: var(--o-muted); white-space: nowrap;
 }
 .o-tbl td { padding: 7px 8px; border-bottom: 1px solid var(--o-line-soft); vertical-align: middle; }
 .o-tbl tr:last-child td { border-bottom: 0; }
@@ -332,7 +333,7 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 .o-hbar .bar u { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--o-text); }
 
 .o-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0; font-size: 0.84rem; }
-.o-kv dt { font: 500 0.66rem/1.9 var(--o-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--o-muted); }
+.o-kv dt { font: 500 0.7rem/1.8 var(--o-mono); color: var(--o-muted); }
 .o-kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 
 .o-code {
@@ -485,7 +486,7 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 @media (max-width: 560px) { .o-strip, .o-strip.six { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* A panel head's summary as mono key and value pairs. */
-.o-pm { display: flex; flex-wrap: wrap; gap: 2px 0; font: 0.66rem var(--o-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--o-muted); }
+.o-pm { display: flex; flex-wrap: wrap; gap: 2px 0; font: 0.7rem var(--o-mono); color: var(--o-muted); }
 .o-pm > span { padding: 0 8px; border-left: 1px solid var(--o-line); white-space: nowrap; }
 .o-pm > span:first-child { border-left: 0; padding-left: 0; }
 .o-pm b { color: var(--o-text); font-weight: 500; margin-left: 4px; }
@@ -511,7 +512,7 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 .o-ds i:is(.b, .bad) { background: var(--o-bad); opacity: 1; }
 .o-ds i:is(.n, .none) { background: var(--o-line-strong); opacity: 1; }
 
-.o-foot { margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--o-line-soft); font: 0.66rem var(--o-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--o-muted); }
+.o-foot { margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--o-line-soft); font: 0.7rem var(--o-mono); color: var(--o-muted); }
 
 /* A working page is an instrument and runs a size smaller than a home page.
    :where keeps these at the weight of the rules they tighten. */
@@ -581,7 +582,7 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 .o-keys .o-check { grid-column: 1 / -1; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--o-line); }
 
 /* The palette's groups and the letters a query matched. */
-.o-jr .o-jg { display: block; padding: 8px 14px 2px; font: 500 0.66rem var(--o-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--o-muted); cursor: default; }
+.o-jr .o-jg { display: block; padding: 8px 14px 2px; font: 500 0.7rem var(--o-mono); color: var(--o-muted); cursor: default; }
 .o-jr li mark { background: none; color: var(--o-brass); }
 .o-jr li .n .gt { color: var(--o-brass); }
 
@@ -598,7 +599,7 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
   .o-tbl.stack td.act { margin-left: auto; }
   .o-tbl.stack td.hide { display: none; }
   .o-tbl.stack tr.hot { background: var(--o-bad-bg); }
-  .o-tbl.stack td[data-l]::before { content: attr(data-l) " "; font-family: var(--o-mono); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--o-muted); opacity: 0.8; }
+  .o-tbl.stack td[data-l]::before { content: attr(data-l) " "; font-family: var(--o-mono); font-size: 0.7rem; color: var(--o-muted); opacity: 0.8; }
 }
 
 /* iOS zooms a page when it focuses a field under 16px and leaves it zoomed. */

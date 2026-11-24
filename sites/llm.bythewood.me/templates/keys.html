@@ -2,7 +2,7 @@
 
 <div class="o-ph">
   <div>
-    <span class="o-lab">llm &middot; keys</span>
+    <span class="o-lab">LLM &middot; keys</span>
     <h1>{{.Headline}}</h1>
     <p>Every call is kept with the key that made it, and revoking one stops it on the next request. A key with a monthly cap gets a 422 once it has spent it, until the 1st.</p>
   </div>
@@ -68,7 +68,7 @@
 </div>
 
 <section class="o-panel">
-  <div class="o-ph2"><h2>Using it</h2><span class="o-lab">api</span></div>
+  <div class="o-ph2"><h2>Using it</h2><span class="o-lab">API</span></div>
   <p class="o-muted" style="margin:0 0 10px">Point any OpenAI shaped client at <code>http://orchard-llm:8000/v1</code> on the bridge, or <code>https://llm.bythewood.me/v1</code> from anywhere else, and send the key as a bearer token.</p>
   <pre class="o-code"><span class="a">curl</span> https://llm.bythewood.me/v1/chat/completions \
   -H <span class="g">"Authorization: Bearer $LLM_KEY"</span> \

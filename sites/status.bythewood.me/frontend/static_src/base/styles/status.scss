@@ -81,7 +81,7 @@
 .chart-wrap .hit { fill: transparent; }
 .chart-wrap .vl { position: absolute; top: 0; left: 0; height: 170px; width: 1px; background: var(--o-text); opacity: 0.4; pointer-events: none; display: none; }
 .chart-wrap .axis { display: flex; justify-content: space-between; font: 0.62rem var(--o-mono); color: var(--o-muted); margin-top: 2px; }
-.leg { display: flex; flex-wrap: wrap; gap: 4px 14px; font: 0.62rem var(--o-mono); color: var(--o-muted); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+.leg { display: flex; flex-wrap: wrap; gap: 4px 14px; font: 0.7rem var(--o-mono); color: var(--o-muted); margin-top: 6px; }
 .leg i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; vertical-align: -1px; }
 .leg button { background: none; border: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; padding: 0; }
 .leg button.off { opacity: 0.35; text-decoration: line-through; }
@@ -152,7 +152,7 @@
   border: 1px solid var(--o-line);
   background: var(--o-bg);
 
-  small { color: var(--o-muted); font-size: 0.64rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  small { color: var(--o-muted); font-size: 0.7rem; }
   b { font-size: 1.05rem; font-weight: 600; }
 }
 

@@ -2,7 +2,7 @@
 {{$f := .Filter}}
 <div class="o-ph">
   <div>
-    <span class="o-lab">mcp &middot; calls &middot; {{$f.Range}}{{with $f.Tool}} &middot; {{.}}{{end}}{{with $f.Client}} &middot; {{.}}{{end}}{{if $f.Failed}} &middot; failed{{end}}</span>
+    <span class="o-lab">MCP &middot; calls &middot; {{$f.Range}}{{with $f.Tool}} &middot; {{.}}{{end}}{{with $f.Client}} &middot; {{.}}{{end}}{{if $f.Failed}} &middot; failed{{end}}</span>
     <h1>{{.Head}} {{if eq .Total 1}}call{{else}}calls{{end}}{{if .Failed}}, <em class="bad">{{.Failed}} failed</em>{{end}}.</h1>
     <div class="o-pm"><span>shown<b>{{len .Calls}}</b></span><span>failed<b {{if .Failed}}class="bad"{{end}}>{{.Failed}}</b></span><span>p50<b>{{secs .P50}}</b></span><span>kept<b>{{.Keep}}d</b></span></div>
   </div>

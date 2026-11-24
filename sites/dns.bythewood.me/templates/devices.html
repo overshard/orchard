@@ -2,7 +2,7 @@
 {{if .Toast}}<span data-toast hidden>{{.Toast}}</span>{{end}}
 <div class="o-ph">
   <div>
-    <span class="o-lab">dns &middot; devices</span>
+    <span class="o-lab">DNS &middot; devices</span>
     <h1>{{if .Devices}}{{count (len .Devices) "device" "devices"}}, <em>one token each</em>.{{else}}No devices <em>yet</em>.{{end}}</h1>
     <p>A device's token is its name to this resolver. Anything that asks without a token gets nothing back.</p>
   </div>
