@@ -237,7 +237,7 @@ async function triggerPost(url, onDone) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  const root = document.getElementById("monitoring-status");
+  const root = document.querySelector("main[data-property-id]");
   if (!root) return;
   const propertyId = root.dataset.propertyId;
   if (!propertyId) return;

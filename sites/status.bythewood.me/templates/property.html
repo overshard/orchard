@@ -1,6 +1,6 @@
 {{ define "extra_js" }}
 {{/* Chart data as inline JSON blocks. property_crawl_status.js takes the
-     property id from #monitoring-status[data-property-id]. */}}
+     property id from main[data-property-id]. */}}
 <script id="phase-data" type="application/json">{{ json .ResponseTimes }}</script>
 <script id="days-data" type="application/json">{{ json .Property.H.Drill }}</script>
 {{ end }}
@@ -15,7 +15,7 @@
 {{ with .Property }}
 {{ $h := .H }}
 {{ $p := . }}
-<main class="o-wrap o-main"{{ if $authed }} id="monitoring-status" data-property-id="{{ .ID }}"{{ end }}>
+<main id="main" class="o-wrap o-main"{{ if $authed }} data-property-id="{{ .ID }}"{{ end }}>
   <div class="o-ph">
     <div>
       <span class="o-lab">status &middot; {{ if $authed }}properties &middot; {{ end }}{{ .Name }}</span>

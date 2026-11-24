@@ -15,7 +15,7 @@
 {{ $p := .Property }}
 {{ with .Dash }}
 {{ $d := . }}
-<main class="o-wrap o-main dash">
+<main id="main" class="o-wrap o-main dash">
   <div class="o-ph">
     <div>
       <span class="o-lab">analytics &middot; {{ if $authed }}properties &middot; {{ end }}{{ $p.Name }}</span>

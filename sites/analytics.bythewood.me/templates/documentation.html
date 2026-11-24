@@ -1,7 +1,7 @@
 {{ define "extra_head" }}{{ template "social" . }}{{ end }}
 {{ define "extra_css" }}{{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}{{ end }}
 {{ define "main" }}
-<main class="o-wrap o-main doc">
+<main id="main" class="o-wrap o-main doc">
   <div class="o-ph"><div><span class="o-lab">analytics &middot; docs</span><h1>Everything goes to one endpoint.</h1>
       <p>
         All events are sent as JSON to a single <code>POST /collect/</code>
