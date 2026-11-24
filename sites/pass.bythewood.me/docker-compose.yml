@@ -43,6 +43,8 @@ services:
       PASSWORD_HINTS_ALLOWED: "false"
       SHOW_PASSWORD_HINT: "false"
       WEB_VAULT_ENABLED: "false"
+      # An icon fetch is an outbound request to whatever host a login names.
+      DISABLE_ICON_DOWNLOAD: "true"
       # The admin API is only for the page, over the bridge. Caddy never routes
       # /admin, and this is the Argon2 hash of the page's PASS_ADMIN_TOKEN.
       ADMIN_TOKEN: ${PASS_ADMIN_HASH:?set it in .env, see .env.example}
