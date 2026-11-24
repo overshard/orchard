@@ -50,15 +50,20 @@ func TestSourceSchedule(t *testing.T) {
 }
 
 func TestSourceInterval(t *testing.T) {
+	open := time.Date(2026, 11, 18, 11, 0, 0, 0, easternTime())
+	shut := time.Date(2026, 11, 21, 11, 0, 0, 0, easternTime())
 	market := sources[0]
-	if got := market.interval(true); got != 30*time.Second {
+	if got := market.interval(true, open); got != 30*time.Second {
 		t.Errorf("watched market every %s", got)
 	}
-	if got := market.interval(false); got != 5*time.Minute {
+	if got := market.interval(true, shut); got != marketShut {
+		t.Errorf("watched market on a Saturday every %s", got)
+	}
+	if got := market.interval(false, open); got != 5*time.Minute {
 		t.Errorf("idle market every %s", got)
 	}
 	news := sources[3]
-	if news.interval(true) != news.Every || news.interval(false) != news.Every {
+	if news.interval(true, open) != news.Every || news.interval(false, open) != news.Every {
 		t.Errorf("news should not slow down when idle")
 	}
 }

@@ -52,11 +52,11 @@ var sources = []Source{
 	{Name: "calendar", Every: calendarEvery, Run: (*Store).refreshCalendar},
 }
 
-func (src Source) interval(watching bool) time.Duration {
+func (src Source) interval(watching bool, now time.Time) time.Duration {
 	if src.Idle > 0 && !watching {
 		return src.Idle
 	}
-	if src.Calm != nil && src.Calm(time.Now()) {
+	if src.Calm != nil && src.Calm(now) {
 		return src.Shut
 	}
 	return src.Every
@@ -77,7 +77,7 @@ func (s *Store) loop(ctx context.Context, g *Guard, src Source) {
 	}
 
 	for {
-		t := time.NewTimer(src.interval(s.hub.Watching() > 0))
+		t := time.NewTimer(src.interval(s.hub.Watching() > 0, time.Now()))
 		select {
 		case <-ctx.Done():
 			t.Stop()
