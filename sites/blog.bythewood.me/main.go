@@ -191,13 +191,14 @@ func realMain() error {
 	mux.Handle("GET /static/", web.Static(dist, assets))
 
 	// Post images keep their real filenames, so a replaced one has to show up
-	// without a hash change and can't be cached immutable for a year.
+	// without a hash change and can't be cached immutable for a year. A week,
+	// and a browser asks again with the ETag after that.
 	contentImages, err := fs.Sub(content, "images")
 	if err != nil {
 		return err
 	}
 	images := http.StripPrefix("/content/images/",
-		cacheControl("public, max-age=86400", web.Tagged(contentImages,
+		cacheControl("public, max-age=604800", web.Tagged(contentImages,
 			web.NoDirs(http.FileServer(http.FS(contentImages))))))
 	mux.Handle("GET /content/images/", images)
 

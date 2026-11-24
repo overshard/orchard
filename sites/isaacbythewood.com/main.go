@@ -154,7 +154,9 @@ func realMain() error {
 		_, _ = w.Write([]byte("ok\n"))
 	})
 
-	mux.Handle("GET /static/", web.Static(dist, assets))
+	static := web.Static(dist, assets)
+	mux.Handle("GET /static/", static)
+	mux.Handle("GET /static/images/", weekCache(static))
 
 	// Search indexes still send Next.js image optimiser URLs from the old site.
 	s.nextImages = newNextImageIndex(dist)
@@ -201,3 +203,33 @@ func rootAsset(dist fs.FS, name string) http.Handler {
 		http.ServeContent(w, r, filepath.Base(name), info.ModTime(), seeker)
 	})
 }
+
+// weekCache gives the generated images a week. Their names carry no hash so
+// web.Static gives them an hour, but they only change when a pour is re-encoded.
+func weekCache(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(&weekWriter{ResponseWriter: w}, r)
+	})
+}
+
+type weekWriter struct {
+	http.ResponseWriter
+	wrote bool
+}
+
+func (w *weekWriter) WriteHeader(code int) {
+	if !w.wrote && (code == http.StatusOK || code == http.StatusPartialContent || code == http.StatusNotModified) {
+		w.Header().Set("Cache-Control", "public, max-age=604800")
+	}
+	w.wrote = true
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *weekWriter) Write(b []byte) (int, error) {
+	if !w.wrote {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(b)
+}
+
+func (w *weekWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
