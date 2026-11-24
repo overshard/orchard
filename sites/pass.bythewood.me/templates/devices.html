@@ -26,7 +26,7 @@
           <td class="r nw" data-l="last" data-tip="{{utc .LastSeen}}">{{ago .LastSeen}}</td>
         </tr>
       {{else}}
-        <tr><td colspan="5"><p class="o-empty"><b>No devices yet.</b>Sign in from a Bitwarden app with https://pass.bythewood.me as the self-hosted server and it shows here.</p></td></tr>
+        <tr><td colspan="5">{{template "suite-empty" (nothing "" "No devices yet." "Sign in from a Bitwarden app with https://pass.bythewood.me as the self-hosted server and it shows here.")}}</td></tr>
       {{end}}
       </tbody>
     </table>

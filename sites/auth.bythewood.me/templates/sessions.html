@@ -52,7 +52,7 @@
     </table>
     </div>
     {{ else }}
-    <p class="o-empty"><b>No live browsers.</b></p>
+    {{template "suite-empty" (nothing "" "No live browsers." "")}}
     {{ end }}
   </section>
 
@@ -85,7 +85,7 @@
     </div>
     <p class="o-muted small connector-note">auth sees a connector's session and the days it was used, and mcp keeps the calls themselves.</p>
     {{ else }}
-    <p class="o-empty"><b>No connectors.</b> Adding orchard to Claude through mcp.bythewood.me puts one here.</p>
+    {{template "suite-empty" (nothing "" "No connectors." "Adding orchard to Claude through mcp.bythewood.me puts one here.")}}
     {{ end }}
   </section>
 

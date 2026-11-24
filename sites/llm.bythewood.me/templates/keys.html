@@ -62,7 +62,7 @@
     </table>
     </div>
     {{else}}
-    <p class="o-empty"><b>No keys yet.</b>Nothing can call the gateway until there is one.</p>
+    {{template "suite-empty" (nothing "" "No keys yet." "Nothing can call the gateway until there is one.")}}
     {{end}}
   </section>
 </div>

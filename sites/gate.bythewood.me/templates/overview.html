@@ -154,7 +154,7 @@
       <td class="r n" data-l="solve">{{.SolveRate}}</td>
     </tr>
   {{else}}
-    <tr><td colspan="8"><p class="o-empty"><b>No rules.</b><a href="/rules/new">Write the first one</a>, every request passes until then.</p></td></tr>
+    <tr><td colspan="8">{{template "suite-empty" (nothing "rules" "No rules." "Every request passes until there is one." "/rules/new" "Write the first one")}}</td></tr>
   {{end}}
   </tbody>
 </table>

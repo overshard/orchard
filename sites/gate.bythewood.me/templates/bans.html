@@ -28,7 +28,7 @@
           <td class="act"><form method="post" action="/bans/lift" data-undo="Lifted {{.IP}}"><input type="hidden" name="ip" value="{{.IP}}"><button class="o-btn o-btn-sm" type="submit">Lift</button></form></td>
         </tr>
       {{else}}
-        <tr><td colspan="6"><p class="o-empty"><b>Nothing banned.</b>Set ban after on a rule, or ban an address by hand.</p></td></tr>
+        <tr><td colspan="6">{{template "suite-empty" (nothing "bans" "Nothing banned." "Set ban after on a rule, or ban an address by hand.")}}</td></tr>
       {{end}}
       </tbody>
     </table>

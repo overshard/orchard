@@ -52,7 +52,7 @@
             <td class="n o-muted">{{ if .LastSeen }}{{ .LastSeen }}{{ else }}&mdash;{{ end }}</td>
           </tr>
           {{ else }}
-          <tr><td colspan="10" class="o-empty"><b>Nothing has shipped yet.</b>Deploy a site with the shipper in its <code>web/</code> and it shows here within five seconds of its first request.</td></tr>
+          <tr><td colspan="10">{{template "suite-empty" (nothing "" "Nothing has shipped yet." "Deploy a site with the shipper in its web/ and it shows here within five seconds of its first request.")}}</td></tr>
           {{ end }}
         </tbody>
       </table>

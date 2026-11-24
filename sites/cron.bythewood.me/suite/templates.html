@@ -62,6 +62,16 @@
 {{template "suite-status" .}}
 {{end}}
 
+{{/* A list with nothing in it yet, from what nothing was given. */}}
+{{define "suite-empty"}}
+<div class="o-empty">
+  {{with .Label}}<span class="o-lab">{{.}}</span>{{end}}
+  <b>{{.Title}}</b>
+  {{with .Text}}<p>{{.}}</p>{{end}}
+  {{if .Href}}<a class="o-btn o-btn-p o-btn-sm" href="{{.Href}}">{{.Action}}</a>{{end}}
+</div>
+{{end}}
+
 {{/* The 404 every tool site shows, given the sentence that says what's missing. */}}
 {{define "suite-404"}}
 <div class="o-404">

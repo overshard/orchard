@@ -141,7 +141,7 @@
 <section class="o-panel flush">
   <div class="o-ph2"><h2>Recent calls</h2><span class="o-pm"><span>last 1h<b>{{printf "%.0f" (index .Day.CallsByHour 23)}} calls</b></span><span>cost<b>{{usd (index .Day.SpendByHour 23)}}</b></span><span>p95<b>{{secs (int64 (index .Day.P95ByHour 23))}}</b></span></span></div>
   {{if .Recent}}{{template "callrows" .Recent}}<div class="o-more"><a href="/calls">Every call &rarr;</a></div>
-  {{else}}<p class="o-empty"><b>No calls yet.</b>Make a key and point a client at the gateway.</p>{{end}}
+  {{else}}{{template "suite-empty" (nothing "" "No calls yet." "Point a client at the gateway with a key and its calls show here." "/keys" "Make a key")}}{{end}}
 </section>
 
 {{template "foot" .}}

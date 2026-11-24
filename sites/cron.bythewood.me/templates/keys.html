@@ -48,7 +48,7 @@
     </table>
     </div>
     {{else}}
-    <p class="o-empty"><b>No keys yet.</b>Make one for each thing that should reach the API, so one can be revoked without the rest.</p>
+    {{template "suite-empty" (nothing "" "No keys yet." "Make one for each thing that should reach the API, so one can be revoked without the rest.")}}
     {{end}}
   </section>
 </div>

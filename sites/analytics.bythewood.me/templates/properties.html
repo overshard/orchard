@@ -99,7 +99,7 @@
     {{ else if .Query }}
     <p class="o-empty"><b>Nothing matches {{ .Query }}.</b><a href="/properties" class="o-muted">Clear the filter</a></p>
     {{ else }}
-    <p class="o-empty"><b>Nothing collected yet.</b>Add a property above, then paste its tag into the site.</p>
+    {{template "suite-empty" (nothing "properties" "Nothing collected yet." "Add a property above, then paste its tag into the site.")}}
     {{ end }}
   </section>
 </main>

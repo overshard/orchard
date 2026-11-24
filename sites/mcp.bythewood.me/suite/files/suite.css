@@ -376,6 +376,9 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 
 .o-empty { padding: 22px 8px; color: var(--o-muted); font-size: 0.84rem; text-align: left; }
 .o-empty b { display: block; color: var(--o-text); font-weight: 600; margin-bottom: 2px; }
+.o-empty > .o-lab { display: block; margin-bottom: 6px; }
+.o-empty > p { margin: 0; max-width: 62ch; }
+.o-empty > .o-btn { margin-top: 12px; }
 .o-more { display: flex; justify-content: flex-end; padding: 8px; font-size: 0.78rem; }
 .o-body .o-more a { color: var(--o-muted); }
 .o-body .o-more a:hover { color: var(--o-brass); }

@@ -106,7 +106,7 @@
     {{ else if .Query }}
     <p class="o-empty"><b>Nothing matches {{ .Query }}.</b><a href="/properties" class="o-muted">Clear the filter</a></p>
     {{ else }}
-    <p class="o-empty"><b>Nothing watched yet.</b>Add a URL with New property and the first check runs within three minutes.</p>
+    {{template "suite-empty" (nothing "properties" "Nothing watched yet." "Add a URL with New property and the first check runs within three minutes.")}}
     {{ end }}
   </section>
 </main>

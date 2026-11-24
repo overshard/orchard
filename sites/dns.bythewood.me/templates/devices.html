@@ -25,7 +25,7 @@
           <td class="nw" data-l="14 days">{{$d := .}}<span class="o-ds" role="img" aria-label="{{.DaySum}}">{{range $i, $k := .Days}}<i class="{{$k}}" data-tip="{{index $d.DayTips $i}}"></i>{{end}}</span><span class="sub">{{.DaySum}}</span></td>
         </tr>
       {{else}}
-        <tr><td colspan="6"><p class="o-empty"><b>No devices.</b>Add one beside this, then follow its setup page.</p></td></tr>
+        <tr><td colspan="6">{{template "suite-empty" (nothing "" "No devices." "Add one beside this, then follow its setup page.")}}</td></tr>
       {{end}}
       </tbody>
     </table>

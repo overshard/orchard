@@ -34,7 +34,7 @@
       {{range .Items}}<a class="card" href="/jobs/{{.JobID}}"><span class="t">{{short .At}}</span><span class="n">{{.Name}}</span>{{if gt .Count 1}}<span class="o-muted">&times;{{.Count}}</span>{{end}}{{if .Snooze}}<span class="o-chip warn">snoozed</span>{{end}}{{if eq .Kind "prompt"}}<span class="o-chip {{if .Failing}}bad{{end}}">check</span>{{end}}</a>{{end}}
     </div>
     {{else}}
-    <p class="o-empty"><b>Nothing this month.</b>Add a reminder or a check and the days it fires show up here.</p>
+    {{template "suite-empty" (nothing "calendar" "Nothing this month." "Add a reminder or a check and the days it fires show up here." "/jobs/new" "New reminder")}}
     {{end}}
   </div>
   <p class="o-hint">Repeating jobs show on every day their schedule matches, past days too. Paused jobs are left off.</p>

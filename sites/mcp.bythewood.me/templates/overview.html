@@ -43,7 +43,7 @@
   <section class="o-panel flush">
     <div class="o-ph2"><h2>Recent calls</h2><span class="o-lab">last week &middot; newest first</span></div>
     {{if .Recent}}{{template "callrows" .Recent}}<div class="o-more"><a href="/calls">Every call &rarr;</a></div>
-    {{else}}<p class="o-empty"><b>No calls yet.</b>Add the connector to Claude and ask it something, it starts with orchard_brief.</p>{{end}}
+    {{else}}{{template "suite-empty" (nothing "" "No calls yet." "Add the connector to Claude and ask it something, it starts with orchard_brief." "/docs" "How to add it")}}{{end}}
   </section>
   <div class="side">
     <section class="o-panel">

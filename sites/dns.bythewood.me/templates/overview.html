@@ -82,7 +82,7 @@
   <section class="o-panel flush">
     <div class="o-ph2"><h2>Devices</h2><span class="o-pm"><span>lookups</span><span>blocked</span></span></div>
     {{range .Devices}}<div class="o-rw dv"{{if .Quiet}} data-tip="Quiet longer than a {{.Kind}} usually is, check it's still set up"{{end}}><span class="o-dot {{if .Quiet}}warn{{else if .Total}}ok{{else}}mute{{end}}"></span><a class="n" href="/devices/{{.ID}}">{{.Name}}</a><span class="m o-mono">{{if .LastProto}}{{.LastProto}} &middot; {{end}}{{ago .LastSeen}}</span><span class="o-mono v">{{comma .Total}}</span><span class="o-mono v o-muted">{{comma .Blocked}}</span></div>
-    {{else}}<p class="o-empty"><b>No devices.</b><a href="/devices#add">Add the first one</a> to get its DoT name and DoH URL.</p>{{end}}
+    {{else}}{{template "suite-empty" (nothing "" "No devices." "Each one gets a DoT name and a DoH URL of its own." "/devices#add" "Add the first one")}}{{end}}
   </section>
   </div>
 </div>

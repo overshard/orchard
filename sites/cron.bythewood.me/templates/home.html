@@ -147,7 +147,7 @@
   </div>
   <p class="o-hint jobhint"><span><kbd>j</kbd><kbd>k</kbd>move</span><span><kbd>enter</kbd>open</span><span><kbd>x</kbd>pick, then pause or resume</span><span><kbd>?</kbd>every key</span></p>
   {{else}}
-  <p class="o-empty"><b>Nothing scheduled.</b>A reminder pushes fixed text at a time, and a check asks the model to look something up and only pushes when it matters.</p>
+  {{template "suite-empty" (nothing "" "Nothing scheduled." "A reminder pushes fixed text at a time, and a check asks the model to look something up and only pushes when it matters." "/jobs/new" "New reminder")}}
   {{end}}
 </section>
 

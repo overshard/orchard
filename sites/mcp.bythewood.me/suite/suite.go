@@ -78,7 +78,21 @@ func Funcs() template.FuncMap {
 		"spark":      Spark,
 		"sparkT":     SparkT,
 		"tools":      func() []Tool { return Tools },
+		"nothing":    Nothing,
 	}
+}
+
+// Empty is what suite-empty draws where a list has nothing in it yet.
+type Empty struct{ Label, Title, Text, Href, Action string }
+
+// Nothing takes the label, the bold line and the sentence under it, then a
+// link and its words when there's one obvious thing to do.
+func Nothing(label, title, text string, action ...string) Empty {
+	e := Empty{Label: label, Title: title, Text: text}
+	if len(action) == 2 {
+		e.Href, e.Action = action[0], action[1]
+	}
+	return e
 }
 
 // Parse adds the shared templates, suite-top, suite-status, suite-foot and the

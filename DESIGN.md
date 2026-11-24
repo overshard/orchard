@@ -230,6 +230,12 @@ is the floor for any of them since the dense size is set in rem and doesn't
 shrink them for you. Caps are left for a state, like a chip, the STAGED tag and
 the status line's mode block.
 
+**An empty list** is `suite-empty`, given what `nothing` returns: a label only
+when no heading above already names the list, a bold line saying nothing is
+here, one sentence on what will show up, and one brass button when there's an
+obvious first thing to do. The smaller empty panels on a working page keep the
+bare `o-empty` line, which is the same two lines without the rest.
+
 **Links** are the text colour and brass on hover. One inside a paragraph, an
 empty state or a note also gets a thin brass underline, since colour alone
 doesn't set it apart from muted text. Chrome, tables and hbars keep bare links.
