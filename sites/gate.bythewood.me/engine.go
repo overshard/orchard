@@ -54,6 +54,8 @@ type engine struct {
 	bans    map[netip.Addr]Ban // keyed by banKey
 }
 
+const cloudflareASN = 13335
+
 type windowKey struct {
 	rule int64
 	ip   netip.Addr
@@ -325,7 +327,7 @@ func (e *engine) decide(q *req, r *http.Request) verdict {
 	} else {
 		e.stats.hit(q, out.rule, false)
 		if out.rule != nil && out.rule.BanAfter > 0 {
-			e.maybeBan(out.rule, q.IP, now)
+			e.maybeBan(out.rule, q, now)
 		}
 	}
 	return out
@@ -417,11 +419,16 @@ func (e *engine) over(rule *Rule, ip netip.Addr, now time.Time) bool {
 	return win.n > rule.Rate
 }
 
-// maybeBan counts a rule's hits from one address and bans it everywhere once
-// it passes the rule's ban after inside the window.
-func (e *engine) maybeBan(rule *Rule, ip netip.Addr, now time.Time) {
+// maybeBan counts hits from one address across every rule that bans, so a
+// prober can't stay under each limit by spreading its paths over several rules.
+func (e *engine) maybeBan(rule *Rule, q *req, now time.Time) {
+	// WARP and iCloud Private Relay share these addresses with real people.
+	if q.ASN == cloudflareASN {
+		return
+	}
+	ip := q.IP
 	e.mu.Lock()
-	k := windowKey{-rule.ID, banKey(ip)}
+	k := windowKey{0, banKey(ip)}
 	win := e.windows[k]
 	if win == nil || now.Sub(win.start) >= banWindow {
 		win = &window{start: now}

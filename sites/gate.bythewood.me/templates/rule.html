@@ -79,7 +79,7 @@
       <input type="text" name="message" value="{{.Rule.Message}}" maxlength="300">
     </label>
     <label class="o-field">
-      <span>Ban after <span class="hint">hits from one address in 10 minutes, 0 for never</span></span>
+      <span>Ban after <span class="hint">hits from one address in 10 minutes on any rule that bans, 0 for never</span></span>
       <input type="number" name="ban_after" min="0" max="1000" value="{{.Rule.BanAfter}}">
     </label>
     <label class="o-field">

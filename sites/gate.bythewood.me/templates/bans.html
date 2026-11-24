@@ -3,7 +3,7 @@
   <div>
     <span class="o-lab">gate &middot; bans</span>
     <h1>{{if .Bans}}{{count (len .Bans) "address" "addresses"}}, <em>{{comma .Refused}} refused</em> since they started.{{else}}No bans, <em>nobody refused everywhere</em>.{{end}}</h1>
-    <p>A rule with ban after set bans an address that keeps tripping it. A ban refuses that address on every host until it runs out, unless it's signed in. An IPv6 ban covers the address's whole /64.</p>
+    <p>A rule with ban after set bans an address that keeps tripping it. Hits on every rule that bans add up together, so spreading probes over several rules doesn't dodge it, and Cloudflare's own addresses are never banned since WARP and iCloud Private Relay share them. A ban refuses that address on every host until it runs out, unless it's signed in. An IPv6 ban covers the address's whole /64.</p>
   </div>
 </div>
 {{if .Error}}<div class="o-note bad"><span class="o-lab plain o-bad">not banned</span><span>{{.Error}}</span></div>{{end}}

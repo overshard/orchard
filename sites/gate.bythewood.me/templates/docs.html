@@ -45,7 +45,7 @@ not country is US</pre>
       <dt>limit</dt><dd>lets an address through so many times a minute, then answers 429</dd>
       <dt>challenge</dt><dd>sends the proof of work page unless the visitor already solved one on that host this week</dd>
     </dl>
-    <p class="small">A watching rule runs, counts and samples what it would have done, and doesn't act. Ban after counts one address's hits in ten minutes and bans it from every host for a while once it passes the number. On IPv6 a limit or a ban counts the whole /64 as one address. Keep out of the access log is for noise like scanners, which gate still counts here.</p>
+    <p class="small">A watching rule runs, counts and samples what it would have done, and doesn't act. Ban after counts one address's hits in ten minutes across every rule that bans, and bans it from every host for a while once it passes the number. On IPv6 a limit or a ban counts the whole /64 as one address, and Cloudflare's network (WARP and iCloud Private Relay) is never banned. Keep out of the access log is for noise like scanners, which gate still counts here.</p>
     <h3 class="sub">Who never sees a rule</h3>
     <ul class="steps">
       <li>Requests from inside orchard, loopback and the box's own public address, set on the settings page.</li>

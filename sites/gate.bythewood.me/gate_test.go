@@ -201,6 +201,41 @@ func TestBanAfter(t *testing.T) {
 	}
 }
 
+func TestBanCountsAcrossRules(t *testing.T) {
+	s := testSite(t)
+	for _, name := range []string{"scanners", "dotfiles"} {
+		r, _ := s.store.RuleNamed(name)
+		r.BanAfter, r.BanFor = 4, time.Hour
+		_ = s.store.UpdateRule(&r, "you")
+	}
+	_ = s.reload()
+	for _, p := range []string{"/wp-login.php", "/.env", "/xmlrpc.php"} {
+		ask(s, "GET", "blog.bythewood.me", p, stranger)
+	}
+	if w := ask(s, "GET", "pond.bythewood.me", "/", stranger); w.Code != 204 {
+		t.Fatalf("banned before the limit, %d", w.Code)
+	}
+	ask(s, "GET", "blog.bythewood.me", "/.git/config", stranger)
+	if w := ask(s, "GET", "pond.bythewood.me", "/", stranger); w.Code != 403 {
+		t.Fatalf("hits split over two rules didn't ban, %d", w.Code)
+	}
+}
+
+func TestNoBanOnCloudflare(t *testing.T) {
+	s := testSite(t)
+	r, _ := s.store.RuleNamed("scanners")
+	r.BanAfter, r.BanFor = 1, time.Hour
+	now := time.Now()
+	for _, asn := range []int{cloudflareASN, 64500} {
+		q := &req{IP: netip.MustParseAddr(stranger), ASN: asn}
+		s.engine.maybeBan(&r, q, now)
+		_, banned := s.engine.bans[banKey(q.IP)]
+		if banned != (asn != cloudflareASN) {
+			t.Fatalf("asn %d banned = %v", asn, banned)
+		}
+	}
+}
+
 func TestBanCoversTheSlash64(t *testing.T) {
 	s := testSite(t)
 	r, _ := s.store.RuleNamed("scanners")
