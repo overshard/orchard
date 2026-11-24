@@ -445,6 +445,14 @@ func TestSecurityPosture(t *testing.T) {
 		}
 	})
 
+	t.Run("a CDN's own name in Server is not the origin leaking", func(t *testing.T) {
+		v := &PropertyView{URL: "https://example.com"}
+		v.applySecurityPosture(headers(map[string]string{"server": "cloudflare"}))
+		if !v.HidesServerVersion {
+			t.Error("server: cloudflare failed the check, and no origin can remove it")
+		}
+	})
+
 	t.Run("a property with no checks yet is not reported as insecure HTTPS", func(t *testing.T) {
 		v := &PropertyView{URL: "https://example.com"}
 		v.applySecurityPosture(nil)

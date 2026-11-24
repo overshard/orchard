@@ -243,6 +243,11 @@ func (v *PropertyView) applySecurityPosture(recent []Check) {
 	// its exact version is naming which CVEs to try.
 	v.HidesServerVersion = true
 	for _, h := range []string{"server", "x-server", "powered-by", "x-powered-by"} {
+		// A CDN stamps its own name on every response and nothing behind it can
+		// take that off, so it says nothing about the origin.
+		if h == "server" && headers[h] == "cloudflare" {
+			continue
+		}
 		if _, ok := headers[h]; ok {
 			v.HidesServerVersion = false
 			break
