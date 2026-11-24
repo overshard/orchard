@@ -21,7 +21,8 @@ WORKDIR /src
 # bunfig.toml has to arrive before install runs, or install.peer = false
 # silently does nothing.
 COPY frontend/package.json frontend/bun.lock frontend/bunfig.toml ./
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
@@ -51,7 +52,9 @@ COPY --from=frontend /build/dist ./build/dist
 COPY --from=card /card.png ./build/dist/og/card.png
 # CGO off, since modernc.org/sqlite is SQLite transpiled to Go rather than bound
 # to it, so the binary is static and needs no libc.
-RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
     -o /app .
 
 FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad

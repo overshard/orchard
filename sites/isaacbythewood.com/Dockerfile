@@ -31,7 +31,8 @@ WORKDIR /src
 # bunfig.toml has to arrive before install runs, or install.peer = false
 # silently does nothing.
 COPY frontend/package.json frontend/bun.lock frontend/bunfig.toml ./
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 
 # PNG, not SVG, since no social platform accepts image/svg+xml for og:image.
 # Geist comes out of the bun install because @fontsource ships woff2 only and
@@ -74,7 +75,9 @@ COPY templates/ ./templates/
 COPY --from=frontend /build/dist ./build/dist
 # CGO off is what makes FROM scratch possible, and -tags embed is what makes the
 # image a single file.
-RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
     -o /app .
 
 FROM scratch

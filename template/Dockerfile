@@ -4,7 +4,8 @@
 FROM oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e AS frontend
 WORKDIR /src
 COPY frontend/package.json frontend/bun.lock ./
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
@@ -13,7 +14,8 @@ WORKDIR /src
 # The bracket glob makes go.sum optional, since a plain COPY go.sum fails the
 # build outright for a module with no third party dependency.
 COPY go.mod go.su[m] ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 COPY web/ ./web/
 COPY *.go ./
 COPY templates/ ./templates/
@@ -21,7 +23,9 @@ COPY templates/ ./templates/
 # before the compile below.
 COPY --from=frontend /build/dist ./build/dist
 # CGO off is what makes FROM scratch possible.
-RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
     -o /app .
 
 FROM scratch

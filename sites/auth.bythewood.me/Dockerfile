@@ -6,7 +6,8 @@ WORKDIR /src
 # bunfig.toml has to arrive before install runs, or install.peer = false
 # silently does nothing.
 COPY frontend/package.json frontend/bun.lock frontend/bunfig.toml ./
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
@@ -14,7 +15,8 @@ FROM golang:1.27-trixie@sha256:c47c3fda018d13d43a6bf5ebac3e5bba8a23a35782aa4faf5
 WORKDIR /src
 
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 COPY web/ ./web/
 COPY ntfy/ ./ntfy/
 COPY suite/ ./suite/
@@ -26,7 +28,9 @@ COPY --from=frontend /build/dist ./build/dist
 # CGO off, since modernc.org/sqlite is SQLite transpiled to Go rather than bound
 # to it, so the binary is static and needs no libc. It is also what makes FROM
 # scratch possible.
-RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
     -o /app .
 
 # The data directory is created here rather than at runtime, because a scratch

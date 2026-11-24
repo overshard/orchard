@@ -4,7 +4,8 @@
 FROM oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e AS frontend
 WORKDIR /src
 COPY frontend/package.json frontend/bun.lock ./
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
@@ -19,7 +20,9 @@ COPY templates/ ./templates/
 COPY --from=frontend /build/dist ./build/dist
 # CGO off, since modernc.org/sqlite is SQLite transpiled to Go rather than bound
 # to it, so the binary is static and needs no libc.
-RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" -o /app .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" -o /app .
 
 # debian, not scratch: the clone and push wire is git itself. `git http-backend`
 # is git's own CGI and has to be on disk to serve a single clone, and every page

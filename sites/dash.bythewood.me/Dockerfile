@@ -4,7 +4,8 @@
 FROM oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e AS frontend
 WORKDIR /src
 COPY frontend/package.json frontend/bun.lock ./
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
@@ -21,7 +22,9 @@ COPY templates/ ./templates/
 # -tags embed reads build/ at compile time, so the bundle has to land here
 # before the compile below.
 COPY --from=frontend /build/dist ./build/dist
-RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" -o /app .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" -o /app .
 
 # A scratch image cannot RUN mkdir, so the mountpoint has to arrive as a
 # directory copied from a stage that can. Docker seeds a fresh volume from the

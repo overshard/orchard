@@ -21,7 +21,8 @@ WORKDIR /src
 # bunfig.toml has to arrive before install runs, or install.peer = false
 # silently does nothing.
 COPY frontend/package.json frontend/bun.lock frontend/bunfig.toml ./
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
@@ -30,7 +31,8 @@ RUN bun run build
 FROM oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e AS maps
 WORKDIR /src
 COPY frontend/package.json frontend/bun.lock ./
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 COPY frontend/scripts/ ./scripts/
 RUN bun run scripts/build_maps.js
 
@@ -61,7 +63,9 @@ COPY --from=card /card.png ./build/dist/og/card.png
 COPY --from=maps /build/static_maps ./build/static_maps
 # CGO off, since modernc.org/sqlite is SQLite transpiled to Go rather than bound
 # to it, so the binary is static and needs no libc.
-RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
     -o /app .
 
 # debian, not scratch: this site execs typst on the request path and typst needs
