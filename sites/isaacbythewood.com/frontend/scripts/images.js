@@ -77,6 +77,17 @@ for (const file of originals) {
     count += 1;
     line += ` ${width}w ${kb(size)}`;
   }
+  if (name === spec.hero) {
+    // The home page shows the hero under a dark layer, so its lightbox width
+    // gets a second copy at the hero's quality.
+    const { size } = await encode(
+      sharp(join(poursSrc, file)).resize({ width: spec.lightboxWidth, withoutEnlargement: true }),
+      qualityFor(spec.heroWidth),
+    ).toFile(join(poursDst, `${name}-hero-${spec.lightboxWidth}.${spec.format}`));
+    total += size;
+    count += 1;
+    line += ` hero ${spec.lightboxWidth}w ${kb(size)}`;
+  }
   console.log(line);
 }
 

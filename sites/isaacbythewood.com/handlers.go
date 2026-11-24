@@ -185,9 +185,12 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	// The only page that holds the curtain, since it waits on the hero image.
 	data.LoaderWaits = true
 	// Full-bleed 100vw, so it's the one image with a HeroWidth candidate.
-	data.HeroSrc = pourURL(images.Hero, images.LightboxWidth)
-	data.HeroSrcset = pourSrcset(images.Hero,
-		images.CardWidths[len(images.CardWidths)-1], images.LightboxWidth, images.HeroWidth)
+	card := images.CardWidths[len(images.CardWidths)-1]
+	data.HeroSrc = heroURL()
+	data.HeroSrcset = template.Srcset(fmt.Sprintf("%s %dw, %s %dw, %s %dw",
+		pourURL(images.Hero, card), card,
+		heroURL(), images.LightboxWidth,
+		pourURL(images.Hero, images.HeroWidth), images.HeroWidth))
 	s.renderer.Render(w, http.StatusOK, "index.html", data)
 }
 

@@ -67,6 +67,12 @@ func pourSrcset(number string, widths ...int) template.Srcset {
 	return template.Srcset(strings.Join(parts, ", "))
 }
 
+// heroURL is the hero at the lightbox width, encoded at the hero's lower
+// quality since the home page shows it under a dark layer.
+func heroURL() string {
+	return fmt.Sprintf("/static/images/art/acrylic-pours/%s-hero-%d.%s", images.Hero, images.LightboxWidth, images.Format)
+}
+
 func avatarURL() string {
 	return fmt.Sprintf("/static/images/avatar.%s", images.Format)
 }
