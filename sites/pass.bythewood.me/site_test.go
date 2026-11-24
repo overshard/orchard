@@ -106,7 +106,7 @@ func testSite(t *testing.T, f *fixture) (*site, *fakePush) {
 	t.Helper()
 	verify := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie(web.SessionCookie); err == nil && c.Value == "good" {
-			_, _ = w.Write([]byte(`{"ok":true}`))
+			_, _ = w.Write([]byte(`{"ok":true,"sudo":true}`))
 			return
 		}
 		w.WriteHeader(http.StatusUnauthorized)
