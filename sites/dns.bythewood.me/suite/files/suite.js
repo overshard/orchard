@@ -48,6 +48,27 @@ if (toolTabs) {
   fade();
 }
 
+// On a phone the same row is a menu under one button.
+const toolBtn = document.querySelector(".o-toolbtn");
+if (toolBtn && toolTabs) {
+  const shut = (focus) => {
+    if (!toolTabs.classList.contains("open")) return;
+    toolTabs.classList.remove("open");
+    toolBtn.setAttribute("aria-expanded", "false");
+    if (focus) toolBtn.focus();
+  };
+  toolBtn.addEventListener("click", () => {
+    const open = toolTabs.classList.toggle("open");
+    toolBtn.setAttribute("aria-expanded", String(open));
+  });
+  addEventListener("keydown", (e) => {
+    if (e.key === "Escape") shut(true);
+  });
+  addEventListener("pointerdown", (e) => {
+    if (!toolBtn.contains(e.target) && !toolTabs.contains(e.target)) shut(false);
+  });
+}
+
 // The skip link lands on the page's main, which no site has to give an id.
 document.querySelector(".o-skip")?.addEventListener("click", (e) => {
   const main = document.querySelector("main");
@@ -536,6 +557,16 @@ const paint = (data) => {
     if (st.count && st.level && st.level !== "ok") m.append(String(st.count));
     a.append(m);
     a.title = st.note || "";
+  }
+  // The button carries the worst state, so trouble shows with the menu shut.
+  if (toolBtn) {
+    toolBtn.querySelector(".o-tst")?.remove();
+    const worst = data.tools.find((t) => t.level === "bad") || data.tools.find((t) => t.level === "warn");
+    if (worst) {
+      const m = el("span", `o-tst ${worst.level}`);
+      m.append(el("i"));
+      toolBtn.querySelector("span").after(m);
+    }
   }
   toolTabs?.dispatchEvent(new Event("scroll"));
 };

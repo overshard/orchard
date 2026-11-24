@@ -113,6 +113,33 @@
 .o-body .o-tools a.on { color: var(--o-brass); }
 .o-tools a.on::before { content: "["; color: var(--o-muted); margin-right: 1px; }
 .o-tools a.on::after { content: "]"; color: var(--o-muted); margin-left: 1px; }
+/* On a phone the tools fold into one button and a menu under the bar. Without
+   scripting the query is false and the row scrolls sideways as it does above. */
+.o-toolbtn { display: none; }
+@media (max-width: 700px) and (scripting: enabled) {
+  .o-bar { position: relative; }
+  .o-toolbtn {
+    display: flex; align-items: center; gap: 5px; flex: none;
+    padding: 0 12px; background: none; border: 0; cursor: pointer;
+    color: var(--o-brass); font: 500 0.8rem var(--o-sans);
+  }
+  .o-toolbtn::before { content: "["; color: var(--o-muted); margin-right: -4px; }
+  .o-toolbtn::after { content: "]"; color: var(--o-muted); margin-left: -4px; }
+  .o-toolbtn > i { font-style: normal; font-size: 0.7rem; color: var(--o-muted); }
+  .o-toolbtn .o-tst { margin-left: 0; }
+  .o-tools, .o-tools.more { display: none; -webkit-mask-image: none; mask-image: none; }
+  .o-tools.open {
+    display: flex; flex-direction: column; position: absolute; z-index: 50; top: 100%; left: 0; right: 0;
+    max-height: calc(100dvh - 56px); overflow-y: auto;
+    background: var(--o-panel); border-bottom: 1px solid var(--o-line-strong); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45);
+  }
+  .o-tools.open a {
+    justify-content: space-between; font-size: 0.9rem;
+    padding: 12px max(18px, env(safe-area-inset-right, 0px)) 12px max(18px, env(safe-area-inset-left, 0px));
+    border-top: 1px solid var(--o-line);
+  }
+  .o-tools.open a.on::before, .o-tools.open a.on::after { content: none; }
+}
 .o-account {
   display: grid; place-items: center; flex: none; align-self: center;
   width: 28px; height: 28px; margin: 0 12px;

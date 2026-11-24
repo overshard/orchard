@@ -35,8 +35,12 @@ blog and the portfolio are separate identities and nothing here applies to them.
   the page and no dashed borders. No background grid either.
 - **Two rows of header.** The first is the orchard mark and every tool as a tab,
   this one in `[brackets]` in brass, with the account on the right. On a phone
-  only the tools scroll, faded at the edge while there are more, so the
-  account, jump and Sign in never leave the screen. A skip link comes before
+  the tools fold into one bracketed button with this tool's name, which opens
+  a menu of every tool under the bar, and the button carries the worst state
+  dot so trouble shows with the menu shut. It closes on Escape and on a tap
+  outside. Without scripting the tools scroll sideways in place, faded at the
+  edge while there are more. Either way the account, jump and Sign in never
+  leave the screen. A skip link comes before
   it, hidden until it's focused, and lands on the page's `main`. The second
   is this tool's own pages and a mono line of what matters right now. Inside a
   repository on repos the second row is that repository's pages.

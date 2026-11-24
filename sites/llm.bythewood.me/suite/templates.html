@@ -17,7 +17,8 @@
 <header class="o-top">
   <div class="o-bar">
     <a class="o-brand" href="{{if .SignedIn}}https://auth.bythewood.me/{{else}}/{{end}}">{{template "suite-glyph"}}<span>orchard</span></a>
-    <nav class="o-tools" aria-label="Tools">
+    <button type="button" class="o-toolbtn" aria-expanded="false" aria-controls="o-tools" aria-label="Tools"><span>{{if .Tool}}{{.Tool}}{{else}}tools{{end}}</span><i aria-hidden="true">&#9662;</i></button>
+    <nav class="o-tools" id="o-tools" aria-label="Tools">
       {{- $tool := .Tool}}{{range tools}}
       <a href="{{.URL}}" data-tool="{{.Name}}"{{if eq .Name $tool}} class="on" aria-current="page"{{end}}>{{.Name}}</a>
       {{- end}}
