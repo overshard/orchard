@@ -92,12 +92,13 @@ func newNets(all []Net, ds []*Device, now time.Time) []Net {
 }
 
 // quietAfter is how long a device can go without asking before it looks like
-// it fell off the resolver. A phone asks all day, a computer can sleep a weekend.
+// it fell off the resolver. A phone asks all day, a computer can sit off for a
+// week of vacation.
 func quietAfter(kind string) time.Duration {
 	if kind == "phone" {
 		return 6 * time.Hour
 	}
-	return 72 * time.Hour
+	return 7 * 24 * time.Hour
 }
 
 func isQuiet(d *Device, now time.Time) bool {
