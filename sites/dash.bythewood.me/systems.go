@@ -58,6 +58,7 @@ var monitored = []Monitored{
 	{Label: "Cron", Source: "cron", Host: "cron.bythewood.me"},
 	{Label: "MCP", Source: "mcp", Host: "mcp.bythewood.me"},
 	{Label: "DNS", Source: "dns", Host: "dns.bythewood.me"},
+	{Label: "Gate", Source: "gate", Host: "gate.bythewood.me"},
 	{Label: "Pass", Source: "pass", Host: "pass.bythewood.me"},
 	// Vaultwarden itself, which the Bitwarden apps talk to and pass only reads.
 	{Label: "Vault", Source: "vaultwarden", Bridge: "http://orchard-pass:8000/vw/alive"},
