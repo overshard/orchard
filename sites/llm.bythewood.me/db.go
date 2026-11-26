@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/anthropics/anthropic-sdk-go/v2"
 	_ "modernc.org/sqlite"
 )
 
@@ -285,7 +284,7 @@ type Call struct {
 
 // addUsage takes one API response into the call. The prompt is the window the
 // last response read, while the split and the cost add up every response.
-func (c *Call) addUsage(u anthropic.Usage) {
+func (c *Call) addUsage(u apiUsage) {
 	c.PromptTok = promptTokens(u)
 	c.OutputTok += int(u.OutputTokens)
 	c.InTok += u.InputTokens
@@ -298,8 +297,8 @@ func (c *Call) addUsage(u anthropic.Usage) {
 
 // usage is the call as the API would have counted it. A call from before the
 // split was kept has its whole prompt counted as uncached input.
-func (c Call) usage() anthropic.Usage {
-	u := anthropic.Usage{InputTokens: c.InTok, CacheReadInputTokens: c.CacheRead,
+func (c Call) usage() apiUsage {
+	u := apiUsage{InputTokens: c.InTok, CacheReadInputTokens: c.CacheRead,
 		CacheCreationInputTokens: c.CacheWrite, OutputTokens: int64(c.OutputTok)}
 	if !c.recorded() {
 		u.InputTokens = int64(c.PromptTok)

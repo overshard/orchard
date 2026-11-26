@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/anthropics/anthropic-sdk-go/v2"
 )
 
 // searchSystem keeps the model to reporting what the results say, since the
@@ -58,31 +56,30 @@ func (s *site) search(w http.ResponseWriter, r *http.Request, k Key) {
 	}
 	defer func() { s.store.record(call, keep) }()
 
-	tool := anthropic.WebSearchTool20250305Param{MaxUses: anthropic.Int(1), AllowedDomains: req.Domains}
-	p := anthropic.MessageNewParams{
-		Model:     anthropic.Model(s.claude.model),
+	p := msgParams{
+		Model:     s.claude.model,
 		MaxTokens: 2048,
-		Thinking:  anthropic.ThinkingConfigParamUnion{OfDisabled: &anthropic.ThinkingConfigDisabledParam{}},
-		System:    []anthropic.TextBlockParam{{Text: searchSystem}},
-		Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(req.Query))},
-		Tools:     []anthropic.ToolUnionParam{{OfWebSearchTool20250305: &tool}},
+		Thinking:  map[string]string{"type": "disabled"},
+		System:    []textBlock{newText(searchSystem)},
+		Messages:  []message{{Role: "user", Content: []any{newText(req.Query)}}},
+		Tools:     []any{newWebSearch(1, req.Domains)},
 	}
-	var blocks []anthropic.ContentBlockUnion
+	var raw []json.RawMessage
 	for range maxPauses + 1 {
-		resp, err := s.claude.client.Messages.New(r.Context(), p)
+		resp, err := s.claude.newMessage(r.Context(), p)
 		if err != nil {
 			s.claudeFailed(w, err, &call)
 			return
 		}
-		blocks = append(blocks, resp.Content...)
+		raw = append(raw, resp.Content...)
 		call.addUsage(resp.Usage)
-		if resp.StopReason != anthropic.StopReasonPauseTurn {
+		if resp.StopReason != "pause_turn" {
 			break
 		}
-		p.Messages = append(p.Messages, resp.ToParam())
+		p.Messages = append(p.Messages, resp.toParam())
 	}
 
-	hits, failure := searchHits(blocks)
+	hits, failure := searchHits(readBlocks(raw))
 	if len(hits) == 0 {
 		msg := "the search found nothing"
 		if failure != "" {
@@ -102,7 +99,7 @@ func (s *site) search(w http.ResponseWriter, r *http.Request, k Key) {
 
 // searchHits reads the results in the order the engine ranked them and puts
 // each quoted passage under the result it came from.
-func searchHits(blocks []anthropic.ContentBlockUnion) ([]searchHit, string) {
+func searchHits(blocks []respBlock) ([]searchHit, string) {
 	var hits []searchHit
 	at := map[string]int{}
 	failure := ""
@@ -110,12 +107,21 @@ func searchHits(blocks []anthropic.ContentBlockUnion) ([]searchHit, string) {
 		if b.Type != "web_search_tool_result" {
 			continue
 		}
-		res := b.AsWebSearchToolResult().Content
-		if res.ErrorCode != "" {
-			failure = string(res.ErrorCode)
+		// A failed search's content is an error object instead of the list.
+		var results []struct {
+			URL     string `json:"url"`
+			Title   string `json:"title"`
+			PageAge string `json:"page_age"`
+		}
+		if json.Unmarshal(b.Content, &results) != nil {
+			var e struct {
+				ErrorCode string `json:"error_code"`
+			}
+			_ = json.Unmarshal(b.Content, &e)
+			failure = e.ErrorCode
 			continue
 		}
-		for _, h := range res.AsWebSearchResultBlockArray() {
+		for _, h := range results {
 			if _, seen := at[h.URL]; seen {
 				continue
 			}
@@ -127,7 +133,7 @@ func searchHits(blocks []anthropic.ContentBlockUnion) ([]searchHit, string) {
 		if b.Type != "text" {
 			continue
 		}
-		for _, c := range b.AsText().Citations {
+		for _, c := range b.Citations {
 			i, ok := at[c.URL]
 			if !ok || c.CitedText == "" || strings.Contains(hits[i].Snippet, c.CitedText) {
 				continue

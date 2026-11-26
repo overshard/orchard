@@ -8,8 +8,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/anthropics/anthropic-sdk-go/v2/option"
 )
 
 // fakeClaude answers every Messages call with the next of replies and keeps
@@ -39,8 +37,9 @@ func fakeClaude(t *testing.T, contentType string, replies ...string) (*site, str
 	t.Cleanup(up.Close)
 	store := testStore(t)
 	secret, _, _ := store.NewKey("chat")
-	s := &site{store: store, claude: newClaude("test", defaultClaudeModel,
-		option.WithBaseURL(up.URL), option.WithMaxRetries(0))}
+	c := newClaude("test", defaultClaudeModel)
+	c.baseURL, c.retries = up.URL, 0
+	s := &site{store: store, claude: c}
 	return s, secret, &sent
 }
 

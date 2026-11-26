@@ -8,12 +8,10 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/anthropics/anthropic-sdk-go/v2"
 )
 
 func TestThePartsAddUpToTheCost(t *testing.T) {
-	for _, u := range []anthropic.Usage{
+	for _, u := range []apiUsage{
 		{InputTokens: 333, CacheReadInputTokens: 7777, CacheCreationInputTokens: 1234, OutputTokens: 999},
 		{InputTokens: 150_000, OutputTokens: 3},
 		{InputTokens: 1, CacheCreationInputTokens: 3},
@@ -37,7 +35,7 @@ func TestACallsSpendPointsAtItsRow(t *testing.T) {
 		t.Fatalf("%v %+v", err, calls)
 	}
 	c := calls[0]
-	want := costMicros(anthropic.Usage{InputTokens: 10, CacheReadInputTokens: 90, OutputTokens: 5})
+	want := costMicros(apiUsage{InputTokens: 10, CacheReadInputTokens: 90, OutputTokens: 5})
 	if c.Cost != want || c.Estimated {
 		t.Errorf("cost %d estimated %v, want %d from the ledger", c.Cost, c.Estimated, want)
 	}
@@ -55,7 +53,7 @@ func TestAnOldCallIsPricedFromItsTokens(t *testing.T) {
 	s := testStore(t)
 	s.LogCall(Call{Caller: "dash", PromptTok: 2000, OutputTok: 100, Status: 200})
 	calls, _ := s.Calls("dash", 5)
-	want := costMicros(anthropic.Usage{InputTokens: 2000, OutputTokens: 100})
+	want := costMicros(apiUsage{InputTokens: 2000, OutputTokens: 100})
 	if len(calls) != 1 || !calls[0].Estimated || calls[0].Cost != want {
 		t.Errorf("got %+v, want an estimate of %d", calls, want)
 	}

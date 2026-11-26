@@ -11,8 +11,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/anthropics/anthropic-sdk-go/v2"
-
 	"llm.bythewood.me/ntfy"
 )
 
@@ -50,7 +48,7 @@ type costParts struct {
 	Search                         int64
 }
 
-func priceParts(u anthropic.Usage) costParts {
+func priceParts(u apiUsage) costParts {
 	in, out := int64(inMicros), int64(outMicros)
 	if u.InputTokens+u.CacheCreationInputTokens+u.CacheReadInputTokens > longPrompt {
 		in, out = longInMicros, longOutMicros
@@ -65,7 +63,7 @@ func (p costParts) micros() int64 {
 }
 
 // costMicros prices one API response.
-func costMicros(u anthropic.Usage) int64 { return priceParts(u).micros() }
+func costMicros(u apiUsage) int64 { return priceParts(u).micros() }
 
 // tokenSplit is what a call's prompt was made of, summed over every response
 // it took, which is what the bill counts.

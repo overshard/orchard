@@ -4,24 +4,22 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/anthropics/anthropic-sdk-go/v2"
 )
 
 func TestCostFollowsTheRateCards(t *testing.T) {
-	short := anthropic.Usage{InputTokens: 100_000, OutputTokens: 100_000}
+	short := apiUsage{InputTokens: 100_000, OutputTokens: 100_000}
 	if got := costMicros(short); got != 60_000 {
 		t.Errorf("a short prompt cost %d, want 60000", got)
 	}
-	cached := anthropic.Usage{InputTokens: 10_000, CacheReadInputTokens: 80_000, CacheCreationInputTokens: 8_000}
+	cached := apiUsage{InputTokens: 10_000, CacheReadInputTokens: 80_000, CacheCreationInputTokens: 8_000}
 	if got := costMicros(cached); got != 1000+800+1000 {
 		t.Errorf("cached cost %d, want 2800", got)
 	}
-	long := anthropic.Usage{InputTokens: 200_000, OutputTokens: 1000}
+	long := apiUsage{InputTokens: 200_000, OutputTokens: 1000}
 	if got := costMicros(long); got != 100_000+2500 {
 		t.Errorf("a long prompt cost %d, want 102500", got)
 	}
-	search := anthropic.Usage{}
+	search := apiUsage{}
 	search.ServerToolUse.WebSearchRequests = 2
 	if got := costMicros(search); got != 20_000 {
 		t.Errorf("two searches cost %d, want 20000", got)

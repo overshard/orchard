@@ -14,9 +14,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/anthropics/anthropic-sdk-go/v2"
-	"github.com/anthropics/anthropic-sdk-go/v2/option"
 )
 
 const defaultClaudeModel = "claude-haiku-5-5"
@@ -31,16 +28,6 @@ const maxTokensCeiling = 16384
 
 // A web search turn can pause partway and has to be sent back to carry on.
 const maxPauses = 4
-
-type claude struct {
-	client anthropic.Client
-	model  string
-}
-
-func newClaude(key, model string, opts ...option.RequestOption) *claude {
-	opts = append([]option.RequestOption{option.WithAPIKey(key)}, opts...)
-	return &claude{client: anthropic.NewClient(opts...), model: model}
-}
 
 // oaReq is the part of an OpenAI chat completion this translates. Sampling
 // fields are read and dropped, since Haiku 5.5 refuses any non default value.
@@ -92,14 +79,14 @@ var errBadRequest = errors.New("bad request")
 // params builds the Messages API call. Web search is offered beside the
 // caller's own tools when it isn't streaming, since a search can pause the turn
 // and only the plain path sends it back to finish.
-func (c *claude) params(req oaReq) (anthropic.MessageNewParams, error) {
-	p := anthropic.MessageNewParams{
-		Model:     anthropic.Model(c.model),
+func (c *claude) params(req oaReq) (msgParams, error) {
+	p := msgParams{
+		Model:     c.model,
 		MaxTokens: defaultMaxTokens,
 		// Every caller here asks for thinking off, and a thinking block can't
 		// survive the trip through the OpenAI shape and back.
-		Thinking:     anthropic.ThinkingConfigParamUnion{OfDisabled: &anthropic.ThinkingConfigDisabledParam{}},
-		CacheControl: anthropic.NewCacheControlEphemeralParam(),
+		Thinking:     map[string]string{"type": "disabled"},
+		CacheControl: ephemeral,
 	}
 	if req.MaxTokens > 0 {
 		p.MaxTokens = req.MaxTokens
@@ -113,7 +100,7 @@ func (c *claude) params(req oaReq) (anthropic.MessageNewParams, error) {
 		return p, fmt.Errorf("%w: no messages past the system prompt", errBadRequest)
 	}
 	if len(system) > 0 {
-		system[len(system)-1].CacheControl = anthropic.NewCacheControlEphemeralParam()
+		system[len(system)-1].CacheControl = ephemeral
 	}
 	p.System, p.Messages = system, msgs
 
@@ -122,30 +109,28 @@ func (c *claude) params(req oaReq) (anthropic.MessageNewParams, error) {
 		ownSearch := false
 		for _, t := range req.Tools {
 			ownSearch = ownSearch || t.Function.Name == "web_search"
-			tp := anthropic.ToolParam{Name: t.Function.Name, InputSchema: inputSchema(t.Function.Parameters)}
+			tp := map[string]any{"name": t.Function.Name, "input_schema": inputSchema(t.Function.Parameters)}
 			if t.Function.Description != "" {
-				tp.Description = anthropic.String(t.Function.Description)
+				tp["description"] = t.Function.Description
 			}
-			p.Tools = append(p.Tools, anthropic.ToolUnionParam{OfTool: &tp})
+			p.Tools = append(p.Tools, tp)
 		}
 		// The API refuses two tools with one name, so a caller with its own
 		// web_search keeps it.
 		if !req.Stream && !ownSearch {
-			p.Tools = append(p.Tools, anthropic.ToolUnionParam{OfWebSearchTool20250305: &anthropic.WebSearchTool20250305Param{
-				MaxUses: anthropic.Int(3),
-			}})
+			p.Tools = append(p.Tools, newWebSearch(3, nil))
 		}
 		switch choice {
 		case "required":
-			p.ToolChoice = anthropic.ToolChoiceUnionParam{OfAny: &anthropic.ToolChoiceAnyParam{}}
+			p.ToolChoice = map[string]string{"type": "any"}
 		case "auto", "":
 		default:
-			p.ToolChoice = anthropic.ToolChoiceParamOfTool(choice)
+			p.ToolChoice = map[string]string{"type": "tool", "name": choice}
 		}
 	}
 
 	if f := req.ResponseFormat; f != nil && f.Type == "json_schema" && f.JSONSchema != nil && f.JSONSchema.Schema != nil {
-		p.OutputConfig.Format = anthropic.JSONOutputFormatParam{Schema: strictSchema(f.JSONSchema.Schema)}
+		p.OutputConfig = map[string]any{"format": map[string]any{"type": "json_schema", "schema": strictSchema(f.JSONSchema.Schema)}}
 	}
 	return p, nil
 }
@@ -153,27 +138,18 @@ func (c *claude) params(req oaReq) (anthropic.MessageNewParams, error) {
 // translateMessages splits off the leading system prompt and folds the rest
 // into alternating turns, since the Messages API wants a tool's results in the
 // user turn after the call and consecutive turns from one side merged.
-func translateMessages(in []oaMsg) ([]anthropic.TextBlockParam, []anthropic.MessageParam) {
-	var system []anthropic.TextBlockParam
-	var out []anthropic.MessageParam
-	add := func(assistant bool, blocks ...anthropic.ContentBlockParamUnion) {
+func translateMessages(in []oaMsg) ([]textBlock, []message) {
+	var system []textBlock
+	var out []message
+	add := func(role string, blocks ...any) {
 		if len(blocks) == 0 {
 			return
 		}
-		if n := len(out); n > 0 {
-			if last := out[n-1]; assistant && last.OfAssistant != nil {
-				last.OfAssistant.Content = append(last.OfAssistant.Content, blocks...)
-				return
-			} else if !assistant && last.OfUser != nil {
-				last.OfUser.Content = append(last.OfUser.Content, blocks...)
-				return
-			}
+		if n := len(out); n > 0 && out[n-1].Role == role {
+			out[n-1].Content = append(out[n-1].Content, blocks...)
+			return
 		}
-		if assistant {
-			out = append(out, anthropic.NewAssistantMessage(blocks...))
-		} else {
-			out = append(out, anthropic.NewUserMessage(blocks...))
-		}
+		out = append(out, message{Role: role, Content: blocks})
 	}
 	for _, m := range in {
 		text := contentText(m.Content)
@@ -183,28 +159,28 @@ func translateMessages(in []oaMsg) ([]anthropic.TextBlockParam, []anthropic.Mess
 				continue
 			}
 			if len(out) == 0 {
-				system = append(system, anthropic.TextBlockParam{Text: text})
+				system = append(system, newText(text))
 				continue
 			}
-			out = append(out, anthropic.MessageParam{OfSystem: &anthropic.SystemMessageParam{
-				Content: []anthropic.TextBlockParam{{Text: text}}}})
+			out = append(out, message{Role: "system", Content: []any{newText(text)}})
 		case "assistant":
-			var blocks []anthropic.ContentBlockParamUnion
+			var blocks []any
 			if strings.TrimSpace(text) != "" {
-				blocks = append(blocks, anthropic.NewTextBlock(text))
+				blocks = append(blocks, newText(text))
 			}
 			for _, tc := range m.ToolCalls {
-				blocks = append(blocks, anthropic.NewToolUseBlock(toolID(tc.ID), toolInput(tc.Function.Arguments), tc.Function.Name))
+				blocks = append(blocks, toolUseBlock{Type: "tool_use", ID: toolID(tc.ID),
+					Name: tc.Function.Name, Input: toolInput(tc.Function.Arguments)})
 			}
-			add(true, blocks...)
+			add("assistant", blocks...)
 		case "tool":
 			if text == "" {
 				text = "(no output)"
 			}
-			add(false, anthropic.NewToolResultBlock(toolID(m.ToolCallID), text, false))
+			add("user", toolResultBlock{Type: "tool_result", ToolUseID: toolID(m.ToolCallID), Content: text})
 		default:
 			if strings.TrimSpace(text) != "" {
-				add(false, anthropic.NewTextBlock(text))
+				add("user", newText(text))
 			}
 		}
 	}
@@ -275,24 +251,14 @@ func toolChoice(raw json.RawMessage) string {
 	return ""
 }
 
-func inputSchema(p map[string]any) anthropic.ToolInputSchemaParam {
-	s := anthropic.ToolInputSchemaParam{Properties: p["properties"], ExtraFields: map[string]any{}}
-	if req, ok := p["required"].([]any); ok {
-		for _, r := range req {
-			if name, ok := r.(string); ok {
-				s.Required = append(s.Required, name)
-			}
-		}
+func inputSchema(p map[string]any) map[string]any {
+	s := maps.Clone(p)
+	if s == nil {
+		s = map[string]any{}
 	}
-	for k, v := range p {
-		switch k {
-		case "type", "properties", "required":
-		default:
-			s.ExtraFields[k] = v
-		}
-	}
-	if s.Properties == nil {
-		s.Properties = map[string]any{}
+	s["type"] = "object"
+	if s["properties"] == nil {
+		s["properties"] = map[string]any{}
 	}
 	return s
 }
@@ -339,13 +305,13 @@ func strictValue(v any) any {
 }
 
 // finishReason is the OpenAI spelling of why the model stopped.
-func finishReason(r anthropic.StopReason) string {
+func finishReason(r string) string {
 	switch r {
-	case anthropic.StopReasonToolUse:
+	case "tool_use":
 		return "tool_calls"
-	case anthropic.StopReasonMaxTokens, anthropic.StopReasonModelContextWindowExceeded:
+	case "max_tokens", "model_context_window_exceeded":
 		return "length"
-	case anthropic.StopReasonRefusal:
+	case "refusal":
 		return "content_filter"
 	}
 	return "stop"
@@ -353,14 +319,14 @@ func finishReason(r anthropic.StopReason) string {
 
 // logUsage keeps the cache split per call, since the cost alone can't show
 // whether the prompt cache is hitting.
-func logUsage(u anthropic.Usage) {
+func logUsage(u apiUsage) {
 	slog.Info("claude usage", "input", u.InputTokens, "cache_write", u.CacheCreationInputTokens,
 		"cache_read", u.CacheReadInputTokens, "output", u.OutputTokens)
 }
 
 // promptTokens is the whole window the model read, cached or not, which is what
 // the callers' meters mean by prompt.
-func promptTokens(u anthropic.Usage) int {
+func promptTokens(u apiUsage) int {
 	return int(u.InputTokens + u.CacheCreationInputTokens + u.CacheReadInputTokens)
 }
 
@@ -368,31 +334,32 @@ func promptTokens(u anthropic.Usage) int {
 type answer struct {
 	text    string
 	calls   []oaToolCall
-	stop    anthropic.StopReason
+	stop    string
 	refusal string
 	usage   Call
 }
 
 // complete runs one turn, sending it back while a web search has it paused.
-func (c *claude) complete(ctx context.Context, p anthropic.MessageNewParams) (answer, error) {
-	var blocks []anthropic.ContentBlockUnion
+func (c *claude) complete(ctx context.Context, p msgParams) (answer, error) {
+	var raw []json.RawMessage
 	var a answer
 	for range maxPauses + 1 {
-		resp, err := c.client.Messages.New(ctx, p)
+		resp, err := c.newMessage(ctx, p)
 		if err != nil {
 			return a, err
 		}
-		blocks = append(blocks, resp.Content...)
+		raw = append(raw, resp.Content...)
 		a.usage.addUsage(resp.Usage)
 		a.stop = resp.StopReason
-		if resp.StopReason == anthropic.StopReasonRefusal {
-			a.refusal = string(resp.StopDetails.Category)
+		if resp.StopReason == "refusal" {
+			a.refusal = resp.StopDetails.Category
 		}
-		if resp.StopReason != anthropic.StopReasonPauseTurn {
+		if resp.StopReason != "pause_turn" {
 			break
 		}
-		p.Messages = append(p.Messages, resp.ToParam())
+		p.Messages = append(p.Messages, resp.toParam())
 	}
+	blocks := readBlocks(raw)
 
 	// The text before a search is the model saying it's going to look, so the
 	// answer is what it wrote after the last results came back.
@@ -404,15 +371,15 @@ func (c *claude) complete(ctx context.Context, p anthropic.MessageNewParams) (an
 	}
 	var text strings.Builder
 	for i, b := range blocks {
-		switch v := b.AsAny().(type) {
-		case anthropic.TextBlock:
+		switch b.Type {
+		case "text":
 			if i >= start {
-				text.WriteString(v.Text)
+				text.WriteString(b.Text)
 			}
-		case anthropic.ToolUseBlock:
-			tc := oaToolCall{ID: v.ID, Type: "function"}
-			tc.Function.Name = v.Name
-			tc.Function.Arguments = v.JSON.Input.Raw()
+		case "tool_use":
+			tc := oaToolCall{ID: b.ID, Type: "function"}
+			tc.Function.Name = b.Name
+			tc.Function.Arguments = string(b.Input)
 			a.calls = append(a.calls, tc)
 		}
 	}
@@ -460,7 +427,7 @@ func (s *site) viaClaude(w http.ResponseWriter, r *http.Request, body []byte, ca
 		call.Tools = strings.TrimSpace(call.Tools + fmt.Sprintf(", %d web searches", a.usage.Searches))
 		call.Tools = strings.TrimPrefix(call.Tools, ", ")
 	}
-	if a.stop == anthropic.StopReasonRefusal {
+	if a.stop == "refusal" {
 		refused(w, a.refusal, call)
 		return
 	}
@@ -482,9 +449,7 @@ func (s *site) viaClaude(w http.ResponseWriter, r *http.Request, body []byte, ca
 
 // claudeStream relays a streamed answer as OpenAI chunks. Headers wait for the
 // first event, so a call the API turns away still gets a real status.
-func (s *site) claudeStream(w http.ResponseWriter, r *http.Request, p anthropic.MessageNewParams, call *Call) {
-	stream := s.claude.client.Messages.NewStreaming(r.Context(), p)
-	defer stream.Close()
+func (s *site) claudeStream(w http.ResponseWriter, r *http.Request, p msgParams, call *Call) {
 	rc := http.NewResponseController(w)
 	created := time.Now().Unix()
 	started := false
@@ -505,47 +470,46 @@ func (s *site) claudeStream(w http.ResponseWriter, r *http.Request, p anthropic.
 		_ = rc.Flush()
 	}
 
-	var msg anthropic.Message
+	var msg streamed
 	var text strings.Builder
 	var calls []*oaToolCall
 	toolAt := map[int64]int{}
 	var first time.Time
-	for stream.Next() {
-		ev := stream.Current()
-		_ = msg.Accumulate(ev)
-		switch v := ev.AsAny().(type) {
-		case anthropic.MessageStartEvent:
+	err := s.claude.stream(r.Context(), p, func(ev streamEvent) {
+		msg.add(ev)
+		switch ev.Type {
+		case "message_start":
 			send(map[string]any{"role": "assistant", "content": ""}, nil, nil)
-		case anthropic.ContentBlockStartEvent:
-			if v.ContentBlock.Type == "tool_use" {
+		case "content_block_start":
+			if ev.ContentBlock.Type == "tool_use" {
 				i := len(calls)
-				toolAt[v.Index] = i
-				tc := &oaToolCall{Index: &i, ID: v.ContentBlock.ID, Type: "function"}
-				tc.Function.Name = v.ContentBlock.Name
+				toolAt[ev.Index] = i
+				tc := &oaToolCall{Index: &i, ID: ev.ContentBlock.ID, Type: "function"}
+				tc.Function.Name = ev.ContentBlock.Name
 				calls = append(calls, tc)
 				send(map[string]any{"tool_calls": []*oaToolCall{tc}}, nil, nil)
 			}
-		case anthropic.ContentBlockDeltaEvent:
+		case "content_block_delta":
 			if first.IsZero() {
 				first = time.Now()
 			}
-			switch d := v.Delta.AsAny().(type) {
-			case anthropic.TextDelta:
-				text.WriteString(d.Text)
-				send(map[string]any{"content": d.Text}, nil, nil)
-			case anthropic.InputJSONDelta:
-				i, ok := toolAt[v.Index]
+			switch ev.Delta.Type {
+			case "text_delta":
+				text.WriteString(ev.Delta.Text)
+				send(map[string]any{"content": ev.Delta.Text}, nil, nil)
+			case "input_json_delta":
+				i, ok := toolAt[ev.Index]
 				if !ok {
-					continue
+					return
 				}
-				calls[i].Function.Arguments += d.PartialJSON
+				calls[i].Function.Arguments += ev.Delta.PartialJSON
 				frag := oaToolCall{Index: &i}
-				frag.Function.Arguments = d.PartialJSON
+				frag.Function.Arguments = ev.Delta.PartialJSON
 				send(map[string]any{"tool_calls": []oaToolCall{frag}}, nil, nil)
 			}
 		}
-	}
-	if err := stream.Err(); err != nil {
+	})
+	if err != nil {
 		if !started {
 			s.claudeFailed(w, err, call)
 			return
@@ -556,7 +520,7 @@ func (s *site) claudeStream(w http.ResponseWriter, r *http.Request, p anthropic.
 		call.Status = http.StatusOK
 	}
 
-	call.addUsage(msg.Usage)
+	call.addUsage(msg.usage)
 	if !first.IsZero() && !call.started.IsZero() {
 		call.FirstMS = first.Sub(call.started).Milliseconds()
 	}
@@ -569,10 +533,10 @@ func (s *site) claudeStream(w http.ResponseWriter, r *http.Request, p anthropic.
 	if call.Completion == "" && len(calls) > 0 {
 		call.Completion = "[tool calls: " + string(mustJSON(calls)) + "]"
 	}
-	if msg.StopReason == anthropic.StopReasonRefusal {
-		call.Err = "refusal: " + string(msg.StopDetails.Category)
+	if msg.stopReason == "refusal" {
+		call.Err = "refusal: " + msg.category
 	}
-	send(map[string]any{}, finishReason(msg.StopReason), nil)
+	send(map[string]any{}, finishReason(msg.stopReason), nil)
 	send(nil, nil, map[string]any{
 		"usage": map[string]int{"prompt_tokens": call.PromptTok, "completion_tokens": call.OutputTok,
 			"total_tokens": call.PromptTok + call.OutputTok},
@@ -587,16 +551,8 @@ func (s *site) claudeStream(w http.ResponseWriter, r *http.Request, p anthropic.
 // callers already read.
 func (s *site) claudeFailed(w http.ResponseWriter, err error, call *Call) {
 	status, msg := http.StatusBadGateway, err.Error()
-	if apiErr, ok := errors.AsType[*anthropic.Error](err); ok {
-		status = apiErr.StatusCode
-		var body struct {
-			Error struct {
-				Message string `json:"message"`
-			} `json:"error"`
-		}
-		if json.Unmarshal([]byte(apiErr.RawJSON()), &body) == nil && body.Error.Message != "" {
-			msg = body.Error.Message
-		}
+	if apiErr, ok := errors.AsType[*apiError](err); ok {
+		status, msg = apiErr.status, apiErr.msg
 	}
 	call.Status, call.Err = status, msg
 	slog.Error("claude refused a call", "status", status, "caller", call.Caller, "reason", msg)
