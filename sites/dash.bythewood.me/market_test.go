@@ -594,7 +594,7 @@ func TestIndexCardStitchesTheFutureAndCashWithoutAStep(t *testing.T) {
 			Closes: append(futCloses, monCloses...), Times: append(futTimes, monTimes...)},
 	}
 
-	rows := resolveRows(quotes, false, now)
+	rows := resolveRows(quotes, false, now, equityDay(now))
 	r := rows[0]
 	if r.symbol != "^GSPC" {
 		t.Fatalf("the session card is %q, want the cash index", r.symbol)
@@ -648,4 +648,31 @@ func ending(end time.Time, n int) []int64 {
 		out[i] = end.Add(-time.Duration(n-1-i) * 5 * time.Minute).Unix()
 	}
 	return out
+}
+
+// On a holiday the cash index's last print is the session before, so the index
+// cards draw that session instead of an empty day.
+func TestIndexCardHoldsTheLastSessionOnAHoliday(t *testing.T) {
+	et := easternTime()
+	wed := func(h, m int) time.Time { return time.Date(2026, 11, 25, h, m, 0, 0, et) }
+
+	tueCloses, tueTimes := bars(time.Date(2026, 11, 24, 15, 0, 0, 0, et), time.Date(2026, 11, 24, 16, 5, 0, 0, et), 100, 0)
+	futCloses, futTimes := bars(wed(4, 0), wed(20, 0), 100, 0.01)
+	cashCloses, cashTimes := bars(wed(9, 30), wed(15, 55), 50, 0.01)
+
+	quotes := map[string]Quote{
+		"^GSPC": {Symbol: "^GSPC", Price: 51, Previous: 50, AsOf: wed(16, 0), Closes: cashCloses, Times: cashTimes},
+		"ES=F": {Symbol: "ES=F", Price: 103, AsOf: wed(20, 0),
+			Closes: append(tueCloses, futCloses...), Times: append(tueTimes, futTimes...)},
+	}
+
+	for _, clock := range []string{"2026-11-26 11:45", "2026-11-26 17:00", "2026-11-26 22:00"} {
+		m := buildMarket(quotes, at(t, clock))
+		if m.Session != "closed" {
+			t.Errorf("%s: session %q, want closed", clock, m.Session)
+		}
+		if c := m.Cards[0]; c.Spark.Points < sparkFloor {
+			t.Errorf("%s: the S&P card drew %d points, want Wednesday's day", clock, c.Spark.Points)
+		}
+	}
 }

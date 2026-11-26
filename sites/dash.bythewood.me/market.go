@@ -338,12 +338,12 @@ func (r stripRow) axisOr(strip tradingAxis) tradingAxis {
 // resolveRows picks each card's symbol and puts its bars on the New York day,
 // 4am to 8pm. The previous close is read before trimming, since it's the print
 // before the day.
-func resolveRows(quotes map[string]Quote, useFutures bool, now time.Time) []stripRow {
+func resolveRows(quotes map[string]Quote, useFutures bool, now, day time.Time) []stripRow {
 	rows := make([]stripRow, 0, len(instruments))
 
 	for _, in := range instruments {
 		if in.Future != "" {
-			rows = append(rows, indexRow(in, quotes, useFutures, now))
+			rows = append(rows, indexRow(in, quotes, useFutures, now, day))
 			continue
 		}
 
@@ -382,10 +382,10 @@ func resolveRows(quotes map[string]Quote, useFutures bool, now time.Time) []stri
 // indexRow is a card with a future behind it. Its line is the stitched day and
 // its figure is the cash index during the session and the future outside it,
 // held at 8pm through the night.
-func indexRow(in Instrument, quotes map[string]Quote, useFutures bool, now time.Time) stripRow {
+func indexRow(in Instrument, quotes map[string]Quote, useFutures bool, now, day time.Time) stripRow {
 	r := stripRow{in: in, symbol: in.Cash}
 	cash, fut := quotes[in.Cash], quotes[in.Future]
-	axis := dayAxis(equityDay(now))
+	axis := dayAxis(day)
 
 	futBase, futFound := previousSessionClose(fut.Closes, fut.Times, weekdayBell(time.Unix(axis.start, 0)))
 	if !futFound {
@@ -487,9 +487,23 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 		}
 	}
 
+	// A cash index whose last print is from before today's open, half an hour
+	// in, means today is a holiday, so the index cards hold the last session the
+	// way they hold Friday over a weekend instead of drawing an empty day.
+	day := equityDay(now)
+	if q, ok := quotes["^GSPC"]; ok && !q.AsOf.IsZero() {
+		open := time.Unix(dayAxis(day).open, 0)
+		if now.Sub(open) > 30*time.Minute && q.AsOf.Before(open) {
+			day = dayStart(q.AsOf)
+			if session == "regular" || session == "post" {
+				session, phase = "closed", "Holiday or halted"
+			}
+		}
+	}
+
 	useFutures := session != "regular"
 
-	rows := resolveRows(quotes, useFutures, now)
+	rows := resolveRows(quotes, useFutures, now, day)
 	axis := stripAxis(rows)
 	live := stripLive(rows)
 
