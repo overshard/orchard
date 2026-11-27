@@ -71,7 +71,9 @@ func (s *site) collect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
+	// sendBeacon fires as the page unloads, so the visitor is often gone before
+	// the insert runs and the event would be dropped with their request.
+	ctx := context.WithoutCancel(r.Context())
 
 	// An unknown id answers 404, the only signal that a snippet was pasted with
 	// the wrong one.
