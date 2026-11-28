@@ -652,9 +652,10 @@ frog-check:
 	@echo "frog.js and guest.js copies match"
 
 # Reports stdlib issues against the local toolchain too, so an old Go in webdev
-# shows up here until taproot's GO_VERSION is bumped.
+# shows up here until taproot's GO_VERSION is bumped. The memory limit keeps
+# repos' scan under the claude container's 2g cap.
 vuln:
-	for s in $(SITES); do echo "vuln $$s"; (cd sites/$$s && go run $(GOVULNCHECK) ./...) || exit 1; done
+	for s in $(SITES); do echo "vuln $$s"; (cd sites/$$s && GOMEMLIMIT=900MiB GOGC=50 go run $(GOVULNCHECK) ./...) || exit 1; done
 
 # Bumps each site's direct modules together so the sites don't drift apart.
 # Indirect ones move only as far as a direct one asks.
